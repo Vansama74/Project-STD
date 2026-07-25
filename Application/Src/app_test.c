@@ -22,8 +22,8 @@ void app_test_pixel_scan(void)
     for (;;) {
         for (int i = 0; i < (int)dsp->buffer_size; i++) {
             dev_display_set_pixel(dsp,
-                                  i % dsp->screen_rows, /* 逐列 x */
-                                  i / dsp->screen_rows, /* 逐行 y */
+                                  i % dsp->screen_rows, /* 逐行 x */
+                                  i / dsp->screen_rows, /* 逐列 y */
                                   COLOR_GREEN);
             osDelay(50);
             dev_display_set_pixel(dsp,
