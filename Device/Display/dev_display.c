@@ -18,9 +18,11 @@ static osEventFlagsId_t s_scan_evt;
 static dev_display_t *s_active_display;
 
 /* ---- 实例注册（由派生模组的 hw_dev_initcall 调用）---- */
-void dev_display_register(dev_display_t *dev) { s_active_display = dev; }
+void dev_display_register(dev_display_t *dev)
+{ s_active_display = dev; }
 
-dev_display_t *dev_display_get(void) { return s_active_display; }
+dev_display_t *dev_display_get(void)
+{ return s_active_display; }
 
 /* ---- TIM 周期回调（前向声明，实现在文件末尾）---- */
 static void _on_tim3_period(void);
@@ -29,10 +31,11 @@ static void _on_tim4_period(void);
 /* ---- 硬件初始化（所有模组通用）---- */
 void dev_display_init(void)
 {
-    pl_tim_dbg_freeze(pl_tim_get_handle(PL_TIM3));
+    // pl_tim_dbg_freeze(pl_tim_get_handle(PL_TIM3));
     pl_tim_dbg_freeze(pl_tim_get_handle(PL_TIM4));
     pl_hub75_init();
-    pl_tim_register_period_cb(PL_TIM3, _on_tim3_period);
+    pl_tim_start_it(pl_tim_get_handle(PL_TIM4));
+    // pl_tim_register_period_cb(PL_TIM3, _on_tim3_period);
     pl_tim_register_period_cb(PL_TIM4, _on_tim4_period);
 }
 hw_dev_initcall(dev_display_init);
@@ -89,7 +92,7 @@ void dev_display_start(void)
     };
     osThreadNew(scan_task, dev, &attr);
 }
-sw_dev_initcall(dev_display_start);
+// sw_dev_initcall(dev_display_start);
 
 /* ---- 通用像素操作 ---- */
 void dev_display_set_pixel(dev_display_t *dev, uint16_t x, uint16_t y, display_color_t color)
@@ -142,6 +145,7 @@ static void _on_tim4_period(void)
     dev_display_t *dev = dev_display_get();
     static uint8_t pwm_cnt;
 
-    pl_hub75_oe_set(pwm_cnt >= dev->light_level);
+    // pl_hub75_oe_set(pwm_cnt >= dev->light_level);
+    pl_hub75_oe_set(pwm_cnt >= 1);
     pwm_cnt = (pwm_cnt + 1) & 7;
 }

@@ -84,22 +84,59 @@ void app_test_io_output(void)
 
 void app_test_led_mapping(void)
 {
-    dev_display_t *dsp = dev_display_p20_get();
+    // dev_display_t *dsp = dev_display_p20_get();
 
-    /* 清空 hub75_buff，确保 prepare 不会覆盖（dirty=false） */
-    memset(dsp->hub75_buff, 0, dsp->buffer_size);
-    dsp->dirty = false;
+    // memset(dsp->hub75_buff, 0, dsp->buffer_size);
+    // dsp->dirty = false;
 
-    for (uint8_t ch = 0; ch < dsp->total_channels; ch++) {
-        for (uint16_t px = 0; px < dsp->channel_pixels; px++) {
-            uint16_t pos = px + ch * dsp->channel_pixels; /* hub75_buff 线性位置 */
+    // for (uint8_t ch = 0; ch < dsp->total_channels; ch++) {
+    // for (uint16_t px = 0; px < dsp->channel_pixels; px++) {
+    //     // uint16_t pos = px + ch * dsp->channel_pixels; /* hub75_buff 线性位置 */
+    //     uint16_t pos = px;
 
-            /* 点亮当前像素（红色醒目） */
-            dsp->hub75_buff[pos] = COLOR_RED;
-            osDelay(200);
+    //     /* 点亮当前像素（红色醒目） */
+    //     dsp->hub75_buff[pos] = COLOR_RED;
+    //     osDelay(1000);
+    // }
+    /* 通道切换停顿，方便标记 */
+    // osDelay(500);
+    // }
+    int16_t max_point = 24 * 8;
+    HUB75_A           = 0;
+    HUB75_B           = 0;
+    HUB75_C           = 0;
+    HUB75_D           = 0;
+    HUB75_LAT         = 0;
+    HUB75_CLK         = 0;
+    HUB75_OE          = 1;
+
+    // for (int16_t px = 0; px < max_point; px++) {
+    for (;;) {
+        HUB75_R1_GPIO_Port->BSRR |= HUB75_R1_Pin << 16;
+        for (int16_t px = 0; px < max_point; px++) {
+            HUB75_CLK = 1;
+            for (uint8_t i = 0; i < 8; i++)
+                __NOP();
+            HUB75_CLK = 0;
+            for (uint8_t i = 0; i < 8; i++)
+                __NOP();
         }
-        /* 通道切换停顿，方便标记 */
-        osDelay(500);
+
+        HUB75_R1_GPIO_Port->BSRR |= HUB75_R1_Pin;
+        for (int16_t px = 0; px < max_point; px++) {
+            HUB75_CLK = 1;
+            for (uint8_t i = 0; i < 8; i++)
+                __NOP();
+            HUB75_CLK = 0;
+            for (uint8_t i = 0; i < 8; i++)
+                __NOP();
+            HUB75_LAT = 1;
+            for (uint8_t i = 0; i < 8; i++)
+                __NOP();
+            HUB75_LAT = 0;
+
+            osDelay(500);
+        }
     }
 
     for (;;); // 暂停运行
@@ -111,8 +148,8 @@ void app_test_led_mapping(void)
 
 void app_test_run(void)
 {
-    // app_test_led_mapping(); /* 新模组灯序确认时启用 */
+    app_test_led_mapping(); /* 新模组灯序确认时启用 */
     // app_test_pixel_scan();
-    app_test_render_text();
+    // app_test_render_text();
     // app_test_io_output();
 }
