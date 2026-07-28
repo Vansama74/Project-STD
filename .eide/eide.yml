@@ -251,6 +251,7 @@ virtualFolder:
           files:
             - path: Device/Display/dev_display.c
             - path: Device/Display/dev_display_p20.c
+            - path: Device/Display/dev_display_old_p20.c
           folders: []
     - name: Platform
       files:
@@ -336,6 +337,7 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
+      - <virtual_root>/Device/Display/dev_display_p20.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -354,7 +356,7 @@ targets:
             language-cpp: c++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-debug
+            optimization: level-0
             warnings: all-warnings
           global:
             $float-abi-type: hard
@@ -433,7 +435,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: JLink
+    uploader: probe-rs
   Release:
     cppPreprocessAttrs:
       defineList:
