@@ -45,6 +45,7 @@ virtualFolder:
               files:
                 - path: Application/Src/LDI/app_ldi.c
                 - path: Application/Src/LDI/app_ldi_cmd.c
+                - path: Application/Src/LDI/app_ldi_device.c
                 - path: Application/Src/LDI/app_vms_ctrl.c
                 - path: Application/Src/LDI/app_ldi_cfg.c
               folders: []
@@ -250,7 +251,9 @@ virtualFolder:
         - name: Display
           files:
             - path: Device/Display/dev_display.c
-            - path: Device/Display/dev_display_p20.c
+            - path: Device/Display/dev_display_1_969.c
+            - path: Device/Display/dev_display_1_577.c
+            - path: Device/Display/dev_display_1_260.c
           folders: []
     - name: Platform
       files:
@@ -336,6 +339,8 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
+      - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Device/Display/dev_display_1_969.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -354,7 +359,7 @@ targets:
             language-cpp: c++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-debug
+            optimization: level-3
             warnings: all-warnings
           global:
             $float-abi-type: hard
@@ -415,11 +420,11 @@ targets:
         baseAddr: ""
         bin: ""
         cpuInfo:
-          cpuName: "null"
-          vendor: "null"
+          cpuName: STM32F407ZG
+          vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 8000
+        speed: 32000
       OpenOCD:
         baseAddr: "0x08000000"
         bin: ""
@@ -433,7 +438,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: Custom
+    uploader: JLink
   Release:
     cppPreprocessAttrs:
       defineList:
