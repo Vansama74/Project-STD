@@ -221,7 +221,7 @@ void app_test_run(void)
     // app_test_prepare_mapping();   /* 逐行点亮像素，测试 prepare 映射是否正确 */
     // app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
     // app_test_render_text();       /* 渲染文字"车道关闭"，测试字库读取和文字渲染功能 */
-    // app_test_scan_line_order(); /* 逐行点亮水平线，测试 1/8 扫描的行地址映射顺序 */
+    // app_test_scan_line_order();   /* 逐行点亮水平线，测试 1/8 扫描的行地址映射顺序 */
     // app_test_diagonal();          /* 画对角线，测试整体坐标映射是否正确（直线=正确） */
     // app_test_io_output();         /* 依次点亮车道灯和黄闪灯各 1 秒，测试 IO 输出功能 */
 }

@@ -147,40 +147,13 @@ static inline void _1_969_scan(dev_display_t *dev, uint8_t line)
 
     for (uint16_t pixel = 0; pixel < scan_line_pixels; pixel++, base++) {
         const uint8_t *channel_ptr = base;
-        const uint8_t color0 = channel_ptr[0];
-        const uint8_t color1 = channel_ptr[channel_pixels];
-        const uint8_t color2 = channel_ptr[(uint16_t)channel_pixels * 2U];
-        const uint8_t color3 = channel_ptr[(uint16_t)channel_pixels * 3U];
-        const uint8_t color4 = channel_ptr[(uint16_t)channel_pixels * 4U];
-        const uint8_t color5 = channel_ptr[(uint16_t)channel_pixels * 5U];
-
-        const _1_969_bsrr_t *entry0 = &bsrr[0][color0];
-        const _1_969_bsrr_t *entry1 = &bsrr[1][color1];
-        const _1_969_bsrr_t *entry2 = &bsrr[2][color2];
-        const _1_969_bsrr_t *entry3 = &bsrr[3][color3];
-        const _1_969_bsrr_t *entry4 = &bsrr[4][color4];
-        const _1_969_bsrr_t *entry5 = &bsrr[5][color5];
-
-        pl_hub75_bsrr_flush(&entry0->r);
-        pl_hub75_bsrr_flush(&entry0->g);
-        pl_hub75_bsrr_flush(&entry0->b);
-        pl_hub75_bsrr_flush(&entry1->r);
-        pl_hub75_bsrr_flush(&entry1->g);
-        pl_hub75_bsrr_flush(&entry1->b);
-        pl_hub75_bsrr_flush(&entry2->r);
-        pl_hub75_bsrr_flush(&entry2->g);
-        pl_hub75_bsrr_flush(&entry2->b);
-        pl_hub75_bsrr_flush(&entry3->r);
-        pl_hub75_bsrr_flush(&entry3->g);
-        pl_hub75_bsrr_flush(&entry3->b);
-        pl_hub75_bsrr_flush(&entry4->r);
-        pl_hub75_bsrr_flush(&entry4->g);
-        pl_hub75_bsrr_flush(&entry4->b);
-        pl_hub75_bsrr_flush(&entry5->r);
-        pl_hub75_bsrr_flush(&entry5->g);
-        pl_hub75_bsrr_flush(&entry5->b);
-
-        (void)total_channels;
+        for (uint8_t ch = 0; ch < total_channels; ch++) {
+            uint8_t color = channel_ptr[(uint16_t)channel_pixels * ch];
+            const _1_969_bsrr_t *entry = &bsrr[ch][color];
+            pl_hub75_bsrr_flush(&entry->r);
+            pl_hub75_bsrr_flush(&entry->g);
+            pl_hub75_bsrr_flush(&entry->b);
+        }
         pl_hub75_clock_pulse();
     }
 }
