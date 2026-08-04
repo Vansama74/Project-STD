@@ -125,7 +125,7 @@ void ldi_ctx_init(ldi_ctx_t *self)
 /* ---- 协议自注册 ---- */
 static proto_mask_t s_ldi_mask;
 
-[[maybe_unused]] static void ldi_module_init(void)
+static void ldi_module_init(void)
 {
     // 指定协议使用的环形缓冲区
     ring_buffer_t *rb = app_proto_acquire_buf(1, 512);

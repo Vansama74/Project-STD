@@ -21,6 +21,7 @@
 #include "app_tcp_server.h"
 #include "app_tcp_client.h"
 #include "app_rs485.h"
+#include "app_rs232.h"
 #include "app_test.h"
 #include "app_key.h"
 #include "app_render.h"
@@ -29,7 +30,6 @@
 #define SPLASH_DURATION_MS 5000U
 
 static void init_task(void *argument);
-static void app_splash_display(void);
 
 /* ---- HalfSecTask: 500ms 喂狗 / 60s RTC 备份 / LED 翻转 ---- */
 static void half_sec_task(void *argument)
@@ -67,28 +67,7 @@ void app_boot(void)
     osKernelStart();
 }
 
-[[maybe_unused]] static void app_default_display(void)
-{
-    app_render(&(render_cfg_t){
-        .type  = RENDER_TEXT,
-        .x     = 0,
-        .y     = 0,
-        .w     = dev_display_get()->screen_rows,
-        .h     = dev_display_get()->screen_cols,
-        .style = &(render_style_t){
-            .h_align = ALIGN_CENTER,
-            .v_align = ALIGN_LEFT_UP,
-        },
-        .color     = COLOR_YELLOW,
-        .text      = "欢迎行驶\n高速公路",
-        .len       = strlen("欢迎行驶\n高速公路"),
-        .font_size = FONT_32,
-        .font_type = FONT_HT,
-        .text_enc  = FONT_ENC_UTF8,
-    });
-}
-
-static void app_splash_display(void)
+[[maybe_unused]] static void app_splash_display(void)
 {
     dev_display_t *dev = dev_display_get();
     char fw_line[32];
@@ -126,6 +105,27 @@ static void app_splash_display(void)
     dev->dirty = false;
 }
 
+static void app_default_display(void)
+{
+    app_render(&(render_cfg_t){
+        .type  = RENDER_TEXT,
+        .x     = 0,
+        .y     = 0,
+        .w     = dev_display_get()->screen_rows,
+        .h     = dev_display_get()->screen_cols,
+        .style = &(render_style_t){
+            .h_align = ALIGN_CENTER,
+            .v_align = ALIGN_LEFT_UP,
+        },
+        .color     = COLOR_YELLOW,
+        .text      = "欢迎行驶\\n高速公路",
+        .len       = strlen("欢迎行驶\\n高速公路"),
+        .font_size = FONT_32,
+        .font_type = FONT_HT,
+        .text_enc  = FONT_ENC_UTF8,
+    });
+}
+
 static void init_task(void *argument)
 {
     (void)argument;
@@ -147,9 +147,10 @@ static void init_task(void *argument)
     app_tcp_client_start();
     app_udp_start();
     app_rs485_start();
+    app_rs232_start();
 
-    app_test_run();
-    // app_default_display();
+    // app_test_run();
+    app_default_display();
     osThreadExit();
 }
 

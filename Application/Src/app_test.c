@@ -217,9 +217,9 @@ void app_test_prepare_mapping(void)
 
 void app_test_run(void)
 {
-    app_test_led_mapping();       /* 直接写 hub75_buff，按 hub75_buff线形点亮LED ，测试物理 LED 灯序映射 */
+    // app_test_led_mapping();       /* 直接写 hub75_buff，按 hub75_buff线形点亮LED ，测试物理 LED 灯序映射 */
     // app_test_prepare_mapping();   /* 逐行点亮像素，测试 prepare 映射是否正确 */
-    // app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
+    app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
     // app_test_render_text();       /* 渲染文字"车道关闭"，测试字库读取和文字渲染功能 */
     // app_test_scan_line_order();   /* 逐行点亮水平线，测试 1/8 扫描的行地址映射顺序 */
     // app_test_diagonal();          /* 画对角线，测试整体坐标映射是否正确（直线=正确） */

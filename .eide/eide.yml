@@ -49,6 +49,13 @@ virtualFolder:
                 - path: Application/Src/LDI/app_vms_ctrl.c
                 - path: Application/Src/LDI/app_ldi_cfg.c
               folders: []
+            - name: ProtocolParser_QingHai
+              files:
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c
+              folders: []
             - name: rls
               files:
                 - path: Application/Src/RLS/app_rls_cmd.c
@@ -231,6 +238,7 @@ virtualFolder:
           files:
             - path: Device/Comm/dev_rs232.c
             - path: Device/Comm/dev_rs485.c
+            - path: Device/Comm/dev_rs232_voice.c
           folders: []
         - name: Network
           files:
@@ -334,6 +342,7 @@ targets:
         - Application/Inc/LDI
         - Application/Inc/AH_MQTT
         - Application/Inc/RLS
+        - Application/Inc/ProtocolParser_QingHai
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
@@ -341,6 +350,7 @@ targets:
       - <virtual_root>/Drivers/BSP/Display/scan.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Application/protocol/ldi
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -444,6 +454,7 @@ targets:
       defineList:
         - USE_HAL_DRIVER
         - STM32F407xx
+        - APP_PROTOCOL=1
       incList:
         - Core/Inc
         - Drivers/CMSIS/Include
