@@ -16,8 +16,8 @@ static const display_color_t s_qh_color_map[] = {
     [2] = COLOR_YELLOW,
 };
 
-static const uint8_t s_qh_brightness_map[] = {3, 4, 5, 7, 8};
-static const uint8_t s_qh_volume_map[]     = {0, 0x31, 0x33, 0x35, 0x37, 0x39};
+static const uint8_t s_qh_brightness_map[] = {0, 1, 2, 3, 4, 5};
+static const uint8_t s_qh_volume_map[]     = {0, 1, 2, 3, 4, 5};
 
 /**
  * @brief  将青海协议颜色索引转换为显示颜色。
@@ -35,8 +35,10 @@ static display_color_t qh_map_color(uint8_t idx)
  */
 static void qh_exec_host_query(channel_t *ch)
 {
-    static const uint8_t rsp[] = {'{', '1', '0', '1', '0', '0', '}'};
-    channel_send(ch, (uint8_t *)rsp, sizeof(rsp));
+    static const uint8_t rsp_ok[]  = {'{', '1', 0x01, 0x00, '}'};
+    static const uint8_t rsp_err[] = {'{', '1', 0x01, 0x01, '}'};
+    channel_send(ch, (uint8_t *)rsp_ok, sizeof(rsp_ok));
+    (void)rsp_err;
 }
 
 /**
@@ -44,7 +46,11 @@ static void qh_exec_host_query(channel_t *ch)
  */
 static void qh_exec_self_check(void)
 {
-    app_render(&(render_cfg_t){.type = RENDER_FILL, .x = 0, .y = 0, .w = 0, .h = 0, .color = COLOR_YELLOW});
+    dev_display_t *d = dev_display_get();
+    if (d) {
+        dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_YELLOW);
+        dev_display_commit_frame(d);
+    }
     static const uint8_t text[] = "系统正在加电自检";
     dev_rs232_voice_play(text, sizeof(text) - 1);
 }
@@ -60,8 +66,6 @@ static void qh_exec_one_line(const qh_one_line_t *p)
 
     uint16_t w = d->screen_rows;
     if (d->screen_cols > w) w = d->screen_cols;
-    uint16_t h = d->screen_cols;
-    if (d->screen_rows < h) h = d->screen_rows;
 
     app_render(&(render_cfg_t){
         .type  = RENDER_TEXT,
@@ -134,12 +138,12 @@ static void qh_exec_clear(void)
  */
 static void qh_exec_fixed(const qh_fixed_t *p)
 {
-    const uint8_t *fields[6] = {0};
-    uint16_t flen[6]         = {0};
+    const uint8_t *fields[8] = {0};
+    uint16_t flen[8]         = {0};
     int n                    = 0;
     const uint8_t *cur       = p->raw;
     const uint8_t *end       = p->raw + p->raw_len;
-    while (cur < end && n < 6) {
+    while (cur < end && n < 8) {
         const uint8_t *sep = memchr(cur, '|', (size_t)(end - cur));
         fields[n]          = cur;
         flen[n]            = (uint16_t)((sep ? sep : end) - cur);
@@ -147,23 +151,44 @@ static void qh_exec_fixed(const qh_fixed_t *p)
         if (!sep) break;
         cur = sep + 1;
     }
+
     dev_display_t *d = dev_display_get();
-    for (int i = 0; i < 5; i++) {
+    if (!d) return;
+
+    uint16_t w = d->screen_rows;
+    if (d->screen_cols > w) w = d->screen_cols;
+
+    /* 固定格式显示按协议文本只做“字段拆分 + 按行显示”的基础实现。 */
+    for (int i = 0; i < n && i < 5; i++) {
+        if (flen[i] == 0) continue;
+        if (fields[i][0] == ' ') continue;
         app_render(&(render_cfg_t){
             .type      = RENDER_TEXT,
             .x         = 0,
             .y         = (uint16_t)i * FONT_16,
-            .w         = d ? d->screen_cols : 0,
+            .w         = w,
             .h         = FONT_16,
-            .color     = COLOR_GREEN,
-            .text      = (const char *)(i < n ? fields[i] : (const uint8_t *)""),
-            .len       = (i < n ? flen[i] : 0),
+            .color     = qh_map_color(p->type),
+            .text      = (const char *)fields[i],
+            .len       = flen[i],
             .font_size = FONT_16,
             .font_type = FONT_ST,
             .text_enc  = FONT_ENC_GBK,
         });
     }
-    qh_voice_fee_amount(100U);
+
+    /* 协议文本要求固定格式时同步播报收费金额；当前阶段先保留接口，
+     * 如果字段未解析到金额，则不播报。 */
+    if (n >= 2) {
+        uint32_t amount = 0;
+        for (uint16_t i = 0; i < flen[1]; i++) {
+            if (fields[1][i] < '0' || fields[1][i] > '9') break;
+            amount = amount * 10U + (uint32_t)(fields[1][i] - '0');
+        }
+        if (amount > 0U) {
+            qh_voice_fee_amount(amount * 100U);
+        }
+    }
 }
 
 /**
@@ -174,8 +199,11 @@ static void qh_exec_brightness(uint8_t level)
 {
     dev_display_t *d = dev_display_get();
     if (!d) return;
-    if (level == 0) return;
-    dev_display_set_brightness(d, s_qh_brightness_map[level - 1]);
+    if (level == 0) {
+        return;
+    }
+    if (level > 5) return;
+    dev_display_set_brightness(d, s_qh_brightness_map[level]);
 }
 
 /**
@@ -184,6 +212,7 @@ static void qh_exec_brightness(uint8_t level)
  */
 static void qh_exec_volume(uint8_t level)
 {
+    if (level < 1 || level > 5) return;
     dev_rs232_voice_volume(s_qh_volume_map[level]);
 }
 

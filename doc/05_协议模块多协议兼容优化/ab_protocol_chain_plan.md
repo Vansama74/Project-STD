@@ -34,7 +34,6 @@ STD 项目当前已经具备统一的通道接入层、协议分发层和协议�
 - 支持“数据未收完整”的等待态，避免误判
 - 支持协议模块在 EIDE 中加入链接后，通过各自 `xx_proto.init` 自注册
 - 支持每个协议在自注册时声明自己的 `priority`
-- 支持当多个协议 `priority` 相同或冲突时，调度器可按随机/动态方式打散相对顺序，避免固定偏置
 
 ### 2.2 工程目标
 
@@ -104,18 +103,42 @@ STD 项目当前已经具备统一的通道接入层、协议分发层和协议�
 
 ### 4.2 状态语义
 
-协议探测函数建议统一使用以下状态：
+协议探测函数必须统一使用以下四种返回值：
 
-- `PROTO_PROBE_WAIT`：帧未收完整，继续等待
-- `PROTO_PROBE_FAKE`：这帧不属于本协议，允许下一个协议尝试
-- `PROTO_PROBE_READY`：本协议已确认，可接管该帧
-- `PROTO_PROBE_SKIP`：帧结构完整但不属于当前设备，可跳过整帧（可选扩展）
+| 状态 | 含义 | 对当前协议 | 对后续协议 |
+|---|---|---|---|
+| `PROTO_PROBE_READY` | 帧完整、属于本协议 | 立即消费，停止链 | 不再尝试 |
+| `PROTO_PROBE_WAIT` | 帧头/长度初步匹配，但数据未收完整 | 暂停等待更多数据 | 继续探测（让后续协议也表态） |
+| `PROTO_PROBE_FAKE` | 首字节/帧头不匹配，明确不属于本协议 | 放弃本轮 | 继续下一协议 |
+| `PROTO_PROBE_SKIP` | 帧结构完整但不属于当前设备（如车道号不匹配） | 跳过整帧，停止链 | 不再尝试 |
 
-其中最关键的是：
+**关键语义约束**：
 
-- `WAIT` 不能让后续协议接管
-- `FAKE` 才允许切换到下一协议
-- `READY` 立即停止链条
+1. **READY 和 SKIP 立即终止链路** — 帧已消费或跳过，不需要再问后续协议。
+2. **WAIT 不阻止其他协议表态** — 协议 A 返回 WAIT 后，协议 B 仍然可以被调用。但 A 的 WAIT 意味着"我可能认领这帧，还需要更多数据"，因此 **只要有一个协议返回 WAIT，分发器就不能 skip 字节做重同步**。
+3. **FAKE 是唯一的"继续"信号** — 只有所有已注册协议都返回了 FAKE（没有任何一个返回 WAIT 或 READY/SKIP），才说明所有协议都确认"这字节不属于我"，此时可以跳过 1 字节重新同步。
+4. **WAIT 与 FAKE 的分离逻辑**：
+   - 如果某协议返回 WAIT → 设置 `any_wait = true`，继续探测下一个协议
+   - 如果某协议返回 FAKE → 设置 `any_fake = true`，继续探测下一个协议
+   - 全部探测完后：若 `any_wait == true` → **退出内循环等待更多数据（不跳过任何字节）**
+   - 全部探测完后：若只有 FAKE（无 WAIT/READY/SKIP） → **跳过 1 字节重新同步**
+
+> **注意**：当前 `app_dispatch.c` 中 `frame_dispatch_task()` 的实现存在一个 **WAIT 语义 bug**：代码用 `all_wait` 变量初始化为 `true`，遇到 FAKE 时设为 `false`。如果协议 A 返回 WAIT 而协议 B 返回 FAKE，`all_wait` 被 B 改为 `false`，导致跳过 1 字节，破坏协议 A 的帧同步。必须在实现多协议链式解析**之前**修复此 bug。正确做法是用两个独立变量 `any_wait` 和 `any_fake` 分别追踪。
+
+### 4.3 probe 函数契约（纯函数约束）
+
+探测函数在分发器的持锁上下文中被调用，必须遵守以下契约：
+
+| 约束 | 说明 |
+|---|---|
+| **只读访问 ring buffer** | probe 只能通过 `rb_peek` / `rb_peekc` 窥视数据，**禁止**调用 `rb_read` / `rb_skip` / `rb_flush` |
+| **不修改协议内部状态** | probe 不得修改协议上下文中的任何字段（如序列号、状态机、缓冲区）。帧归属确认后的状态更新应在 READY 消费路径中完成 |
+| **不修改 total_len / aux（除非返回 READY/SKIP）** | 返回 WAIT 或 FAKE 时，`*total_len` 的值无意义，分发器不读取 |
+| **幂等** | 对同一 RB 状态（相同数据、相同 read_index），多次调用 probe 必须返回相同结果 |
+| **无阻塞操作** | probe 中不得调用 `osDelay`、`osMessageQueuePut/Get`、`osMutexAcquire` 等可能阻塞的 API |
+| **尽可能快速** | probe 在分发器的持锁临界区内执行，耗时越长阻塞通道写入越久。建议先做快速首字节拒绝，匹配后才做完整校验（CRC 等） |
+
+> **实例**：当前 LDI probe (`app_ldi.c` line 305) 中存在 `g_ldi.rsp_seq = frame->seq` 的副作用写入，违反了纯函数契约。如果 LDI probe 被青海协议帧触发（在链式探测中），LDI 的序列号会被错误覆盖。修复方式：将 `rsp_seq` 的赋值移到 `PROTO_PROBE_READY` 后的帧消费路径中。
 
 ---
 
@@ -334,7 +357,7 @@ A/B 链式解析的核心前提之一，是**多个协议模块共享同一份 r
 ring_buffer_t *rb = app_proto_acquire_buf(1, 512);
 ```
 
-其中 `id=1` 表示同一组通用协议共享同一个 ring buffer。这样：
+其中 `id=1` 表示同一组通用协议共享同一个 ring buffer。注意当前实现中 `size` 参数实际被 `(void)size` 忽略，真正的缓冲区容量由编译期 `RB_DEFINE_CCM` 静态分配决定（当前为 2,048 字节）。这样：
 
 - 青海协议与 LDI 协议如果希望链式兼容，可以绑定同一个 `rb_id`
 - `app_channel_dispatch()` 只需要把数据写入一次
@@ -545,8 +568,9 @@ void frame_dispatch_task(void *argument)
             lock(rb);
 
             while (rb_has_data(rb)) {
-                parsed = false;
-                all_wait = true;
+                parsed   = false;
+                any_wait = false;  // 是否有协议因数据不足而等待
+                any_fake = false;  // 是否有协议明确说"不是我的帧"
 
                 for each protocol in priority_order:
                     if protocol not bound to this channel:
@@ -557,30 +581,41 @@ void frame_dispatch_task(void *argument)
                     state = protocol.probe(ch, rb, &frame_len, &aux);
 
                     if (state == READY) {
+                        // 确认归属，读取完整帧 → 投递队列 → 立即停止链
                         if (rb_available >= frame_len) {
                             read full frame from rb;
                             push frame to protocol.frame_queue;
                             parsed = true;
-                            all_wait = false;
+                            break;  // 退出协议遍历，回到 while 继续下一帧
+                        }
+                        // frame_len > avail 时退化为 WAIT
+                        any_wait = true;
+
+                    } else if (state == SKIP) {
+                        // 帧结构完整但不属于当前设备，跳过整帧 → 停止链
+                        if (rb_available >= frame_len) {
+                            skip full frame bytes;
+                            parsed = true;
                             break;
                         }
-                    } else if (state == SKIP) {
-                        skip full frame bytes;
-                        parsed = true;
-                        all_wait = false;
-                        break;
-                    } else if (state == FAKE) {
-                        all_wait = false;
-                    } else if (state == WAIT) {
-                        // keep waiting
-                    }
-                }
+                        // 数据不足退化为 WAIT
+                        any_wait = true;
 
+                    } else if (state == WAIT) {
+                        // 帧头初步匹配但数据不足，标记等待，继续探测下一个协议
+                        any_wait = true;
+
+                    } else if (state == FAKE) {
+                        // 明确不属于本协议，继续探测下一个协议
+                        any_fake = true;
+                    }
+
+                // 协议遍历结束后的处理
                 if (!parsed) {
-                    if (all_wait)
-                        break;      // wait for more bytes
+                    if (any_wait)
+                        break;      // 至少一个协议在等待 → 退出内循环等更多数据
                     else
-                        skip 1 byte; // false header, resync
+                        skip 1 byte; // 全部返回 FAKE → 伪帧头，跳过 1 字节重同步
                 }
             }
 
@@ -628,7 +663,6 @@ void qh_proto_init(void)
         return;
 
     app_proto_bind_channel(s_qh_mask, CH_ID_RS485);
-    app_proto_bind_channel(s_qh_mask, CH_ID_RS232);
 
     s_qh_queue = osMessageQueueNew(2, sizeof(frame_msg_t) + FRAME_DATA_MAX_LEN, &s_qh_queue_attr);
     app_proto_set_frame_queue(s_qh_mask, s_qh_queue);
@@ -655,7 +689,9 @@ Application/Src/LDI/app_ldi.c
     if (s_ldi_mask == 0)
         return;
 
-    app_proto_bind_channel(s_ldi_mask, CH_ID_RS485);
+    // 注意：当前 LDI 实际绑定 TCP/UDP，不绑定 RS485
+    // 若要做 RS485 链式兼容测试，需额外解除此行的注释：
+    // app_proto_bind_channel(s_ldi_mask, CH_ID_RS485);
     app_proto_bind_channel(s_ldi_mask, CH_ID_TCP_SERVER);
     app_proto_bind_channel(s_ldi_mask, CH_ID_TCP_CLIENT);
     app_proto_bind_channel(s_ldi_mask, CH_ID_UDP);
@@ -700,55 +736,43 @@ sw_app_initcall(ldi_module_init);
 
 ## 9. RAM 约束分析
 
-STM32F407 项目中，RAM 需要同时容纳：
+STM32F407 项目内存资源：
 
-- FreeRTOS heap
-- LwIP heap
-- 多个任务栈
-- 显示缓冲区
-- UART 接收缓冲区
-- 协议模块上下文与队列
+- **SRAM**：128KB（`0x20000000`），其中 FreeRTOS heap = 32KB (`heap_4.c`)
+- **CCMRAM**：64KB（`0x10000000`），零等待状态
 
-因此 A/B 链式解析方案应尽量遵守以下原则：
+当前已分配的关键内存（单协议模式，以 LDI 为例）：
 
-### 9.1 尽量不新增独立长期任务
+### 9.1 单协议 vs 双协议 RAM 对比
 
-如果每个协议都各自保留处理任务，会带来：
+| 组件 | 单协议 (LDI) | 双协议 (LDI + QingHai) | 增量 | 位置 |
+|---|---|---|---|---|
+| `frame_dispatch_task` 栈 | 1,024 B | 1,024 B | 0 | SRAM heap |
+| `_msg_dispatch_buf` (帧缓冲) | 1,052 B | 1,052 B | 0 | SRAM .bss |
+| LDI 协议任务栈 (×2) | 4,096 B | 4,096 B | 0 | SRAM heap |
+| 第二个协议任务栈 (×1) | — | 2,048 B | +2,048 B | SRAM heap |
+| LDI 消息队列 (静态) | 1,040 B | 1,040 B | 0 | SRAM .bss |
+| 第二个协议消息队列 | — | ~2,200 B | +2,200 B | SRAM heap (动态) |
+| 协议上下文 (`g_ldi` 等) | ~700 B | ~700 B | 0 | SRAM .bss |
+| 第二个协议 `msg_buf` | — | 1,052 B | +1,052 B | SRAM .bss |
+| 环形缓冲区池 (4×2,048) | 8,192 B | 8,192 B | 0 | CCMRAM |
+| `g_dispatch` 上下文 | ~400 B | ~400 B | 0 | SRAM .bss |
+| **SRAM 合计** | **~8,300 B** | **~13,600 B** | **+5,300 B** | /128KB = 10.6% |
+| **FreeRTOS heap 占用** | **~5,100 B** | **~9,350 B** | **+4,250 B** | /32KB = 29.2% |
 
-- 额外任务栈
-- 额外消息队列
-- 更多上下文切换
+> **结论**：双协议模式 SRAM 总占用约 13.6KB（占总 SRAM 的 10.6%），FreeRTOS heap 占用约 29.2%。RAM 完全在预算内，即使再增加第三个协议也绰绰有余。
 
-在 RAM 紧张时不推荐。
+### 9.2 优化方向
 
-### 9.2 优先采用“单分发任务 + 多协议尝试”
+- 第二个协议的消息队列如果改为静态分配（像 LDI 一样使用 `StaticQueue_t` + `osMessageQueueNew` 的 `cb_mem`/`mq_mem`），可节省约 2KB heap，将 heap 占用降至 ~23%
+- 环形缓冲区池（4×2KB=8KB CCMRAM）由所有协议共享，不随协议数量增加
 
-推荐模式：
+### 9.3 多协议共享通道时的内存原则
 
-- 一个 `frame_dispatch_task`
-- 一个公共 ring buffer
-- 多个协议按优先级尝试 probe
-- 成功者接管
-
-这样 RAM 使用更稳定，调度也更简单。
-
-### 9.3 协议任务尽量轻量化
-
-若某协议必须保留独立任务，应尽量：
-
-- 减少任务栈
-- 减少队列深度
-- 避免在任务中进行复杂复制
-
-### 9.4 多协议共享通道时的内存与任务建议
-
-在当前 STD 工程里，若青海协议与 LDI 协议等多个协议共享同一个 485/232 通道，建议遵循：
-
-- **接收缓存共享**：同一兼容组使用同一 `rb_id`，避免重复分配 ring buffer。
-- **处理任务独立**：每个协议保留自己的 `frame_queue` 与处理任务，避免业务逻辑互相干扰。
-- **协议初始化轻量化**：初始化阶段仅做注册、绑定、队列创建与任务创建，不在 init 中做重活。
-- **共享通道但不共享执行上下文**：共享的是输入字节流，不共享协议状态机、业务上下文或输出动作。
-- **避免多个协议同时重回复**：特别是 RS485 上，回复动作应由最终接管协议独立完成，避免总线冲突。
+- **接收缓存共享**：同一兼容组使用同一 `rb_id`，避免重复分配 ring buffer
+- **处理任务独立**：每个协议保留自己的 `frame_queue` 与处理任务，避免业务逻辑互相干扰
+- **协议初始化轻量化**：初始化阶段仅做注册、绑定、队列创建与任务创建
+- **共享通道但不共享执行上下文**：共享的是输入字节流，不共享协议状态机、业务上下文或输出动作
 
 ---
 
@@ -780,39 +804,167 @@ STM32F407 项目中，RAM 需要同时容纳：
 
 ## 11. 推荐的落地步骤
 
-### 11.1 第一阶段：设计协议优先级链
+### 核心多协议启用机制
 
-- 为协议注册接口增加 priority
-- 在分发器中按 priority 排序
-- 要求每个协议模块在自己的 `xx_proto.init()` 中完成自注册，并同时声明 priority
-- 对于 priority 相同的协议，采用固定的注册顺序或独占注册位策略，不使用随机/动态打散
-- 保持现有协议模块代码不变
+**不引入条件编译、不修改 Makefile、不增加 `PROTO=BOTH` 构建目标。**
 
-### 11.2 第二阶段：定义状态语义
+多协议兼容的启用完全依赖 EIDE 工程的文件夹包含/排除：
 
-- 严格定义 `WAIT / FAKE / READY`
-- 所有协议的 probe 函数统一遵守
+- **单协议模式**（现状）：EIDE 中只保留一个协议文件夹（如 `Application/Src/LDI`），排除其他协议文件夹。只有一个协议的 `initcall` 编译进固件，行为与现在完全一致。
+- **多协议模式**（目标）：EIDE 中同时保留两个或多个协议文件夹（如 `Application/Src/LDI` + `Application/Src/ProtocolParser_QingHai`），排除其他不需要的。所有被包含的协议模块的 `sw_app_initcall` 都会在启动时执行，各自向 `app_dispatch` 自注册。`frame_dispatch_task` 自动按优先级链式探测所有已注册协议。
 
-### 11.3 第三阶段：先验证两个协议并行
+**工作机制**：
+1. EIDE 工程中包含了 N 个协议文件夹 → N 个 `sw_app_initcall(proto_init)` 被编译
+2. RTOS 启动后，`init_task` → `sw_board_init()` 按 `sw_app_initcall(3)` 层依次调用所有协议 init
+3. 每个协议的 init 调用 `app_proto_register_ex(probe, rb, priority, flags)` 注册自身
+4. 框架自动按 priority 排序，构建探测顺序
+5. `frame_dispatch_task` 按排序后的顺序链式探测
+6. 无需任何条件编译宏、无需 Makefile 改动、无需 `protocol_select.h` 参与决策
 
-建议先用两个协议模块验证：
+---
 
-- 协议 A：青海协议
-- 协议 B：LDI 协议
+### Phase 0：修复 WAIT 语义 bug（必须最先做）
 
-在同一通道上测试：
+> **优先级: CRITICAL** — 不改此 bug，后续所有多协议工作都建立在错误基础上
 
-- A 成功时不触发 B
-- A 失败时 B 接管
-- 半包场景返回 WAIT
+**范围**：`app_dispatch.c` 的 `frame_dispatch_task()` 内部循环
 
-### 11.4 第四阶段：优化 RAM 与任务结构
+**当前问题**：`all_wait` 变量初始化为 `true`，被任何协议的 FAKE 改为 `false`。若协议 A 返回 WAIT、协议 B 返回 FAKE，`all_wait = false`，导致跳过 1 字节 → 破坏协议 A 的帧同步。
 
-若验证通过，再评估是否：
+**修复思路**：
+- 引入两个独立变量 `any_wait` 和 `any_fake` 替代单一的 `all_wait`
+- WAIT 设置 `any_wait = true`，FAKE 设置 `any_fake = true`
+- 全部协议探测完后：若 `any_wait == true` → 退出内循环等待更多数据；若只有 `any_fake` → 跳过 1 字节重同步
+- 详细伪代码见 Section 7
 
-- 合并部分协议任务
-- 减少消息队列深度
-- 复用缓冲区
+**验证方式**：
+- 模拟场景：协议 A 对半包数据返回 WAIT，协议 B 对同一数据返回 FAKE → `frame_dispatch_task` 必须退出等待，不能跳过字节
+- 模拟场景：两个协议都返回 FAKE → 必须跳过 1 字节
+
+---
+
+### Phase 1：优先级基础设施
+
+> **优先级: HIGH** — 多协议链式解析的排序基础
+
+**新增数据**：
+
+在 `dispatch_ctx_t` 中增加（思路级）：
+- 每个协议槽位的 `priority`（`uint16_t`，数值越大越优先）
+- 每个协议槽位的 `reg_seq`（`uint16_t`，注册序号，同优先级时稳定排序）
+- 排序后的索引视图 `sorted_order[]`（`uint8_t` 数组，存放按 priority 降序排列的协议索引）
+- 一个 `dirty` 标志位，注册变更时置位，分发循环中重建排序视图
+
+**新增接口**（思路级）：
+- `app_proto_register_ex(probe, rb, priority, flags)` — 带优先级和标志位的注册函数
+  - `priority`: `uint16_t`，推荐约定：`200` 以上 = 主协议/强优先，`100` = 普通协议，`0` = 最低优先级
+  - `flags`: 注册行为标志位，第一期至少保留 `PROTO_REG_DEFAULT = 0x00`
+  - 内部自动分配 `mask` 和 `reg_seq`，设置 `dirty = true`
+- 保留旧的 `app_proto_register(probe, rb)` 作为兼容接口（内部调用 `register_ex`，priority=0）
+
+**排序规则**（在 `frame_dispatch_task` 中或注册变更时触发重建）：
+1. 按 `priority` 降序
+2. 相同 `priority` 按 `reg_seq` 升序（先注册的排前面）
+3. 排序在 `dirty == true` 时触发重建，重建完成后 `dirty = false`
+
+**修改范围**：
+- `app_dispatch.h`：新增字段到 `dispatch_ctx_t`，新增 `app_proto_register_ex` 声明
+- `app_dispatch.c`：新增 `register_ex` 实现，`frame_dispatch_task` 内循环改用 `sorted_order[]` 遍历
+
+---
+
+### Phase 2：修复 probe 函数副作用 + 建立契约
+
+> **优先级: HIGH** — 确保链式探测时各协议 probe 互不污染
+
+**范围**：`app_ldi.c` 的 `ldi_probe_frame()`、`app_qh_proto.c` 的 `qh_proto_probe_frame()`
+
+**问题**：LDI probe 中存在 `g_ldi.rsp_seq = frame->seq` 的副作用写入。在链式探测中，若 LDI probe 被青海协议的帧触发（数据碰巧以 `0xFF 0xFF` 开头），LDI 的 `rsp_seq` 会被错误覆盖。
+
+**修复思路**：
+- 将 `g_ldi.rsp_seq = frame->seq` 从 probe 函数移到帧消费路径中（`ldi_handle_task` 解析完整帧后）
+- 或者在 READY 返回前才写入（此时已确认帧归属 LDI）
+
+**probe 函数契约**（写入文档和代码注释）：
+- 只读访问 ring buffer（`rb_peek` / `rb_peekc`）
+- 不修改协议内部状态
+- 不阻塞（无 `osDelay`、无队列操作）
+- 幂等（相同 RB 状态 → 相同返回值）
+- 尽可能快速（先做 1 字节快速拒绝，匹配后才做完整校验）
+
+**验证方式**：
+- 代码审查确认 probe 中无状态写入
+- 在 `qh_proto_probe_frame` 的 READY 路径打断点，确认 LDI 的 `rsp_seq` 未被修改
+
+---
+
+### Phase 3：协议模块适配新注册接口
+
+> **优先级: MEDIUM** — 让两个协议模块使用新的优先级注册
+
+**范围**：`app_qh_proto.c`、`app_ldi.c`
+
+**修改思路**：
+- `qh_proto_init()`：将 `app_proto_register` 替换为 `app_proto_register_ex(qh_proto_probe_frame, rb, 200, PROTO_REG_DEFAULT)`
+  - 青海协议设为较高优先级（200），因为其帧格式包含明确帧头帧尾，探测更可靠
+- `ldi_module_init()`：将 `app_proto_register` 替换为 `app_proto_register_ex(ldi_probe_frame, rb, 100, PROTO_REG_DEFAULT)`
+  - LDI 设为较低优先级（100），由青海协议优先尝试
+- 青海协议消息队列改为静态分配（参照 LDI 的 `StaticQueue_t` 模式），节省约 2KB heap
+
+**注意**：此阶段不要求两个协议绑定同一通道。青海协议仍然只绑定 `CH_ID_RS485`，LDI 绑定 TCP/UDP。通道共享在 Phase 4 验证。
+
+---
+
+### Phase 4：EIDE 多文件夹 + 通道共享测试
+
+> **优先级: MEDIUM** — 验证多协议自动注册和链式解析端到端工作
+
+**EIDE 工程配置**：
+1. 在 EIDE 中同时保留 `Application/Src/LDI` 和 `Application/Src/ProtocolParser_QingHai` 两个文件夹
+2. 两个协议的 `sw_app_initcall` 同时编译进固件
+3. 无需修改任何宏定义、Makefile 或条件编译
+
+**预期行为**：
+- 固件启动后，`sw_board_init()` 依次调用 `app_dispatch_init` → `ldi_module_init` → `qh_proto_init`
+- 两个协议各自注册，框架自动按优先级排序
+- LDI 在 TCP/UDP 通道上正常工作
+- 青海协议在 RS485 通道上正常工作
+- 互不干扰
+
+**通道共享验证**：
+- 临时将 LDI 也绑定到 `CH_ID_RS485`（仅用于测试）
+- 从 RS485 发送混合帧：先发青海协议帧，再发 LDI 帧
+- 验证：
+  - 青海帧被青海协议优先消费（LDI 返回 FAKE）
+  - LDI 帧被 LDI 协议消费（青海返回 FAKE 后 LDI 接管）
+  - 半包场景：发送不完整的青海帧 → 青海返回 WAIT → 分发器不跳过字节
+  - 全部 FAKE 场景：发送随机数据 → 逐字节跳过重同步
+
+---
+
+### Phase 5：加固与优化
+
+> **优先级: LOW-MEDIUM** — 生产就绪前的打磨
+
+| 项目 | 思路 |
+|---|---|
+| **per-channel send mutex** | 在 `channel_send()` 或通道层增加发送互斥锁，防止两个协议同时通过同一 RS485 通道回复导致总线冲突 |
+| **probe 快速拒绝优化** | LDI probe 当前在每次调用时都执行 `memset(mem_pool, 0, 512)` + `CRC16`。优化：先 `rb_peekc(rb, 0)` 检查首字节是否为 `0xFF`，不匹配则立即返回 FAKE，跳过昂贵的 CRC 计算 |
+| **协议冲突检测** | 注册时检测是否有两个协议声明了相同的 `priority` + `PROTO_REG_EXCLUSIVE` 标志，在初始化阶段输出告警日志 |
+| **调试/统计信息** | 可选：记录每个协议的命中次数、WAIT 次数、FAKE 次数，方便排查协议帧冲突问题 |
+| **probe 超时保护** | 可选：如果某个协议的 probe 函数执行时间异常长（如 > 500µs），通过 DWT 计时器检测并告警 |
+
+---
+
+### Phase 6：（远期）三协议及以上扩展
+
+当前架构（32 槽位、4 个 RB 池）在设计上就已支持 2 个以上协议。新增第三种协议时：
+1. 在 EIDE 中添加新协议文件夹
+2. 协议模块实现 `sw_app_initcall` 自注册
+3. 指定合适的 `priority`（避免与现有协议冲突）
+4. 框架自动纳入链式探测
+
+无需修改 `app_dispatch` 框架代码。
 
 ---
 
@@ -835,14 +987,29 @@ STM32F407 项目中，RAM 需要同时容纳：
 
 ## 13. 总结
 
-A/B 协议链式解析是可行的，而且与 STD 项目现有的分层架构兼容。
+A/B 协议链式解析是可行的，而且与 STD 项目现有的分层架构高度兼容。经过对实际代码的深入审计，关键发现如下：
 
-推荐的最终形态是：
+**有利基础**（已在生产代码中存在）：
+- 共享 ring buffer 机制已实装（两个协议都使用 `rb_id=1`，`app_channel_dispatch` 有 `seen[]` 去重）
+- `proto_probe_sta_t` 四状态枚举 (READY/WAIT/FAKE/SKIP) 已正确定义并在所有 probe 中使用
+- 协议自注册 (`sw_app_initcall` + `app_proto_register` + `app_proto_bind_channel`) 已成熟
+- 多协议绑定同一通道的 `|=` OR 累积机制已完备
 
-- 一个公共接收缓存
-- 一个帧分发任务
-- 多个协议按优先级依次 probe
-- WAIT 继续等待，FAKE 交给下一个协议，READY 立即接管
+**需要在落地前修复**：
+1. **WAIT 语义 bug**（Phase 0）：`frame_dispatch_task` 的内部循环用单一 `all_wait` 变量无法正确处理”协议 A=WAIT + 协议 B=FAKE”的场景
+2. **LDI probe 副作用**（Phase 2）：`g_ldi.rsp_seq` 在 probe 中被赋值，违反纯函数契约
+
+**多协议启用机制**（核心设计决策）：
+- **不使用条件编译、Makefile 改动或 `PROTO=BOTH` 构建目标**
+- 完全依赖 EIDE 工程中协议文件夹的包含/排除来决定哪些协议参与编译
+- 包含 N 个文件夹 → N 个协议自动注册 → 框架按优先级链式探测
+- 与当前单协议模式 100% 兼容：只保留一个文件夹时行为完全不变
+
+**推荐的最终形态**：
+- 多个协议共享一个公共接收缓存（同一 `rb_id`）
+- 一个帧分发任务按优先级链式调用协议 probe
+- WAIT 继续等待（不阻止其他协议表态），FAKE 交给下一个协议，READY 立即接管
 - 一帧只允许一个协议最终消费
+- 优先级 + 注册序号确保探测顺序稳定、可复现、可调试
 
-从 RAM 与任务调度角度看，这种模式比“每个协议一个独立解析链路”更适合 STM32F407 这类资源有限平台。
+从 RAM 与任务调度角度看，这种模式比”每个协议一个独立解析链路”更适合 STM32F407 这类资源有限平台。双协议模式增加约 5.3KB SRAM 占用（占总 SRAM 的 10.6%），FreeRTOS heap 占用约 29.2%，完全在预算内。

@@ -20,7 +20,7 @@
 #include "app_render.h"
 #include "app_dispatch.h"
 #include "app_light_sensor.h"
-
+#include "dev_io_ctrl.h"
 #include "stm32f4xx_hal.h"
 
 #define AGING_TEXT   "重庆创迪科技发展有限公司设备老化测试"
@@ -140,11 +140,81 @@ static void factory_monitor_task(void *argument)
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_YELLOW);
         dev_display_commit_frame(dsp);
 
-        /* ===== 第5次按键 → AGING: 进入老化循环 =====
+        /* ===== 第5次按键 → WHITE: 全屏白色 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_WHITE);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第6次按键 → BLUE: 全屏蓝色 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLUE);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第7次按键 → PURPLE: 全屏紫色 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_PURPLE);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第8次按键 → CYAN: 全屏青色 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_CYAN);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第9次按键 → 通信灯红叉 + 报警灯开启 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
+        app_render(&(render_cfg_t){
+            .type      = RENDER_TEXT,
+            .x         = 0,
+            .y         = 0,
+            .w         = dsp->screen_rows,
+            .h         = dsp->screen_cols,
+            .color     = COLOR_GREEN,
+            .text      = "通信灯红叉\n报警灯开启",
+            .len       = strlen("通信灯红叉\n报警灯开启"),
+            .font_size = FONT_SELF_ADAPT,
+            .font_type = FONT_ST,
+            .text_enc  = FONT_ENC_UTF8,
+            .style     = &(render_style_t){
+                .h_align   = ALIGN_CENTER,
+                .v_align   = ALIGN_CENTER,
+            },
+        });
+        dev_io_lane_light(false);
+        dev_io_flash_light(true);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第10次按键 → 通信灯绿箭 + 报警灯关闭 ===== */
+        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
+        app_render(&(render_cfg_t){
+            .type      = RENDER_TEXT,
+            .x         = 0,
+            .y         = 0,
+            .w         = dsp->screen_rows,
+            .h         = dsp->screen_cols,
+            .color     = COLOR_GREEN,
+            .text      = "通信灯绿箭\n报警灯关闭",
+            .len       = strlen("通信灯绿箭\n报警灯关闭"),
+            .font_size = FONT_SELF_ADAPT,
+            .font_type = FONT_ST,
+            .text_enc  = FONT_ENC_UTF8,
+            .style     = &(render_style_t){
+                .h_align   = ALIGN_CENTER,
+                .v_align   = ALIGN_CENTER,
+            },
+        });
+        dev_io_lane_light(true);
+        dev_io_flash_light(false);
+        dev_display_commit_frame(dsp);
+
+        /* ===== 第11次按键 → AGING: 进入老化循环 =====
          * 暂停光敏，强制最大亮度 */
         dev_key_wait_press(DEV_KEY_TST, osWaitForever);
         osThreadSuspend(g_light_sensor_task_handle);
         dev_display_set_brightness(dsp, 7);
+        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
+        dev_display_commit_frame(dsp);
 
         bool aging_exit = false;
         for (uint8_t type_idx = 0; !aging_exit; type_idx = (type_idx + 1) % AGING_TYPE_COUNT) {
@@ -171,7 +241,7 @@ static void factory_monitor_task(void *argument)
             if (aging_exit) break;
         }
 
-        /* ===== 第6次按键 → 重启程序 ===== */
+        /* ===== 第12次按键 → 重启程序 ===== */
         NVIC_SystemReset();
     }
 }

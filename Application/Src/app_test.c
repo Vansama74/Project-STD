@@ -177,6 +177,45 @@ void app_test_diagonal(void)
 }
 
 /* ================================================================
+ *  斜扫测试
+ * ================================================================ */
+
+void app_test_oblique_scan(void)
+{
+    dev_display_t *dsp = dev_display_get();
+    if (!dsp) return;
+
+    /* x + y = constant：斜线方向为右上到左下；constant 增大时整体向右移动。 */
+    const int16_t line_spacing = 24;
+    const uint16_t step_delay_ms = 24;
+    const int16_t first_line = -(int16_t)dsp->screen_cols;
+    const int16_t last_line = (int16_t)dsp->screen_rows + (int16_t)dsp->screen_cols - 2;
+    const uint16_t line_count = (uint16_t)((last_line - first_line) / line_spacing) + 1;
+
+    for (;;) {
+        /* 只改变一个周期的相位，线条图案本身连续，不会一组一组地重置。 */
+        for (int16_t phase = 0; phase < line_spacing; phase++) {
+            dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
+
+            for (uint16_t n = 0; n < line_count; n++) {
+                int32_t diagonal = (int32_t)first_line + phase +
+                                   (int32_t)n * line_spacing;
+
+                for (uint16_t y = 0; y < dsp->screen_cols; y++) {
+                    int32_t x = diagonal - (int32_t)y;
+                    if (x >= 0 && x < (int32_t)dsp->screen_rows) {
+                        dev_display_set_pixel(dsp, (uint16_t)x, y, COLOR_WHITE);
+                    }
+                }
+            }
+
+            dev_display_commit_frame(dsp);
+            osDelay(step_delay_ms);
+        }
+    }
+}
+
+/* ================================================================
  *  prepare 映射测试
  *
  *  通过 set_pixel 按屏幕坐标（左上→右下）逐像素点亮，
@@ -217,9 +256,10 @@ void app_test_prepare_mapping(void)
 
 void app_test_run(void)
 {
+    app_test_oblique_scan();
     // app_test_led_mapping();       /* 直接写 hub75_buff，按 hub75_buff线形点亮LED ，测试物理 LED 灯序映射 */
     // app_test_prepare_mapping();   /* 逐行点亮像素，测试 prepare 映射是否正确 */
-    app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
+    // app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
     // app_test_render_text();       /* 渲染文字"车道关闭"，测试字库读取和文字渲染功能 */
     // app_test_scan_line_order();   /* 逐行点亮水平线，测试 1/8 扫描的行地址映射顺序 */
     // app_test_diagonal();          /* 画对角线，测试整体坐标映射是否正确（直线=正确） */

@@ -118,9 +118,9 @@ static void app_default_display(void)
             .v_align = ALIGN_LEFT_UP,
         },
         .color     = COLOR_YELLOW,
-        .text      = "欢迎行驶\\n高速公路",
-        .len       = strlen("欢迎行驶\\n高速公路"),
-        .font_size = FONT_32,
+        .text      = "欢迎行驶\n高速公路",
+        .len       = strlen("欢迎行驶\n高速公路"),
+        .font_size = FONT_SELF_ADAPT,
         .font_type = FONT_HT,
         .text_enc  = FONT_ENC_UTF8,
     });
@@ -133,7 +133,7 @@ static void init_task(void *argument)
     dev_eth_start();
     sw_board_init(); /* sw_initcall 自注册：协议 + 通道任务 */
 
-    // app_splash_display();
+    app_splash_display();
 
     /* 半秒周期任务 */
     const osThreadAttr_t hst_attr = {

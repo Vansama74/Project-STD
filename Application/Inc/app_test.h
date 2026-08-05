@@ -31,5 +31,8 @@ void app_test_scan_line_order(void);
 /** @brief 对角线测试：验证整体坐标映射是否正确 */
 void app_test_diagonal(void);
 
+/** @brief 斜扫测试：显示多条白色斜线连续移动 */
+void app_test_oblique_scan(void);
+
 /** @brief prepare 映射测试：通过 set_pixel 逐像素点亮，验证 prepare 像素重排是否正确 */
 void app_test_prepare_mapping(void);

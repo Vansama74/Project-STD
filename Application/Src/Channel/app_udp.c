@@ -31,11 +31,6 @@ void app_udp_broadcast(const uint8_t *data, uint16_t len)
     if (conn == NULL) return;
 
     ip_set_option(conn->pcb.udp, SOF_BROADCAST);
-    if (netconn_bind(conn, IP_ADDR_ANY, g_udp_port) != ERR_OK) {
-        netconn_delete(conn);
-        return;
-    }
-
     ip_addr_t bc_addr;
     IP4_ADDR(&bc_addr, 255, 255, 255, 255);
 

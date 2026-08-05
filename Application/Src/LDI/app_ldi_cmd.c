@@ -27,7 +27,8 @@
 /**
  * 网络配置信息 — set_ip / rep_ip_rsp 共用
  *
- * 共 67 字节，不含 head 和 error_code。
+ * 网络参数块共 65 字节，不含 20 字节通用 head 和 1 字节 ErrorCode。
+ * 请求 0AH: DATA offset 20 起；响应 D1H: DATA offset 21 起。
  */
 typedef struct [[gnu::packed]] {
     uint8_t host_ip[4];     // 上位机 IP1 (外设控制服务)
@@ -41,8 +42,17 @@ typedef struct [[gnu::packed]] {
     uint8_t reserve2[2];    // 保留字节
 } ldi_network_info_t;
 
+/* 4.1.1 request network block: DATA offset 20, length 65 bytes. */
+static_assert(sizeof(ldi_network_info_t) == 65, "LDI network block must be 65 bytes");
+static_assert(offsetof(ldi_network_info_t, ntp_ip) == 45, "NtpIP offset must be 45");
+static_assert(offsetof(ldi_network_info_t, device_ip) == 49, "DeviceIP offset must be 49");
+static_assert(offsetof(ldi_network_info_t, device_port) == 53, "DevicePort offset must be 53");
+static_assert(offsetof(ldi_network_info_t, gateway) == 55, "Gateway offset must be 55");
+static_assert(offsetof(ldi_network_info_t, netmask) == 59, "Netmask offset must be 59");
+static_assert(offsetof(ldi_network_info_t, reserve2) == 63, "D1H reserved offset must be 63");
+
 /**
- * 设备 IP 信息设置 (0AH) DATA 域 — 共 87 字节 (含 head)
+ * 设备 IP 信息设置 (0AH) DATA 域 — 共 85 字节 (含 head)
  * head(20B) + network_info(67B)
  */
 typedef struct [[gnu::packed]] {
@@ -521,6 +531,7 @@ static void cmd_rep_ip(channel_t *ch, void *data)
 
     ldi_build_rsp_head(&rsp->head, LDI_CMD_GET_IP_RSP);
     rsp->status = 0x00;
+    /* D1H DATA = head(20) | ErrorCode(1) | network block(65). */
 
     memcpy(net->device_ip, g_ldi.cfg.device_ip, sizeof(net->device_ip));
     net->device_port[0] = (uint8_t)(g_ldi.cfg.device_port >> 8);
@@ -968,7 +979,10 @@ static void cmd_search(channel_t *ch, void *data)
     frame->data_crc[payload_len]     = (uint8_t)(crc >> 8);
     frame->data_crc[payload_len + 1] = (uint8_t)(crc & 0xFF);
 
-    /* 仅广播到 10011，避免单播回源 */
+    /* 严格按发现协议：先单播回请求源，再广播兼容仅监听广播的工具。 */
+    if (ch != NULL && ch->ops != NULL && ch->ops->send != NULL)
+        (void)channel_send(ch, g_ldi.tx_buf, frame_len);
+
     app_udp_broadcast(g_ldi.tx_buf, frame_len);
 
     osMutexRelease(g_ldi.tx_lock);

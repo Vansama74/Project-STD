@@ -94,14 +94,23 @@ Application/Inc/ProtocolParser_QingHai
 
 ### 3.2 变更后
 
-现在协议模块采用更偏“工程级”的组织方式：
+现在协议模块采用更偏”工程级”的组织方式：
 
 - 所有协议源码都保留在 EIDE 工程中
 - 协议模块通过 `sw_app_initcall(...)` 自注册
 - 协议模块在启动后由 `app_dispatch` 统一管理
-- 切换协议时，通过 EIDE 工程配置选择“保留哪个协议文件夹参与编译，排除其他协议文件夹”
+- 切换协议时，通过 EIDE 工程配置选择”保留哪个协议文件夹参与编译，排除其他协议文件夹”
 
 也就是说，协议选择不再依赖源码预处理裁剪，而是依赖 EIDE 工程中哪些文件夹被纳入编译。
+
+#### 多协议兼容模式
+
+同一套机制天然支持**多协议共存**：
+
+- **在 EIDE 中同时保留多个协议文件夹**（如 `LDI` + `ProtocolParser_QingHai`） → 多个协议的 `sw_app_initcall` 同时编译进固件 → 启动时自动全部注册 → `frame_dispatch_task` 按优先级链式探测
+- **在 EIDE 中只保留一个协议文件夹** → 单协议模式，与当前行为完全一致
+
+无需引入任何条件编译宏、Makefile 改动、或 `PROTO=BOTH` 构建目标。多协议行为完全由 EIDE 工程中哪些文件夹被纳入编译来决定。
 
 ---
 
@@ -112,13 +121,16 @@ Application/Inc/ProtocolParser_QingHai
 当前推荐的方式是：
 
 - 将所有协议目录都加入 EIDE 工程
-- 切换协议时，仅修改 `excludeList`
-- 保留一个协议文件夹参与编译，排除其他协议文件夹
+- **单协议模式**：保留一个协议文件夹参与编译，排除其他协议文件夹
+- **多协议模式**：保留多个协议文件夹参与编译，排除不需要的
 
 例如：
 
-- 选择 LDI 协议时：保留 `Application/Src/LDI`
-- 选择青海协议时：保留 `Application/Src/ProtocolParser_QingHai`
+- 仅 LDI 协议：保留 `Application/Src/LDI`，排除 `Application/Src/ProtocolParser_QingHai`
+- 仅青海协议：保留 `Application/Src/ProtocolParser_QingHai`，排除 `Application/Src/LDI`
+- 多协议兼容（LDI + 青海）：同时保留两个文件夹
+
+**多协议模式下固件自动适配**：包含的协议文件夹中的 `sw_app_initcall` 函数都会在启动时执行，各协议实例向 `app_dispatch` 自注册。框架自动按优先级排序并链式探测，无需任何额外的编译配置。
 
 ### 4.2 自注册方式
 
@@ -227,21 +239,30 @@ Application/Src/ProtocolParser_QingHai
 
 ## 7. 当前推荐的使用方式
 
-### 7.1 切换 LDI 协议
+### 7.1 单协议模式：使用 LDI
 
 在 EIDE 中：
 
 - 保留 `Application/Src/LDI`
 - 排除 `Application/Src/ProtocolParser_QingHai`
 
-### 7.2 切换青海协议
+### 7.2 单协议模式：使用青海协议
 
 在 EIDE 中：
 
 - 保留 `Application/Src/ProtocolParser_QingHai`
 - 排除 `Application/Src/LDI`
 
-### 7.3 构建后注意事项
+### 7.3 多协议模式：LDI + 青海兼容
+
+在 EIDE 中：
+
+- **同时保留** `Application/Src/LDI` 和 `Application/Src/ProtocolParser_QingHai`
+- 两个协议的 `sw_app_initcall` 都会在启动时自注册
+- `frame_dispatch_task` 自动按优先级进行链式探测
+- 无需修改任何宏定义、Makefile 或条件编译
+
+### 7.4 构建后注意事项
 
 切换工程排除项后，建议执行：
 
@@ -264,7 +285,7 @@ Application/Src/ProtocolParser_QingHai
 
 - 新建协议文件夹
 - 按模块方式实现 `initcall` 注册
-- 在 EIDE 中决定是否将其纳入编译
+- 在 EIDE 中决定是否将其纳入编译（单独使用或与其他协议共存）
 
 ### 8.3 降低宏依赖
 
@@ -273,6 +294,14 @@ Application/Src/ProtocolParser_QingHai
 ### 8.4 减少工程和源码不同步问题
 
 协议模块是否参与编译，完全由 EIDE 工程结构决定，更直观。
+
+### 8.5 支持多协议自动兼容
+
+同一套 EIDE 文件夹机制无需任何修改即可支持多协议共存：
+
+- 包含多个协议文件夹 → 多协议自动注册 → 链式探测
+- 包含单个协议文件夹 → 单协议模式（与当前行为 100% 一致）
+- 不引入条件编译、不增加 Makefile 目标、不改变构建流程
 
 ---
 

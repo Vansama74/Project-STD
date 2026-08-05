@@ -350,7 +350,7 @@ targets:
       - <virtual_root>/Drivers/BSP/Display/scan.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
-      - <virtual_root>/Application/protocol/ldi
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
     settings:
       debugger: cortex-debug
     toolchain: GCC
