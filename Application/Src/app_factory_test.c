@@ -2,10 +2,6 @@
  * @file    app_factory_test.c
  * @brief   出厂检测模式 — monitor 监听 TEST 驱动状态机
  *
- * 状态流程（每次按键递进）：
- *   IDLE ──[1]──▶ SHOW_CODE ──[2]──▶ RED ──[3]──▶ GREEN ──[4]──▶ YELLOW
- *   ──[5]──▶ AGING ──[6]──▶ NVIC_SystemReset()
- *
  * 按键测试阶段（SHOW_CODE / RED / GREEN / YELLOW）：光敏自动调光生效。
  * 老化循环阶段（AGING）：强制最大亮度，光敏暂停。
  */
@@ -84,9 +80,9 @@ static void _aging_fill_screen(font_size_t size, font_type_t type, const char *c
         .font_type = type,
         .text_enc  = FONT_ENC_UTF8,
         .style     = &(render_style_t){
-            .h_align   = ALIGN_CENTER,
-            .v_align   = ALIGN_CENTER,
-            .word_wrap = true,
+                .h_align   = ALIGN_CENTER,
+                .v_align   = ALIGN_CENTER,
+                .word_wrap = true,
         },
     });
 }
@@ -113,19 +109,18 @@ static void factory_monitor_task(void *argument)
             .w         = dsp->screen_rows,
             .h         = dsp->screen_cols,
             .color     = COLOR_GREEN,
-            .text      = "FW:"PROGRAM_CODE"\nMD:1000000969",
-            .len       = strlen("FW:"PROGRAM_CODE"\nMD:1000000969"),
+            .text      = "FW:" PROGRAM_CODE "\nMD:1000000969",
+            .len       = strlen("FW:" PROGRAM_CODE "\nMD:1000000969"),
             .font_size = FONT_SELF_ADAPT,
             .font_type = FONT_ST,
             .text_enc  = FONT_ENC_UTF8,
             .style     = &(render_style_t){
-                .h_align   = ALIGN_CENTER,
-                .v_align   = ALIGN_CENTER,
+                    .h_align = ALIGN_CENTER,
+                    .v_align = ALIGN_CENTER,
             },
         });
 
-        /* ===== 第2次按键 → RED: 全屏红色 =====
-         * 光敏自动调光生效（未暂停 light_sensor_task） */
+        /* ===== 第2次按键 → RED: 全屏红色 =====   */
         dev_key_wait_press(DEV_KEY_TST, osWaitForever);
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_RED);
         dev_display_commit_frame(dsp);
@@ -176,8 +171,8 @@ static void factory_monitor_task(void *argument)
             .font_type = FONT_ST,
             .text_enc  = FONT_ENC_UTF8,
             .style     = &(render_style_t){
-                .h_align   = ALIGN_CENTER,
-                .v_align   = ALIGN_CENTER,
+                    .h_align = ALIGN_CENTER,
+                    .v_align = ALIGN_CENTER,
             },
         });
         dev_io_lane_light(false);
@@ -200,8 +195,8 @@ static void factory_monitor_task(void *argument)
             .font_type = FONT_ST,
             .text_enc  = FONT_ENC_UTF8,
             .style     = &(render_style_t){
-                .h_align   = ALIGN_CENTER,
-                .v_align   = ALIGN_CENTER,
+                    .h_align = ALIGN_CENTER,
+                    .v_align = ALIGN_CENTER,
             },
         });
         dev_io_lane_light(true);
