@@ -22,6 +22,7 @@
 #include "app_test.h"
 #include "app_key.h"
 #include "app_render.h"
+#include "pl_uart.h"
 
 static void init_task(void *argument);
 
@@ -102,12 +103,21 @@ static void init_task(void *argument)
     // app_tcp_server_start();
     // app_tcp_client_start();
     // app_udp_start();
-    // app_rs485_start();
+    app_rs485_start();
 
-    app_test_run();
+    // app_test_run();
     // app_default_display();
 
     printf("\nInit Task Done\n");
+    render_cfg_t ctx = {
+        .type  = RENDER_BITMAP,
+        .x     = 0,
+        .y     = 0,
+        .w     = dev_display_get()->screen_rows,
+        .h     = dev_display_get()->screen_cols,
+        .color = COLOR_RED,
+    };
+    app_bitmap_sychro(dev_display_get(), 0x01, ctx, true);
 
     osThreadExit();
 }

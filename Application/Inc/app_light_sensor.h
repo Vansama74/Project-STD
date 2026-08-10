@@ -12,3 +12,4 @@ extern osThreadId_t g_light_sensor_task_handle;
 
 void app_light_sensor_init(void);
 void app_light_sensor_task(void *argument);
+light_sensor_dev_t *app_light_sensor_get(void);
