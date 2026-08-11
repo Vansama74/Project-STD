@@ -12,7 +12,7 @@
  *   E7: 00H红灯 / 01H绿灯
  *   E8: 00H停止 / 01H报警中
  */
-
+    
 #include "app_ldi_device.h"
 
 #include <string.h>
@@ -140,70 +140,8 @@ static bool display_params_ok(const ldi_ctrl_display_t *ctrl, uint16_t text_len)
     return true;
 }
 
-/* ---- 辅助函数：判断是否为GBK双字节字符 ---- */
-static bool is_gbk_char(uint8_t high, uint8_t low)
-{
-    return (high >= 0x81 && high <= 0xFE) && (low >= 0x40 && low <= 0xFE && low != 0x7F);
-}
-
-/* ---- 辅助函数：计算指定字体下文本的总像素宽度 ---- */
-static uint16_t calc_text_width(const uint8_t *text, uint16_t text_len, font_size_t font_size)
-{
-    uint16_t total_width = 0;
-    uint16_t i = 0;
-
-    while (i < text_len) {
-        if (text[i] == '\n') {
-            // 换行符不计入宽度，但实际渲染时会换行
-            i++;
-            continue;
-        }
-
-        if (text[i] >= 0x20 && text[i] <= 0x7F) {
-            // ASCII字符：宽度 = 字号/2
-            total_width += font_size / 2;
-            i++;
-        } else if (i + 1 < text_len && is_gbk_char(text[i], text[i + 1])) {
-            // GBK中文字符：宽度 = 字号
-            total_width += font_size;
-            i += 2;
-        } else {
-            // 其他字符：跳过
-            i++;
-        }
-    }
-
-    return total_width;
-}
-
-/* ---- 辅助函数：根据屏幕尺寸和文本选择最大合适字体 ---- */
-static font_size_t select_adaptive_font(const uint8_t *text, uint16_t text_len, 
-                                       uint16_t screen_w, uint16_t screen_h)
-{
-    // 支持的字体大小，从大到小尝试
-    const font_size_t font_sizes[] = {FONT_32, FONT_24, FONT_16};
-    const uint8_t num_fonts = sizeof(font_sizes) / sizeof(font_sizes[0]);
-
-    for (uint8_t i = 0; i < num_fonts; i++) {
-        font_size_t font = font_sizes[i];
-        
-        // 检查字体高度是否超过屏幕高度
-        if (font > screen_h) {
-            continue;
-        }
-        
-        // 计算文本宽度
-        uint16_t text_width = calc_text_width(text, text_len, font);
-        
-        // 如果文本宽度不超过屏幕宽度，选择此字体
-        if (text_width <= screen_w) {
-            return font;
-        }
-    }
-    
-    // 如果所有字体都不合适，使用最小字体
-    return FONT_16;
-}
+/* ---- 显示行槽位：固定使用最小字号高度，避免不同字号互相覆盖 ---- */
+#define DISPLAY_LINE_SLOT_HEIGHT (16U)
 
 static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t text_len)
 {
@@ -220,12 +158,10 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
             text[i] = '\n';
     }
 
-    display_fill(COLOR_BLACK);
-
     render_style_t style = {
         .h_align   = ALIGN_LEFT_UP,
         .v_align   = ALIGN_LEFT_UP,
-        .word_wrap = true,
+        .word_wrap = (ctrl->font_line == 0),
     };
 
     dev_display_t *d  = dev_display_get();
@@ -235,32 +171,24 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
     uint16_t render_y = 0;
     uint16_t render_h = screen_h;
     align_t  v_align  = ALIGN_LEFT_UP;
+    bool     line_selected = false;
 
-    /* font_line > 0: 将屏幕按字号划分为若干行，文字显示在指定行；
-       font_line == 0: 全屏显示（自适应时选择最大合适字体） */
-    if (ctrl->font_line > 0 && screen_h > 0) {
-        /* 按行显示：根据字体大小计算行高 */
-        uint16_t line_height = (font_size == FONT_SELF_ADAPT) ? 16U : (uint16_t)font_size;
-        if (line_height > 0) {
-            uint16_t total_lines = screen_h / line_height;
-            if (total_lines > 0 && ctrl->font_line <= total_lines) {
-                render_y = (uint16_t)((ctrl->font_line - 1) * line_height);
-                render_h = line_height;
-                v_align  = ALIGN_LEFT_UP;
-            }
+    if (ctrl->font_line > 0 && screen_h >= DISPLAY_LINE_SLOT_HEIGHT) {
+        uint16_t line_count = screen_h / DISPLAY_LINE_SLOT_HEIGHT;
+        if (ctrl->font_line <= line_count) {
+            render_y = (uint16_t)((ctrl->font_line - 1U) * DISPLAY_LINE_SLOT_HEIGHT);
+            render_h = DISPLAY_LINE_SLOT_HEIGHT;
+            line_selected = true;
+            dev_display_fill(d, 0, render_y, screen_w, render_h, COLOR_BLACK);
         }
-        /* 自适应字号时强制使用具体字号，否则渲染器会自适应缩放 */
-        if (font_size == FONT_SELF_ADAPT) font_size = FONT_16;
-    } else {
-        /* 全屏显示：自适应模式下选择最大合适字体 */
-        if (font_size == FONT_SELF_ADAPT) {
-            if (screen_w == 0 || screen_h == 0) {
-                font_size = FONT_16;
-            } else {
-                font_size = select_adaptive_font(text, text_len, screen_w, screen_h);
-            }
-        }
+    } else if (ctrl->font_line == 0) {
+        dev_display_fill(d, 0, 0, screen_w, screen_h, COLOR_BLACK);
     }
+
+    if (font_size == FONT_SELF_ADAPT && (screen_w == 0 || screen_h == 0))
+        font_size = FONT_16;
+    if (line_selected && font_size != FONT_SELF_ADAPT && font_size > DISPLAY_LINE_SLOT_HEIGHT)
+        font_size = FONT_16;
     style.v_align = v_align;
 
     app_render(&(render_cfg_t){
@@ -273,7 +201,7 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
         .text      = (const char *)ctrl->text,
         .len       = text_len,
         .style     = &style,
-        .font_size = font_size,
+        .font_size = line_selected ? FONT_SELF_ADAPT : font_size,
         .font_type = FONT_HT,
         .text_enc  = FONT_ENC_GBK,
     });

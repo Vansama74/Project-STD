@@ -10,6 +10,16 @@
 
 #include <stdint.h>
 
+#include "dev_display.h"
+
+#define APP_TEST_OBLIQUE_LINE_SPACING (32U)
+#define APP_TEST_OBLIQUE_STEP_DELAY_MS (32U)
+
+extern volatile uint32_t g_app_test_oblique_frame_count;
+
+/** @brief 绘制指定相位的一帧斜扫图案 */
+void app_test_oblique_scan_frame(dev_display_t *dsp, int16_t phase);
+
 /** @brief 运行全部测试用例 */
 void app_test_run(void);
 

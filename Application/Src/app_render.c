@@ -258,24 +258,27 @@ static bool _is_gbk(uint8_t high, uint8_t low)
     return (high >= 0x81 && high <= 0xFE) && (low >= 0x40 && low <= 0xFE && low != 0x7F);
 }
 
-/* ---- 统计文本所需宽高（按现有文本内容、字号、换行符计算）---- */
+/* ---- 统计文本所需宽高（按现有文本内容、字号、换行符/自动换行计算）---- */
 static bool _measure_text_box(const uint8_t *text_buf, uint16_t text_len, font_size_t font_size,
-                              uint16_t *out_w, uint16_t *out_h)
+                              uint16_t max_w, bool word_wrap, uint16_t *out_w, uint16_t *out_h)
 {
     if (!text_buf || !text_len || !font_size || !out_w || !out_h)
         return false;
 
-    uint16_t line_w   = 0;
-    uint16_t max_w    = 0;
-    uint16_t line_cnt = 1;
-    uint16_t char_pos = 0;
+    const uint16_t wrap_w = max_w ? max_w : UINT16_MAX;
+    uint16_t line_w       = 0;
+    uint16_t max_line_w   = 0;
+    uint16_t line_cnt     = 1;
+    uint16_t char_pos     = 0;
 
     while (char_pos < text_len) {
         if (text_buf[char_pos] == '\n') {
-            if (line_w > max_w)
-                max_w = line_w;
+            if (line_w > max_line_w)
+                max_line_w = line_w;
             line_w = 0;
             line_cnt++;
+            if (line_cnt > 64)
+                return false;
             char_pos++;
             continue;
         }
@@ -292,23 +295,34 @@ static bool _measure_text_box(const uint8_t *text_buf, uint16_t text_len, font_s
             continue;
         }
 
-        line_w = (uint16_t)(line_w + glyph_w);
+        if (word_wrap && line_w + glyph_w > wrap_w) {
+            if (line_w > max_line_w)
+                max_line_w = line_w;
+            line_cnt++;
+            if (line_cnt > 64)
+                return false;
+            line_w = glyph_w;
+            if (line_w > wrap_w)
+                return false;
+        } else {
+            line_w = (uint16_t)(line_w + glyph_w);
+            if (!word_wrap && line_w > wrap_w)
+                return false;
+        }
     }
 
-    if (line_w > max_w)
-        max_w = line_w;
+    if (line_w > max_line_w)
+        max_line_w = line_w;
 
-    *out_w = max_w;
+    *out_w = max_line_w;
     *out_h = (uint16_t)(line_cnt * font_size);
     return true;
 }
 
 /* ---- 自适应字号选择：从大到小尝试，选择可完整放入区域的最大字号 ---- */
 static font_size_t _select_adaptive_font(const uint8_t *text_buf, uint16_t text_len, uint16_t w, uint16_t h,
-                                         font_type_t font_type, const render_style_t *style)
+                                         bool word_wrap)
 {
-    (void)font_type;
-    (void)style;
     /* 从当前激活配置中读取自适应字号候选列表 */
     const font_size_t *candidates = s_active_config->adaptive_sizes;
     uint8_t count                 = s_active_config->adaptive_count;
@@ -316,7 +330,7 @@ static font_size_t _select_adaptive_font(const uint8_t *text_buf, uint16_t text_
     for (uint8_t i = 0; i < count; i++) {
         font_size_t size = candidates[i];
         uint16_t need_w = 0, need_h = 0;
-        if (_measure_text_box(text_buf, text_len, size, &need_w, &need_h) && need_w <= w && need_h <= h)
+        if (_measure_text_box(text_buf, text_len, size, w, word_wrap, &need_w, &need_h) && need_w <= w && need_h <= h)
             return size;
     }
 
@@ -398,9 +412,9 @@ static inline void _render_text(const render_cfg_t *cfg)
     }
 
     font_size_t font_size = cfg->font_size;
+    bool word_wrap = cfg->style && cfg->style->word_wrap;
     if (font_size == FONT_SELF_ADAPT) {
-        font_size = _select_adaptive_font((const uint8_t *)text_buf, text_len, cfg->w, cfg->h,
-                                          cfg->font_type, cfg->style);
+        font_size = _select_adaptive_font((const uint8_t *)text_buf, text_len, cfg->w, cfg->h, word_wrap);
     }
     if (!font_size)
         font_size = FONT_16;
@@ -433,11 +447,15 @@ static inline void _render_text(const render_cfg_t *cfg)
         }
 
         if (line_w + glyph_w > cfg->w) {
-            if (cfg->style && cfg->style->word_wrap) {
+            if (word_wrap) {
                 line_widths[line_count++] = line_w;
-                line_w                    = glyph_w;
+                if (line_count >= (sizeof(line_widths) / sizeof(line_widths[0])))
+                    return;
+                line_w = glyph_w;
+            } else {
+                /* 不换行：超出部分截断，不计入宽度 */
+                continue;
             }
-            /* 不换行：超出部分截断，不计入宽度 */
         } else {
             line_w += glyph_w;
         }

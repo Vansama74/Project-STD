@@ -106,6 +106,9 @@ void dev_display_register(dev_display_t *dev);
 /** @brief 获取当前活动显示实例 */
 dev_display_t *dev_display_get(void);
 
+extern volatile uint32_t g_dev_display_commit_count;
+extern volatile uint32_t g_dev_display_scan_count;
+
 /** @brief 将当前逻辑帧提交到扫描帧，供 scan_task 读取 */
 void dev_display_commit_frame(dev_display_t *dev);
 

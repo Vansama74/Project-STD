@@ -9,6 +9,7 @@
 #include "app_factory_test.h"
 
 #include <string.h>
+#include <stdio.h>
 #include "cmsis_os2.h"
 #include "initcall.h"
 #include "dev_display.h"
@@ -16,18 +17,12 @@
 #include "app_render.h"
 #include "app_dispatch.h"
 #include "app_light_sensor.h"
+#include "app_test.h"
 #include "dev_io_ctrl.h"
 #include "stm32f4xx_hal.h"
 
 #define AGING_TEXT   "重庆创迪科技发展有限公司设备老化测试"
 #define PROGRAM_CODE "9K10212482"
-
-static const display_color_t s_dead_pixel_colors[] = {
-    COLOR_RED,
-    COLOR_GREEN,
-    COLOR_YELLOW,
-};
-#define DEAD_PIXEL_COLOR_COUNT (sizeof(s_dead_pixel_colors) / sizeof(s_dead_pixel_colors[0]))
 
 static const font_size_t s_aging_sizes[] = {
     FONT_16,
@@ -56,9 +51,8 @@ static void _aging_fill_screen(font_size_t size, font_type_t type, const char *c
     if (rows == 0) rows = 1;
 
     dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
-    dsp->dirty = false; /* 防止 scan 在 fill 和 render 之间输出全黑帧 */
+    dsp->dirty = false;
 
-    /* 把字符重复 cols×rows 份放缓冲区，word_wrap 自动分行 */
     static char buf[256];
     uint16_t pos   = 0;
     uint16_t count = cols * rows;
@@ -85,6 +79,7 @@ static void _aging_fill_screen(font_size_t size, font_type_t type, const char *c
                 .word_wrap = true,
         },
     });
+    dev_display_commit_frame(dsp);
 }
 
 /* ================================================================
@@ -101,24 +96,30 @@ static void factory_monitor_task(void *argument)
         dev_key_wait_press(DEV_KEY_TST, osWaitForever);
 
         /* ===== 第1次按键 → SHOW_CODE: 显示固件/模组信息 ===== */
-        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
-        app_render(&(render_cfg_t){
-            .type      = RENDER_TEXT,
-            .x         = 0,
-            .y         = 0,
-            .w         = dsp->screen_rows,
-            .h         = dsp->screen_cols,
-            .color     = COLOR_GREEN,
-            .text      = "FW:" PROGRAM_CODE "\nMD:1000000969",
-            .len       = strlen("FW:" PROGRAM_CODE "\nMD:1000000969"),
-            .font_size = FONT_SELF_ADAPT,
-            .font_type = FONT_ST,
-            .text_enc  = FONT_ENC_UTF8,
-            .style     = &(render_style_t){
-                    .h_align = ALIGN_CENTER,
-                    .v_align = ALIGN_CENTER,
-            },
-        });
+        {
+            const char *module_code = (dsp && dsp->module_code) ? dsp->module_code : "UNKNOWN";
+            char info_buf[64];
+            snprintf(info_buf, sizeof(info_buf), "FW:%s\nMD:%s", PROGRAM_CODE, module_code);
+
+            dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
+            app_render(&(render_cfg_t){
+                .type      = RENDER_TEXT,
+                .x         = 0,
+                .y         = 0,
+                .w         = dsp->screen_rows,
+                .h         = dsp->screen_cols,
+                .color     = COLOR_GREEN,
+                .text      = info_buf,
+                .len       = strlen(info_buf),
+                .font_size = FONT_SELF_ADAPT,
+                .font_type = FONT_ST,
+                .text_enc  = FONT_ENC_UTF8,
+                .style     = &(render_style_t){
+                        .h_align = ALIGN_CENTER,
+                        .v_align = ALIGN_CENTER,
+                },
+            });
+        }
 
         /* ===== 第2次按键 → RED: 全屏红色 =====   */
         dev_key_wait_press(DEV_KEY_TST, osWaitForever);
@@ -236,7 +237,10 @@ static void factory_monitor_task(void *argument)
             if (aging_exit) break;
         }
 
-        /* ===== 第12次按键 → 重启程序 ===== */
+        /* ===== 第12次按键 → OBLIQUE_SCAN: 斜扫模式 ===== */
+        app_test_oblique_scan();
+
+        /* ===== 第13次按键 → 重启程序 ===== */
         NVIC_SystemReset();
     }
 }
@@ -246,8 +250,8 @@ static void _factory_test_init(void)
 {
     const osThreadAttr_t attr = {
         .name       = "factory_monitor",
-        .stack_size = 512 * 4,
-        .priority   = osPriorityBelowNormal,
+        .stack_size = 1024 * 4,
+        .priority   = osPriorityHigh,
     };
     g_factory_test = osThreadNew(factory_monitor_task, NULL, &attr);
 }

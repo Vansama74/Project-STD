@@ -18,8 +18,11 @@ static osEventFlagsId_t s_scan_evt;
 static dev_display_t *s_active_display;
 static uint8_t *s_frame_front;
 static uint8_t *s_frame_back;
-static uint8_t *s_pending_frame;
-static uint8_t s_frame_ready;
+static volatile uint8_t *s_pending_frame;
+static volatile uint8_t s_frame_ready;
+
+volatile uint32_t g_dev_display_commit_count;
+volatile uint32_t g_dev_display_scan_count;
 
 /* ---- 实例注册（由派生模组的 hw_dev_initcall 调用）---- */
 void dev_display_register(dev_display_t *dev) { s_active_display = dev; }
@@ -30,8 +33,12 @@ void dev_display_commit_frame(dev_display_t *dev)
 {
     if (!dev)
         return;
+
+    osKernelLock();
     s_pending_frame = dev->pixel_map;
     s_frame_ready   = 1U;
+    g_dev_display_commit_count++;
+    osKernelUnlock();
 }
 
 /* ---- TIM 周期回调（前向声明，实现在文件末尾）---- */
@@ -65,19 +72,23 @@ static void scan_task(void *arg)
         osEventFlagsWait(s_scan_evt, 0x01, osFlagsWaitAny, osWaitForever);
 
         /* 帧提交 → 预计算（off critical path） */
-        if (s_frame_ready) {
-            osKernelLock();
-            s_frame_front  = s_pending_frame;
-            s_frame_back   = dev->hub75_buff;
-            s_frame_ready  = 0U;
-            osKernelUnlock();
+        osKernelLock();
+        bool frame_ready = s_frame_ready != 0U;
+        if (frame_ready) {
+            s_frame_front = (uint8_t *)s_pending_frame;
+            s_frame_back  = dev->hub75_buff;
+            s_frame_ready = 0U;
+        }
+        osKernelUnlock();
 
+        if (frame_ready) {
             dev->dirty = false;
             if (dev->ops->prepare)
                 dev->ops->prepare(dev);
         }
 
         /* 模组专用扫描输出 */
+        g_dev_display_scan_count++;
         dev->ops->scan(dev, scan_line);
 
         /* OE/LAT 原子窗口（所有模组通用） */
