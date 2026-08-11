@@ -2,6 +2,12 @@
     "folders": [
         {
             "path": "."
+        },
+        {
+            "path": "../STM32F407-Bootloader-master"
+        },
+        {
+            "path": "../STM32F407-Recovery-master"
         }
     ],
     "settings": {
