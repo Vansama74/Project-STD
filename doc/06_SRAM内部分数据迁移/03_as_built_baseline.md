@@ -11,6 +11,8 @@
 | | Makefile | EIDE Debug（现行常见） |
 |--|----------|------------------------|
 | 显示 | 默认可含 `1_260` | **仅 1-577**（exclude 1-260/1-969；宏 3×3 → CCM **38208**） |
+| 协议 | **全量**：IAP / LDI / 青海 / RLS / AH_MQTT | **IAP + LDI + 青海**（exclude RLS / AH） |
+| Kernel | 同（initcall / ring_buffer / bit_utils / crc_utils / text_cvt / `bcc_utils.c`） | 同左 |
 | 堆 | 同：`heap_4` static ucHeap @ SRAM **36KB** | 同 |
 | RB | 同：三槽 provide @ SRAM **1536/768/768** | 同 |
 | 占用权威 | 对照用 | **现行 04**（须标注模组） |
@@ -23,7 +25,7 @@
 
 - `Compiler/STM32F407XX_FLASH.ld`：FLASH 0x08040000/768K；RAM 128K；CCMRAM 64K；`.ccmram (NOLOAD)`  
 - `startup.c`：清 `_sccmram.._eccmram`  
-- `_Min_Heap_Size=0x400` / `_Min_Stack_Size=0xA00` → `._user_heap_stack` ≈3584B  
+- `_Min_Heap_Size=0x400` / `_Min_Stack_Size=0xA00`（合计 0xE00）→ `._user_heap_stack` 实测 **3588B**  
 
 ---
 

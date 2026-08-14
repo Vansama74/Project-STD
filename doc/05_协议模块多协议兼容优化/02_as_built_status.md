@@ -12,7 +12,7 @@
 
 | 编号 | 判定 | 现状 |
 |------|------|------|
-| A-1 单固件多协议 | ✅ | Makefile/EIDE 同编 LDI + 青海 + RLS + IAP；各自 `sw_app_initcall` |
+| A-1 单固件多协议 | ✅ | Makefile 同编 IAP/LDI/青海/RLS/AH；**EIDE Debug 现编 IAP+LDI+青海**（`.eide/eide.yml` exclude RLS/AH）；各自 `sw_app_initcall` |
 | A-2 目录选编 | ⚠️ | 无 `APP_PROTOCOL`；排除协议目录可裁解析器。**排除整个 `IAP/` 时须保留 `app_iap_cfg.c`**，否则 LDI 链接失败（见 doc/07） |
 | A-3 自注册 | ✅ | `app_boot` 无协议分支；四步完整 |
 | A-4 同通道链式 | ✅ | `any_wait/any_fake/any_parsed`；RS485：青海+RLS；RJ45：IAP+LDI（+可选 MQTT） |
@@ -61,6 +61,8 @@
 | RLS | 2 | 1076 | 维持 |
 | AH_MQTT | **3** | ~1623（任务启动后） | 1→3 |
 
+构建口径：IAP/LDI/青海两套构建均编入；**RLS/AH 仅 Makefile 编入**，EIDE Debug 排除（采样 elf 中无其队列缓冲，见 06/`04`）。
+
 `osMessageQueuePut(..., timeout=0)`：满则丢整帧。深度与 RB/DMA 无强制联调。
 
 ---
@@ -103,7 +105,7 @@
 | UDP IAP 与 LDI | 共享 RJ45，互不永久阻塞 |
 | TCP LDI 一包 ≥3 帧 | 深度 4 下应均可入队（处理任务跟得上时） |
 | TTS | USART6 出帧；协议口无语音字节 |
-| 排除青海目录 Rebuild | 仅余协议；RS485 provide 仍可由 RLS 提供 |
+| 排除青海目录 Rebuild | Makefile 口径：RS485 provide 仍可由 RLS 提供；EIDE 口径：RLS 亦被排除，RS485 槽无提供者 → `acquire` 判空安全退化 |
 | 排除整个 IAP/ 仅留 LDI | 须保留 `app_iap_cfg.c`，否则链接失败 |
 
 ---
@@ -122,4 +124,5 @@
 ## 修订
 
 - 2026-08-14：首版落地对照。  
-- 2026-08-14：对齐 RB 1536/768/768、queue 深度表、A-2/doc/07、DoD。
+- 2026-08-14：对齐 RB 1536/768/768、queue 深度表、A-2/doc/07、DoD。  
+- 2026-08-14：A-1 与 §2.1 补充 EIDE/Makefile 协议选编差异（EIDE exclude RLS/AH）。

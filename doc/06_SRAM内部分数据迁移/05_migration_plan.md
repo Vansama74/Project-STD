@@ -17,7 +17,7 @@
 - [x] 堆从 CCM 迁回 SRAM（`configAPPLICATION_ALLOCATED_HEAP`→0，删 `freertos_heap_ccm.c`）
 - [x] 与瘦身同提交；36KB 后缺口约 **1256B**，用 RTT Up 缓冲 4KB→2KB（约 −2KB）覆盖
 - [x] 优先候选：缩 SEGGER RTT（未动 AH_MQTT / LwIP）
-- [x] 验收以 EIDE/1-969 链接成功 + 更新 04 为准
+- [x] 验收以 EIDE 大屏链接成功（Phase A 验证口径 1-969；现行 1-577 3×3，CCM 同为 38208）+ 更新 04 为准
 - [x] 授权执行：用户要求「执行修改，ucHeap 改为 36KB」
 
 ---
@@ -85,7 +85,7 @@
 
 - [x] 三步机械变更合入  
 - [x] RTT 瘦身覆盖 36KB 回退缺口  
-- [x] EIDE/1-969 Debug **链接成功**（RAM 130280 / CCM 38208）  
+- [x] EIDE Debug **链接成功**（RAM 130280 / CCM 38208；Phase A 验证口径 1-969，现行 EIDE 编 1-577 3×3 同量级）  
 - [x] 更新 [04](./04_current_memory_occupancy.md)  
 - [x] `nm`：`ucHeap` @ SRAM（`0x2000…`，不在 `0x1000…`）  
 - [ ] ETH / UART / 字库 / IAP-UDP / LDI-TCP 冒烟  

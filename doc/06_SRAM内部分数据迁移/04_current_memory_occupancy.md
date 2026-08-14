@@ -1,7 +1,7 @@
 # 04 当前 SRAM / CCMRAM 占用分布（实测）
 
 > **角色**：本目录 **唯一占用实测账本**  
-> **状态**：现行　|　采样：**Makefile/GCC Debug** / 链接产物含 **1-577 级 CCM 38208**（与 EIDE 排除 1-260/1-969 时一致）/ **2026-08-14 14:45**  
+> **状态**：现行　|　采样：**EIDE Debug（GCC 15.2）** / 编入 **1-577 3×3**、排除 1-260 / 1-969 / RLS / AH_MQTT / **2026-08-14 16:37**（重建复核，数字未漂移）  
 > **迁移**：[05_migration_plan.md](./05_migration_plan.md)（Phase A + 后续瘦身已执行）  
 > **RB / queue 语义**：doc/05
 
@@ -13,13 +13,14 @@
 
 | 项 | 值 |
 |----|-----|
-| 构建 | arm-none-eabi-gcc 15.x / `build/Debug/Project_STD.elf` |
-| 模组（CCM） | **38208B**（1-577 3×3 或 1-969 同量级；本采样 elf 为现行工程） |
+| 构建 | **EIDE Debug**（Arm GNU Toolchain 15.2 / GCC）；`outDir=build` → `build/Debug/Project_STD.elf`（对象在 `build/Debug/.obj/`） |
+| 模组（CCM） | 编入 **1-577 3×3**（`.eide/eide.yml` exclude 1-260 / 1-969）；CCM **38208B**，与 1-969 同量级 |
+| 协议选编 | 编入 **IAP + LDI + 青海**；exclude **RLS / AH_MQTT** |
 | 段合计 | `.data` 1612 + `.bss` 115620 + `._user_heap_stack` 3588 = **120820** |
 | CCM | `.ccmram` **38208** |
 | 结果 | **链接成功** |
 
-与「仅 1-260 小屏」数字 **严禁混用**。
+与「仅 1-260 小屏」数字 **严禁混用**。**勿用 `make` 重采**：Makefile 现编 1-260 + RLS/AH（见 `03` §1），覆盖 elf 后本表数字不复现。
 
 | 段 | 大小 |
 |----|------|
@@ -44,7 +45,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 
 ## §2 SRAM
 
-### 关键符号（nm，2026-08-14 14:45）
+### 关键符号（nm，2026-08-14 16:37，EIDE Debug 产物）
 
 | 对象 | 大小 | 说明 |
 |------|------|------|
@@ -57,8 +58,9 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | `s_iap_queue_buf` | **2104** | 深度 2 |
 | `s_ldi_queue_buf` | **2080** | 深度 **4** |
 | `s_qh_queue_buf` | **801** | 深度 **3** |
-| `s_rls_queue_buf` | **1076** | 深度 2 |
 | ETH/LwIP 池 | ram_heap / RX_POOL / PBUF 等 | 永留 SRAM（大户） |
+
+`s_rls_queue_buf`（**1076**，深度 2）与 AH_MQTT 队列（~1623，任务内 static）为**源码口径**，**不在本采样 elf 内**（EIDE Debug 排除 RLS/AH；仅 Makefile 构建时才计入 bss）。
 
 ### 协议 RB（SRAM）
 
@@ -70,13 +72,13 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 
 ### 协议帧 queue（SRAM 静态；2026-08-14 变更）
 
-| 协议 | 深度 | 缓冲约 | 变更记录 |
-|------|------|--------|----------|
-| IAP | 2 | 2104 | 维持 |
-| LDI | 4 | 2080 | **2→4** |
-| 青海 | 3 | 801 | payload 259 + **深度 3** |
-| RLS | 2 | 1076 | 维持 |
-| AH_MQTT | 3 | ~1623 | **1→3**（任务内；initcall 关则未激活路径） |
+| 协议 | 深度 | 缓冲约 | 变更记录 | 本采样 |
+|------|------|--------|----------|--------|
+| IAP | 2 | 2104 | 维持 | ✅ 编入 |
+| LDI | 4 | 2080 | **2→4** | ✅ 编入 |
+| 青海 | 3 | 801 | payload 259 + **深度 3** | ✅ 编入 |
+| RLS | 2 | 1076 | 维持 | — EIDE 排除 |
+| AH_MQTT | 3 | ~1623 | **1→3**（任务内；initcall 关则未激活路径） | — EIDE 排除 |
 
 语义与 Put 丢帧行为 → **doc/05** `01` §4.1 / `02` §2.1。
 
@@ -97,6 +99,8 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 
 ## §4 复现
 
+**前提**：`build/Debug/Project_STD.elf` 须为 **EIDE Debug** 产物。若先执行 `make`（编 1-260 + RLS/AH）会覆盖该 elf，本表数字不复现。
+
 ```bash
 arm-none-eabi-size -A build/Debug/Project_STD.elf | grep -E '^\.(data|bss|ccmram|_user)'
 arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_buf|s_.*_queue_buf|s_rs485_buf|s_rs232'
@@ -108,4 +112,5 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 ## 修订
 
 - 2026-08-14：Phase A 后首测（130280 / 38208）。  
-- 2026-08-14 14:45：对齐 RB 1536/768/768、DMA 640、queue 深度表；重采 SRAM ≈120820。
+- 2026-08-14 14:45：对齐 RB 1536/768/768、DMA 640、queue 深度表；重采 SRAM ≈120820。  
+- 2026-08-14 16:37：更正采样口径为 **EIDE Debug**（原误标 Makefile/GCC Debug）；标注 RLS/AH 未编入与 Makefile 重采警告。

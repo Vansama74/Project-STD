@@ -27,9 +27,9 @@
 ## 快速结论
 
 - 三槽：**`RJ45=1536` / `RS485=768` / `RS232=768`**，体在 SRAM，`RB_PROVIDE_WEAK` 按需提供。
-- 帧 queue（静态，不占 `ucHeap`）：IAP **2** / LDI **4** / 青海 **3** / RLS **2** / AH_MQTT **3**。
+- 帧 queue（静态，不占 `ucHeap`）：IAP **2** / LDI **4** / 青海 **3** / RLS **2** / AH_MQTT **3**（RLS/AH 为源码口径；现行 EIDE Debug 未编入，仅 Makefile 全编）。
 - 同物理口多协议：包级写入去重 + 持锁链式 probe。
 - IAP 仅 UDP；LDI 仅 TCP/UDP（RJ45）；RS232_1 语音旁路禁 bind。
-- 目录选编：排除协议目录可裁解析器；**排除整个 IAP/ 时须保留 `app_iap_cfg.c`**（见 07），否则 LDI 链接失败。
+- 目录选编：排除协议目录可裁解析器；现行 **EIDE Debug 已排除 RLS/AH_MQTT**（仅编 IAP+LDI+青海），**Makefile 全量编入**；**排除整个 IAP/ 时须保留 `app_iap_cfg.c`**（见 07），否则 LDI 链接失败。
 
 阅读顺序：`01` → `02`；堆/CCM → `06`；LDI 选编 → `07`。

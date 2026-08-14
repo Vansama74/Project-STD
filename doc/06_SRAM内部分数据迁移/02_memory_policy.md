@@ -48,8 +48,8 @@ ram_heap、RX_POOL、PBUF_POOL、ETH 描述符、UART RX DMA、`s_dma_bounce`；
 
 ### 构建隔离
 
-占用权威：EIDE/1-969 → [04](./04_current_memory_occupancy.md)。  
-Makefile/1-260 数字不得与之混用。
+占用权威：EIDE Debug（**1-577 3×3**；exclude 1-260 / 1-969 / RLS / AH）→ [04](./04_current_memory_occupancy.md)。  
+Makefile（1-260 + RLS/AH 全编）数字不得与之混用。
 
 ---
 
@@ -68,7 +68,7 @@ Makefile/1-260 数字不得与之混用。
 
 ## §5 长期验收（迁移完成后）
 
-- [x] EIDE/1-969 链接成功；更新 04  
+- [x] EIDE 大屏链接成功（Phase A 验证口径 1-969；现行 1-577 3×3，CCM 同为 38208）；更新 04  
 - [x] `ucHeap` 不在 `0x1000…`  
 - [ ] ETH/UART/字库冒烟  
 - [ ] `xPortGetMinimumEverFreeHeapSize` 重标定  
