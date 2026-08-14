@@ -26,6 +26,18 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 **链接优化**：`--gc-sections` + `-ffunction-sections -fdata-sections`，未引用的函数/数据自动丢弃。`--specs=nano.specs` 链接精简版 newlib。`-u _printf_float` 强制链接 printf 浮点格式化支持（newlib-nano 默认关闭）。`-fshort-enums` 按最小宽度打包枚举类型。
 
+## 文档地图
+
+| 目录 | 角色 |
+|---|---|
+| `doc/01_显示系统` | 显示层：1-260/1-577/1-969 模组驱动、自适应字号 |
+| `doc/02_LDI协议与外设接口` | LDI 协议与光敏/字库等外设接口 |
+| `doc/03_重庆高速二代费显协议` | RLS 重庆协议接入记录 |
+| `doc/04_青海高速费显协议` | 青海协议接入记录 |
+| `doc/05_协议模块多协议兼容优化` | 多协议 RB/绑定/queue 深度权威（`01_architecture.md`） |
+| `doc/06_SRAM内部分数据迁移` | 内存分区唯一权威；`04_current_memory_occupancy.md` 为占用账 |
+| `doc/07_LDI与IAP配置解耦` | LDI↔IAP 配置解耦方案（待审，暂不改码） |
+
 ## 硬件架构
 
 **MCU**：STM32F407ZGTx（Cortex-M4F，168MHz，FPU，1024KB Flash，128KB SRAM + 64KB CCMRAM）
@@ -40,18 +52,11 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 ```
 Flash (1024KB, 起始 0x08000000)
-├─ Sector 0:  0x08000000  16KB  中断向量表 (.isr_vector)
-├─ Sector 1:  0x08004000  16KB  IAP 系统配置 (dev_flash_iap)
-├─ Sector 2:  0x08008000  16KB  Recovery 固件 (备用)
-├─ Sector 3:  0x0800C000  16KB  (预留)
-├─ Sector 4:  0x08010000  64KB  }
-├─ Sector 5:  0x08020000  128KB } 应用程序 (.text/.rodata)
-├─ Sector 6:  0x08040000  128KB } 应用程序 (.text/.rodata) — IAP 适配后主固件入口
-├─ Sector 7:  0x08060000  128KB }
-├─ Sector 8:  0x08080000  128KB  (预留扩展)
-├─ Sector 9:  0x080A0000  128KB  (预留扩展)
-├─ Sector10:  0x080C0000  128KB  (预留扩展)
-└─ Sector11:  0x080E0000  128KB  (已释放 — LDI 配置已迁移至 W25Qxx)
+├─ Sector 0:    0x08000000  16KB   Bootloader（独立工程，`ORIGIN 0x08000000 LENGTH 16K`）
+├─ Sector 1:    0x08004000  16KB   IAP 系统配置 (app_iap_cfg.c)
+├─ Sector 2~5:  0x08008000  224KB  Recovery 固件（独立工程，`ORIGIN 0x08008000 LENGTH 224K`）
+├─ Sector 6~11: 0x08040000  768KB  主固件 .text/.rodata/.initcall（本工程，FLASH ORIGIN 0x08040000）
+└─ (Sector 11 已释放 — LDI 配置已迁移至 W25Qxx，不占内部 Flash)
 
 SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-08-14；以 06/04 为准）
 ├─ .data / .bss     LwIP ram_heap + RX_POOL + PBUF_POOL 等（ETH 大户，永留 SRAM）
@@ -71,18 +76,17 @@ CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 
 
 ## 闪存扇区职能地图
 
-> **当前状态**：固件入口为 `0x08000000`，无 IAP bootloader 运行。`dev_flash_iap` 模块和 Recovery 区域已预留，待 IAP 适配后启用。
-> **IAP 适配后**：bootloader 占 Sector 0~3，主固件从 `0x08040000` 启动（需修改链接脚本 ORIGIN、`VECT_TAB_OFFSET`、`SCB->VTOR`）。
+> **当前状态**：Bootloader 与 Recovery 已作为独立工程部署（workspace 内 `STM32F407-Bootloader-master` / `STM32F407-Recovery-master`）。主固件已从 `0x08040000` 链接（Sector 6~11，768K，`Compiler/STM32F407XX_FLASH.ld`），并在 `Core/Src/main.c` 中 `SCB->VTOR = FLASH_BASE | 0x40000` 重定位向量表。
 
 | 扇区 | 地址 | 大小 | 内容 | 读写方式 |
 |---|---|---|---|---|
-| 0 | `0x08000000` | 16KB | ISR 向量表 + 固件头 | 烧录时写入 |
-| 1 | `0x08004000` | 16KB | IAP 系统配置 (magic + FWInfo + NetConfig + CRC32) | `dev_flash_iap` 内存映射读 + 擦写 |
-| 2 | `0x08008000` | 16KB | Recovery 固件 | IAP 升级时写入 |
-| 3-10 | `0x0800C000`~`0x080C0000` | 640KB | 主固件 (.text/.rodata/.initcall) | 烧录时写入 |
-| 11 | `0x080E0000` | 128KB | (已释放 — LDI 配置已迁移至 W25Qxx 最后一个 4KB 扇区) | — |
+| 0 | `0x08000000` | 16KB | Bootloader（独立工程，`ORIGIN 0x08000000 LENGTH 16K`） | 烧录时写入 |
+| 1 | `0x08004000` | 16KB | IAP 系统配置 (magic + update_sta + FWInfo + NetConfig + CRC32) | `app_iap_cfg.c` 内存映射读 + 擦写 |
+| 2~5 | `0x08008000`~`0x08040000` | 224KB | Recovery 固件（独立工程，`ORIGIN 0x08008000 LENGTH 224K`） | IAP 升级时写入 |
+| 6~11 | `0x08040000`~`0x080FFFFF` | 768KB | 主固件 (.text/.rodata/.initcall) | 烧录时写入 |
+| 11 注 | `0x080E0000` | 128KB | 已释放 — LDI 配置已迁移至 W25Qxx 最后一个 4KB 扇区（不再占内部 Flash） | — |
 
-**外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + LDI 设备配置（最后一个 4KB 扇区），通过 `dev_storage_read` 接口访问。`dev_flash_ldi` 通过 `dev_w25qxx_get()` 获取存储句柄。
+**外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + LDI 设备配置（最后一个 4KB 扇区），通过 `dev_storage_read` 接口访问。LDI 配置绑定在 `Application/Src/LDI/app_ldi_cfg.c`（`sw_dev_initcall` 中 `s_ldi_base = dev_storage_capacity(w25) - 4096`）。
 
 ## 软件分层架构
 
@@ -103,8 +107,8 @@ CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 
 │  依赖：Platform/ + Kernel/ (通过 pl_* 接口操作硬件)              │
 ├──────────────────────────────────────────────────────────────────┤
 │  Kernel/                                                         │
-│  纯软件工具：ring_buffer、initcall、dispatch_types、text_cvt、   │
-│  bit_utils、crc_utils                                            │
+│  纯软件工具：ring_buffer、initcall、container_of、text_cvt、     │
+│  bit_utils、crc_utils、bcc_utils                                 │
 │                                                                  │
 │  依赖：无（零硬件依赖，仅 stdint/stddef/stdbool）                │
 ├──────────────────────────────────────────────────────────────────┤
@@ -158,8 +162,9 @@ pl_sys (SystemClock_Config, delay, reset)
 ```
 硬件上电 → Reset_Handler (Compiler/startup.c)
   ├─ .data 拷贝 (Flash→SRAM), .bss 清零, CCMRAM 清零
-  ├─ SystemInit() — FPU 使能 (VTOR 默认 0x08000000，IAP 适配后设为 0x08040000)
+  ├─ SystemInit() — FPU 使能（VTOR 在 main() 中由 `SCB->VTOR` 重定位到 0x08040000）
   └─ main() (Core/Src/main.c)
+       ├─ SCB->VTOR = FLASH_BASE | 0x40000  ← 向量表重定位（主固件入口 0x08040000）
        ├─ HAL_Init()                     ← HAL 库基础
        ├─ SystemClock_Config()           ← 168MHz
        ├─ initcall_run(__hw_initcall)    ← RTOS 前硬件初始化
@@ -169,10 +174,14 @@ pl_sys (SystemClock_Config, delay, reset)
             └─ osKernelStart()
                  ├─ [FreeRTOS 接管: SysTick→PendSV 任务切换]
                  └─ init_task:
-                      ├─ dev_eth_start()       ← LwIP + netif
-                      ├─ sw_board_init()       ← initcall_run(__sw_initcall)
+                      ├─ dev_eth_start()          ← LwIP + netif
+                      ├─ sw_board_init()          ← initcall_run(__sw_initcall)
+                      ├─ app_splash_display()     ← 开机画面 (FW/MD 版本, 5s)
                       ├─ osThreadNew(half_sec_task)
-                      └─ osThreadExit()        ← 自我销毁
+                      ├─ app_tcp_server_start() / app_tcp_client_start() / app_udp_start()
+                      ├─ app_rs485_start() / app_rs232_start()  (app_rs232_1_start 注释)
+                      ├─ app_default_display()    ← 默认欢迎画面
+                      └─ osThreadExit()           ← 自我销毁
 ```
 
 ### initcall 初始化顺序表
@@ -185,7 +194,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 1-pl | pl | `pl_dma_init` | `pl_dma.c` | DMA 流初始化 |
 | 1-pl | pl | `pl_gpio_init` | `pl_gpio.c` | GPIO 时钟使能 |
 | 1-pl | pl | `pl_spi_init` | `pl_spi.c` | SPI1 初始化 |
-| 1-pl | pl | `pl_tim_init` | `pl_tim.c` | TIM2/3/4 初始化 |
+| 1-pl | pl | `pl_tim_init` | `pl_tim.c` | TIM2/3/4/7 初始化 |
 | 1-pl | pl | `pl_uart_init` | `pl_uart.c` | USART1/3/6 初始化 |
 | 1-pl | pl | `pl_crc_init` | `pl_crc.c` | 硬件 CRC |
 | 1-pl | pl | `pl_iwdg_init` | `pl_iwdg.c` | 看门狗 |
@@ -193,15 +202,16 @@ pl_sys (SystemClock_Config, delay, reset)
 | 1-pl | pl | `pl_adc_init` | `pl_adc.c` | ADC1 |
 | 1-pl | pl | `pl_exti_init` | `pl_exti.c` | 外部中断 |
 | 1-pl | pl | `pl_hub75_init` | `pl_hub75.c` | HUB75 GPIO |
-| 1-pl | pl | `pl_flash_init` | `pl_flash.c` | Flash 解锁（空操作） |
 | 1-pl | pl | `pl_rtt_init` | `pl_rtt.c` | SEGGER RTT |
 | 2-dev | dev | `dev_display_init` | `dev_display.c` | HUB75 引脚 + DBG 冻结 |
-| 2-dev | dev | `dev_display_p20_init` | `dev_display_p20.c` | BSRR 查表 + ops 绑定 |
+| 2-dev | dev | `dev_display_1_577_init` | `dev_display_1_577.c` | 1-577 模组实例注册（EIDE 现行） |
+| 2-dev | dev | `dev_display_1_260_init` | `dev_display_1_260.c` | 1-260 模组实例注册（Makefile 默认） |
+| 2-dev | dev | `dev_display_1_969_init` | `dev_display_1_969.c` | 1-969 模组实例注册（备用） |
+| 2-dev | dev | `dev_display_p20_init` | `dev_display_p20.c` | P20 模组实例注册（未编入任何构建） |
 | 2-dev | dev | `dev_w25qxx_init` | `dev_w25qxx.c` | SPI Flash JEDEC 识别 |
 | 2-dev | dev | `dev_eth_init` | `dev_eth.c` | ETH MAC + DP83848 PHY |
-| 2-dev | dev | `dev_rs485_init` | `dev_rs485.c` | RS485 通道 hw init |
-| 2-dev | dev | `dev_rs232_init` | `dev_rs232.c` | RS232 通道 hw init |
-| 2-dev | dev | `_dev_flash_iap_storage_init` | `dev_flash_iap.c` | 内部 Flash ops 绑定 (Sector 1) |
+| 2-dev | dev | `dev_rs485_init` | `dev_rs485.c` | RS485 RE 方向回调注入 |
+| 2-dev | dev | `_app_flash_iap_storage_init` | `Application/Src/IAP/app_iap_cfg.c` | 内部 Flash ops 绑定 (Sector 1) |
 | 2-dev | dev | `dev_io_ctrl_init` | `dev_io_ctrl.c` | 车道灯/闪光灯 GPIO 初始化 |
 | 2-dev | dev | `dev_key_init` | `dev_key.c` | EXTI 中断回调注册 (SW1~SW3, TEST) |
 | 3-post | — | （空） | — | 预留 |
@@ -211,14 +221,19 @@ pl_sys (SystemClock_Config, delay, reset)
 | 顺序 | 层级 | 函数 | 文件 | 职责 |
 |---|---|---|---|---|
 | 0-pre | — | （空） | — | 预留 |
-| 1-pl | pl | `pl_exti_sw_init` | `pl_exti.c` | EXTI 中断使能 |
 | 2-dev | dev | `dev_display_start` | `dev_display.c` | 创建 scan_task + 启动 TIM3/4 |
 | 2-dev | dev | `dev_key_sw_init` | `dev_key.c` | 创建 TEST 按键信号量 |
-| 2-dev | dev | `_dev_flash_ldi_storage_init` | `dev_flash_ldi.c` | LDI 配置 W25Qxx 地址计算 |
+| 2-dev | dev | `_app_flash_ldi_storage_init` | `Application/Src/LDI/app_ldi_cfg.c` | LDI 配置 W25Qxx 地址计算 |
 | 3-app | app | `app_dispatch_init` | `app_dispatch.c` | 创建 ch_queue + frame_dispatch_task |
 | 3-app | app | `_render_init` | `app_render.c` | 绑定 display + storage 句柄 |
-| 3-app | app | `app_key_init` | `app_key.c` | 创建 key_poll_task (20ms) |
+| 3-app | app | `_app_key_init` | `app_key.c` | 创建 key_poll_task (20ms) |
 | 3-app | app | `app_light_sensor_init` | `app_light_sensor.c` | 创建光传感器自动调节任务 |
+| 3-app | app | `iap_module_init` | `Application/Src/IAP/app_iap.c` | IAP 协议自注册（UDP） |
+| 3-app | app | `ldi_module_init` | `Application/Src/LDI/app_ldi.c` | LDI 协议自注册（TCP/UDP 三通道） |
+| 3-app | app | `qh_proto_init` | `Application/Src/ProtocolParser_QingHai/app_qh_proto.c` | 青海协议自注册（RS485+RS232） |
+| 3-app | app | `rls_module_init` | `Application/Src/RLS/app_rls.c` | RLS 协议自注册（RS485） |
+| 3-app | app | `_factory_test_init` | `Application/Src/app_factory_test.c` | 出厂检测 monitor |
+| 3-app | app | `ah_mqtt_module_init` | `Application/Src/AH_MQTT/ah_mqtt.c` | 已注释，未启用 |
 | 4-post | — | （空） | — | 预留 |
 
 ### initcall 实现原理
@@ -252,7 +267,7 @@ pl_sys (SystemClock_Config, delay, reset)
 ├─ USART1_IRQHandler         (pl_uart.c)
 │   └─ HAL_UART_IRQHandler + uart_idle_handle
 │       └─ DMA 空闲中断 → 计算接收长度 → rx_cb→
-│           osMessageQueuePut(rx_queue, &len) → 唤醒 uart_channel_task
+│           osMessageQueuePut(rx_queue, &len) → 唤醒 rs485_task / rs232_task
 │
 ├─ USART3_IRQHandler / USART6_IRQHandler  (同上)
 │
@@ -261,7 +276,7 @@ pl_sys (SystemClock_Config, delay, reset)
 │       └─ rx_cplt_cb(s_ok=true) → dev_w25qxx DMA 完成通知
 │
 ├─ DMA1_Stream1_IRQHandler   (pl_uart.c, USART3 RX DMA)
-├─ DMA2_Stream1_IRQHandler   (pl_uart.c, USART6 RX DMA)
+├─ DMA2_Stream1_IRQHandler   (pl_uart.c, USART6 RX DMA — 句柄已初始化但无通道启动接收)
 ├─ DMA2_Stream2_IRQHandler   (pl_uart.c, USART1 RX DMA)
 │
 ├─ ETH_IRQHandler            (pl_eth.c, 见下)
@@ -286,7 +301,7 @@ pl_sys (SystemClock_Config, delay, reset)
 ─────────────────────────────────────────────────────────────────
 TIM3 行同步    ──→  osEventFlagsSet        ──→  scan_task (Realtime)
 TIM4 PWM       (ISR 内直接完成，不唤醒任务)
-UART 空闲中断   ──→  osMessageQueuePut       ──→  uart_channel_task
+UART 空闲中断   ──→  osMessageQueuePut       ──→  rs485_task / rs232_task
                                                      └─→ app_channel_dispatch
                                                            └─→ osMessageQueuePut(ch_queue)
                                                                  ──→ frame_dispatch_task
@@ -299,7 +314,7 @@ ETH 链路状态   ──→  pl_net_link_listener     ──→  UDP/TCP/MQTT �
 
 **关键模式**：
 - **Event Flags**：`scan_task` 用 `osEventFlagsWait` 等待 TIM3 行同步触发。ISR 中使用 `osEventFlagsSet`（`configUSE_OS2_EVENTFLAGS_FROM_ISR=1` 使能 ISR 安全调用）
-- **Message Queue**：`uart_channel_task`、`frame_dispatch_task`、协议处理任务逐级通过队列传递数据指针
+- **Message Queue**：`rs485_task` / `rs232_task`、`frame_dispatch_task`、协议处理任务逐级通过队列传递数据指针
 - **Semaphore**：UDP/TCP 通道用信号量协调连接/断开生命周期（链路断开→信号量释放→任务重建连接）
 - **volatile 轮询**：W25Qxx SPI 半双工 DMA 读使用 `while(!s_ok) osDelay(1)` 轮询（历史原因：RTOS 未完全就绪时无法使用 event flags）
 
@@ -328,12 +343,14 @@ ETH 链路状态   ──→  pl_net_link_listener     ──→  UDP/TCP/MQTT �
 
 | 任务 | 栈 | 优先级 | 创建者 | 职责 | 栈设计依据 |
 |---|---|---|---|---|---|
-| `scan_task` | 512B | Realtime(最高) | `dev_display_start` | 行扫描输出 | 无深层调用、无局部大数组，仅 event wait + ops 调用 |
+| `scan_task` | 256×4=1KB | Realtime(最高) | `dev_display_start` | 行扫描输出 | 扫屏路径无大栈帧（原 2KB 偏大），仅 event wait + ops 调用 |
 | `init_task` | 512×4=2KB | High | `app_boot` | 初始化后退出 | `dev_eth_start`→`sw_board_init`→渲染测试，含 printf 和栈数组（`font_buf[512]`、`text_buf[256]`），曾因溢触发 HardFault，从 256×4 扩容 |
 | `frame_dispatch_task` | 256×4=1KB | Normal | `app_dispatch_init` | 帧分发引擎 | 核心调度循环，含 `frame_msg_t`（~1052B），无深层嵌套 |
-| `iap_handle_task` | 512×4=2KB | Normal | `app_iap` | IAP 帧处理 | CRC32 校验 + cmd 分派，含 256B 临时缓冲 |
-| `ldi_handle_task` | 512×4=2KB | Normal | `app_ldi` | LDI 帧处理 | 显示内容解析与更新 |
-| `ldi_timer_task` | 512×4=2KB | Normal | `app_ldi` | LDI 定时任务 | 周期性状态上报 |
+| `iap_handle_task` | 256×4=1KB | Normal | `app_iap` | IAP 帧处理 | CRC32 校验 + cmd 分派（帧缓冲 static；原 2KB 偏大） |
+| `ldi_handle_task` | 256×4=1KB | Normal | `app_ldi` | LDI 帧处理 | 显示内容解析与更新（帧缓冲 static；原 2KB 偏大） |
+| `ldi_timer_task` | 256×4=1KB | Normal | `app_ldi` | LDI 定时任务 | 周期性状态上报（原 2KB 偏大） |
+| `rs485_task` | 256×4=1KB | Normal | `app_rs485` | RS485 接收循环 | `osMessageQueueGet` → `app_channel_dispatch` |
+| `rs232_task` | 256×4=1KB | Normal | `app_rs232` | RS232 接收循环 | 同构 rs485_task |
 | `half_sec_task` | 128×4=512B | Low | `init_task` | 500ms 喂狗+LED | 最小合法栈，仅 GPIO+RTC API |
 | 各网络通道任务 | 256×4=1KB | Normal | 各模块 | UDP/TCP 收发包 | LwIP netconn API 调用，不含大局部变量 |
 | `ethernetif_input` | 256×4=1KB | — | `pl_net.c` | LwIP 收包线程 | LwIP 内部调用 |
@@ -360,13 +377,13 @@ scan_task:
   osKernelLock + NVIC_DisableIRQ(TIM4)  (OE/LAT 原子窗口)
 
 frame_dispatch_task:
-  osMessageQueueGet(g_ch_queue) ←── uart_channel_task / udp_connect_task / ...
+  osMessageQueueGet(g_ch_queue) ←── rs485_task / rs232_task / udp_connect_task / ...
   rb_lock(rb) → probe → rb_read → osMessageQueuePut(frame_queue[i])
   
 协议处理任务 (iap/ldi/ah_mqtt):
   osMessageQueueGet(frame_queue[i]) → 处理 → channel_send
 
-UART 通道任务 (uart_channel_task):
+UART 通道任务 (rs485_task / rs232_task):
   osMessageQueueGet(rx_queue, &len) ←── UART ISR 空闲中断
   app_channel_dispatch → rb_write → osMessageQueuePut(ch_queue)
 
@@ -386,12 +403,12 @@ struct dev_storage  { const dev_storage_ops_t  *ops; uint32_t capacity; };
 struct channel      { uint8_t ch_id, state; const ch_ops_t *ops; };
 
 // 2. 派生类将基类作为第一个成员，统一命名为 me
-typedef struct { dev_display_t  me; } dev_display_p20_t;
+typedef struct { dev_display_t  me; } dev_display_1_577_t;
 typedef struct { dev_storage_t  me; uint32_t base_addr, sector; } dev_flash_int_t;
-typedef struct { channel_t      me; pl_uart_handle_t uart; ... } uart_channel_t;
+typedef struct { channel_t      me; pl_uart_handle_t uart; ... } rs485_ch_t;  // app_rs485.c（rs232_ch_t 同构）
 typedef struct { dev_w25qxx_t   me; pl_spi_handle_t spi; ... } dev_w25qxx_inner; // (注：w25qxx直接在结构内)
 
-// 3. container_of 向上转型（Kernel/Inc/dispatch_types.h）
+// 3. container_of 向上转型（Kernel/Inc/container_of.h）
 #define container_of(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
 ```
 
@@ -399,10 +416,10 @@ typedef struct { dev_w25qxx_t   me; pl_spi_handle_t spi; ... } dev_w25qxx_inner;
 
 | 虚表 | 定义位置 | 方法签名 | 实现者 |
 |---|---|---|---|
-| `dev_display_ops` | `dev_display.h` | `prepare(dev)` / `scan(dev,line)` / `set_row(row)` | `dev_display_p20.c` |
+| `dev_display_ops` | `dev_display.h` | `prepare(dev)` / `scan(dev,line)` / `set_row(row)` | `dev_display_1_577.c` / `dev_display_1_260.c` / `dev_display_1_969.c` |
 | `dev_storage_ops` | `dev_storage.h` | `init/read/write/erase/capacity(dev,...)` | `dev_w25qxx.c` / `dev_flash_int.c` |
-| `ch_ops` | `dispatch_types.h` | `send(ch, data, len)` | `dev_uart_channel.c` / `app_udp.c` / TCP/MQTT |
-| `proto_probe_fn_t` | `app_dispatch.h` | `probe(ch, rb, &total_len, &aux)` | `app_iap.c` / `app_ldi.c` |
+| `ch_ops` | `app_dispatch.h` | `send(ch, data, len)` | `app_rs485.c` / `app_rs232.c` / `app_udp.c` / TCP/MQTT 通道 |
+| `proto_probe_fn_t` | `app_dispatch.h` | `probe(ch, rb, &total_len, &aux)` | `app_iap.c` / `app_ldi.c` / `app_qh_proto.c` / `app_rls.c` / `ah_mqtt.c` |
 
 ## Display 子系统 (`Device/Display/`)
 
@@ -428,11 +445,11 @@ struct dev_display {
 
 通用 API：`set_pixel`、`fill`、`draw_bitmap`（边界检查+MSB-first 位图写入）、`set_brightness`。
 
-### P20 模组 (`dev_display_p20.c`)
+### 现行模组 (`dev_display_1_577.c`，EIDE Debug 主例)
 
-单模块 16×8 像素，2 通道，2 模块横向排列 → **16 列 × 16 行** 屏幕，静态扫描。
+单模块 64×32 像素，2 通道/模块，**3×3 拼屏 → 192×96** 屏幕，1/8 扫描（`MODULE_CODE "1000000577"`）。`dev_display_1_260.c` 为 Makefile 默认模组；`dev_display_1_969.c` 为备用模组（CCM 占用同量级 38208B）；`dev_display_p20.c` 未编入任何构建，仅保留。
 
-`g_bsrr[4][8]` CCMRAM 预计算查表：每个颜色通道（R1/G1/B1/R2/G2/B2）×8 色阶 = `p20_bsrr_t`（含 r/g/b 三组 `{GPIO_TypeDef *port; uint32_t val}`），`_p20_init` 时根据 HUB75 引脚定义填入。扫描时直接 `pl_hub75_bsrr_flush(&b->r/g/b)` 无需分支。
+`g_bsrr[TOTAL_CHANNELS][8]` CCMRAM 预计算查表：每通道×8 色阶 = `_1_577_bsrr_t`（含 r/g/b 三组 `pl_hub75_bsrr_t`），模组 init 时根据 HUB75 引脚定义填入。扫描时直接查表输出，无需分支。
 
 ### 扫描架构
 
@@ -489,7 +506,7 @@ app_key key_poll_task (20ms) → 轮询 GPIO 实际电平确认释放
                              → 更新本地去抖缓存
 ```
 
-外部通过 `app_key_get_state(DEV_KEY_SW1)` 获取去抖后的稳定状态。`app_key_init()` 由 `sw_app_initcall` 自动创建轮询任务。
+外部通过 `app_key_get_state(DEV_KEY_SW1)` 获取去抖后的稳定状态。`_app_key_init()` 由 `sw_app_initcall` 自动创建轮询任务。
 
 ### IO 控制 (`dev_io_ctrl.c`)
 
@@ -534,17 +551,19 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 
 | 实例 | 绑定模块 | 基地址 | 大小 | initcall |
 |---|---|---|---|---|
-| `g_flash_iap` | `dev_flash_iap.c` | `0x08004000` (Sector 1) | 16KB | `hw_dev_initcall` |
-| (LDI 已迁移) | `dev_flash_ldi.c` | W25Qxx 最后 4KB 扇区 | 4KB | `sw_dev_initcall` (需要 W25Qxx 先就绪) |
+| `g_flash_iap` | `Application/Src/IAP/app_iap_cfg.c` | `0x08004000` (Sector 1) | 16KB | `hw_dev_initcall` |
+| (LDI 已迁移) | `Application/Src/LDI/app_ldi_cfg.c` | W25Qxx 最后 4KB 扇区 | 4KB | `sw_dev_initcall` (需要 W25Qxx 先就绪) |
 
 **内部 Flash ops 实现**：
 - `_read`：直接内存映射 `memcpy(buf, (void*)(base+addr), len)`
 - `_write`：`pl_flash_unlock → pl_flash_program_word × N → pl_flash_lock`（按 word 编程）
 - `_erase`：`pl_flash_erase_sector(sector, voltage)`
 
-**IAP 配置** (`dev_flash_iap.c`)：`dev_flash_iap_sys_info_t` 记录（68B）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(16) + CRC32(4)，`g_config` 指针直接映射到 `0x08004000`。
+**IAP 配置** (`Application/Src/IAP/app_iap_cfg.c`)：`app_flash_iap_sys_info_t` 记录（68B）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(16) + CRC32(4)，`g_config` 指针直接映射到 `0x08004000`。
 
-**LDI 配置** (`dev_flash_ldi.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`dev_flash_ldi_record_t`（116B）= magic(4) + cfg(106) + padding(2) + CRC32(4)。通过 `dev_w25qxx_get()` 获取存储句柄，使用 `dev_storage_read/write` 接口。
+**LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t`（116B）= magic(4) + cfg(106) + padding(2) + CRC32(4)。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。
+
+> **耦合注意**：LDI 改 IP 路径（`app_flash_iap_update_net_cfg`）硬依赖 `app_iap_cfg` 的 Sector 1 网络配置 API；解耦方案见 `doc/07_LDI与IAP配置解耦`（待审，暂不改码）。
 
 ## Render 引擎 (`Application/Src/app_render.c`)
 
@@ -552,7 +571,7 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 
 ### 字库组织
 - 字库 = **(字号, 编码, 字型)** 三元组的顺序拼接
-- `g_font_lib[40]` 描述表 = 5 字号×2 编码(ASCII/GBK)×4 字型(宋/仿宋/楷/黑)
+- `g_font_regions_orig[]` 描述表（`flash_region_t`，40 项三元组 = 5 字号×2 编码(ASCII/GBK)×4 字型(宋/仿宋/楷/黑)，经 `dev_storage_read` 读取）
 - `_glyph_bytes(key)` = 每字符字节数：ASCII `(size/2宽+7)/8×size`，GBK `(size宽+7)/8×size`
 - `_font_offset(key)` = 线性扫描累加 unit_size，找到目标单元的起始偏移
 - `_char_addr(key, ch)` = 单字符 Flash 地址：ASCII `base+(ch-0x20)×bpc`，GBK `base+((hi-0x81)×190+(lo-offset))×bpc`
@@ -578,15 +597,17 @@ app_render(&(render_cfg_t){
 |---|---|---|---|---|
 | `app_dispatch` | 框架 | — | `sw_app_initcall` | 协议调度引擎 |
 | `app_render` | 引擎 | — | `sw_app_initcall` | 字库渲染 |
-| `app_iap` | 协议 | RS485(slot0) + UDP(slot4) | `sw_app_initcall` | IAP 固件升级帧处理 |
-| `app_ldi` | 协议 | RS485/RS232/TCP | `sw_app_initcall` | LDI 显示控制协议 |
+| `app_iap` | 协议 | UDP（RJ45 共享 RB） | `sw_app_initcall` | IAP 固件升级帧处理 |
+| `app_ldi` | 协议 | TCP_SERVER / TCP_CLIENT / UDP（RJ45 共享 RB） | `sw_app_initcall` | LDI 显示控制协议 |
+| `app_qh_proto` | 协议 | RS485 + RS232 | `sw_app_initcall` | 青海高速费显协议 |
+| `app_rls` | 协议 | RS485 | `sw_app_initcall` | RLS 重庆高速二代费显协议 |
 | `app_vms_ctrl` | 协议 | (LDI 子模块) | — | VMS 情报板控制（LDI→Render 桥接） |
 | `ah_mqtt` | 协议 | MQTT | (已注释) | AH 平台 MQTT（签到/状态上报/指令） |
 | `app_mqtt` | 通道 | CH_ID_MQTT | — | MQTT 网络传输通道 |
 | `app_udp` | 通道 | CH_ID_UDP | — | UDP 广播通道（端口 10011） |
 | `app_tcp_server` | 通道 | CH_ID_TCP_SERVER | — | TCP 服务器通道 |
 | `app_tcp_client` | 通道 | CH_ID_TCP_CLIENT | — | TCP 客户端通道 |
-| `app_rs232` | 通道 | RS232/RS232_1 | — | RS232 UART 通道启动 |
+| `app_rs232` | 通道 | RS232（USART3） | — | RS232-0 通道启动（USART6 语音仅 TX，不启通道） |
 | `app_rs485` | 通道 | RS485 | — | RS485 UART 通道启动 |
 | `app_key` | 应用 | — | `sw_app_initcall` | 按键轮询去抖 (20ms) |
 | `app_light_sensor` | 应用 | — | `sw_app_initcall` | 光传感器自动亮度 (1s 周期) |
@@ -599,7 +620,7 @@ app_render(&(render_cfg_t){
 - **框架/引擎**：供协议模块调用，不直接通信
 - **应用**：硬件相关业务逻辑，不涉及通信协议
 
-**当前运行状态**：`app_boot` 显式启动 TCP Server、TCP Client、UDP 三个通道。`app_mqtt`、`app_rs232`、`app_rs485` 的 start 函数已定义（`static inline`）但未被调用。`ah_mqtt` 的 initcall 已注释。
+**当前运行状态**：`app_boot` 的 `init_task` 显式启动五个通道 — TCP Server、TCP Client、UDP、RS485、RS232。`app_rs232_1_start()`（USART6 语音 TX 桩）已注释；`app_mqtt` 的 start 函数已定义（`static inline`）但未被调用；`ah_mqtt` 的 initcall 已注释（未激活）。
 
 ## 协议分发层 (`Application/Src/app_dispatch.c`)
 
@@ -607,20 +628,30 @@ app_render(&(render_cfg_t){
 
 | 字段 | 类型 | 用途 |
 |---|---|---|
-| `proto_count` | `uint8_t` | 运行时自动递增 |
-| `proto_rb[i]` | `ring_buffer_t*[]` | 协议→缓冲区 |
-| `proto_probe[i]` | `proto_probe_fn_t[]` | 协议→探测函数 |
-| `frame_queue[i]` | `osMessageQueueId_t[]` | 协议→帧队列 |
-| `buf_pool[id]` | `ring_buffer_t*[4]` | 缓冲区池（懒初始化） |
+| `registered_mask` | `uint32_t` | 已注册协议位掩码（`app_proto_register` 自动分配 2 的幂） |
+| `proto_rb[i]` | `ring_buffer_t *[PROTO_MAX_COUNT]` | 协议→缓冲区 |
+| `proto_probe[i]` | `proto_probe_fn_t [PROTO_MAX_COUNT]` | 协议→探测函数 |
+| `frame_queue[i]` | `osMessageQueueId_t [PROTO_MAX_COUNT]` | 协议→帧队列 |
+| `buf_pool[id]` | `ring_buffer_t *[RB_CNT_MAX]` | 缓冲区池（=3 槽：RJ45/RS485/RS232，懒初始化） |
 | `ch_queue` | `osMessageQueueId_t` | 通道通知队列 |
-| `ch_proto_map[ch_id]` | `proto_mask_t[]` | 通道→协议掩码 |
-| `channels[ch_id]` | `channel_t*[]` | 通道注册表 |
+| `ch_proto_map[ch_id]` | `proto_mask_t [CH_ID_MAX]` | 通道→协议掩码 |
+| `channels[ch_id]` | `channel_t *[CH_ID_MAX]` | 通道注册表 |
 
 ### 数据流
 
 **接收**：通道任务 → `app_channel_dispatch(ch,data,len)` → `rb_write` → `osMessageQueuePut(ch_queue,&ch)` → `frame_dispatch_task` → probe → `rb_read` → `osMessageQueuePut(frame_queue[i],&msg)` → 协议任务
 
 **发送**：协议任务 → `channel_send(ch,data,len)` → `ch->ops->send(ch,data,len)` → UART DMA / LWIP netconn
+
+### 多协议共享 RB（doc/05 核心成果）
+
+- **一物理通道一 RB**：RJ45 1536 / RS485 768 / RS232 768（`Application/Inc/app_dispatch.h` `_Static_assert` 在册）。网口逻辑通道（TCP Server/Client/UDP/MQTT）共享 RJ45 槽。
+- **RB_PROVIDE_WEAK 编译期按需提供**：协议 TU 以 `RB_PROVIDE_WEAK(rb_provide_xxx, size)` 提供 RB 体；未编入任何协议的槽为 NULL（`app_proto_acquire_buf` 返回 nullptr）。
+- **同 RB 写去重**：`app_channel_dispatch` 用 `seen[]` 指针去重，多协议共享同一 RB 时只写一次。
+- **链式 probe 契约**：READY/SKIP 消费后取下一帧；WAIT/FAKE 继续试下一协议；一轮无消费时 any_wait 停等更多字节 / any_fake 跳 1 字节重同步。
+- **probe 首字节快拒**：探测函数首字节不匹配即返回 FAKE，禁止盲 WAIT 阻塞链式探测。
+
+**帧 queue 深度（静态 SRAM 队列，不占 ucHeap）**：IAP 2 / LDI 4 / QH 3 / RLS 2 / AH_MQTT 3。
 
 ### 新增协议步骤
 
@@ -633,52 +664,57 @@ app_render(&(render_cfg_t){
 
 | ch_id | 枚举 | 传输层 | 实现类 | 绑定文件 |
 |---|---|---|---|---|
-| 0 | `CH_ID_RS485` | UART (USART1) | `uart_channel_t` | `dev_rs485.c` |
-| 1 | `CH_ID_RS232` | UART (USART3) | `uart_channel_t` | `dev_rs232.c` |
+| 0 | `CH_ID_RS485` | UART (USART1) | `rs485_ch_t` | `app_rs485.c`（buf 在 `dev_rs485.c`） |
+| 1 | `CH_ID_RS232` | UART (USART3) | `rs232_ch_t` | `app_rs232.c`（buf 在 `dev_rs232.c`） |
 | 2 | `CH_ID_TCP_SERVER` | LwIP TCP | `tcp_server_channel_t` | `app_tcp_server.c` |
 | 3 | `CH_ID_TCP_CLIENT` | LwIP TCP | `tcp_client_channel_t` | `app_tcp_client.c` |
 | 4 | `CH_ID_UDP` | LwIP UDP | `udp_channel_t` | `app_udp.c` (端口 10011) |
 | 5 | `CH_ID_MQTT` | LwIP MQTT | `mqtt_channel_t` | `app_mqtt.c` |
-| 6 | `CH_ID_RS232_1` | UART (USART6) | `uart_channel_t` | `dev_rs232.c` (第二路) |
+| 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 
-## UART 通道子系统 (`Device/Comm/`)
+**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海，排除 1-260/1-969/RLS/AH（`.eide/eide.yml` excludeList）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
 
-`uart_channel_t` 继承 `channel_t`，统一定义 send / task / init / deinit 流程：
+## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
-```
-hw_initcall:  dev_rs485_init / dev_rs232_init
-                └─ uart_channel_init(self, uart, ch_id, rs485_mode, buf, size)
-                    设置: self->me.ch_id + ops + uart 句柄 + rs485_mode + buf
+RS485/RS232 按板级资源（Device 层）与通道生命周期（Application 层）分层，全库无统一 UART 通道抽象类型。
 
-RTOS后:       app_rs485_start / app_rs232_start
-                └─ osThreadNew(uart_channel_task, self)
-                     ├─ osMessageQueueNew(rx_queue)      ← ISR→任务通知队列
-                     ├─ app_channel_register(ch_id, &me)  ← 通道注册
-                     ├─ pl_uart_set_rx_cb → ISR 适配器注册
-                     ├─ pl_uart_start_rx(buf, size)       ← 启动 DMA 接收
-                     └─ 循环: osMessageQueueGet(rx_queue, &len)
-                           → app_channel_dispatch(&me, buf, len)
-```
+**Device 层（板级静态资源）**：
+- `dev_rs485.c`（USART1，RE=PA8）：仅静态 DMA 缓冲 `s_rs485_buf[RS485_BUF_SIZE=640]`（`Device/Inc/dev_rs485.h`）+ RE 方向回调 `rs485_dir_cb`（`pl_uart_set_dir_cb` 注入，`hw_dev_initcall`）。
+- `dev_rs232.c`（USART3）：仅 `dev_rs232_get_buf(index)` — index0 返回 640B 缓冲（`RS232_BUF_SIZE`），index1（USART6）返回 `nullptr`（无协议 RX）。
+- `dev_rs232_voice.c`（USART6）：语音板 TTS 专用 TX。`dev_rs232_voice_play` / `dev_rs232_voice_volume` 组帧后经 `pl_uart_send(PL_UART6)` 发送，不经过 dispatch 框架。
 
-**板级差异**（`dev_rs485.c` / `dev_rs232.c`）：仅 UART 实例、RE 引脚方向回调、DMA 缓冲区不同。通道逻辑完全复用 `dev_uart_channel`。
+**Application 层（通道生命周期 + 任务循环）**：
+- `app_rs485.c`：`rs485_ch_t`（`channel_t me` + `uart/rx_queue/rx_buf`），`rs485_task` 循环 `osMessageQueueGet(rx_queue)` → `app_channel_dispatch`。`app_rs485_start()` 注册通道 + 注入 RX 回调 + `pl_uart_start_rx` + 创建任务（栈 256×4）。
+- `app_rs232.c`：同构（`rs232_ch_t` / `rs232_task`，栈 256×4）。`app_rs232_1_start()` 为桩函数（返回 `nullptr` — USART6 语音 TX 不经通道任务）。
+- `app_boot` 中 `app_rs485_start()` / `app_rs232_start()` 创建任务，`app_rs232_1_start()` 已注释。
 
-## IAP 协议 (`app_iap.c`)
+## IAP 协议 (`Application/Src/IAP/app_iap.c`)
 
-固件升级协议，双槽绑定：RS485 (slot 0, `CH_ID_RS485`) + UDP (slot 4, `CH_ID_UDP`)。帧头 `0x5A5A5A5A`，CRC32 校验，7 种命令类型，位图跟踪分包传输。
+固件升级协议，**仅 UDP**（`CH_ID_UDP`，RJ45 共享 RB）。帧格式 `0x5A5A5A5A (4B) | seq (4B) | cmd (4B) | len (4B) | data | CRC32 (4B)`（`app_iap.h`），probe 首字节 `0x5A` 快拒。
 
-- `iap_handle_task`：协议处理任务（栈 512×4=2KB），循环 `osMessageQueueGet` → 帧解析 → 命令分派
-- 命令表 `g_iap_cmd_table[]`：Function(0x00) / Restart(0x01) / StartFWUpdate(0x02) / FWData(0x03) / EndFWUpdate(0x04) / StopFWUpdate(0x05) / FWCancel(0x06)
-- `iap_probe_frame`：探测函数，验证帧头 + 长度 + CRC32
+- `iap_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大），循环 `osMessageQueueGet` → 帧解析 → 命令分派
+- `IAP_QUEUE_DEPTH=2`，静态 SRAM 队列（不占 ucHeap）
+- 命令表 `g_iap_cmd_table[]`（`app_iap_cmd.c`）：0x00 Test / 0x01 上报 IP 配置 / 0x02 强制修改 IP（写 Flash）/ 0x03 上报固件版本·大小·CRC32·升级状态 / 0x04 准备升级 / 0x05 发送升级包 / 0x06 进 Recovery（写 RTC 备份寄存器标志）/ 0x07 软复位
+- `iap_probe_frame`：验证帧头 + 长度（≤256）+ CRC32，返回 READY/WAIT/FAKE
 
 ## LDI 协议 (`app_ldi.c` + `app_ldi_cmd.c`)
 
-车道设备指示器协议，绑定 RS485/RS232/TCP 多通道。帧定界符 `0xFF 0xFF`（STX，2 字节，`app_ldi.h` 固定值），CRC-16/XMODEM 校验，支持 13 种设备类型。
+车道设备指示器协议，**仅网口**：`CH_ID_TCP_SERVER / CH_ID_TCP_CLIENT / CH_ID_UDP` 三通道各独立 mask，共用 RJ45 RB 与 `g_ldi_msg_queue`（`LDI_QUEUE_DEPTH=4`）。帧 STX `0xFF 0xFF`（`app_ldi.h` 固定值）+ CRC-16/XMODEM 校验；`LDI_PAYLOAD_MAX=512`。
 
-- `ldi_handle_task`：协议处理任务（栈 512×4=2KB）
-- `ldi_timer_task`：周期性状态上报（栈 512×4=2KB）
-- `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`，~288 行）
+- `ldi_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大）
+- `ldi_timer_task`：周期性状态上报（栈 256×4=1KB；原 2KB 偏大）
+- 13 种设备类型（`Application/Inc/LDI/app_ldi.h`，`LDI_DEV_TYPE_COUNT=13`）：RSU 0xE1 / LPR 0xE2 / VTR 0xE3 / 栏杆机 0xE4 / 车检 0xE5 / 显示屏 0xE6 / 信号灯 0xE7 / 报警器 0xE8 / VMS 0xE9 / 雨棚灯 0xEA / 雾灯 0xEB / 语音 0xF4
+- `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`）
 - `app_vms_ctrl`：VMS 情报板子模块，将 LDI 命令翻译为 `app_render()` 调用
-- 复合指令模块：支持多设备类型组合控制
+- 复合指令模块：支持多设备类型组合控制（1BH 命令）
+
+## 青海协议 (`Application/Src/ProtocolParser_QingHai/app_qh_proto.c`)
+
+青海高速费显协议。帧定界 `'{'...'}'`（len 字段 1B → 帧 ≤259），`QH_PAYLOAD_MAX=259`、`QH_QUEUE_DEPTH=3`（静态 SRAM）。`RB_PROVIDE_WEAK` 提供 RS485+RS232 双 RB，绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `qh_proto_init`，与 IAP/LDI 同经链式 probe）。语音命令经 `dev_rs232_voice` 旁路 USART6（`app_qh_proto_voice.c`）。
+
+## RLS 协议 (`Application/Src/RLS/app_rls.c`)
+
+重庆高速二代费显协议。帧头 `0xFF 0xFE` + 尾 `0x0D 0x0C`，`RLS_PAYLOAD_MAX=530`（帧头 6B + bitmap 512B + BCC 1B + 尾 2B）、`RLS_QUEUE_DEPTH=2`。仅绑定 RS485（`RB_PROVIDE_WEAK` 提供 RS485 RB），BCC 校验用 `Kernel/Inc/bcc_utils.h`（`bcc_calcu`）。`sw_app_initcall` 自注册 `rls_module_init`，`rls_handle_task` 栈 256×4。
 
 ## AH MQTT 协议 (`ah_mqtt.c` + `ah_mqtt_cmd.c`)
 
@@ -732,13 +768,13 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 
 ### LwIP 配置要点 (`Platform/Inc/lwipopts.h`)
 
-关键参数（132 行，与 LwIP 默认值差异大）：
-- **内存**：`MEM_SIZE=12KB`、`MEMP_NUM_PBUF=16`、`PBUF_POOL_SIZE=12`
+关键参数（133 行，覆盖 `opt.h` 默认值的部分与 CubeMX 生成配置）：
+- **内存**：`MEM_SIZE=12KB`；`MEMP_NUM_PBUF=16`、`PBUF_POOL_SIZE=16`（未覆盖，取 `opt.h` 默认值）
 - **硬件校验和**：`CHECKSUM_GEN_IP/UDP/TCP=0`、`CHECKSUM_CHECK_*_HW` 卸载到 MAC
-- **UDP 广播**：`LWIP_BROADCAST=1`（IAP 升级依赖）
-- **MQTT**：`LWIP_MQTT=1`、`MQTT_MAX_IN_FLIGHT=4`
-- **TCP**：`LWIP_TCP_KEEPALIVE=1`、`TCP_MSS=1460`
-- **线程**：`TCPIP_THREAD_PRIO=osPriorityHigh`、`TCPIP_THREAD_STACKSIZE=1024`
+- **UDP 广播**：`LWIP_BROADCAST` 未定义；实际 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1`（IAP 升级依赖）
+- **MQTT**：`LWIP_MQTT` / `MQTT_MAX_IN_FLIGHT` 未定义；USER CODE 1 定义 `MQTT_REQ_MAX_IN_FLIGHT=16`、`LWIP_SO_RCVTIMEO=1`
+- **TCP**：`LWIP_TCP_KEEPALIVE=1`；`TCP_MSS=536`（未覆盖，取 `opt.h` 默认值）
+- **线程**：`TCPIP_THREAD_PRIO=24`（=osPriorityHigh）、`TCPIP_THREAD_STACKSIZE=1024`
 
 ### pl_net_adapt.h 架构约束
 
@@ -748,7 +784,7 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 
 **SEGGER RTT**（`pl_rtt.c`）：高速调试输出通道（无需占用 UART），通过 J-Link/CMSIS-DAP 的 SWD 接口传输。`pl_rtt_init()` 在 `hw_initcall` 中初始化，`SEGGER_RTT_printf()` 可在任何上下文中使用。不依赖 RTOS，可在 HardFault Handler 等异常上下文中输出。
 
-**硬件测试**（`app_test.c`）：提供 4 个独立硬件测试用例 — 像素扫描、字库渲染、IO 输出、LED 灯序映射。在 `init_task` 中通过 `app_test_run()` 按需调用，正式发布时注释掉。
+**硬件测试**（`app_test.c`）：9 个测试函数 — `app_test_pixel_scan` / `app_test_render_text` / `app_test_io_output` / `app_test_led_mapping` / `app_test_scan_line_order` / `app_test_diagonal` / `app_test_oblique_scan` / `app_test_prepare_mapping` 等，由 `app_test_run()` 汇总。`app_test_run()` 当前在 `app_boot` 的 `init_task` 中已注释。另有 `app_factory_test.c`（`sw_app_initcall(_factory_test_init)`）：出厂检测 monitor + 老化循环（TEST 键触发，斜扫测试）。
 
 ## Kernel 工具库 (`Kernel/`)
 
@@ -756,7 +792,8 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 |---|---|---|
 | `ring_buffer.h` | `RB_DEFINE(name,sz)` 编译期静态分配 | 零堆开销环形缓冲区。每个 API 末尾的 `void *mutex` 参数控制锁行为：传 `rb->mutex` 自动加锁/解锁（单步操作），传 `nullptr` 跳过（调用者通过 `rb_lock/rb_unlock` 自行持锁，用于多步原子序列）。`rb_init` 在运行时绑定优先级继承互斥锁。相邻数据的 `rb_peek`/`rb_contig`/`rb_skip` 支持帧探测。 |
 | `initcall.h` | `hw_pl/dev_initcall`、`sw_pl/dev/app_initcall` | 6 个层级宏，生成 linker section 条目 |
-| `dispatch_types.h` | `channel_t`、`ch_ops_t`、`channel_id_t`、`proto_probe_sta_t`、`container_of` | Device↔Application 共用类型 |
+| `container_of.h` | `container_of` | 向上转型宏。`channel_t`/`ch_ops_t`/`channel_id_t`/`proto_probe_sta_t` 等 dispatch 共用类型定义在 `Application/Inc/app_dispatch.h` |
+| `bcc_utils.h` | `bcc_calcu` | BCC 校验（RLS 协议） |
 | `text_cvt.h` | `UTF8ToGBK` | UTF-8→GBK 编码转换 |
 | `bit_utils.h` | `bit_ctz` | 协议掩码→数组索引（`proto_mask_t` → 数组下标） |
 | `crc_utils.h` | CRC 校验 | CRC32（IAP）+ CRC-16/XMODEM（LDI） |
