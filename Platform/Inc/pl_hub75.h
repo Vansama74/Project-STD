@@ -127,6 +127,7 @@ __STATIC_INLINE void pl_hub75_Decoder_set_row(uint8_t row)
  */
 __STATIC_INLINE void pl_hub75_ShiftRegister_set_row(uint8_t row, uint8_t chip_bits)
 {
+    (void)chip_bits;
     uint8_t chip = row / 8;
     uint8_t bit  = row % 8;
 

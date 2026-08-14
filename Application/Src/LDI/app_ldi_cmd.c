@@ -330,6 +330,7 @@ static uint8_t ldi_next_rpt_seq(void)
  */
 static void ldi_send_response(channel_t *ch, uint8_t rsp_cmd, uint8_t seq, const uint8_t *payload, uint16_t payload_len)
 {
+    (void)rsp_cmd;
     osMutexAcquire(g_ldi.tx_lock, osWaitForever);
 
     ldi_frame_t *frame = (ldi_frame_t *)g_ldi.tx_buf;
@@ -524,6 +525,7 @@ static void cmd_reboot(channel_t *ch, void *data)
  */
 static void cmd_rep_ip(channel_t *ch, void *data)
 {
+    (void)data;
     uint8_t buf[sizeof(ldi_status_rsp_t) + sizeof(ldi_network_info_t)] = {0};
 
     ldi_status_rsp_t *rsp   = (ldi_status_rsp_t *)buf;

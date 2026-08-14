@@ -29,10 +29,12 @@ const ah_mqtt_cmd_handler_fn_t g_ah_mqtt_cmd_table[] = {
  */
 static void cmd_default(channel_t *ch, char *buff)
 {
+    (void)ch;
+    (void)buff;
 }
 
-const static display_color_t disp_color[] = {COLOR_BLACK, COLOR_GREEN, COLOR_RED, COLOR_YELLOW};
-const static font_size_t disp_size[]    = {0, 0, FONT_16, FONT_24, FONT_32, 0, 0, 0, FONT_32};
+static const display_color_t disp_color[] = {COLOR_BLACK, COLOR_GREEN, COLOR_RED, COLOR_YELLOW};
+static const font_size_t disp_size[]    = {0, 0, FONT_16, FONT_24, FONT_32, 0, 0, 0, FONT_32};
 /**
  * @brief 显示文字
  *
@@ -97,6 +99,7 @@ static void cmd_fill(channel_t *ch, char *buff)
  */
 static void cmd_restart(channel_t *ch, char *buff)
 {
+    (void)buff;
     snprintf(container_of(ch, mqtt_channel_t, me)->topic, 64, "%.8s/%.2s/%.2s/%.2s/Reply/op/restart",
              topic_info.station_hex,
              topic_info.lane_hex,

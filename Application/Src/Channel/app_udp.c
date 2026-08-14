@@ -103,6 +103,7 @@ const osThreadAttr_t udp_task_attr = {
  * ================================================================ */
 void udp_task(void *argument)
 {
+    (void)argument;
     if (udp_disconnect_sem == NULL)
         udp_disconnect_sem = osSemaphoreNew(1, 0, NULL);
     pl_net_register_link_listener(udp_link_listener);

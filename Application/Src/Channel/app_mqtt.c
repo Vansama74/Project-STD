@@ -141,6 +141,7 @@ void mqtt_connection(void)
 
 void mqtt_task(void *argument)
 {
+    (void)argument;
     mqtt_ctx_t *ctx = &g_mqtt.ctx;
 
     ctx->client = mqtt_client_new();

@@ -215,7 +215,7 @@ void app_test_oblique_scan(void)
     if (!dsp) return;
 
     for (;;) {
-        for (int16_t phase = 0; phase < APP_TEST_OBLIQUE_LINE_SPACING; phase++) {
+        for (int16_t phase = 0; phase < (int16_t)APP_TEST_OBLIQUE_LINE_SPACING; phase++) {
             app_test_oblique_scan_frame(dsp, phase);
             osDelay(APP_TEST_OBLIQUE_STEP_DELAY_MS);
         }

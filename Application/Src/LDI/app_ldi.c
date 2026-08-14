@@ -34,7 +34,7 @@ static const osMessageQueueAttr_t s_ldi_queue_attr = {
 static_assert(sizeof(ldi_device_t) == 1, "ldi_device_t must be 1 byte");
 static_assert(sizeof(ldi_cmd_type_t) == 1, "ldi_cmd_type_t must be 1 byte");
 
-const static ldi_cmd_type_t cmd_index_table[] = {
+static const ldi_cmd_type_t cmd_index_table[] = {
     LDI_CMD_SET_IP_REQ,
     LDI_CMD_SET_PARA_REQ,
     LDI_CMD_REBOOT_REQ,
@@ -263,6 +263,7 @@ void ldi_build_ctrl_rsp_head(ldi_ctrl_head_t *head, uint8_t cmd_type)
 
 void ldi_handle_task(void *argument)
 {
+    (void)argument;
     static uint8_t _msg_buf[LDI_MSG_SIZE];
     frame_msg_t *msg = (frame_msg_t *)_msg_buf;
     g_ldi_msg_queue = osMessageQueueNew(LDI_QUEUE_DEPTH, LDI_MSG_SIZE, &s_ldi_queue_attr);
@@ -310,6 +311,7 @@ void ldi_handle_task(void *argument)
  */
 proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff, uint32_t *total_len, uint8_t *aux)
 {
+    (void)ch;
     uint32_t avail = rb_avail(buff, nullptr);
 
     /* 首字节快速拒绝：无数据或首字节非 0xFF → FAKE */

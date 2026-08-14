@@ -244,7 +244,8 @@ SRC_KERNEL = \
 	Kernel/Src/ring_buffer.c \
 	Kernel/Src/bit_utils.c \
 	Kernel/Src/crc_utils.c \
-	Kernel/Src/text_cvt.c
+	Kernel/Src/text_cvt.c \
+	Kernel/Src/bcc_utils.c
 
 # Platform（仅含无冲突的文件，其他在 Phase 3 逐步加入）
 SRC_PLATFORM = \

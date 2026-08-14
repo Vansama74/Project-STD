@@ -225,6 +225,7 @@ sw_app_initcall(app_dispatch_init);
 
 void frame_dispatch_task(void *argument)
 {
+    (void)argument;
     channel_t *ch; /**< 来源通道指针（从 ch_queue 取出） */
     frame_msg_t *msg   = (frame_msg_t *)_msg_dispatch_buf;
     uint32_t frame_len = 0; /**< 探测到的完整帧长度 */

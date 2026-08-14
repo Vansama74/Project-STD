@@ -68,6 +68,7 @@ const osThreadAttr_t iap_task_attr = {
 /** @brief IAP 协议处理任务：阻塞等待帧队列 → 按 cmd 字段查表分派到命令处理函数 */
 void iap_handle_task(void *argument)
 {
+    (void)argument;
     static uint8_t _msg_buf[IAP_MSG_SIZE];
     frame_msg_t *msg = (frame_msg_t *)_msg_buf;
     g_iap_msg_queue = osMessageQueueNew(IAP_QUEUE_DEPTH, IAP_MSG_SIZE, &s_iap_queue_attr);

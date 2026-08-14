@@ -75,6 +75,7 @@ uint16_t app_tcp_client_get_host_port(void)
 
 void tcp_client_task(void *argument)
 {
+    (void)argument;
     if (client_disconnect_sem == NULL)
         client_disconnect_sem = osSemaphoreNew(1, 0, NULL);
 

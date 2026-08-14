@@ -67,6 +67,7 @@ static uint8_t handle_topic(const char topic[]);
 
 void ah_mqtt_handle_task(void *argument)
 {
+    (void)argument;
 #define AH_MQTT_PAYLOAD_MAX (533U) /* MQTT_FRAME_MAX_LEN */
 #define AH_MQTT_MSG_SIZE    (sizeof(frame_msg_t) + AH_MQTT_PAYLOAD_MAX)
 #define AH_MQTT_QUEUE_DEPTH (3U)
@@ -137,6 +138,7 @@ proto_probe_sta_t ah_mqtt_probe_frame(const channel_t *ch, const ring_buffer_t *
 
 void ReportTask(void *argument)
 {
+    (void)argument;
     static char topic[64] = {0};
     snprintf(topic, 64, "%.8s/%.2s/%.2s/%.2s/Push/monitor/devstatus",
              topic_info.station_hex,
@@ -159,6 +161,7 @@ void ReportTask(void *argument)
 
 void SignUpTask(void *argument)
 {
+    (void)argument;
     static char topic[64] = {0};
     snprintf(topic, 64, "%.8s/%.2s/%.2s/%.2s/Push/monitor/sign",
              topic_info.station_hex,

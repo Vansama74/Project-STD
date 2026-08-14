@@ -24,7 +24,7 @@ static const osMessageQueueAttr_t s_rls_queue_attr = {
     .mq_size = sizeof(s_rls_queue_buf),
 };
 
-const static rls_cmd_type_t cmd_index_table[] = {
+static const rls_cmd_type_t cmd_index_table[] = {
     RLS_CMD_TEST,
     RLS_CMD_DISPLAY,
     RLS_CMD_DISPLAY_SAVE,
@@ -43,6 +43,7 @@ const osThreadAttr_t rls_task_attr = {
 /*--- 帧任务---*/
 void rls_handle_task(void *argument)
 {
+    (void)argument;
     static uint8_t _msg_buf[RLS_MSG_SIZE];
     frame_msg_t *msg = (frame_msg_t *)_msg_buf;
     g_rls_msg_queue  = osMessageQueueNew(RLS_QUEUE_DEPTH, RLS_MSG_SIZE, &s_rls_queue_attr);
@@ -66,8 +67,8 @@ void rls_handle_task(void *argument)
 }
 
 /* ---- 帧探测 ---- */
-const static uint8_t rls_head[2] = {0xFF, 0xFE};
-const static uint8_t rls_tail[2] = {0x0D, 0x0C};
+static const uint8_t rls_head[2] = {0xFF, 0xFE};
+static const uint8_t rls_tail[2] = {0x0D, 0x0C};
 proto_probe_sta_t rls_probe_frame(const channel_t *ch, const ring_buffer_t *buff, uint32_t *total_len, uint8_t *aux)
 {
     uint32_t avail = rb_avail(buff, nullptr);
