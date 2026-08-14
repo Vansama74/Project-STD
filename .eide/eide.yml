@@ -352,6 +352,8 @@ targets:
       - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Application/protocol/rls
       - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/iap
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -381,6 +383,9 @@ targets:
             stack-usage: true
             use-newlib-nano: true
           linker:
+            $outputTaskExcludes:
+              - .s19
+              - .bin
             $toolName: auto
             LIB_FLAGS: -lm
             output-format: elf
