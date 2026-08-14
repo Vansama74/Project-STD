@@ -116,7 +116,7 @@ void dev_display_start(void)
 
     const osThreadAttr_t attr = {
         .name       = "scan_task",
-        .stack_size = 512 * 4,
+        .stack_size = 256 * 4, /* 扫屏路径无大栈帧；原 2KB 偏大 */
         .priority   = osPriorityRealtime,
     };
     osThreadNew(scan_task, dev, &attr);
@@ -134,7 +134,7 @@ void dev_display_set_pixel(dev_display_t *dev, uint16_t x, uint16_t y, display_c
 
 void dev_display_set_brightness(dev_display_t *dev, uint8_t level)
 {
-    if (level > 7) level = 7;
+    if (level > DEV_DISPLAY_BRIGHTNESS_MAX) level = DEV_DISPLAY_BRIGHTNESS_MAX;
     dev->light_level = level;
 }
 

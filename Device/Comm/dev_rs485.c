@@ -12,8 +12,6 @@
 #include "pl_gpio.h"
 #include "initcall.h"
 
-#define RS485_BUF_SIZE (2048U)
-
 static uint8_t s_rs485_buf[RS485_BUF_SIZE];
 
 uint8_t *dev_rs485_get_buf(void)

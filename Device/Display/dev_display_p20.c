@@ -92,7 +92,7 @@ static dev_display_p20_t g_p20 = {
         .buffer_size         = P20_BUFFER_SIZE,
         .pixel_map           = p20_pixel_map,
         .hub75_buff          = p20_hub75_buff,
-        .light_level         = 7,
+        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
     },
 };
 

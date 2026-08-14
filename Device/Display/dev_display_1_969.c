@@ -95,7 +95,7 @@ static dev_display_1_969_t g_1_969 = {
         .pixel_map           = _1_969_pixel_map,
         .hub75_buff          = _1_969_hub75_buff,
         .module_code         = MODULE_CODE,
-        .light_level         = 7,
+        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
     },
 };
 

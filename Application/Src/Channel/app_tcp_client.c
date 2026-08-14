@@ -17,14 +17,14 @@ __STATIC_INLINE void tcp_keepaliveinit(struct netconn *conn);
 /* ---- 连接任务属性 ---- */
 const osThreadAttr_t tcp_client_conn_attr = {
     .name       = "tcp_client_conn_task",
-    .stack_size = 256 * 8,
+    .stack_size = 256 * 4, /* 对齐 tcp_server_conn / udp_connect；原 2KB 偏大 */
     .priority   = osPriorityNormal,
 };
 
 osThreadId_t tcp_client_task_handle;
 const osThreadAttr_t tcp_client_task_attr = {
     .name       = "tcp_client_task",
-    .stack_size = 512 * 4,
+    .stack_size = 256 * 4, /* 对齐 tcp_server；原 2KB 偏大 */
     .priority   = osPriorityNormal,
 };
 

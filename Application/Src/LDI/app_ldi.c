@@ -13,12 +13,16 @@
 #include "pl_net.h"
 #include "pl_rtc.h"
 
+/* RJ45 物理通道 RB：与 IAP/MQTT 等同槽 weak 合并 */
+RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
+
 /* ---- proto_ldi_queue 静态分配 ---- */
 #define LDI_PAYLOAD_MAX (512U) /* 与探头 mem_pool 容量一致 */
-#define LDI_MSG_SIZE (sizeof(frame_msg_t) + LDI_PAYLOAD_MAX)
+#define LDI_MSG_SIZE    (sizeof(frame_msg_t) + LDI_PAYLOAD_MAX)
+#define LDI_QUEUE_DEPTH (4U)
 
 static StaticQueue_t s_ldi_queue_cb;
-static uint8_t s_ldi_queue_buf[2 * LDI_MSG_SIZE];
+static uint8_t s_ldi_queue_buf[LDI_QUEUE_DEPTH * LDI_MSG_SIZE];
 static const osMessageQueueAttr_t s_ldi_queue_attr = {
     .name    = "proto_ldi_queue",
     .cb_mem  = &s_ldi_queue_cb,
@@ -122,23 +126,32 @@ void ldi_ctx_init(ldi_ctx_t *self)
     }
 }
 
-/* ---- 协议自注册 ---- */
-static proto_mask_t s_ldi_mask;
+/* ---- 协议自注册：仅 RJ45（TCP/UDP 逻辑通道共享同一物理 RB，链式探测）---- */
+static proto_mask_t s_ldi_mask_tcp_server;
+static proto_mask_t s_ldi_mask_tcp_client;
+static proto_mask_t s_ldi_mask_udp;
 
 static void ldi_module_init(void)
 {
-    // 指定协议使用的环形缓冲区
-    ring_buffer_t *rb = app_proto_acquire_buf(1, 512);
-
-    // 注册协议到多通道多协议解析模块
-    s_ldi_mask = app_proto_register(ldi_probe_frame, rb);
-    if (s_ldi_mask == 0)
+    ring_buffer_t *rb = app_proto_acquire_buf(RB_SLOT_RJ45, RB_SIZE_RJ45);
+    if (rb == nullptr)
         return;
 
-    // 绑定协议使用到的通道
-    app_proto_bind_channel(s_ldi_mask, CH_ID_TCP_SERVER);
-    app_proto_bind_channel(s_ldi_mask, CH_ID_TCP_CLIENT);
-    app_proto_bind_channel(s_ldi_mask, CH_ID_UDP);
+    /* 每逻辑通道独立 mask，共享同一 RJ45 RB（禁止单 mask 绑多通道） */
+    s_ldi_mask_tcp_server = app_proto_register(ldi_probe_frame, rb);
+    if (s_ldi_mask_tcp_server != 0)
+        app_proto_bind_channel(s_ldi_mask_tcp_server, CH_ID_TCP_SERVER);
+
+    s_ldi_mask_tcp_client = app_proto_register(ldi_probe_frame, rb);
+    if (s_ldi_mask_tcp_client != 0)
+        app_proto_bind_channel(s_ldi_mask_tcp_client, CH_ID_TCP_CLIENT);
+
+    s_ldi_mask_udp = app_proto_register(ldi_probe_frame, rb);
+    if (s_ldi_mask_udp != 0)
+        app_proto_bind_channel(s_ldi_mask_udp, CH_ID_UDP);
+
+    if (s_ldi_mask_tcp_server == 0 && s_ldi_mask_tcp_client == 0 && s_ldi_mask_udp == 0)
+        return;
 
     /* 上下文初始化必须在创建任务之前，保证 IP/端口在通道任务启动前就绪 */
     ldi_ctx_init(&g_ldi);
@@ -148,7 +161,6 @@ static void ldi_module_init(void)
     const osMutexAttr_t tx_lock_attr = {.name = "ldi_tx_lock", .attr_bits = osMutexPrioInherit};
     g_ldi.tx_lock                    = osMutexNew(&tx_lock_attr);
 
-    // 创建协议相关处理任务
     g_ldi_task_handle       = osThreadNew(ldi_handle_task, nullptr, &ldi_task_attr);
     g_ldi_timer_task_handle = osThreadNew(ldi_timer_task, nullptr, &ldi_timer_task_attr);
 }
@@ -158,14 +170,14 @@ osMessageQueueId_t g_ldi_msg_queue;
 osThreadId_t g_ldi_task_handle;
 const osThreadAttr_t ldi_task_attr = {
     .name       = "ldi_handle_task",
-    .stack_size = 512 * 4,
+    .stack_size = 256 * 4, /* 帧缓冲为 static；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
 };
 
 osThreadId_t g_ldi_timer_task_handle;
 const osThreadAttr_t ldi_timer_task_attr = {
     .name       = "ldi_timer_task",
-    .stack_size = 512 * 4,
+    .stack_size = 256 * 4, /* 周期上报路径；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
 };
 
@@ -253,8 +265,13 @@ void ldi_handle_task(void *argument)
 {
     static uint8_t _msg_buf[LDI_MSG_SIZE];
     frame_msg_t *msg = (frame_msg_t *)_msg_buf;
-    g_ldi_msg_queue = osMessageQueueNew(2, LDI_MSG_SIZE, &s_ldi_queue_attr);
-    app_proto_set_frame_queue(s_ldi_mask, g_ldi_msg_queue);
+    g_ldi_msg_queue = osMessageQueueNew(LDI_QUEUE_DEPTH, LDI_MSG_SIZE, &s_ldi_queue_attr);
+    if (s_ldi_mask_tcp_server != 0)
+        app_proto_set_frame_queue(s_ldi_mask_tcp_server, g_ldi_msg_queue);
+    if (s_ldi_mask_tcp_client != 0)
+        app_proto_set_frame_queue(s_ldi_mask_tcp_client, g_ldi_msg_queue);
+    if (s_ldi_mask_udp != 0)
+        app_proto_set_frame_queue(s_ldi_mask_udp, g_ldi_msg_queue);
 
     for (;;) {
         if (osOK != osMessageQueueGet(g_ldi_msg_queue, msg, NULL, osWaitForever))
@@ -262,6 +279,9 @@ void ldi_handle_task(void *argument)
 
         ldi_frame_t *ldi_frame   = (ldi_frame_t *)msg->data;
         ldi_req_head_t *req_head = (ldi_req_head_t *)ldi_frame->data_crc;
+
+        /* 从已读帧中保存序号用于响应回显（从 probe 移至此处，消除 probe 副作用） */
+        g_ldi.rsp_seq = ldi_frame->seq;
 
         /* 状态门禁 */
         if (!ldi_cmd_allowed(g_ldi.state, req_head->cmd_type))
@@ -282,13 +302,26 @@ void ldi_handle_task(void *argument)
  *  帧探测
  * ================================================================ */
 
-const static uint8_t ldi_stx[2] = {0xFF, 0xFF};
-
+/**
+ * @brief LDI 帧探测（PURE 函数契约：只 peek，无副作用，不修改全局状态）
+ *
+ * 首字节快速拒绝：avail 为 0 时直接 FAKE；>= 1 字节时 peek 首字节判断 STX[0]。
+ * g_ldi.rsp_seq 的赋值已移至 ldi_handle_task（读帧之后）。
+ */
 proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff, uint32_t *total_len, uint8_t *aux)
 {
     uint32_t avail = rb_avail(buff, nullptr);
-    /* 先等到定长帧头（STX/VER/SEQ/LEN），再按 LEN 等完整帧。
-     * 创迪发现口 21H 可能仅携带 1 字节 CmdType，不能再要求完整 ldi_req_head_t。 */
+
+    /* 首字节快速拒绝：无数据或首字节非 0xFF → FAKE */
+    if (avail == 0)
+        return PROTO_PROBE_FAKE;
+
+    uint8_t first_byte;
+    rb_peek(buff, 0, &first_byte, 1, nullptr);
+    if (first_byte != 0xFF)
+        return PROTO_PROBE_FAKE;
+
+    /* 等到定长帧头（STX[2]/VER/SEQ/LEN[4] = 8 字节），再按 LEN 等完整帧 */
     if (avail < sizeof(ldi_frame_t))
         return PROTO_PROBE_WAIT;
 
@@ -297,12 +330,13 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
     rb_peek(buff, 0, mem_pool, avail > sizeof(mem_pool) ? sizeof(mem_pool) : avail, nullptr);
     ldi_frame_t *frame = (ldi_frame_t *)mem_pool;
 
-    if (memcmp(ldi_stx, frame->stx, sizeof(ldi_stx)))
+    /* STX[1] 校验 */
+    if (frame->stx[1] != 0xFF)
         return PROTO_PROBE_FAKE;
     if (frame->ver != 0x00)
         return PROTO_PROBE_FAKE;
 
-    g_ldi.rsp_seq = frame->seq; /* 保存序号用于响应回显 */
+    /* 注意：此处不再写 g_ldi.rsp_seq，移到 ldi_handle_task 读帧后 */
 
     uint32_t data_len = ((uint32_t)frame->len[0] << 24) | ((uint32_t)frame->len[1] << 16) |
                         ((uint32_t)frame->len[2] << 8) | (uint32_t)frame->len[3];

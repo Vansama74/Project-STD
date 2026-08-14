@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=QingHai 测试工具
+Name[en]=QingHai Test Tool
+Comment=青海协议上位机测试工具 (serial-port upper-computer test tool)
+Exec=/home/yystation/Program/3833024/Project-STD-main/tool/QingHai/.venv/bin/python /home/yystation/Program/3833024/Project-STD-main/tool/QingHai/qinghai_test_tool.py
+Path=/home/yystation/Program/3833024/Project-STD-main/tool/QingHai
+Icon=/home/yystation/Program/3833024/Project-STD-main/tool/QingHai/QingHai.svg
+Terminal=false
+Categories=Development;Utility;

@@ -16,7 +16,8 @@ static const display_color_t s_qh_color_map[] = {
     [2] = COLOR_YELLOW,
 };
 
-static const uint8_t s_qh_brightness_map[] = {0, 1, 2, 3, 4, 5};
+/* 协议 1~5 → 硬件亮度；最大档映射到 DEV_DISPLAY_BRIGHTNESS_MAX(8) */
+static const uint8_t s_qh_brightness_map[] = {3, 4, 5, 7, 8};
 static const uint8_t s_qh_volume_map[]     = {0, 1, 2, 3, 4, 5};
 
 /**
@@ -200,10 +201,10 @@ static void qh_exec_brightness(uint8_t level)
     dev_display_t *d = dev_display_get();
     if (!d) return;
     if (level == 0) {
-        return;
+        return; /* 自动档：交由光敏调光（上限为 DEV_DISPLAY_BRIGHTNESS_MAX） */
     }
-    if (level > 5) return;
-    dev_display_set_brightness(d, s_qh_brightness_map[level]);
+    if (level < 1 || level > 5) return;
+    dev_display_set_brightness(d, s_qh_brightness_map[level - 1]);
 }
 
 /**

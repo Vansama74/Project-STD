@@ -38,6 +38,7 @@ INC_DIRS = \
 	-I Application/Inc/LDI \
 	-I Application/Inc/ProtocolParser_QingHai \
 	-I Application/Inc/AH_MQTT \
+	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
 	-I Device/Inc \
 	-I Platform/Inc \
@@ -55,15 +56,7 @@ INC_DIRS = \
 	-I Compiler
 
 # ---- C Flags ----
-PROTO ?= LDI
-ifeq ($(PROTO),QH)
-APP_PROTOCOL ?= 2
-else
-APP_PROTOCOL ?= 1
-endif
-
 CFLAGS  = $(MCU_FLAGS) $(DEFINES) $(INC_DIRS) $(TC_FLAGS)
-CFLAGS += -DAPP_PROTOCOL=$(APP_PROTOCOL)
 CFLAGS += -std=gnu23
 CFLAGS += -Og -g
 CFLAGS += -Wall -Wextra
@@ -285,13 +278,10 @@ SRC_DEVICE = \
 	Device/Network/dev_dp83848.c \
 	Device/Network/dev_eth.c \
 	Device/Comm/dev_rs485.c \
-	Device/Comm/dev_rs232.c
+	Device/Comm/dev_rs232.c \
+	Device/Comm/dev_rs232_voice.c
 
-ifeq ($(PROTO),QH)
-SRC_DEVICE += Device/Comm/dev_rs232_voice.c
-endif
-
-# Application (Project_STD 新模块，resend app_* 等 Phase 7 集成后加入)
+# Application — 兼容协议同时编入（EIDE 目录编入等价；互斥靠排除目录，不用宏）
 SRC_APPLICATION = \
 	Application/Src/app_test.c \
 	Application/Src/app_factory_test.c \
@@ -310,20 +300,18 @@ SRC_APPLICATION = \
 	Application/Src/LDI/app_vms_ctrl.c \
 	Application/Src/AH_MQTT/ah_mqtt.c \
 	Application/Src/AH_MQTT/ah_mqtt_cmd.c \
+	Application/Src/RLS/app_rls.c \
+	Application/Src/RLS/app_rls_cmd.c \
+	Application/Src/ProtocolParser_QingHai/app_qh_proto.c \
+	Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c \
+	Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c \
+	Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
 	Application/Src/Channel/app_tcp_client.c \
 	Application/Src/Channel/app_mqtt.c \
 	Application/Src/Channel/app_rs232.c \
 	Application/Src/Channel/app_rs485.c
-
-ifeq ($(PROTO),QH)
-SRC_APPLICATION += \
-	Application/Src/ProtocolParser_QingHai/app_qh_proto.c \
-	Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c \
-	Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c \
-	Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c
-endif
 
 # ---- All Sources ----
 SRC_ALL = \

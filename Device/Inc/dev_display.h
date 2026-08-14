@@ -112,5 +112,8 @@ extern volatile uint32_t g_dev_display_scan_count;
 /** @brief 将当前逻辑帧提交到扫描帧，供 scan_task 读取 */
 void dev_display_commit_frame(dev_display_t *dev);
 
-/** @brief 设置亮度 (0=最暗/关闭, 7=最亮)，PWM 粒度 1/8 */
+/** 硬件亮度上限：0=关闭，8=OE 100% 常亮（PWM 8 档，最亮） */
+#define DEV_DISPLAY_BRIGHTNESS_MAX 8U
+
+/** @brief 设置亮度 (0=最暗/关闭, 8=最亮)，PWM 粒度 1/8 */
 void dev_display_set_brightness(dev_display_t *dev, uint8_t level);

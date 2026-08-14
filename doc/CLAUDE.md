@@ -53,24 +53,21 @@ Flash (1024KB, 起始 0x08000000)
 ├─ Sector10:  0x080C0000  128KB  (预留扩展)
 └─ Sector11:  0x080E0000  128KB  (已释放 — LDI 配置已迁移至 W25Qxx)
 
-SRAM (128KB, 0x20000000)
-├─ .data        已初始化全局变量
-├─ .bss         零初始化全局变量
-├─ FreeRTOS heap  32KB (heap_4.c)
-├─ LwIP mem heap  12KB
-├─ 环形缓冲区池    4×2KB = 8KB
-├─ UART DMA 缓冲   3×2KB = 6KB
-├─ 任务栈          见任务栈表
-└─ _user_heap_stack  512B heap + 2KB MSP 栈 (链接脚本预留)
+SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-08-14；以 06/04 为准）
+├─ .data / .bss     LwIP ram_heap + RX_POOL + PBUF_POOL 等（ETH 大户，永留 SRAM）
+├─ ucHeap           **36KB** FreeRTOS heap_4（任务栈/TCB/动态 OS 对象）
+├─ 协议 RB          RJ45 **1536** / RS485 **768** / RS232 **768**（三槽 provide）
+├─ UART DMA         RS485/RS232 各 **640**（无 RS232_1 DMA）
+├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3（不占 ucHeap）
+├─ RTT Up           2KB；W25 sec、s_dma_bounce 等
+└─ _user_heap_stack newlib + MSP 预留
 
-CCMRAM (64KB, 0x10000000, NOLOAD 段)
-├─ pixel_map[256]           256B  显示帧缓冲
-├─ hub75_buff[256]          256B  扫描输出缓冲
-├─ g_bsrr[4][8]             ~384B BSRR 查表
-└─ W25Qxx DMA 读缓冲         ~4KB (静态, .ccmram section)
+CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 同量级 1-969）
+├─ pixel_map / hub75_buff / row_dst / g_bsrr   **仅显存与 BSRR**
+└─ （无 ucHeap、无协议 RB、无 UART DMA）
 ```
 
-**CCMRAM 特性**：零等待状态，与内核直连不经过总线矩阵。NOLOAD 段在 `startup.c` 中整体循环清零（行为等同 .bss）。仅数据可用，不可执行代码。
+**CCMRAM 特性**：零等待、D-bus 单端口；`startup.c` 清零。仅数据、不可执行；**DMA/ETH 不可达**。占用以 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` 为准；分区宪法见同目录 `02_memory_policy.md`。多协议 RB / queue 深度见 `doc/05_协议模块多协议兼容优化/`。
 
 ## 闪存扇区职能地图
 
@@ -314,7 +311,8 @@ ETH 链路状态   ──→  pl_net_link_listener     ──→  UDP/TCP/MQTT �
 |---|---|---|
 | `configTICK_RATE_HZ` | 1000 | 1ms 时基（TIM7） |
 | `configMAX_PRIORITIES` | 56 | 优先级范围 0-55 |
-| `configTOTAL_HEAP_SIZE` | 32KB | heap_4 动态分配 |
+| `configTOTAL_HEAP_SIZE` | **36KB** | heap_4 static `ucHeap` → SRAM `.bss`；水位见 06/04 |
+| `configAPPLICATION_ALLOCATED_HEAP` | **0** | 不用 CCM 堆文件；禁止堆指针作 DMA |
 | `configMINIMAL_STACK_SIZE` | 128 words (512B) | 最小任务栈 |
 | `configCHECK_FOR_STACK_OVERFLOW` | 2 | 栈溢出检测（检查栈顶标记） |
 | `configUSE_MUTEXES` | 1 | 互斥锁（含优先级继承） |
@@ -580,7 +578,7 @@ app_render(&(render_cfg_t){
 |---|---|---|---|---|
 | `app_dispatch` | 框架 | — | `sw_app_initcall` | 协议调度引擎 |
 | `app_render` | 引擎 | — | `sw_app_initcall` | 字库渲染 |
-| `app_iap` | 协议 | UDP | `sw_app_initcall` | IAP 固件升级帧处理 |
+| `app_iap` | 协议 | RS485(slot0) + UDP(slot4) | `sw_app_initcall` | IAP 固件升级帧处理 |
 | `app_ldi` | 协议 | RS485/RS232/TCP | `sw_app_initcall` | LDI 显示控制协议 |
 | `app_vms_ctrl` | 协议 | (LDI 子模块) | — | VMS 情报板控制（LDI→Render 桥接） |
 | `ah_mqtt` | 协议 | MQTT | (已注释) | AH 平台 MQTT（签到/状态上报/指令） |
@@ -635,8 +633,8 @@ app_render(&(render_cfg_t){
 
 | ch_id | 枚举 | 传输层 | 实现类 | 绑定文件 |
 |---|---|---|---|---|
-| 0 | `CH_ID_RS485` | UART (USART3) | `uart_channel_t` | `dev_rs485.c` |
-| 1 | `CH_ID_RS232` | UART (USART1) | `uart_channel_t` | `dev_rs232.c` |
+| 0 | `CH_ID_RS485` | UART (USART1) | `uart_channel_t` | `dev_rs485.c` |
+| 1 | `CH_ID_RS232` | UART (USART3) | `uart_channel_t` | `dev_rs232.c` |
 | 2 | `CH_ID_TCP_SERVER` | LwIP TCP | `tcp_server_channel_t` | `app_tcp_server.c` |
 | 3 | `CH_ID_TCP_CLIENT` | LwIP TCP | `tcp_client_channel_t` | `app_tcp_client.c` |
 | 4 | `CH_ID_UDP` | LwIP UDP | `udp_channel_t` | `app_udp.c` (端口 10011) |
@@ -666,7 +664,7 @@ RTOS后:       app_rs485_start / app_rs232_start
 
 ## IAP 协议 (`app_iap.c`)
 
-固件升级协议，绑定 CH_ID_UDP 通道。帧头 `0x5A5A5A5A`，CRC32 校验，7 种命令类型，位图跟踪分包传输。
+固件升级协议，双槽绑定：RS485 (slot 0, `CH_ID_RS485`) + UDP (slot 4, `CH_ID_UDP`)。帧头 `0x5A5A5A5A`，CRC32 校验，7 种命令类型，位图跟踪分包传输。
 
 - `iap_handle_task`：协议处理任务（栈 512×4=2KB），循环 `osMessageQueueGet` → 帧解析 → 命令分派
 - 命令表 `g_iap_cmd_table[]`：Function(0x00) / Restart(0x01) / StartFWUpdate(0x02) / FWData(0x03) / EndFWUpdate(0x04) / StopFWUpdate(0x05) / FWCancel(0x06)
@@ -674,7 +672,7 @@ RTOS后:       app_rs485_start / app_rs232_start
 
 ## LDI 协议 (`app_ldi.c` + `app_ldi_cmd.c`)
 
-车道设备指示器协议，绑定 RS485/RS232/TCP 多通道。帧定界符 `0x7E`，CRC-16/XMODEM 校验，支持 13 种设备类型。
+车道设备指示器协议，绑定 RS485/RS232/TCP 多通道。帧定界符 `0xFF 0xFF`（STX，2 字节，`app_ldi.h` 固定值），CRC-16/XMODEM 校验，支持 13 种设备类型。
 
 - `ldi_handle_task`：协议处理任务（栈 512×4=2KB）
 - `ldi_timer_task`：周期性状态上报（栈 512×4=2KB）

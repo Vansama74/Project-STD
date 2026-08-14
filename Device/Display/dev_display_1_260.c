@@ -94,7 +94,7 @@ static dev_display_1_260_t g_1_260 = {
         .pixel_map           = _1_260_pixel_map,
         .hub75_buff          = _1_260_hub75_buff,
         .module_code         = MODULE_CODE,
-        .light_level         = 7,
+        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
     },
 };
 

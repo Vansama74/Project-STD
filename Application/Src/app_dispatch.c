@@ -32,17 +32,37 @@ static const osMessageQueueAttr_t s_ch_queue_attr = {
 static uint8_t _msg_dispatch_buf[sizeof(frame_msg_t) + FRAME_DATA_MAX_LEN];
 
 /* ================================================================
- *  环形缓冲区池 — 编译期静态分配，按 id 复用
+ *  环形缓冲区池 — 一物理通道一 RB，体由协议 TU RB_PROVIDE_WEAK 提供
  *
- *  app_proto_acquire_buf(id, size) 按 id 返回预分配的 ring buffer。
- *  同一 id 多次调用返回同一指针（分组复用），首次调用时 rb_init。
- *  id 与具体的 RB_DEFINE 通过 if(id==N) 硬绑定，扩容需同步修改。
+ *  未编入任何 provide → weak 函数指针为 0 → acquire 返回 nullptr。
+ *  编入 ≥1 协议 provide → 保留一个 getter（内含 SRAM static 缓冲）。
  * ================================================================ */
 
-RB_DEFINE_CCM(g_rb0, 2048); /**< id=0: IAP 协议专用（高可靠性组） */
-RB_DEFINE_CCM(g_rb1, 2048); /**< id=1: 通用业务协议组（LDI 等共用） */
-RB_DEFINE_CCM(g_rb2, 2048); /**< id=2: 暂未使用，预留 */
-RB_DEFINE_CCM(g_rb3, 2048); /**< id=3: 暂未使用，预留 */
+extern ring_buffer_t *RB_PROVIDE_RJ45(void) __attribute__((weak));
+extern ring_buffer_t *RB_PROVIDE_RS485(void) __attribute__((weak));
+extern ring_buffer_t *RB_PROVIDE_RS232(void) __attribute__((weak));
+
+typedef ring_buffer_t *(*rb_provide_fn_t)(void);
+
+static const rb_provide_fn_t g_rb_provide[RB_CNT_MAX] = {
+    [RB_SLOT_RJ45]  = RB_PROVIDE_RJ45,
+    [RB_SLOT_RS485] = RB_PROVIDE_RS485,
+    [RB_SLOT_RS232] = RB_PROVIDE_RS232,
+};
+
+static const char *const names[RB_CNT_MAX] = {
+    [RB_SLOT_RJ45]  = "rb_rj45",
+    [RB_SLOT_RS485] = "rb_rs485",
+    [RB_SLOT_RS232] = "rb_rs232",
+};
+
+_Static_assert(sizeof(g_rb_provide) / sizeof(g_rb_provide[0]) == RB_CNT_MAX, "g_rb_provide length");
+_Static_assert(sizeof(names) / sizeof(names[0]) == RB_CNT_MAX, "names length");
+_Static_assert(RB_SLOT_RJ45 == 0 && RB_SLOT_RS485 == 1 && RB_SLOT_RS232 == 2 &&
+                   RB_SLOT_COUNT == 3,
+               "rb_slot_t must stay contiguous");
+_Static_assert(RB_SIZE_RJ45 == 1536U && RB_SIZE_RS485 == 768U && RB_SIZE_RS232 == 768U,
+               "RB sizes must match product plan");
 
 /* ================================================================
  *  调度上下文 — 全部运行时的唯一状态聚合
@@ -90,6 +110,9 @@ uint8_t proto_index(uint32_t mask)
  */
 proto_mask_t app_proto_register(proto_probe_fn_t probe, ring_buffer_t *rb)
 {
+    if (rb == nullptr)
+        return 0;
+
     /* 找第一个空闲位 */
     uint32_t free_bits = ~g_dispatch.registered_mask;
     if (free_bits == 0) return 0; /* 32 槽全满 */
@@ -133,39 +156,40 @@ void app_proto_bind_channel(proto_mask_t mask, channel_id_t ch_id)
 
 /**
  * @brief 从缓冲区池获取环形缓冲区
- * @param id    缓冲区编号（0 ~ RB_CNT_MAX-1）
- * @param size  容量（当前未使用，预留）
+ * @param id    rb_slot_t（RB_SLOT_RJ45 / RS485 / RS232）
+ * @param size  期望容量（不得超过该槽实际 size；无体时返回 nullptr）
  * @return      环形缓冲区指针，失败返回 nullptr
  *
- * 同一 id 首次调用时 rb_init（互斥锁名 = "rb_N"），
- * 后续调用直接返回已有指针，实现分组复用。
- * 所有缓冲区为编译期静态分配，无堆开销。
+ * 判空顺序：id 越界 → buf_pool 缓存早返回 → provide==NULL/rb==NULL → size>rb->size → rb_init。
  */
 ring_buffer_t *app_proto_acquire_buf(uint8_t id, uint16_t size)
 {
-    if (id >= RB_CNT_MAX) return nullptr;
-    (void)size;
+    if (id >= RB_CNT_MAX)
+        return nullptr;
 
-    static const char *names[RB_CNT_MAX]              = {"rb_0", "rb_1", "rb_2", "rb_3"};
-    static ring_buffer_t *const g_rb_pool[RB_CNT_MAX] = {&g_rb0, &g_rb1, &g_rb2, &g_rb3};
-
-    ring_buffer_t *rb = g_rb_pool[id];
-
-    /* 已初始化则直接返回 */
     if (g_dispatch.buf_pool[id] != nullptr)
         return g_dispatch.buf_pool[id];
 
-    /* 首次使用：创建互斥锁 + 缓存指针 */
+    rb_provide_fn_t provide = g_rb_provide[id];
+    if (provide == nullptr)
+        return nullptr;
+
+    ring_buffer_t *rb = provide();
+    if (rb == nullptr)
+        return nullptr;
+
+    if (size > rb->size)
+        return nullptr;
+
     rb_init(rb, names[id]);
     g_dispatch.buf_pool[id] = rb;
     return rb;
 }
 
 /* ================================================================
- *  调度系统初始化 — sw_app_initcall(2)，RTOS 后自动调用
+ *  调度系统初始化 — sw_app_initcall(3)，同层按符号名字母序先于协议注册
  *
  *  创建 ch_queue → 创建 frame_dispatch_task → 返回。
- *  协议模块的注册由 sw_app_initcall(3) 在之后执行。
  * ================================================================ */
 
 void app_dispatch_init(void)
@@ -244,8 +268,9 @@ void frame_dispatch_task(void *argument)
 
             /* 内循环：从同一缓冲区中连续提取多帧 */
             while (avail > 0) {
-                bool parsed   = false; /**< 本轮是否成功解析一帧 */
-                bool all_wait = true;  /**< 所有协议是否都返回 WAIT */
+                bool any_wait   = false; /* 有协议：帧头可能匹配但数据不足 */
+                bool any_fake   = false; /* 有协议：明确不是我的帧 */
+                bool any_parsed = false; /* 有协议：READY 读走或 SKIP 跳过 */
 
                 /* 按协议优先级顺序探测已注册协议 */
                 uint32_t inner_iter = g_dispatch.registered_mask;
@@ -277,36 +302,39 @@ void frame_dispatch_task(void *argument)
                                 avail = rb_avail(rb, nullptr);
                             }
                         }
-                        parsed   = true;
-                        all_wait = false;
+                        any_parsed = true;
                         break; /* 成功解析一帧，回到 while 继续下一帧 */
 
                     } else if (state == PROTO_PROBE_SKIP) {
                         /* 帧结构合法但不属于本设备，跳过整帧 */
                         if (avail >= frame_len) {
                             avail -= rb_skip(rb, frame_len, nullptr);
-                            parsed = true;
                         }
-                        /* 数据不足时退化为 WAIT */
-                        all_wait = false;
+                        any_parsed = true;
+                        break; /* SKIP 与 READY 一样终止本轮链路 */
 
                     } else if (state == PROTO_PROBE_WAIT) {
                         /* 数据不足，协议等待更多字节 —— 继续探测下一个协议 */
+                        any_wait = true;
+
                     } else if (state == PROTO_PROBE_FAKE) {
-                        /* 伪帧头（如误匹配的 0x5A），跳过 1 字节重试 */
-                        all_wait = false;
+                        /* 明确不是本协议 —— 继续探测下一个协议 */
+                        any_fake = true;
                     }
                 }
 
-                /* 无协议成功解析:
-                 *   全部 WAIT → 退出内循环，等待更多数据
-                 *   至少一个 FAKE → 跳过 1 字节继续重试
+                /* 无协议成功解析时的决策（§3.2 修复后语义）:
+                 *   any_wait  → 禁止 skip，等更多字节
+                 *   !any_wait && any_fake → 全部不认识，skip 1 字节重同步
+                 *   !any_wait && !any_fake → 空缓冲区异常保护
                  */
-                if (!parsed) {
-                    if (all_wait)
-                        break;
+                if (!any_parsed) {
+                    if (any_wait)
+                        break;           /* 等待更多数据到达 */
+                    else if (any_fake)
+                        avail -= rb_skip(rb, 1, nullptr); /* 重同步 */
                     else
-                        avail -= rb_skip(rb, 1, nullptr);
+                        break; /* 无协议绑定或探测函数全空，防死循环 */
                 }
             }
             rb_unlock(rb);
@@ -346,9 +374,15 @@ void channel_send(channel_t *ch, uint8_t *data, uint16_t len)
 
 void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len)
 {
+    /* 防御性断言：调度系统必须已初始化（同层字母序 app_dispatch_init 先于协议） */
+    if (g_dispatch.ch_queue == nullptr) return;
+
     /* 根据通道 ID 查表获得协议掩码 */
-    proto_mask_t proto                   = g_dispatch.ch_proto_map[ch->ch_id];
-    ring_buffer_t *seen[PROTO_MAX_COUNT] = {nullptr}; /**< 已写入的 RB 指针集合 */
+    proto_mask_t proto = g_dispatch.ch_proto_map[ch->ch_id];
+
+    /* 已写入的 RB 去重：用计数器遍历，避免依赖 seen[] 连续填充假设 */
+    ring_buffer_t *seen[PROTO_MAX_COUNT] = {nullptr};
+    uint8_t seen_cnt = 0;
 
     /* 遍历已注册协议位，将数据写入匹配的环形缓冲区 */
     uint32_t write_iter = g_dispatch.registered_mask;
@@ -363,7 +397,7 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
 
         /* RB 指针去重：多个协议共享同一缓冲区时只写一次 */
         bool dup = false;
-        for (uint8_t k = 0; seen[k] != nullptr; k++)
+        for (uint8_t k = 0; k < seen_cnt; k++)
             if (seen[k] == rb) {
                 dup = true;
                 break;
@@ -371,7 +405,7 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
         if (dup) continue;
 
         rb_write(rb, data, len, rb->mutex);
-        seen[i] = rb;
+        seen[seen_cnt++] = rb;
     }
 
     // 关闭工厂模式

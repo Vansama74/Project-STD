@@ -13,7 +13,7 @@
 #include "dev_display.h"
 
 #define APP_TEST_OBLIQUE_LINE_SPACING (32U)
-#define APP_TEST_OBLIQUE_STEP_DELAY_MS (32U)
+#define APP_TEST_OBLIQUE_STEP_DELAY_MS (24U)
 
 extern volatile uint32_t g_app_test_oblique_frame_count;
 

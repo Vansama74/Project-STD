@@ -21,8 +21,6 @@ typedef struct {
     uint16_t rx_buf_size;
 } rs485_ch_t;
 
-#define RS485_BUF_SIZE (2048U)
-
 /* ---- rs485_rx_queue 静态分配 ---- */
 static StaticQueue_t s_rs485_rx_cb;
 static uint16_t s_rs485_rx_buf[1];

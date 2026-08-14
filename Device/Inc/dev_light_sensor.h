@@ -14,14 +14,14 @@
 /** 自动调光默认最低亮度等级（出厂约束：不允许低于 4 级） */
 #define LIGHT_SENSOR_MIN_LEVEL  4
 
-/** 自动调光默认最高亮度等级（出厂约束：不允许高于 7 级） */
-#define LIGHT_SENSOR_MAX_LEVEL  7
+/** 自动调光默认最高亮度等级（设备最亮 = OE 100%） */
+#define LIGHT_SENSOR_MAX_LEVEL  DEV_DISPLAY_BRIGHTNESS_MAX
 
 typedef struct {
     void *adc;
     dev_display_t *display;
-    uint8_t min_level;  /* 自动调光最低亮度 (1~7) */
-    uint8_t max_level;  /* 自动调光最高亮度 (1~7) */
+    uint8_t min_level;  /* 自动调光最低亮度 (1~8) */
+    uint8_t max_level;  /* 自动调光最高亮度 (1~8) */
 } light_sensor_dev_t;
 
 void dev_light_sensor_init(light_sensor_dev_t *dev, dev_display_t *display);
@@ -31,10 +31,10 @@ void dev_light_sensor_auto_adjust(light_sensor_dev_t *dev);
 /**
  * @brief  设置光敏自动调光的亮度范围
  * @param  dev      光传感器实例
- * @param  min      最低亮度等级 (1~7, 0=不关屏)
- * @param  max      最高亮度等级 (1~7)
+ * @param  min      最低亮度等级 (1~8, 0=不关屏)
+ * @param  max      最高亮度等级 (1~8)
  *
- * min/max 会被自动钳位到 1~7，且 min ≤ max。
+ * min/max 会被自动钳位到 1~DEV_DISPLAY_BRIGHTNESS_MAX，且 min ≤ max。
  * 调用后下一次 auto_adjust 即以新范围输出。
  */
 void dev_light_sensor_set_range(light_sensor_dev_t *dev, uint8_t min, uint8_t max);

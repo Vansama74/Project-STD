@@ -88,11 +88,32 @@ static inline void _cs_high(void)
 static osEventFlagsId_t s_evt;
 static volatile bool s_ok;
 
+/* CCM 不可被 DMA 寻址；禁止把 CCM/栈缓冲直接交给 SPI DMA（经 s_dma_bounce） */
+#define CCMRAM_BASE 0x10000000u
+#define CCMRAM_END  0x10010000u
+static uint8_t s_dma_bounce[256]; /* 必须落在 SRAM .bss */
+
+static bool _ptr_in_ccm(const void *p)
+{
+    uintptr_t a = (uintptr_t)p;
+    return (a >= CCMRAM_BASE) && (a < CCMRAM_END);
+}
+
 static void _dma_cb(void *ctx)
 {
     (void)ctx;
     s_ok = true;
     osEventFlagsSet(s_evt, 0x01);
+}
+
+static int32_t _dma_recv(dev_w25qxx_t *self, uint8_t *dst, uint16_t len)
+{
+    s_ok = false;
+    if (pl_spi_receive_dma(self->spi, dst, len) != 0)
+        return -1;
+    while (!s_ok)
+        osDelay(1);
+    return 0;
 }
 
 /* ---- OPS 实现 ---- */
@@ -145,12 +166,30 @@ static int32_t _read(dev_storage_t *dev, uint32_t addr, uint8_t *buf, uint32_t l
     cmd[0] = W25Q_READ_CMD;
     _put_addr(cmd + 1, addr, self);
 
-    s_ok = false;
     _cs_low();
     pl_spi_transmit(self->spi, cmd, (uint16_t)(al + 1));
-    pl_spi_receive_dma(self->spi, buf, (uint16_t)len);
-    while (!s_ok)
-        osDelay(1);
+
+    if (!_ptr_in_ccm(buf)) {
+        if (_dma_recv(self, buf, (uint16_t)len) != 0) {
+            _cs_high();
+            return -1;
+        }
+    } else {
+        /* 目的在 CCM（显存等）→ 经 SRAM bounce 再 memcpy */
+        uint32_t done = 0;
+        while (done < len) {
+            uint16_t chunk = (uint16_t)((len - done > sizeof(s_dma_bounce))
+                                            ? sizeof(s_dma_bounce)
+                                            : (len - done));
+            if (_dma_recv(self, s_dma_bounce, chunk) != 0) {
+                _cs_high();
+                return -1;
+            }
+            memcpy(buf + done, s_dma_bounce, chunk);
+            done += chunk;
+        }
+    }
+
     _cs_high();
     return (int32_t)len;
 }

@@ -8,12 +8,12 @@ CompileFlags:
     - -std=gnu23
     - -DUSE_HAL_DRIVER
     - -DSTM32F407xx
-    - -DAPP_PROTOCOL=1
     - -I${workspace}/Application/Inc
     - -I${workspace}/Application/Inc/IAP
     - -I${workspace}/Application/Inc/LDI
     - -I${workspace}/Application/Inc/ProtocolParser_QingHai
     - -I${workspace}/Application/Inc/AH_MQTT
+    - -I${workspace}/Application/Inc/RLS
     - -I${workspace}/Application/Inc/Channel
     - -I${workspace}/Device/Inc
     - -I${workspace}/Platform/Inc

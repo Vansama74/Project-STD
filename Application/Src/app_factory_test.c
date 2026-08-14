@@ -208,11 +208,12 @@ static void factory_monitor_task(void *argument)
          * 暂停光敏，强制最大亮度 */
         dev_key_wait_press(DEV_KEY_TST, osWaitForever);
         osThreadSuspend(g_light_sensor_task_handle);
-        dev_display_set_brightness(dsp, 7);
+        dev_display_set_brightness(dsp, DEV_DISPLAY_BRIGHTNESS_MAX);
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
         dev_display_commit_frame(dsp);
 
         bool aging_exit = false;
+        bool lane_green = true;
         for (uint8_t type_idx = 0; !aging_exit; type_idx = (type_idx + 1) % AGING_TYPE_COUNT) {
             for (uint8_t size_idx = 0; size_idx < AGING_SIZE_COUNT; size_idx++) {
                 font_size_t fsize = s_aging_sizes[size_idx];
@@ -225,6 +226,8 @@ static void factory_monitor_task(void *argument)
                                          ch_len > 2 ? ch_ptr[2] : 0, 0};
 
                     _aging_fill_screen(fsize, s_aging_types[type_idx], single_ch, ch_len);
+                    dev_io_lane_light(lane_green);
+                    lane_green = !lane_green;
 
                     if (dev_key_wait_press(DEV_KEY_TST, 3000)) {
                         aging_exit = true;
@@ -250,17 +253,19 @@ static void _factory_test_init(void)
 {
     const osThreadAttr_t attr = {
         .name       = "factory_monitor",
-        .stack_size = 1024 * 4,
+        .stack_size = 256 * 4, /* 再压一档；原 2KB/4KB 过大，多协议下挤堆 */
         .priority   = osPriorityHigh,
     };
     g_factory_test = osThreadNew(factory_monitor_task, NULL, &attr);
 }
 sw_app_initcall(_factory_test_init);
 
-// 对外提供一个终止工厂测试模式的接口
+/* 收到业务数据时退出工厂监控；禁止再次创建任务（否则每包重建栈 → 堆碎片/耗尽） */
 void app_factory_mode_interrupt(void)
 {
-    // dev_display_fill(dev_display_get(), 0, 0, dev_display_get()->screen_rows, dev_display_get()->screen_cols, COLOR_BLACK);
-    osThreadTerminate(g_factory_test);
-    _factory_test_init();
+    if (g_factory_test != NULL) {
+        osThreadId_t tid = g_factory_test;
+        g_factory_test   = NULL;
+        osThreadTerminate(tid);
+    }
 }

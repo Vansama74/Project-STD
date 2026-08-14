@@ -12,7 +12,8 @@
 
 static pl_uart_handle_t dev_rs232_voice_uart(void)
 {
-    return pl_uart_get_handle(PL_UART3);
+    /* 语音板 TTS 专用 USART6 (PL_UART6)，不再使用 USART3 */
+    return pl_uart_get_handle(PL_UART6);
 }
 
 static void dev_rs232_voice_send(const uint8_t *frame, uint16_t len)

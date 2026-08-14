@@ -9,12 +9,14 @@
 
 #include "app_tcp_server.h"
 
+#include "FreeRTOS.h"
 #include "app_dispatch.h"
 #include "pl_net_adapt.h"
 
 #define TCP_SERVER_PORT 9528
 
-/* ---- 信号量 ---- */
+/* ---- 信号量（静态分配，避免启动阶段再吃 FreeRTOS heap） ---- */
+static StaticSemaphore_t s_disconnect_sem_cb;
 static osSemaphoreId_t s_disconnect_sem;
 
 /* ---- 连接任务属性 ---- */
@@ -74,8 +76,14 @@ static void tcp_channel_init(tcp_server_channel_t *self, void *conn, channel_t *
 void tcp_server_task(void *argument)
 {
     (void)argument;
-    if (s_disconnect_sem == NULL)
-        s_disconnect_sem = osSemaphoreNew(1, 0, NULL);
+    if (s_disconnect_sem == NULL) {
+        const osSemaphoreAttr_t attr = {
+            .name    = "tcp_svr_disc",
+            .cb_mem  = &s_disconnect_sem_cb,
+            .cb_size = sizeof(s_disconnect_sem_cb),
+        };
+        s_disconnect_sem = osSemaphoreNew(1, 0, &attr);
+    }
 
     for (;;) {
         struct netconn *conn = netconn_new(NETCONN_TCP);

@@ -349,8 +349,9 @@ targets:
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Application/protocol/ldi
       - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ah
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -440,6 +441,16 @@ targets:
         bin: ""
         interface: cmsis-dap
         target: stm32f4x
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
       probe-rs:
         allowEraseAll: false
         baseAddr: "0x08000000"
@@ -454,7 +465,6 @@ targets:
       defineList:
         - USE_HAL_DRIVER
         - STM32F407xx
-        - APP_PROTOCOL=1
       incList:
         - Core/Inc
         - Drivers/CMSIS/Include
