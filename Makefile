@@ -41,6 +41,7 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_SiChuang_ETC \
 	-I Application/Inc/ProtocolParser_SiChuang_MTC \
 	-I Application/Inc/ProtocolParser_SiChuang_Overload \
+	-I Application/Inc/ProtocolParser_ShanDong \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -291,6 +292,7 @@ SRC_APPLICATION = \
 	Application/Src/app_test.c \
 	Application/Src/app_factory_test.c \
 	Application/Src/app_boot.c \
+	Application/Src/app_default_display.c \
 	Application/Src/app_dispatch.c \
 	Application/Src/app_render.c \
 	Application/Src/app_key.c \
@@ -321,6 +323,10 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c \
 	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.c \
 	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.c \
+	Application/Src/ProtocolParser_ShanDong/app_sd_proto.c \
+	Application/Src/ProtocolParser_ShanDong/app_sd_proto_parse.c \
+	Application/Src/ProtocolParser_ShanDong/app_sd_proto_cmd.c \
+	Application/Src/ProtocolParser_ShanDong/app_sd_proto_default.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \

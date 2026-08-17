@@ -78,9 +78,11 @@ void dev_display_start(void);
  *  pixel_map 按行主序存储: pixel_map[y * screen_rows + x] */
 void dev_display_set_pixel(dev_display_t *dev, uint16_t x, uint16_t y, display_color_t color);
 
-/** @brief 矩形区域填充纯色: (x,y)起点, w宽h高, 超出屏幕自动截断, 置脏标记
+/** @brief 矩形区域填充纯色: (x,y)起点, w宽h高, 置脏标记
  *
- *  坐标约定同 dev_display_set_pixel */
+ *  坐标约定同 dev_display_set_pixel。
+ *  越界语义：起点在屏幕外（x>=rows 或 y>=cols）→ 整区域丢弃不绘制；
+ *  部分超出 → 截断到屏幕边界。 */
 void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, display_color_t color);
 
 /** @brief 叠加绘制位图: (x,y)起点, w宽h高, bitmap每行( (w+7)/8 )字节, bit=1写color, bit=0不改变原像素。

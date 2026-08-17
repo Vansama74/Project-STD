@@ -10,33 +10,29 @@
 #include "app_sc_mtc_proto_voice.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "dev_rs232_voice.h"
+#include "text_cvt.h"
 
-static const struct {
-    const uint8_t *text;
-    uint16_t len;
-} s_mtc_fixed_voices[8] = {
+/* '7' 命令 '0'~'7' 固定语音（UTF-8 字面量，播报前运行时转 GBK 送语音板） */
+static const char *const s_mtc_fixed_voices[8] = {
     /* '0' 您好，请交费，谢谢合作，祝您一路平安（文档含车型/金额变量，不拼读） */
-    {(const uint8_t *)"\xC4\xFA\xBA\xC3\xA3\xAC\xC7\xEB\xBD\xBB\xB7\xD1\xA3\xAC"
-                      "\xD0\xBB\xD0\xBB\xBA\xCF\xD7\xF7\xA3\xAC\xD7\xA3\xC4\xFA"
-                      "\xD2\xBB\xC2\xB7\xC6\xBD\xB0\xB2", 36},
+    "您好，请交费，谢谢合作，祝您一路平安",
     /* '1' 您好，请交费（文档含总重/超重/金额变量，不拼读） */
-    {(const uint8_t *)"\xC4\xFA\xBA\xC3\xA3\xAC\xC7\xEB\xBD\xBB\xB7\xD1", 12},
+    "您好，请交费",
     /* '2' 您好（文档含车型变量，不拼读） */
-    {(const uint8_t *)"\xC4\xFA\xBA\xC3", 4},
+    "您好",
     /* '3' 谢谢合作，祝您一路平安（文档含总重/超重/金额变量，不拼读） */
-    {(const uint8_t *)"\xD0\xBB\xD0\xBB\xBA\xCF\xD7\xF7\xA3\xAC\xD7\xA3\xC4\xFA"
-                      "\xD2\xBB\xC2\xB7\xC6\xBD\xB0\xB2", 22},
+    "谢谢合作，祝您一路平安",
     /* '4' 谢谢合作，祝您一路平安 */
-    {(const uint8_t *)"\xD0\xBB\xD0\xBB\xBA\xCF\xD7\xF7\xA3\xAC\xD7\xA3\xC4\xFA"
-                      "\xD2\xBB\xC2\xB7\xC6\xBD\xB0\xB2", 22},
+    "谢谢合作，祝您一路平安",
     /* '5' 月票车，请通行 */
-    {(const uint8_t *)"\xD4\xC2\xC6\xB1\xB3\xB5\xA3\xAC\xC7\xEB\xCD\xA8\xD0\xD0", 14},
+    "月票车，请通行",
     /* '6' 免费车，请通行 */
-    {(const uint8_t *)"\xC3\xE2\xB7\xD1\xB3\xB5\xA3\xAC\xC7\xEB\xCD\xA8\xD0\xD0", 14},
+    "免费车，请通行",
     /* '7' 车辆闯关 */
-    {(const uint8_t *)"\xB3\xB5\xC1\xBE\xB4\xB3\xB9\xD8", 8},
+    "车辆闯关",
 };
 
 /**
@@ -48,5 +44,11 @@ void sc_mtc_voice_play_fixed(uint8_t idx)
     if (idx >= (sizeof(s_mtc_fixed_voices) / sizeof(s_mtc_fixed_voices[0]))) {
         return;
     }
-    dev_rs232_voice_play(s_mtc_fixed_voices[idx].text, s_mtc_fixed_voices[idx].len);
+
+    /* 语音板要求 GBK：UTF-8 源文运行时转换后播报 */
+    uint8_t gbk[40];
+    uint32_t gbk_len = sizeof(gbk);
+    UTF8ToGBK(s_mtc_fixed_voices[idx], (uint32_t)strlen(s_mtc_fixed_voices[idx]),
+              (char *)gbk, &gbk_len);
+    dev_rs232_voice_play(gbk, (uint16_t)gbk_len);
 }

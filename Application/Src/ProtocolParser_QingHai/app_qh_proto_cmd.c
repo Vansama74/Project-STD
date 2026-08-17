@@ -9,6 +9,7 @@
 #include "dev_io_ctrl.h"
 #include "dev_rs232_voice.h"
 #include "app_qh_proto_voice.h"
+#include "text_cvt.h"
 
 static const display_color_t s_qh_color_map[] = {
     [0] = COLOR_RED,
@@ -52,8 +53,12 @@ static void qh_exec_self_check(void)
         dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_YELLOW);
         dev_display_commit_frame(d);
     }
+    /* 「系统正在加电自检」（自检语音，UTF-8 字面量；语音板要求 GBK，运行时转换） */
     static const uint8_t text[] = "系统正在加电自检";
-    dev_rs232_voice_play(text, sizeof(text) - 1);
+    uint8_t gbk[32];
+    uint32_t gbk_len = sizeof(gbk);
+    UTF8ToGBK((const char *)text, (uint32_t)(sizeof(text) - 1U), (char *)gbk, &gbk_len);
+    dev_rs232_voice_play(gbk, (uint16_t)gbk_len);
 }
 
 /**

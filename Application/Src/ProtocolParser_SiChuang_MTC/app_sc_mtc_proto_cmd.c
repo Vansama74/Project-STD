@@ -21,6 +21,7 @@
 #include "dev_io_ctrl.h"
 #include "dev_rs232_voice.h"
 #include "app_sc_mtc_proto_voice.h"
+#include "text_cvt.h"
 
 /* ---- 显示状态（7B 41/42/'A' 修改，后续显示命令生效）---- */
 static display_color_t s_mtc_color      = COLOR_RED; /* 'A' 默认红 */
@@ -80,7 +81,7 @@ static void _sc_mtc_render_line(uint8_t row, const uint8_t *text, uint16_t len)
 }
 
 /**
- * @brief  居中渲染单行文本（初始化提示）。
+ * @brief  居中渲染单行文本（初始化提示，UTF-8 文本）。
  * @param  text  文本。
  * @param  len   文本字节数。
  */
@@ -106,7 +107,7 @@ static void _sc_mtc_render_center(const uint8_t *text, uint16_t len)
         .len       = len,
         .font_size = FONT_SELF_ADAPT,
         .font_type = s_mtc_font_type,
-        .text_enc  = FONT_ENC_GBK,
+        .text_enc  = FONT_ENC_UTF8,
     });
 }
 
@@ -116,12 +117,15 @@ static void _sc_mtc_render_center(const uint8_t *text, uint16_t len)
  */
 static void _sc_mtc_exec_init(void)
 {
-    /* "祝您一路平安" GBK */
-    static const uint8_t text[] = {
-        0xD7, 0xA3, 0xC4, 0xFA, 0xD2, 0xBB, 0xC2, 0xB7, 0xC6, 0xBD, 0xB0, 0xB2,
-    };
-    _sc_mtc_render_center(text, sizeof(text));
-    dev_rs232_voice_play(text, sizeof(text));
+    /* 「祝您一路平安」（协议 '1' 初始化显示 + 语音，UTF-8 字面量） */
+    static const uint8_t text[] = "祝您一路平安";
+    _sc_mtc_render_center(text, (uint16_t)(sizeof(text) - 1U));
+
+    /* 语音板要求 GBK：UTF-8 源文运行时转换后播报 */
+    uint8_t gbk[32];
+    uint32_t gbk_len = sizeof(gbk);
+    UTF8ToGBK((const char *)text, (uint32_t)(sizeof(text) - 1U), (char *)gbk, &gbk_len);
+    dev_rs232_voice_play(gbk, (uint16_t)gbk_len);
 }
 
 /**
@@ -134,11 +138,13 @@ static void _sc_mtc_exec_self_check(void)
         dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_YELLOW);
         dev_display_commit_frame(d);
     }
-    static const uint8_t text[] = {
-        /* "系统正在加电自检" GBK */
-        0xCF, 0xB5, 0xCD, 0xB3, 0xD5, 0xFD, 0xD4, 0xDA, 0xBC, 0xD3, 0xB5, 0xE7, 0xD7, 0xD4, 0xBC, 0xEC,
-    };
-    dev_rs232_voice_play(text, sizeof(text));
+
+    /* 「系统正在加电自检」（自检语音，UTF-8 字面量；语音板要求 GBK，运行时转换） */
+    static const uint8_t text[] = "系统正在加电自检";
+    uint8_t gbk[32];
+    uint32_t gbk_len = sizeof(gbk);
+    UTF8ToGBK((const char *)text, (uint32_t)(sizeof(text) - 1U), (char *)gbk, &gbk_len);
+    dev_rs232_voice_play(gbk, (uint16_t)gbk_len);
 }
 
 /**
@@ -206,14 +212,25 @@ static void _sc_mtc_exec_full_screen(const sc_mtc_full_screen_t *p)
  */
 static void _sc_mtc_exec_fixed(const sc_mtc_fixed_t *p)
 {
-    /* GBK 标签：车型：/ 金额：/ 余额：/ 总重：/ 超重：/ 元 / 吨 */
-    static const uint8_t lbl_type[]   = {0xB3, 0xB5, 0xD0, 0xCD, 0xA3, 0xBA}; /* 车型： */
-    static const uint8_t lbl_amount[] = {0xBD, 0xF0, 0xB6, 0xEE, 0xA3, 0xBA}; /* 金额： */
-    static const uint8_t lbl_balance[]= {0xD3, 0xE0, 0xB6, 0xEE, 0xA3, 0xBA}; /* 余额： */
-    static const uint8_t lbl_weight[] = {0xD7, 0xDC, 0xD6, 0xD8, 0xA3, 0xBA}; /* 总重： */
-    static const uint8_t lbl_over[]   = {0xB3, 0xAC, 0xD6, 0xD8, 0xA3, 0xBA}; /* 超重： */
-    static const uint8_t lbl_yuan[]   = {0xD4, 0xAA};                         /* 元 */
-    static const uint8_t lbl_ton[]    = {0xB6, 0xD6};                         /* 吨 */
+    /* 固定格式标签（UTF-8 字面量，运行时转 GBK 参与行缓冲拼接）：
+     * 车型：/ 金额：/ 余额：/ 总重：/ 超重：/ 元 / 吨 */
+    uint8_t lbl_type[6], lbl_amount[6], lbl_balance[6], lbl_weight[6], lbl_over[6];
+    uint8_t lbl_yuan[2], lbl_ton[2];
+    uint32_t gbk_len;
+    gbk_len = sizeof(lbl_type);
+    UTF8ToGBK("车型：", (uint32_t)(sizeof("车型：") - 1U), (char *)lbl_type, &gbk_len);
+    gbk_len = sizeof(lbl_amount);
+    UTF8ToGBK("金额：", (uint32_t)(sizeof("金额：") - 1U), (char *)lbl_amount, &gbk_len);
+    gbk_len = sizeof(lbl_balance);
+    UTF8ToGBK("余额：", (uint32_t)(sizeof("余额：") - 1U), (char *)lbl_balance, &gbk_len);
+    gbk_len = sizeof(lbl_weight);
+    UTF8ToGBK("总重：", (uint32_t)(sizeof("总重：") - 1U), (char *)lbl_weight, &gbk_len);
+    gbk_len = sizeof(lbl_over);
+    UTF8ToGBK("超重：", (uint32_t)(sizeof("超重：") - 1U), (char *)lbl_over, &gbk_len);
+    gbk_len = sizeof(lbl_yuan);
+    UTF8ToGBK("元", (uint32_t)(sizeof("元") - 1U), (char *)lbl_yuan, &gbk_len);
+    gbk_len = sizeof(lbl_ton);
+    UTF8ToGBK("吨", (uint32_t)(sizeof("吨") - 1U), (char *)lbl_ton, &gbk_len);
 
     uint8_t buf[4][24]; /* 文本行缓冲（标签 6B + 数字 ≤7B + 单位 2B + '.' 1B） */
     uint16_t buf_len[4] = {0};

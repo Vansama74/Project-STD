@@ -6,10 +6,9 @@
  */
 
 #include "main.h"
+#include "app_boot.h"
 #include "initcall.h"
 #include "pl_sys.h"
-
-void app_boot(void);
 
 int main(void) {
   SCB->VTOR = FLASH_BASE | 0x40000;

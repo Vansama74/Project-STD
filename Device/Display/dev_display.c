@@ -140,6 +140,11 @@ void dev_display_set_brightness(dev_display_t *dev, uint8_t level)
 
 void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, display_color_t color)
 {
+    /* 起点越界：整区域不可见，直接丢弃。
+     * 必须先判起点再截断——否则 screen_rows - x / screen_cols - y 无符号下溢成巨值，
+     * memset/行循环写穿 pixel_map（CCMRAM）导致 HardFault。 */
+    if (x >= dev->screen_rows || y >= dev->screen_cols)
+        return;
     if (x + w > dev->screen_rows) w = dev->screen_rows - x;
     if (y + h > dev->screen_cols) h = dev->screen_cols - y;
 

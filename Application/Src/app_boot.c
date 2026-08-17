@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "app_boot.h"
+#include "app_default_display.h"
 #include "app_key.h"
 #include "app_render.h"
 #include "app_rs232.h"
@@ -26,7 +28,6 @@
 #include "pl_iwdg.h"
 #include "pl_rtc.h"
 
-#define PROGRAM_CODE "9K10212482"
 #define SPLASH_DURATION_MS 5000U
 
 static void init_task(void *argument);
@@ -101,27 +102,6 @@ void app_boot(void) {
   osDelay(SPLASH_DURATION_MS);
   dev_display_fill(dev, 0, 0, dev->screen_rows, dev->screen_cols, COLOR_BLACK);
   dev->dirty = false;
-}
-
-static void app_default_display(void) {
-  app_render(&(render_cfg_t){
-      .type = RENDER_TEXT,
-      .x = 0,
-      .y = 0,
-      .w = dev_display_get()->screen_rows,
-      .h = dev_display_get()->screen_cols,
-      .style =
-          &(render_style_t){
-              .h_align = ALIGN_CENTER,
-              .v_align = ALIGN_LEFT_UP,
-          },
-      .color = COLOR_YELLOW,
-      .text = "欢迎行驶\n高速公路",
-      .len = strlen("欢迎行驶\n高速公路"),
-      .font_size = FONT_SELF_ADAPT,
-      .font_type = FONT_HT,
-      .text_enc = FONT_ENC_UTF8,
-  });
 }
 
 static void init_task(void *argument) {

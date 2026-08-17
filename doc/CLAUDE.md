@@ -40,6 +40,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/06_SRAM内部分数据迁移` | 内存分区唯一权威；`04_current_memory_occupancy.md` 为占用账 |
 | `doc/07_LDI与IAP配置解耦` | LDI↔IAP 配置解耦（方案 A 已落地，`app_board_net_cfg`） |
 | `doc/08_协议模块接入规则` | 新协议接入权威指引（规则/串口/网络/检查清单） |
+| `doc/09_山东费显协议` | 山东车道费额显示器协议接入记录 |
 
 ## 硬件架构
 
@@ -66,7 +67,7 @@ SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-0
 ├─ ucHeap           **36KB** FreeRTOS heap_4（任务栈/TCB/动态 OS 对象）
 ├─ 协议 RB          RJ45 **1536** / RS485 **768** / RS232 **768**（三槽 provide）
 ├─ UART DMA         RS485/RS232 各 **640**（无 RS232_1 DMA）
-├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3（不占 ucHeap）
+├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3（不占 ucHeap）
 ├─ RTT Up           2KB；W25 sec、s_dma_bounce 等
 └─ _user_heap_stack newlib + MSP 预留
 
@@ -183,7 +184,7 @@ pl_sys (SystemClock_Config, delay, reset)
                       ├─ osThreadNew(half_sec_task)
                       ├─ app_tcp_server_start() / app_tcp_client_start() / app_udp_start()
                       ├─ app_rs485_start() / app_rs232_start()  (app_rs232_1_start 注释)
-                      ├─ app_default_display()    ← 默认欢迎画面
+                      ├─ app_default_display()    ← 自注册默认显示界面（协议注册回调则用之，否则默认欢迎画面）
                       └─ osThreadExit()           ← 自我销毁
 ```
 
@@ -234,9 +235,10 @@ pl_sys (SystemClock_Config, delay, reset)
 | 3-app | app | `iap_module_init` | `Application/Src/IAP/app_iap.c` | IAP 协议自注册（UDP） |
 | 3-app | app | `ldi_module_init` | `Application/Src/LDI/app_ldi.c` | LDI 协议自注册（TCP/UDP 三通道） |
 | 3-app | app | `qh_proto_init` | `Application/Src/ProtocolParser_QingHai/app_qh_proto.c` | 青海协议自注册（RS485+RS232） |
-| 3-app | app | `app_sc_etc_proto_init` | `Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c` | 四川 ETC 费显协议自注册（RS485+RS232） |
-| 3-app | app | `app_sc_mtc_proto_init` | `Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c` | 四川 MTC 费显协议自注册（RS485+RS232） |
-| 3-app | app | `app_sc_ol_proto_init` | `Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c` | 四川治超屏协议自注册（RS485+RS232） |
+| 3-app | app | `sc_etc_proto_init` | `Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c` | 四川 ETC 费显协议自注册（RS485+RS232） |
+| 3-app | app | `sc_mtc_proto_init` | `Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c` | 四川 MTC 费显协议自注册（RS485+RS232） |
+| 3-app | app | `sc_ol_proto_init` | `Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c` | 四川治超屏协议自注册（RS485+RS232） |
+| 3-app | app | `sd_proto_init` | `Application/Src/ProtocolParser_ShanDong/app_sd_proto.c` | 山东费显协议自注册（RS485+RS232） |
 | 3-app | app | `app_uart_baud_init` | `Application/Src/app_uart_baud.c` | DIP1 波特率选择（RS232+RS485 同步切换） |
 | 3-app | app | `rls_module_init` | `Application/Src/RLS/app_rls.c` | RLS 协议自注册（RS485） |
 | 3-app | app | `_factory_test_init` | `Application/Src/app_factory_test.c` | 出厂检测 monitor |
@@ -623,6 +625,7 @@ app_render(&(render_cfg_t){
 | `app_key` | 应用 | — | `sw_app_initcall` | 按键轮询去抖 (20ms) |
 | `app_light_sensor` | 应用 | — | `sw_app_initcall` | 光传感器自动亮度 (1s 周期) |
 | `app_boot` | 编排 | — | — | RTOS 启动编排 |
+| `app_default_display` | 应用 | — | — | 注册制默认显示界面（协议 sw_initcall 注册回调则用之，否则默认欢迎画面） |
 | `app_test` | 测试 | — | — | 硬件测试用例 |
 
 **类型说明**：
@@ -685,7 +688,7 @@ app_render(&(render_cfg_t){
 | 5 | `CH_ID_MQTT` | LwIP MQTT | `mqtt_channel_t` | `app_mqtt.c` |
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 
-**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH（`.eide/eide.yml` excludeList）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH/山东（`.eide/eide.yml` excludeList；山东与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
@@ -736,12 +739,20 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 
 青海高速费显协议。帧定界 `'{'...'}'`（len 字段 1B → 帧 ≤259），`QH_PAYLOAD_MAX=259`、`QH_QUEUE_DEPTH=3`（静态 SRAM）。`RB_PROVIDE_WEAK` 提供 RS485+RS232 双 RB，绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `qh_proto_init`，与 IAP/LDI 同经链式 probe）。语音命令经 `dev_rs232_voice` 旁路 USART6（`app_qh_proto_voice.c`）。
 
+## 山东协议 (`Application/Src/ProtocolParser_ShanDong/app_sd_proto.c`)
+
+山东车道费额显示器通信协议（协议文档编号 39）。帧 `'{' + 命令字('1'~'5','7','8') + 二进制 len + 参数 + '}'`（无 BCC；**与青海完全同构**），`SD_PAYLOAD_MAX=259`、`SD_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `sd_proto_init`）。目标屏幕 192×96（FONT_16 6 行，协议行号 1~5 全覆盖）。
+
+- `'1'` 全屏单色（01红/02绿/03黄）→ 整屏 `dev_display_fill`；`'2'` 取版本号 → 裸 ASCII 应答 PROGRAM_CODE（协议未定义应答格式）；`'3'` 单行（颜色'0'~'2' + 行号'1'~'5' + GBK 文本，先清行再渲染）；`'4'` 全屏可编辑（颜色 + X/Y 坐标 + 文本，先清屏后整屏 word_wrap，0x0A 回车由渲染引擎换行、0x0D 被跳过）；`'5'` 清屏；`'7'` 亮度（'0'~'5'：0=恢复光敏任务自动调光，1~5=挂起光敏任务 + 硬件档 {3,4,5,7,8}）；`'8'` 外设（bit0 绿灯/bit1 红灯/bit2 黄闪报警，红灯优先，PD14/PD15）。无 `'6'` 命令。除 `'2'` 外协议未定义应答 → 不回（对齐青海单向模式）。
+- **帧头冲突纪律**：命令字 '1'~'5','7','8' 全部落入青海 probe 命令集（'1'~'9','A','B'），全协议 Makefile 构建下青海 probe 先注册（字母序 qh < sd）先认领山东帧——'3'/'4'/'5' 语义与青海巧合一致，'1'/'2'/'7'/'8' 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询；'2'=版本 vs 自检；'7'=亮度 vs 文明语音；'8'=外设 vs 亮度）。**量产必须 EIDE 目录排除与青海/四川MTC 互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已排除山东目录（与青海同列），山东量产目标须启用山东并排除青海+MTC。
+- 上电画面「山东省 高速公路 欢迎您」已实现：`app_sd_proto_default.c` 经 `app_default_display_register` 注册（`sw_app_initcall`），显示「山东省 高速公路 欢迎您」（FONT_16 居中黄字；UTF-8 字面量，`FONT_ENC_UTF8` 渲染）。
+
 ## 四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）
 
 三个四川地区协议模块均绑定 `CH_ID_RS485` + `CH_ID_RS232` 双通道、queue 深度 3（静态 SRAM），与青海同构（acquire → register → bind → set_frame_queue）。协议文档提取自 1D/1E/1F，要点：
 
 - **ETC（1D）**：帧 `0A + 显示方式(00/01) + 行号(00~06) + 数据 + 0D`（数据**变长 0x0D 定界**：单行 ≤24B、全屏 ≤145B，无固定 56B——上限对齐 9K1F212701 etc.c `cmd_etc_disPlay_ctrl` 0x0D 扫描索引 ≤148，GBK）；`0A 36/37/38/39 0D` 灯控 → `dev_io_lane_light`/`dev_io_flash_light` 且同步显示颜色（fontColor 语义）；`0A 40 XX YY 0D` 亮度（XX=00 自动调光）；`0A 50 0D` 心跳（解析保留，识别后丢弃）。应答 `0A 00/01/02 0D`（收到即回，心跳不回）。**0x20 清屏（行号 0 全屏）、0x30 初始化 → 软件复位**。全屏渲染按 9K1F212701 `MakeSixteenLattAll` 语义：清屏后自第 1 行第 1 列按屏宽自动换行。**心跳超时显示已停用（2026-08-17）**：原独立计时任务（栈 256×4，5 分钟无有效帧 → 「ETC车道关闭」）已 #if 0、任务不再创建；黄闪 0A 38 开启后的 10 秒自动关闭依赖同一任务 tick，一并失效——开启后须 0A 39 显式关闭。恢复方法见 `app_sc_etc_proto.c` 注释。
-- **MTC（1E 方案二）**：帧 `'{' + 命令('1'~'9','A') + 参数 + '}'`——**'}' 定界变长，无长度字段、无 BCC**（对齐 9K1F212701 mtc.c：各命令 handler 逐字节扫 '}' 定帧，参考扫描上限 228；本设备 probe 上限 `SC_MTC_PAYLOAD_MAX=74B` 队列约束）。字段偏移按变长重算：'3' 单行 = 行号[2]+变长文本[3..]，'4' 全屏 = 变长文本[2..]（先清屏后整屏 word_wrap 渲染：w=screen_rows 屏宽、h=screen_cols 整屏高、word_wrap=true，渲染引擎按当前字号自动折行——2026-08-17 修复，原 16B/行切 ≤4 行且单行不换行，第一行超宽溢出被裁、超 64B 被丢弃；'3' 单行保持 word_wrap=false + h=当前字号截断语义），'6' 固定格式 = 类型[2]+数字串（客车 ≥11B / 货车 ≥20B），'1','2','5'→3B、'7'固定→4B（'78' 自定义文本变长）、'8','9'→4B。带 BCC 变体不加判别：BCC 字节视为内容尾部（与参考语义一致），BCC 不校验。主机查询 `0A 46 0A → 0A 64 0A`、清屏 `0A 46 0D`；附加 7B 40~45 原始帧族（同样 '}' 定界）：40 改波特率（`app_uart_baud_apply`）、41 点阵大小、42 字体、43 协议类型（仅记录）、44 全屏点亮、45 版本号 → `SC_FX_P7.62_1.0`。'6' 字段布局按 9K1F212701 mtc.c。'7' 语音经 `dev_rs232_voice`（固定用语 GBK 直送，动态变量不拼读）。7B 46（1280B 载荷）不实现（超 RB 768）。宿主推演 `tool/sc_mtc_frame_sim.py`（`--old` 可复现旧定长乱码链）。
+- **MTC（1E 方案二）**：帧 `'{' + 命令('1'~'9','A') + 参数 + '}'`——**'}' 定界变长，无长度字段、无 BCC**（对齐 9K1F212701 mtc.c：各命令 handler 逐字节扫 '}' 定帧，参考扫描上限 228；本设备 probe 上限 `SC_MTC_PAYLOAD_MAX=74B` 队列约束）。字段偏移按变长重算：'3' 单行 = 行号[2]+变长文本[3..]，'4' 全屏 = 变长文本[2..]（先清屏后整屏 word_wrap 渲染：w=screen_rows 屏宽、h=screen_cols 整屏高、word_wrap=true，渲染引擎按当前字号自动折行——2026-08-17 修复，原 16B/行切 ≤4 行且单行不换行，第一行超宽溢出被裁、超 64B 被丢弃；'3' 单行保持 word_wrap=false + h=当前字号截断语义），'6' 固定格式 = 类型[2]+数字串（客车 ≥11B / 货车 ≥20B），'1','2','5'→3B、'7'固定→4B（'78' 自定义文本变长）、'8','9'→4B。带 BCC 变体不加判别：BCC 字节视为内容尾部（与参考语义一致），BCC 不校验。主机查询 `0A 46 0A → 0A 64 0A`、清屏 `0A 46 0D`；附加 7B 40~45 原始帧族（同样 '}' 定界）：40 改波特率（`app_uart_baud_apply`）、41 点阵大小、42 字体、43 协议类型（仅记录）、44 全屏点亮、45 版本号 → `SC_FX_P7.62_1.0`。'6' 字段布局按 9K1F212701 mtc.c。'7' 语音经 `dev_rs232_voice`（固定用语 GBK 直送，动态变量不拼读）。7B 46（1280B 载荷）不实现（超 RB 768）。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/sc_mtc_frame_sim.py`（`--old` 可复现旧定长乱码链）。
 - **治超（1F 3.5.1）**：帧 `FF + 长度(07~FF，1 字节；0xFE 显式排除给 RLS) + 命令 + 亮度 + 数据(可变长) + BCC(五字段异或) + FF`；**80 全屏显示、81~88 八行显示（9K1F212701 语义：行数据变长 = 总长-6，≤24B 截断、不足不补空格、先清行再渲染）**、94 清屏、96 亮度（00=自动调光，非 0 按 lightLev=(val+1)/32 映射 1~8 档）、99 通行灯（同步显示颜色）、98 黄闪；查询 A0 → A1~A8 每行独立帧（固定 16B 应答兼容工具，参考项目无应答实现）、B6/B9/B8 → 回显当前状态。**与 RLS 区分**：RLS 第二字节 0xFE(254) 被治超 probe 显式排除（长度上限放宽至 FF 后 0xFE 落入合法区间，不排除会把 RLS 帧吞掉并 WAIT 卡死链式），RLS probe 亦要求第二字节 0xFE，双向快拒成立。
 - **帧头冲突纪律**：MTC '{' 与青海 '{' 同帧头——MTC probe 以「'}' 定界变长扫描 + 上限 74B」认领，完整青海帧由青海 probe 先认领（qh_proto_init 先注册，字母序 q < sc）；残余风险两类：①青海 '3' 帧总长 ≤74 且数据段含 '}' 字节（GBK 尾字节可为 0x7D）且半帧到达时被 MTC 截断认领，②青海 'A'/'B' 空数据帧与 MTC 7B 41/42 同长（QH probe 先认领）；量产由 EIDE 目录排除纪律兜底（doc/05 §6）。
 

@@ -29,13 +29,8 @@
  *  （0A 36 红 → 红字；0A 37 绿 → 绿字；上电默认绿）。 */
 static display_color_t s_etc_color = COLOR_GREEN;
 
-/* 「ETC车道关闭，请择道行驶」GBK 编码（依据四川ETC费显协议 §7 心跳机制原文）：
- * 45 54 43("ETC") B3 B5(车) B5 C0(道) B9 D8(关) B1 D5(闭) A3 AC(，)
- * C7 EB(请) D4 F1(择) B5 C0(道) D0 D0(行) CA BB(驶) */
-static const uint8_t s_sc_etc_lane_closed_text[] = {
-    0x45, 0x54, 0x43, 0xB3, 0xB5, 0xB5, 0xC0, 0xB9, 0xD8, 0xB1, 0xD5, 0xA3,
-    0xAC, 0xC7, 0xEB, 0xD4, 0xF1, 0xB5, 0xC0, 0xD0, 0xD0, 0xCA, 0xBB,
-};
+/* 「ETC车道关闭，请择道行驶」（四川ETC费显协议 §7 心跳机制原文，UTF-8 字面量） */
+static const uint8_t s_sc_etc_lane_closed_text[] = "ETC车道关闭，请择道行驶";
 
 /**
  * @brief  发送屏应答帧 `0A XX 0D`。
@@ -200,10 +195,10 @@ void sc_etc_show_lane_closed(void) {
           },
       .color = COLOR_RED,
       .text = (const char *)s_sc_etc_lane_closed_text,
-      .len = sizeof(s_sc_etc_lane_closed_text),
+      .len = sizeof(s_sc_etc_lane_closed_text) - 1U,
       .font_size = FONT_SELF_ADAPT,
       .font_type = FONT_ST,
-      .text_enc = FONT_ENC_GBK,
+      .text_enc = FONT_ENC_UTF8,
   });
 }
 
