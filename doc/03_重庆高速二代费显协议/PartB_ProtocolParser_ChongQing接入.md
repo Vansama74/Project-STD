@@ -261,9 +261,9 @@ void cq_proto_cmd_full(const cJSON *root, channel_t *ch)
 | 业务端口 | **20103** | `app_cq_proto_cfg`（可通过 `setip` 修改） |
 | 搜索端口 | **10011** | 固定，`CH_ID_UDP` |
 
-配置存储：复用 `dev_flash_iap` 的 NetConfig 字段（Sector1）。
+配置存储：复用 `app_board_net_cfg` 的 net_cfg 字段（Sector1）。
 
-重启二进制写 IAP 标记：对接本工程 IAP 状态机（`app_iap_cfg.h` 中的 `g_config->iap_flag`），**禁止照搬裸机 Sector11 写法**。
+重启二进制写 IAP 标记：对接本工程 IAP 状态机（`app_board_net_cfg.h` 中 Sector1 记录的 `update_sta` 字段），**禁止照搬裸机 Sector11 写法**。
 
 ---
 

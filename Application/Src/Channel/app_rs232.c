@@ -76,7 +76,7 @@ static void rs232_task(void *argument) {
 
   pl_uart_set_rx_cb(self->uart, rs232_isr_cb, self);
   pl_uart_start_rx(self->uart, self->rx_buf, self->rx_buf_size);
-
+ 
   for (;;) {
     uint16_t rx_len = 0;
     osMessageQueueGet(self->rx_queue, &rx_len, 0, osWaitForever);

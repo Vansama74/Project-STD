@@ -40,6 +40,40 @@ static const font_type_t s_aging_types[] = {
 
 osThreadId_t g_factory_test;
 
+/* ---- 业务数据中止机制 ----
+ * 业务数据（任意通道）到达时 app_factory_mode_interrupt() 置位本标志。
+ * monitor 任务不销毁、不回退：各按键等待点分片唤醒检查标志，中止当前
+ * 检测序列后回到 IDLE 继续等待 TEST 键。参考裸机 9K1F212701：
+ * 收包仅清 testMode/testKey，主循环按键扫描持续运行，TEST 键始终可用。 */
+static volatile bool s_factory_abort;
+
+/**
+ * @brief  等待 TEST 键按下，支持业务数据中止。
+ * @param  timeout_ms  等待时限（osWaitForever 表示永久）。
+ * @return true=按键按下；false=超时或业务数据中止。
+ */
+static bool _factory_wait_tst(uint32_t timeout_ms)
+{
+    const uint32_t slice = 100U; /* 分片唤醒，响应 s_factory_abort */
+    if (timeout_ms == osWaitForever) {
+        for (;;) {
+            if (dev_key_wait_press(DEV_KEY_TST, slice))
+                return true;
+            if (s_factory_abort)
+                return false;
+        }
+    }
+    while (timeout_ms > 0U) {
+        uint32_t t = (timeout_ms > slice) ? slice : timeout_ms;
+        if (dev_key_wait_press(DEV_KEY_TST, t))
+            return true;
+        if (s_factory_abort)
+            return false;
+        timeout_ms -= t;
+    }
+    return false;
+}
+
 /* ---- 老化辅助 ---- */
 static void _aging_fill_screen(font_size_t size, font_type_t type, const char *ch_utf8, uint8_t ch_len)
 {
@@ -92,8 +126,11 @@ static void factory_monitor_task(void *argument)
     dev_display_t *dsp = dev_display_get();
 
     for (;;) {
-        /* ===== IDLE: 等待 TEST 激活 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+    idle_restart:
+        /* ===== IDLE: 等待 TEST 激活（业务数据中止 → 重新 IDLE） ===== */
+        s_factory_abort = false; /* 进入检测序列前清中止标志 */
+        if (!_factory_wait_tst(osWaitForever))
+            continue;
 
         /* ===== 第1次按键 → SHOW_CODE: 显示固件/模组信息 ===== */
         {
@@ -122,42 +159,50 @@ static void factory_monitor_task(void *argument)
         }
 
         /* ===== 第2次按键 → RED: 全屏红色 =====   */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_RED);
         dev_display_commit_frame(dsp);
 
         /* ===== 第3次按键 → GREEN: 全屏绿色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_GREEN);
         dev_display_commit_frame(dsp);
 
         /* ===== 第4次按键 → YELLOW: 全屏黄色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_YELLOW);
         dev_display_commit_frame(dsp);
 
         /* ===== 第5次按键 → WHITE: 全屏白色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_WHITE);
         dev_display_commit_frame(dsp);
 
         /* ===== 第6次按键 → BLUE: 全屏蓝色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLUE);
         dev_display_commit_frame(dsp);
 
         /* ===== 第7次按键 → PURPLE: 全屏紫色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_PURPLE);
         dev_display_commit_frame(dsp);
 
         /* ===== 第8次按键 → CYAN: 全屏青色 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_CYAN);
         dev_display_commit_frame(dsp);
 
         /* ===== 第9次按键 → 通信灯红叉 + 报警灯开启 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
         app_render(&(render_cfg_t){
             .type      = RENDER_TEXT,
@@ -181,7 +226,8 @@ static void factory_monitor_task(void *argument)
         dev_display_commit_frame(dsp);
 
         /* ===== 第10次按键 → 通信灯绿箭 + 报警灯关闭 ===== */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
         app_render(&(render_cfg_t){
             .type      = RENDER_TEXT,
@@ -206,7 +252,8 @@ static void factory_monitor_task(void *argument)
 
         /* ===== 第11次按键 → AGING: 进入老化循环 =====
          * 暂停光敏，强制最大亮度 */
-        dev_key_wait_press(DEV_KEY_TST, osWaitForever);
+        if (!_factory_wait_tst(osWaitForever))
+            goto idle_restart;
         osThreadSuspend(g_light_sensor_task_handle);
         dev_display_set_brightness(dsp, DEV_DISPLAY_BRIGHTNESS_MAX);
         dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
@@ -229,7 +276,8 @@ static void factory_monitor_task(void *argument)
                     dev_io_lane_light(lane_green);
                     lane_green = !lane_green;
 
-                    if (dev_key_wait_press(DEV_KEY_TST, 3000)) {
+                    bool pressed = _factory_wait_tst(3000);
+                    if (pressed || s_factory_abort) {
                         aging_exit = true;
                         break;
                     }
@@ -239,6 +287,9 @@ static void factory_monitor_task(void *argument)
             }
             if (aging_exit) break;
         }
+
+        /* 老化退出（含业务数据中止）→ 恢复光敏自动调光 */
+        osThreadResume(g_light_sensor_task_handle);
 
         /* ===== 第12次按键 → OBLIQUE_SCAN: 斜扫模式 ===== */
         app_test_oblique_scan();
@@ -260,12 +311,10 @@ static void _factory_test_init(void)
 }
 sw_app_initcall(_factory_test_init);
 
-/* 收到业务数据时退出工厂监控；禁止再次创建任务（否则每包重建栈 → 堆碎片/耗尽） */
+/* 收到业务数据时中止工厂监控当前序列（置中止标志，monitor 任务回 IDLE 重新待机）。
+ * 不销毁任务：TEST 键出厂检测/老化入口必须随时可用。
+ * 参考 9K1F212701 裸机：收包仅清 testMode/testKey，按键扫描持续运行。 */
 void app_factory_mode_interrupt(void)
 {
-    if (g_factory_test != NULL) {
-        osThreadId_t tid = g_factory_test;
-        g_factory_test   = NULL;
-        osThreadTerminate(tid);
-    }
+    s_factory_abort = true;
 }

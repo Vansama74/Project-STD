@@ -43,3 +43,12 @@ void pl_uart_set_dir_cb(pl_uart_handle_t h, pl_uart_dir_fn_t cb);
 
 /** @brief 启动 DMA 空闲中断接收，成功返回 0 */
 int32_t pl_uart_start_rx(pl_uart_handle_t h, uint8_t *buf, uint16_t len);
+
+/** @brief 运行态切换波特率：停 DMA RX → DeInit → 改波特率 → Init → 重挂 RX
+ *  @param h    UART 句柄
+ *  @param baud 目标波特率
+ *  @return 0=成功；-1=参数非法或硬件配置失败
+ *  @note  DMA 空闲接收已启动时内部自动停/重挂；未启动时仅重配外设。
+ *         DeInit/Init 会经 MspDeInit/MspInit 重配 GPIO/DMA/NVIC（RS485 RE 方向
+ *         控制由 Device 层 dev_rs485 独立管理，不受影响）。 */
+int32_t pl_uart_set_baud(pl_uart_handle_t h, uint32_t baud);

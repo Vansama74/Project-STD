@@ -148,7 +148,7 @@ static void init_task(void *argument) {
   app_rs232_start();
   /* USART6：语音板 TTS 旁路 TX（dev_rs232_voice），禁止协议 bind；不启 RX
    * 通道任务 */
-  // app_rs232_1_start();
+  app_rs232_1_start();
 
   // app_test_run();
   app_default_display();

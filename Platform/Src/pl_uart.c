@@ -106,6 +106,29 @@ int32_t pl_uart_start_rx(pl_uart_handle_t h, uint8_t *buf, uint16_t len)
     return 0;
 }
 
+int32_t pl_uart_set_baud(pl_uart_handle_t h, uint32_t baud)
+{
+    uart_ctx_t *ctx = (uart_ctx_t *)h;
+    if (!ctx || !ctx->huart || baud == 0U) return -1;
+
+    UART_HandleTypeDef *huart = ctx->huart;
+
+    /* 先停 DMA RX（若已启动），DeInit 后按新波特率 Init，最后重挂 RX。
+     * DeInit 顺序：DMA Stop → HAL_UART_DeInit（MspDeInit 释放 GPIO/DMA/NVIC）
+     * → 改 BaudRate → HAL_UART_Init（MspInit 重新配置）。 */
+    if (huart->hdmarx != NULL)
+        HAL_UART_DMAStop(huart);
+    HAL_UART_DeInit(huart);
+    huart->Init.BaudRate = baud;
+    if (HAL_UART_Init(huart) != HAL_OK) return -1;
+
+    if (ctx->rx_buf != NULL && ctx->rx_buf_size > 0U) {
+        if (HAL_UART_Receive_DMA(huart, ctx->rx_buf, ctx->rx_buf_size) != HAL_OK) return -1;
+        __HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);
+    }
+    return 0;
+}
+
 /* ================================================================
  *  UART 及 DMA 中断服务例程（由 startup 向量表直接跳转）
  * ================================================================ */

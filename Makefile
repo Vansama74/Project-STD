@@ -36,7 +36,11 @@ INC_DIRS = \
 	-I Application/Inc \
 	-I Application/Inc/IAP \
 	-I Application/Inc/LDI \
+	-I Application/Inc/Config \
 	-I Application/Inc/ProtocolParser_QingHai \
+	-I Application/Inc/ProtocolParser_SiChuang_ETC \
+	-I Application/Inc/ProtocolParser_SiChuang_MTC \
+	-I Application/Inc/ProtocolParser_SiChuang_Overload \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -293,7 +297,7 @@ SRC_APPLICATION = \
 	Application/Src/app_light_sensor.c \
 	Application/Src/IAP/app_iap.c \
 	Application/Src/IAP/app_iap_cmd.c \
-	Application/Src/IAP/app_iap_cfg.c \
+	Application/Src/Config/app_board_net_cfg.c \
 	Application/Src/LDI/app_ldi.c \
 	Application/Src/LDI/app_ldi_cmd.c \
 	Application/Src/LDI/app_ldi_cfg.c \
@@ -307,6 +311,17 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c \
 	Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c \
 	Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c \
+	Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c \
+	Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_parse.c \
+	Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_cmd.c \
+	Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c \
+	Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_parse.c \
+	Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_cmd.c \
+	Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_voice.c \
+	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c \
+	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.c \
+	Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.c \
+	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
 	Application/Src/Channel/app_tcp_client.c \

@@ -3,8 +3,9 @@
 #include <time.h>
 
 #include "crc_utils.h"
+#include "pl_crc.h"
 #include "app_ldi_cfg.h"
-#include "app_iap_cfg.h"
+#include "app_board_net_cfg.h"
 #include "pl_net.h"
 #include "pl_rtc.h"
 #include "pl_sys.h"
@@ -410,10 +411,38 @@ const ldi_cmd_handler_fn_t g_ldi_cmd_table[] = {
 // ============================================================================
 
 /**
+ * @brief 保存 LDI 配置至 W25 并返回结果（0AH 如实应答用）
+ *
+ * 落盘字节与 app_ldi_cfg.c:app_flash_ldi_save_config 完全一致
+ * （magic + cfg + CRC32，CRC 覆盖 magic+cfg 即记录总长减 crc32 字段），
+ * 仅额外返回擦/写结果；save_config 为 void 且不在本次改动范围内，
+ * 故此处内联其逻辑以捕获返回值，两处需保持同构。
+ *
+ * @return 0 成功；<0 擦除/写入失败（dev_storage_erase/write 错误码）
+ */
+static int32_t _ldi_save_config_ret(app_flash_ldi_cfg_info_t *info)
+{
+    app_flash_ldi_record_t rec = {0};
+    rec.magic                  = APP_FLASH_LDI_MAGIC;
+    memcpy(&rec.cfg, info, sizeof(app_flash_ldi_cfg_info_t));
+    rec.crc32 = pl_crc32_calc(pl_crc_get_handle(), (uint8_t *)&rec, sizeof(rec) - sizeof(rec.crc32));
+
+    int32_t ret = app_flash_ldi_erase_config();
+    if (ret < 0)
+        return ret;
+    ret = app_flash_ldi_write_config(&rec);
+    return ret < 0 ? ret : 0;
+}
+
+/**
  * 处理 0AH 设备 IP 信息设置请求
  *
  * 上位机→设备, 用于出厂配置模式下设置设备网络参数.
  * data 指向 cmd_set_ip_t 结构.
+ *
+ * 应答错误码：00H=成功, 01H=失败（与 0BH 及 ldi_status_rsp_t 既有约定一致）。
+ * W25 保存或 Sector1 同步任一步失败即回 01H；固件侧不自动重试，
+ * 上位机收到 01H 后重发 0AH 即可恢复（两次写入均幂等）。
  */
 void cmd_set_ip(channel_t *ch, void *data)
 {
@@ -427,10 +456,13 @@ void cmd_set_ip(channel_t *ch, void *data)
     memcpy(g_ldi.cfg.gateway, info->net.gateway, sizeof(g_ldi.cfg.gateway));
     g_ldi.cfg_valid = true;
 
-    app_flash_ldi_save_config(&g_ldi.cfg);
-    app_flash_iap_update_net_cfg(g_ldi.cfg.device_ip, g_ldi.cfg.netmask, g_ldi.cfg.gateway);
+    /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
+     * 任一失败即如实应答失败，不再静默回 00H。 */
+    int32_t w25_ret    = _ldi_save_config_ret(&g_ldi.cfg);
+    int32_t board_ret  = app_board_net_cfg_update(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
+                                                  g_ldi.cfg.gateway, g_ldi.cfg.device_port);
 
-    ldi_status_rsp_t rsp = {.status = 0x00};
+    ldi_status_rsp_t rsp = {.status = (w25_ret < 0 || board_ret < 0) ? 0x01 : 0x00};
     ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_IP_RSP);
     LDI_RESPOND(ch, LDI_CMD_SET_IP_RSP, g_ldi.rsp_seq, rsp);
 }

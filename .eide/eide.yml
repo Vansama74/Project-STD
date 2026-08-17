@@ -14,9 +14,14 @@ virtualFolder:
         - path: Application/Src/app_render.c
         - path: Application/Src/app_key.c
         - path: Application/Src/app_light_sensor.c
+        - path: Application/Src/app_uart_baud.c
         - path: Application/Src/app_test.c
         - path: Application/Src/app_factory_test.c
       folders:
+        - name: config
+          files:
+            - path: Application/Src/Config/app_board_net_cfg.c
+          folders: []
         - name: channel
           files:
             - path: Application/Src/Channel/app_mqtt.c
@@ -39,7 +44,6 @@ virtualFolder:
               files:
                 - path: Application/Src/IAP/app_iap_cmd.c
                 - path: Application/Src/IAP/app_iap.c
-                - path: Application/Src/IAP/app_iap_cfg.c
               folders: []
             - name: ldi
               files:
@@ -55,6 +59,25 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c
                 - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c
                 - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c
+              folders: []
+            - name: ProtocolParser_SiChuang_ETC
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_SiChuang_MTC
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_cmd.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_voice.c
+              folders: []
+            - name: ProtocolParser_SiChuang_Overload
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.c
               folders: []
             - name: rls
               files:
@@ -340,9 +363,13 @@ targets:
         - Application/Inc/Channel
         - Application/Inc/IAP
         - Application/Inc/LDI
+        - Application/Inc/Config
         - Application/Inc/AH_MQTT
         - Application/Inc/RLS
         - Application/Inc/ProtocolParser_QingHai
+        - Application/Inc/ProtocolParser_SiChuang_ETC
+        - Application/Inc/ProtocolParser_SiChuang_MTC
+        - Application/Inc/ProtocolParser_SiChuang_Overload
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
@@ -353,7 +380,6 @@ targets:
       - <virtual_root>/Application/protocol/rls
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
-      - <virtual_root>/Application/protocol/iap
     settings:
       debugger: cortex-debug
     toolchain: GCC

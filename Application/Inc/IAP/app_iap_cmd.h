@@ -5,7 +5,6 @@
 #include "app_iap.h"
 #include "app_dispatch.h"
 #include "app_udp.h"
-#include "app_iap_cfg.h"
 
 #define FLAG_FORCE_UPDATE      (uint32_t)(0x0000DEADU)
 #define FIRMWARE_MAX_FRAME_NUM (768U)

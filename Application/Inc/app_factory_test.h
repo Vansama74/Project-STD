@@ -8,5 +8,5 @@
 
 #pragma once
 
-/** @brief 终止工厂测试模式 */
+/** @brief 业务数据到达 → 中止工厂测试当前序列，monitor 回 IDLE 待机（不销毁任务，TEST 键保持可用） */
 void app_factory_mode_interrupt(void);

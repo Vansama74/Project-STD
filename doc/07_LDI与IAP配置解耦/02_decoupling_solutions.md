@@ -1,8 +1,8 @@
 # 02 解耦方案
 
-> **状态**：待审核　|　2026-08-14  
+> **状态**：三处缺陷**已定案并先行修复**（2026-08-14，见 §9）；**方案 A 主体重构已落地（2026-08-14）**——抽出板级网络配置模块 `app_board_net_cfg`（`Application/Config`），LDI/IAP 迁移至 `app_board_net_cfg_*` API，`app_iap_cfg.{c,h}` 与 `Device/Inc/config_info.h` 已删除　|　2026-08-14  
 > **前提**：已读 [01_background_and_impact.md](./01_background_and_impact.md)  
-> **纪律**：本文件仅方案；**未经授权不改代码**。
+> **纪律**：本文件仅方案；**未经授权不改代码**（§9 已获授权的先行修复除外）。
 
 ---
 
@@ -63,20 +63,29 @@ int  board_net_cfg_set(const uint8_t ip[4], const uint8_t mask[4], const uint8_t
 
 ### 2.2 机械步骤（审核通过后执行）
 
+0. **改造前盘点（完整调用点清单）**：
+   - 全仓 `ADDR_CONFIG_SECTOR` 使用点 **7 处**：`app_iap_cmd.c:94/110/143`（裸转换 `(app_flash_iap_sys_info_t *)ADDR_CONFIG_SECTOR` 直接读配置）+ `app_iap_cfg.c:23/39/111`（+ 第 10 行注释）。另有两处 `#define`（`app_iap_cfg.h:8` 与死代码 `config_info.h:6`）。
+   - LDI 侧 `app_flash_iap_*` 调用 **4 处**：`app_ldi.c:100/104/108`（上电同步与回退读）+ `app_ldi_cmd.c:431`（0AH）。
+   - Sector1 结构体 **4 处独立定义**：主固件 `Application/Inc/IAP/app_iap_cfg.h`、`Device/Inc/config_info.h`（死代码，建议删除）、Bootloader 与 Recovery 各自的 `Drivers/BSP/Config/config_info.h`。无共享头、无布局锁定。
 1. 新建 `app_board_net_cfg.{c,h}`，从 `app_iap_cfg` **迁出**（或整体改名 + 更新引用）。  
 2. `app_iap_cfg.h` 可薄包装 `#include "app_board_net_cfg.h"` + deprecated 别名（过渡一期）。  
-3. LDI：`#include "app_board_net_cfg.h"`，替换三处调用为 `board_net_cfg_*`。  
-4. IAP 协议：继续用同一头文件做升级状态 / FWInfo（若 FWInfo 仍在同结构，可同模块或再拆 `app_board_fw_meta`）。  
-5. EIDE/Makefile：`Config` 或 `board_net_cfg` 列为 **公共必选**；`IAP/` 协议目录可选。  
-6. 更新本目录 README 状态 → 已落地；补回归清单。
+3. LDI：`#include "app_board_net_cfg.h"`，替换 **4 处**调用（`app_ldi.c:100/104/108`、`app_ldi_cmd.c:431`）为 `board_net_cfg_*`。  
+4. IAP 协议：`app_iap_cmd.c:94/110/143` 三处裸读改经 `board_net_cfg` API，消除裸转换；升级状态 / FWInfo 继续用同一头文件（若 FWInfo 仍在同结构，可同模块或再拆 `app_board_fw_meta`）。  
+5. **布局锁定**：在 `app_board_net_cfg.h`（唯一归属）用 `static_assert` 锁死 `sizeof` / `offsetof` 与 magic 值，保证 0x08004000 布局与 Boot/Recovery **二进制兼容**；同步收敛/删除其余 3 处独立定义（`Device/Inc/config_info.h` 死代码直接删）。  
+6. **顺带修复（已定案并先行落地，见 §9）**：空 Sector1 写路径补 magic 初始化（[01 §3.4](./01_background_and_impact.md)）；写/擦除返回值上抛与失败处理（§8）。  
+7. EIDE/Makefile：`Config` 或 `board_net_cfg` 列为 **公共必选**；`IAP/` 协议目录可选。  
+8. 更新本目录 README 状态 → 已落地；补回归清单。
 
 ### 2.3 验收（DoD）
 
 - [ ] 工程 **exclude 全部** `app_iap.c` / `app_iap_cmd.c`，保留 `app_board_net_cfg.c` + LDI → **链接成功**  
 - [ ] 工程 **exclude LDI**，保留 IAP 协议 + board_net_cfg → 链接成功  
 - [ ] LDI 目录内 `rg app_iap_cfg` / `rg app_flash_iap` 无匹配（或仅测试桩）  
-- [ ] `0AH` 改 IP 后 Sector1 `net_cfg` 与 W25 一致（若保留同步语义）  
+- [ ] **全仓** `rg ADDR_CONFIG_SECTOR`：使用点由现状 7 处收敛到唯一归属模块内；`app_iap_cmd.c` 无 `(app_flash_iap_sys_info_t *)ADDR_CONFIG_SECTOR` 裸转换  
+- [ ] `rg config_info.h`：主固件死代码（`Device/Inc/config_info.h`）已删除；Sector1 布局定义收敛为 1 处 + static_assert 锁定  
+- [ ] `0AH` 改 IP 后 Sector1 `net_cfg` 与 W25 一致（若保留同步语义）；**出厂新机（空 Sector1）0AH 后 Sector1 记录有效**（magic 修复生效）  
 - [ ] 上电：W25 空 / Sector1 有值 / 皆空 三条路径行为与现网一致或有产品签字差异说明  
+- [ ] 失败注入：擦除/写入失败或中途断电后上电，行为符合 §8 声明的掉电语义  
 
 ---
 
@@ -140,11 +149,13 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 ## §6 推荐落地路径
 
 ```
-短期（不改架构）     → 执行 03 选编规则（必带 app_iap_cfg.c）
+短期（不改架构，历史） → 执行 03 选编规则（必带 app_iap_cfg.c，已废止）
 中期（推荐）         → 方案 A 抽 board_net_cfg；可选加方案 C 注入
 可选加速过渡         → 方案 B weak stub（同时排期 A）
 产品放弃 Sector1 IP  → 方案 D + 更新 Boot/Recovery 文档
 ```
+
+> **2026-08-14 现状**：三处缺陷已按 §9 定案**先行修复**；**方案 A 主体重构已落地**（`app_board_net_cfg` @ `Application/Config`，DoD §2.3 全项通过），选编规则 [03](./03_interim_build_rules.md) 已废止、仅存历史。
 
 ---
 
@@ -155,11 +166,164 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 | 搬文件漏改 EIDE/Makefile | 以「只 LDI / 只 IAP」两套链接为 CI 门禁 |
 | 结构体搬迁破坏 Boot | **保持** `0x08004000` 布局与 CRC 算法不变；只改源码归属 |
 | 擦写 Flash 时机 | 维持现逻辑：避免无配置上电路径 erase |
+| 0AH 写 Sector1 断电 | 记录 CRC 失效 → Boot/Recovery 回退默认 IP；掉电语义见 §8，解耦不改变既有回退顺序 |
+| Sector1 擦写寿命 | 每次更新均为 16KB 全扇区擦除（约 10k 次寿命），运行中停顿 1~2s；0AH 属出厂低频操作，产品确认见 §8 |
+| Bootloader 条件 D `app_info` CRC 校验 × 烧录器重烧主固件 → 永远进 Recovery | Recovery 升级过一次后（`app_info` 为旧固件真实值），用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → 判 App 损坏 → 设备永远进 Recovery。`tool/flash_all.sh` 默认烧后擦 Sector1 恢复出厂态；手动烧录/单固件烧录遵守同纪律；net_cfg 由主固件上电从 W25 同步回写 |
 
 回滚：恢复 `app_iap_cfg` 路径与 LDI include 即可。
+
+---
+
+## §8 失败场景与掉电语义
+
+### 8.1 现状（解耦前）
+
+| 环节 | 现状行为 |
+|------|----------|
+| `app_flash_iap_update_net_cfg`（`app_iap_cfg.c:108-122`） | 擦除/写入返回码**均被忽略**（`app_flash_iap_edit_config` 内忽略 erase/write 返回），无重试、无回读校验、无上报 |
+| LDI save（`app_flash_ldi_save_config`，`app_ldi_cfg.c`） | 同样忽略 W25 写入返回；SPI busy / 擦除失败静默 |
+| 0AH 命令（`app_ldi_cmd.c:430-431`） | 先写 W25 再写 Sector1；任一步失败仍回 0x00 成功响应 |
+| Sector1 擦写 | 每次更新都是 **16KB 全扇区擦除**：运行中（0AH 处理）停总线 **1~2s**；擦写寿命约 **10k 次**。0AH 属出厂低频操作风险可控，但高频改 IP 场景需产品论证 |
+
+### 8.2 掉电语义（现状声明）
+
+- **W25 写入中断电**：W25 CRC 失效 → 主固件回退 Sector1；Sector1 无有效记录（含出厂新机）→ 回退默认 IP。
+- **Sector1 写入中断电**：Sector1 CRC 失效 → Bootloader/Recovery 回退默认 IP；主固件走 W25（W25 先写且已成功）。**自愈**（§10 方案 1 落地后）：下次 0AH / 上电同步时，损坏记录按「完整初始化」分支覆盖为有效记录，无需返修。
+- **出厂新机（Sector1 空）**：受 [01 §3.4](./01_background_and_impact.md) 缺陷影响，0AH 后 Sector1 仍无有效记录 → Bootloader/Recovery 恒回退默认 IP。
+- 归纳：**Sector1 无有效记录时，三固件各自回退默认 IP**；这是现网行为，解耦不得静默改变。
+
+### 8.3 方案 A 要求
+
+- `board_net_cfg_set` 必须返回错误码；LDI 0AH 判错并向上位机返回失败/告警（不再静默回 0x00）。
+- 写后回读校验；失败时保留内存中的新配置、记录错误状态。
+- 失败后是否重试：**已定案（§9 Q2）**——固件不自动重试，0AH 应答 ErrCode=01H，由上位机重发 0AH 恢复。
+- 掉电语义显式写入本目录 01/03 及 Boot/Recovery 侧文档，保持「W25 → Sector1 → 默认」回退顺序不变。
+- 空 Sector1 写路径的 magic 初始化修复（[01 §3.4](./01_background_and_impact.md)）**已按 §9 Q1 落地**。
+
+---
+
+## §9 先行修复定案（2026-08-14，已落地）
+
+> **范围声明**：本次只做下述三个缺陷修复 + 文档落实；**07 解耦主体重构（方案 A 抽板级网络配置模块）暂缓**。
+> 涉及文件：`Application/Src/IAP/app_iap_cfg.c`、`Application/Src/IAP/app_iap_cmd.c`、
+> `Application/Src/LDI/app_ldi_cmd.c`、`Application/Src/LDI/app_ldi.c`（+ `Application/Inc/IAP/app_iap_cfg.h` 接口声明）。
+
+### Q1（定案：修，镜像 Bootloader 语义）
+
+`app_flash_iap_update_net_cfg` 空配置分支改为**完整初始化**，使写出的记录与老 Bootloader
+`Init_Config_Info`（`STM32F407-Bootloader-master/Drivers/BSP/Config/config_info.c`）首次上电
+自写内容**逐字节同构**：
+
+| 字段 | 值 |
+|------|-----|
+| magic | `0x0d000721`（CONFIG_MAGIC） |
+| update_sta | `updated = 0` |
+| app_info | 全 0，其中 `crc32 = 0xFFFFFFFF`（size=0、version 全 0） |
+| net_cfg | 调用方传入（ip/mask/gw + **port**，0AH 把 device_port 传入） |
+| config_crc | 硬件 CRC32 覆盖 `sizeof - 4`（前 64B） |
+
+- 4B02「强制修改IP」处理器改走同一修复后的函数。
+- **禁止复用** `app_flash_iap_init_config`（其 update_sta=FAILED，会被 Bootloader 判 App 损坏）。
+
+### Q2（定案：最小修复，如实应答）
+
+- `cmd_set_ip`（0AH）捕获 **W25 写入**与 **Sector1 同步**两个返回值，任一失败则应答
+  ErrCode=01H（00H=成功，01H=失败，与 ldi_status_rsp_t / 0BH 既有约定一致）；上位机重发 0AH 恢复。
+  **固件侧不做自动重试。**
+- 上电同步钩子（`ldi_ctx_init`）扩展：Sector1 **空/无效**时也走 `app_flash_iap_update_net_cfg`
+  用 W25 配置初始化 Sector1（空扇区走 Q1 完整初始化；损坏记录仍被守卫拒绝覆盖，保护升级中间态）。
+  修复 Q1 后该钩子自然覆盖「0AH 写中断电 → Sector1 空/擦除残留」场景。
+  **（2026-08-14 细化：损坏记录改为自愈覆盖，见 §10 方案 1，本条「损坏拒绝覆盖」表述已被取代）**
+
+### Q3（定案：接受现状 + 跳过同值写）
+
+`app_flash_iap_update_net_cfg` 写前比较 net_cfg（**含 port**）与现扇区内容，一致则跳过擦写返回成功。
+**不做磨损均衡**。16KB 全扇区擦除的现状（单次 1~2s 停顿、约 10k 次寿命）维持不变。
+
+### 修复后的全流程走查（空扇区 + 0AH）
+
+1. 出厂新机：Sector1 空、W25 空 → Bootloader 条件 C：`Init_Config_Info` 写默认 IP，Main App 存在则跳 Main。
+2. 上位机下发 0AH：主固件先写 W25，再经 `app_flash_iap_update_net_cfg` 空分支完整初始化 Sector1
+   （magic + updated + app_info 全 0/crc32=0xFFFFFFFF + 新 net_cfg + CRC32）→ 应答 00H。
+3. 复位：Bootloader 条件 D：magic/CRC 通过、update_sta=updated、app CRC 对 0 字长结果为 0xFFFFFFFF
+   与 app_info.crc32 相等 → `Is_App_Exist(ADDR_MAIN_APP)` 通过则跳 Main App（与 Bootloader 自己初始化的记录行为一致）。
+4. Main App 上电：W25 有效 → `ldi_ctx_init` 调 `app_flash_iap_update_net_cfg`，net_cfg 已一致 → 跳过擦写。
+5. 若 Main App 不存在：Bootloader 跳 Recovery；Recovery 的 `Is_Config_Empty`（magic 有效）为假，
+   不再重置配置，读到的 net_cfg 即 0AH 下发值。
+6. 0AH 任一步失败：应答 01H，上位机重发 0AH 恢复。升级中间态记录（valid 且 update_sta≠updated）
+   不被覆盖；损坏记录在成功路径由「完整初始化」分支自愈覆盖（见 §10 方案 1）。
+
+---
+
+## §10 补充修复定案（2026-08-14，已落地）
+
+> **范围声明**：§9 三缺陷修复后追加的两项修正——细化守卫语义 + 4B02 应答扩展结果码。
+> 涉及文件：`Application/Src/IAP/app_iap_cfg.c`、`Application/Src/IAP/app_iap_cmd.c`
+> （+ `Application/Inc/IAP/app_iap_cfg.h`、`Application/Src/LDI/app_ldi.c` 注释同步）。
+
+### 10.1 方案 1（细化守卫：升级中间态拒绝 vs 损坏可覆盖）
+
+`app_flash_iap_update_net_cfg` 原守卫 `!empty && !valid → return -1` 把「损坏」与「升级中间态」一起拒绝；
+细化后按状态分四支：
+
+| Sector1 状态 | 判定 | 处理 |
+|--------------|------|------|
+| 空 | magic==0xFFFFFFFF 且 config_crc==0xFFFFFFFF | 完整初始化（镜像 Bootloader 语义）后写 |
+| 损坏（magic 无效或 CRC 错） | !empty 且 !valid | **完整初始化后写（覆盖自愈）** |
+| 有效 + update_sta==updated | valid 且 updated | 仅更新 net_cfg；同值跳过擦写 |
+| 升级中间态 | valid 且 update_sta≠updated | **返回 -1 拒绝覆盖** |
+
+- **升级中间态判定独立于损坏判定**：Bootloader 条件 A/B（强制升级/崩溃过频）写入的记录
+  magic/CRC 均正确，属「valid 且 update_sta=failed」，继续被守卫保护；损坏记录（magic 无效/
+  CRC 错）不可能是升级中间态——Bootloader 写记录永远是完整结构（整扇区擦→完整写）。
+- **损坏覆盖不会误伤升级流程**：结论为否。损坏判定与中间态判定互斥（一个看 magic/CRC，
+  一个看 valid 后的 update_sta），覆盖损坏不会触碰任何有效中间态记录。
+- **需重新评估的窗口**：若未来 Bootloader 引入「写一半中断」的新写入模式（中断恢复后不
+  保证完成记录），出现 magic 有效但 CRC 错的半成品时，损坏覆盖语义需重新评估——届时须把
+  该状态识别为中间态并保护。当前 Bootloader 无此模式，评估结论成立。
+- **同值跳过条件 `!empty` → `valid` 的原因**：空/损坏记录现已进入完整初始化分支且必须写；
+  若仍按 `!empty` 判定，损坏记录快照（`old_cfg` 为垃圾）碰巧与新 net_cfg 一致时会错误跳过
+  写入，导致损坏记录永不自愈。`valid` 下 `old_cfg` 才有比较意义。
+- **附带价值**：0AH 自愈——Sector1 写中断电/历史损坏后，下一次 0AH 或上电同步即恢复有效记录
+  （§8.2 已同步）。
+
+### 10.2 方案 2（4B02 应答扩展结果码）
+
+`cmd_ForceModifyIP_02` 捕获 `app_flash_iap_update_net_cfg` 返回值，应答帧由 **len 0 → 1**：
+
+| 载荷（1 word） | 语义 | 来源 |
+|----------------|------|------|
+| 0x00000000 | 成功（含同值跳过） | ret ≥ 0 |
+| 0x00000001 | 失败（升级中间态拒绝 / 擦写错误） | ret < 0 |
+
+参照 4B04「准备升级」应答 0/1 结果码先例。**具体可能导致的问题**：
+
+1. **老上位机按「B402 无载荷」解析**：多读到的 1 个 word 是被忽略还是报错（长度/CRC 校验），
+   取决于上位机解析实现——若按 len 字段解析则兼容，若按固定长度或严格 CRC 覆盖校验则可能
+   报错。**上线前须与上位机联调验证**。
+2. **新固件 + 老上位机混合部署期**：升级窗口期内老上位机可能解析异常；建议上位机按 len 字段
+   容忍解析，或统一固件/上位机同批升级。
+3. **结果码的实际价值**：4B02 失败率本身极低（升级中间态拒绝、擦写错误均罕见）；结果码的
+   主要价值在于这两个场景的**显式失败反馈**，避免「应答成功但配置未落盘」的静默错误。
+
+### 10.3 行为矩阵（四状态 × 两入口，自查基线）
+
+| Sector1 状态 | 4B02 / 0AH 处理 | 4B02 应答 | 0AH 应答 |
+|--------------|-----------------|-----------|----------|
+| 空 | 完整初始化后写 | result=0 | 00H |
+| 损坏 | 完整初始化后写（自愈） | result=0 | 00H |
+| 有效 + updated | 同值跳过 / 更新 net_cfg | result=0 | 00H |
+| 升级中间态 | 拒绝覆盖（-1） | result=1 | 01H |
+
+（0AH 应答还需 W25 写入成功；W25 与 Sector1 任一步失败即 01H。）
 
 ---
 
 ## 修订
 
 - 2026-08-14：首版方案，待审核。
+- 2026-08-14（同日修订）：§2.2 增补完整调用点清单（全仓 7 处 `ADDR_CONFIG_SECTOR` 使用点 + LDI 侧 4 处调用 + 4 处独立结构体定义）与布局锁定步骤；§2.3 DoD 门禁扩大至全仓；新增 §8 失败场景与掉电语义；§7 补充断电与擦写寿命风险。
+- 2026-08-14（同日再修订）：新增 **§9 先行修复定案**——Q1（镜像 Bootloader 语义）、Q2（如实应答 + 上位机重发）、Q3（接受现状 + 同值跳过）三决策落地；§2.2 步骤 6、§6、§8.3 中「待用户确认」标记改为定案结论；范围声明为「先行修复，07 解耦主体重构暂缓」。
+- 2026-08-14（同日三修订）：新增 **§10 补充修复定案**——方案 1（细化守卫：升级中间态拒绝、损坏自愈覆盖、同值跳过条件 !empty→valid）、方案 2（4B02 应答 len 0→1 结果码 0/1）与四状态×两入口行为矩阵；§9 Q2 及走查第 6 步的「损坏拒绝覆盖」表述标注已被取代；§8.2 增补损坏自愈语义。
+- 2026-08-14（同日四修订）：**方案 A 落地**——按 §2.2 步骤执行：新建 `Application/Config/app_board_net_cfg.{c,h}`（Sector1 布局唯一归属 + 8 条 static_assert 锁定 + `get/update/read` API），LDI 4 处与 IAP 3 处调用迁移，`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 删除；Makefile / eide.yml 同步；DoD §2.3 全项验证通过（全量 + LDI-only + IAP-only 三种链接，产物尺寸零变化）。
+- 2026-08-14（同日五修订）：§7 风险表新增「Bootloader 条件 D `app_info` CRC 校验 × 烧录器重烧主固件 → 永远进 Recovery」风险行——Recovery 升级过一次后用烧录器直接重烧主固件会 CRC 失配被判 App 损坏；缓解为 `tool/flash_all.sh` 默认烧后擦 Sector1 恢复出厂态（`--keep-config` 保留），手动烧录/单固件烧录遵守同纪律，net_cfg 由主固件上电从 W25 同步回写。烧录纪律同步写入 `doc/CLAUDE.md` 烧录小节。

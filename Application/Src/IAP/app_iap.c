@@ -11,7 +11,6 @@
 #include "initcall.h"
 #include "pl_crc.h"
 #include "app_udp.h"
-#include "app_iap_cfg.h"
 #include "app_iap_cmd.h"
 
 /* RJ45 物理通道 RB：与 LDI/MQTT 等同槽 weak 合并 */

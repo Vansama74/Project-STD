@@ -12,8 +12,8 @@
 
 | 编号 | 判定 | 现状 |
 |------|------|------|
-| A-1 单固件多协议 | ✅ | Makefile 同编 IAP/LDI/青海/RLS/AH；**EIDE Debug 现编 IAP+LDI+青海**（`.eide/eide.yml` exclude RLS/AH）；各自 `sw_app_initcall` |
-| A-2 目录选编 | ⚠️ | 无 `APP_PROTOCOL`；排除协议目录可裁解析器。**排除整个 `IAP/` 时须保留 `app_iap_cfg.c`**，否则 LDI 链接失败（见 doc/07） |
+| A-1 单固件多协议 | ✅ | Makefile 同编 IAP/LDI/青海/RLS/AH/四川三协议；**EIDE Debug 现编 IAP+LDI+青海+四川三协议**（`.eide/eide.yml` exclude RLS/AH）；各自 `sw_app_initcall` |
+| A-2 目录选编 | ⚠️ | 无 `APP_PROTOCOL`；排除协议目录可裁解析器。配置层已抽至 `Application/Config/app_board_net_cfg.c`，**排除整个 `IAP/` 不影响 LDI**（解耦见 doc/07） |
 | A-3 自注册 | ✅ | `app_boot` 无协议分支；四步完整 |
 | A-4 同通道链式 | ✅ | `any_wait/any_fake/any_parsed`；RS485：青海+RLS；RJ45：IAP+LDI（+可选 MQTT） |
 | A-5 语音 USART6 | ✅ | 零处 `bind(CH_ID_RS232_1)`；voice → `PL_UART6` |
@@ -33,8 +33,8 @@
 | `RB_SLOT_RJ45` | **1536** | IAP | `CH_ID_UDP` |
 | 同上 | | LDI | `CH_ID_TCP_SERVER` / `TCP_CLIENT` / `UDP`（每通道独立 mask） |
 | 同上 | | AH_MQTT | `CH_ID_MQTT`（initcall 可关） |
-| `RB_SLOT_RS485` | **768** | 青海、RLS | `CH_ID_RS485` |
-| `RB_SLOT_RS232` | **768** | 青海 | `CH_ID_RS232` |
+| `RB_SLOT_RS485` | **768** | 青海、RLS、四川 ETC/MTC/治超 | `CH_ID_RS485` |
+| `RB_SLOT_RS232` | **768** | 青海、四川 ETC/MTC/治超 | `CH_ID_RS232` |
 
 关键源文件：
 
@@ -45,6 +45,10 @@
 | `app_iap.c` | provide RJ45；**仅 UDP**；`IAP_QUEUE_DEPTH=2` |
 | `app_ldi.c` | provide RJ45；**无 485/232**；`LDI_QUEUE_DEPTH=4` |
 | `app_qh_proto.c` | provide 485+232；`QH_PAYLOAD_MAX=259`；`QH_QUEUE_DEPTH=3` |
+| `app_sc_etc_proto.c` | provide 485+232；`SC_ETC_PAYLOAD_MAX=149`；`SC_ETC_QUEUE_DEPTH=3`；心跳计时任务 |
+| `app_sc_mtc_proto.c` | provide 485+232；`SC_MTC_PAYLOAD_MAX=74`；`SC_MTC_QUEUE_DEPTH=3`；'{' BCC 校验 probe |
+| `app_sc_ol_proto.c` | provide 485+232；`SC_OL_PAYLOAD_MAX=249`；`SC_OL_QUEUE_DEPTH=3`；FF+len probe（07~FF，0xFE 排除） |
+| `app_uart_baud.c` | DIP1 波特率选择 + `pl_uart_set_baud` 运行态切换（RS232+RS485） |
 | `app_rls.c` | provide 485；`mem_pool[RLS_PAYLOAD_MAX]`；`RLS_QUEUE_DEPTH=2` |
 | `ah_mqtt.c` | provide RJ45；`AH_MQTT_QUEUE_DEPTH=3`；initcall 可关 |
 | `app_rs232.c` / `app_boot.c` | RS232_1 旁路；无 DMA RX 缓冲 |
@@ -60,6 +64,9 @@
 | 青海 | **3** | 801 | payload 259 + 深度 3 |
 | RLS | 2 | 1076 | 维持 |
 | AH_MQTT | **3** | ~1623（任务启动后） | 1→3 |
+| 四川 ETC | **3** | 471 | 新增（payload 64→149，0x0D 定界对齐 9K1F212701） |
+| 四川 MTC | **3** | 246 | 新增（payload 74） |
+| 四川治超 | **3** | 120 | 新增（payload 32） |
 
 构建口径：IAP/LDI/青海两套构建均编入；**RLS/AH 仅 Makefile 编入**，EIDE Debug 排除（采样 elf 中无其队列缓冲，见 06/`04`）。
 
@@ -79,7 +86,7 @@
 | CR-2 | RLS peek/长度越界 | ✅ | `mem_pool`≥`RLS_PAYLOAD_MAX`；RB 768 |
 | CR-4 / MA-5 | AH_MQTT probe 过松 | ⚠️ 例外 | initcall 默认关 |
 | MI-3 | 兼容矩阵编译门禁 | ❌ 可选后续 | |
-| MI-CFG | LDI→`app_iap_cfg` 强依赖 | ⚠️ 已知 | 暂不解耦，见 doc/07 |
+| MI-CFG | LDI→`app_iap_cfg` 强依赖 | ✅ 已解耦 | `app_board_net_cfg`（Application/Config），见 doc/07 |
 
 ---
 
@@ -91,7 +98,7 @@
 4. [x] 无协议 bind `CH_ID_RS232_1`  
 5. [x] 同物理口链式 + 写去重仍在  
 6. [x] EIDE/Makefile 无 `APP_PROTOCOL`  
-7. [x] 帧 queue 深度：IAP2 / LDI4 / QH3 / RLS2 / AH3（静态缓冲）  
+7. [x] 帧 queue 深度：IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3（静态缓冲）  
 
 **不在本 DoD**：堆水位标定、IAP 升级实机验证、doc/07 解耦落地。
 
@@ -102,11 +109,16 @@
 | 用例 | 期望 |
 |------|------|
 | RS485 青海 / RLS 帧 | 各自 READY；RLS 满长 ≤530 可 READY |
+| 四川 MTC '{' 帧（无 BCC 参考格式） | '1','2','5'→3B；'3'→20B；'4'→67B；'6'→15/24B；'7'固定→4B；'8','9'→4B 全部 READY（BCC 不校验，9K1F212701 语义） |
+| 四川 MTC '{' 帧（带 BCC 变体） | 帧长 +1 变体同样 READY（字段按长度定位） |
+| 四川 ETC 0A 帧 | 行号 0~6；单行 ≤24B；0x30 → 软件复位（9K1F212701 语义） |
+| 四川治超 FF 帧 | 80 全屏 + 81~88 八行；亮度 00=自动调光（9K1F212701 语义） |
+| TEST 键 | 任意业务数据到达仅中止当前检测序列，monitor 回 IDLE；TEST 键始终可用（9K1F212701：收包清 testMode，按键扫描持续） |
 | UDP IAP 与 LDI | 共享 RJ45，互不永久阻塞 |
 | TCP LDI 一包 ≥3 帧 | 深度 4 下应均可入队（处理任务跟得上时） |
 | TTS | USART6 出帧；协议口无语音字节 |
 | 排除青海目录 Rebuild | Makefile 口径：RS485 provide 仍可由 RLS 提供；EIDE 口径：RLS 亦被排除，RS485 槽无提供者 → `acquire` 判空安全退化 |
-| 排除整个 IAP/ 仅留 LDI | 须保留 `app_iap_cfg.c`，否则链接失败 |
+| 排除整个 IAP/ 仅留 LDI | 链接成功（配置层在 `Application/Config`，不属 IAP 协议目录） |
 
 ---
 
@@ -126,3 +138,10 @@
 - 2026-08-14：首版落地对照。  
 - 2026-08-14：对齐 RB 1536/768/768、queue 深度表、A-2/doc/07、DoD。  
 - 2026-08-14：A-1 与 §2.1 补充 EIDE/Makefile 协议选编差异（EIDE exclude RLS/AH）。
+- 2026-08-14：新增四川 ETC/MTC/治超三协议绑定 RS485+RS232 双通道、queue 深度 3；MTC vs 青海 '{' 帧头冲突以 EIDE 目录排除纪律兜底（01 §6）。
+- 2026-08-15：修复四川三协议显示语义与 TEST 键失效（见 doc/06 §5 修订）：
+  - MTC '{' 帧族改为无 BCC（9K1F212701）/带 BCC 双格式兼容，BCC 不再校验 → MTC vs 青海 '{' 帧头重叠的判别力由「BCC 校验」降为「帧长+尾字节」；青海 '3' 帧恰 20B 且尾字节 '}' 时会被 MTC 认领的残留风险上升（≈1/256 → 长度巧合概率），量产二选一纪律不变；
+  - MTC '6' 固定格式字段整体错位修正（X1 起偏移）；
+  - ETC 行号 1~6、单行 ≤24B、0x30 软件复位、显示颜色跟随通行灯；
+  - 治超 80 全屏显示 + 81~88 八行、亮度 00 自动调光、颜色跟随通行灯；
+  - TEST 键：`app_factory_mode_interrupt` 由销毁 factory_monitor 任务改为置中止标志，monitor 分片等待回 IDLE。

@@ -9,6 +9,7 @@
 #include "pl_iwdg.h"
 #include "pl_sys.h"
 #include "app_udp.h"
+#include "app_board_net_cfg.h"
 #include "pl_net_adapt.h"
 
 #define U8_LEN(x)  ((x) * sizeof(uint32_t))
@@ -91,7 +92,8 @@ static void cmd_Test_00(channel_t *ch, iap_frame_t *IAP_Data)
 /** @brief 0x01: Report current IP config */
 static void cmd_ReportIp_01(channel_t *ch, iap_frame_t *IAP_Data)
 {
-    app_flash_iap_sys_info_t config_info = *((app_flash_iap_sys_info_t *)ADDR_CONFIG_SECTOR);
+    app_board_sys_info_t config_info;
+    app_board_net_cfg_read(&config_info);
 
     uint32_t ReData[4] = {0};
     ReData[0]          = config_info.net_cfg.ip[0] << 24 | config_info.net_cfg.ip[1] << 16 | config_info.net_cfg.ip[2] << 8 | config_info.net_cfg.ip[3];
@@ -107,12 +109,10 @@ static iap_ipconfig_t ipconfig = {0};
 /** @brief 0x02: Force modify IP and write to Flash */
 static void cmd_ForceModifyIP_02(channel_t *ch, iap_frame_t *IAP_Data)
 {
-    app_flash_iap_sys_info_t config_info = *((app_flash_iap_sys_info_t *)ADDR_CONFIG_SECTOR);
-
     uint32_t TmpData[4] = {0};
     memcpy(TmpData, IAP_Data->data_crc, sizeof(TmpData));
 
-    app_flash_iap_net_cfg_t net_info = {0};
+    app_board_net_cfg_t net_info = {0};
     net_info.ip[0]       = (uint8_t)(TmpData[0] >> 24);
     net_info.ip[1]       = (uint8_t)(TmpData[0] >> 16);
     net_info.ip[2]       = (uint8_t)(TmpData[0] >> 8);
@@ -127,20 +127,29 @@ static void cmd_ForceModifyIP_02(channel_t *ch, iap_frame_t *IAP_Data)
     net_info.gw[3]       = (uint8_t)(TmpData[2]);
     net_info.port        = TmpData[3];
 
-    config_info.net_cfg = net_info;
     IP4_ADDR(&ipconfig.ip, net_info.ip[0], net_info.ip[1], net_info.ip[2], net_info.ip[3]);
     IP4_ADDR(&ipconfig.mask, net_info.mask[0], net_info.mask[1], net_info.mask[2], net_info.mask[3]);
     IP4_ADDR(&ipconfig.gw, net_info.gw[0], net_info.gw[1], net_info.gw[2], net_info.gw[3]);
     tcpip_callback(iap_update_ip, &ipconfig);
 
-    app_flash_iap_edit_config(&config_info);
-    cmd_SendReData(ch, IAP_Data->seq, rtn_cmd02, 0, NULL);
+    /* 写入路径（见 app_board_net_cfg_update）：空/损坏扇区完整初始化，升级中间态拒绝覆盖，
+     * net_cfg 同值跳过擦写。
+     *
+     * 协议扩展（方案 2，2026-08-14）：应答帧由无载荷改为 1 word 结果码，
+     * 参照 4B04「准备升级」应答 0/1 先例——0x00000000 成功（含同值跳过）、
+     * 0x00000001 失败（升级中间态拒绝覆盖 / 擦写错误）。
+     * 兼容性风险：老上位机若按「B402 无载荷」解析，会多读到一个 word
+     * （被忽略还是报错取决于上位机实现），混合部署期需联调验证。 */
+    int32_t ret = app_board_net_cfg_update(net_info.ip, net_info.mask, net_info.gw, net_info.port);
+    uint32_t result = ret < 0 ? 1 : 0;
+    cmd_SendReData(ch, IAP_Data->seq, rtn_cmd02, 1, &result);
 }
 
 /** @brief 0x03: Report firmware version, size, CRC32, update status */
 static void cmd_ReportFirmwareStatus_03(channel_t *ch, iap_frame_t *IAP_Data)
 {
-    app_flash_iap_sys_info_t config_info = *((app_flash_iap_sys_info_t *)ADDR_CONFIG_SECTOR);
+    app_board_sys_info_t config_info;
+    app_board_net_cfg_read(&config_info);
 
     uint32_t ReData[11] = {0};
     ReData[0]           = config_info.app_info.size;
