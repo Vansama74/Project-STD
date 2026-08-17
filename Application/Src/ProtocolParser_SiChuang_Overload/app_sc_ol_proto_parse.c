@@ -5,7 +5,7 @@
  * 帧结构：FF + 长度(含头尾总长，07~FF，0xFE 排除) + 命令 + 亮度(00~FF) + 数据 + BCC + FF。
  * BCC = 帧头/长度/命令/亮度/数据段五字段逐字节异或（不含尾部 FF）。
  * 全屏显示 80 数据段可变长（≤249B，随长度字段）；行显示 81~88 数据段可变长（=总长-6，≤24B）；
- * 清屏/亮度/通行灯/黄闪/查询类帧长 7。行数 8 行与 80 全屏显示对齐参考项目 9K1F212701 weight.c `getCmdNo`。
+ * 清屏/亮度/通行灯/黄闪/查询类帧长 7。行显示 8 行与 80 全屏显示。
  */
 
 #include "app_sc_ol_proto_parse.h"
@@ -27,7 +27,7 @@ static uint8_t _sc_ol_bcc_calc(const uint8_t *raw, uint16_t raw_len)
 
 /**
  * @brief  将治超协议命令字节转换为内部命令枚举。
- * @note   参考 9K1F212701 weight.c `getCmdNo`：80=全屏显示，81~88=第 1~8 行。
+ * @note   80=全屏显示，81~88=第 1~8 行。
  * @param  c  命令字节。
  * @return 对应的协议命令枚举；非法返回 SC_OL_PCMD_INVALID。
  */
@@ -94,7 +94,7 @@ sc_ol_parsed_cmd_t sc_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
     switch (cmd.cmd) {
         case SC_OL_PCMD_FULL_SCREEN:
             /* 全屏显示：数据段可变长（≤249B = 长度字段上限 255 - 6 帧开销），
-             * 整屏自动换行渲染（参考 9K1F212701 makefonttolatt_all） */
+             * 整屏自动换行渲染 */
             cmd.p.full_screen.text     = &raw[4];
             cmd.p.full_screen.text_len = (uint16_t)(raw_len - 6U);
             cmd.sta = SC_OL_PARSE_OK;
@@ -108,7 +108,7 @@ sc_ol_parsed_cmd_t sc_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
         case SC_OL_PCMD_LINE_6:
         case SC_OL_PCMD_LINE_7:
         case SC_OL_PCMD_LINE_8:
-            /* 变长数据段（9K1F212701 etc.c：数据长度 = 总长 - 6，无固定 16B；
+            /* 变长数据段（数据长度 = 总长 - 6，无固定 16B；
              * 渲染层 FONT16 上限 24B 截断，不足不补空格） */
             cmd.p.line.row      = (uint8_t)(cmd.cmd - SC_OL_PCMD_LINE_1);
             cmd.p.line.text     = &raw[4];

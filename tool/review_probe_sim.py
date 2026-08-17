@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """宿主模拟：四川三协议 + RLS + 青海 在同 RB 链式 probe 的互斥与卡死验证。
 复刻 frame_dispatch_task 内层循环语义：
-  链序（注册位序）：RLS -> QH -> ETC -> MTC -> OL
+  链序（注册位序）：QH -> RLS -> ETC -> MTC -> OL
   逐字节喂流；对每个 probe 状态：
     READY  -> 按 total_len 读走（any_parsed）
     SKIP   -> 按 frame_len 跳过
@@ -44,12 +44,8 @@ def etc_probe(buf):
         return (WAIT, 0)
     return (FAKE, 0)
 
-def mtc_bcc_calc(b, ln):
-    x = 0
-    for i in range(1, ln-2): x ^= b[i]
-    return x & 0xFF
-
 def mtc_probe(buf):
+    """2026-08-17 修复：'{' 帧族统一 '}' 定界变长扫描。"""
     avail = len(buf)
     if avail == 0: return (FAKE, 0)
     b0 = buf[0]
@@ -60,45 +56,12 @@ def mtc_probe(buf):
     if b0 != 0x7B: return (FAKE, 0)
     if avail < 2: return (WAIT, 0)
     c = buf[1]
-    if 0x40 <= c <= 0x45 and c != 0x41:
-        fl = 6 if c == 0x40 else (3 if c == 0x45 else 4)
-        if avail < fl: return (WAIT, 0)
-        return (READY, fl) if buf[fl-1] == 0x7D else (FAKE, 0)
-    if not (0x31 <= c <= 0x39 or c == 0x41): return (FAKE, 0)
-    if c == 0x41:
-        if avail < 4: return (WAIT, 0)
-        if buf[3] == 0x7D: return (READY, 4)
-        if avail >= 5:
-            return (READY, 5) if buf[4] == 0x7D else (FAKE, 0)
-        return (WAIT, 0)
-    varlen = False
-    if c == 0x36:
-        if avail < 3: return (WAIT, 0)
-        t = buf[2]
-        if t == 0x30: lo, hi = 15, 16
-        elif t == 0x31: lo, hi = 24, 25
-        else: return (FAKE, 0)
-    elif c == 0x37:
-        if avail < 3: return (WAIT, 0)
-        v = buf[2]
-        if 0x30 <= v <= 0x37: lo, hi = 4, 5
-        elif v == 0x38: varlen = True; lo = hi = 0
-        else: return (FAKE, 0)
-    else:
-        lo, hi = {0x31:(3,4), 0x32:(3,4), 0x35:(3,4), 0x33:(20,21),
-                  0x34:(67,68), 0x38:(4,5), 0x39:(4,5)}[c]
-    if varlen:
-        max_scan = min(avail, SC_MTC_PAYLOAD_MAX)
-        for e in range(5, max_scan):
-            if buf[e] != 0x7D: continue
-            ln = e + 1
-            if mtc_bcc_calc(buf[:ln], ln) == buf[ln-2]:
-                return (READY, ln)
-        if avail >= SC_MTC_PAYLOAD_MAX: return (FAKE, 0)
-        return (WAIT, 0)
-    if avail >= lo and buf[lo-1] == 0x7D: return (READY, lo)
-    if avail >= hi:
-        return (READY, hi) if buf[hi-1] == 0x7D else (FAKE, 0)
+    # '1'~'9' + 7B 40~45（'A'=0x41 含于后者）
+    if not (0x31 <= c <= 0x39 or 0x40 <= c <= 0x45): return (FAKE, 0)
+    lim = min(avail, SC_MTC_PAYLOAD_MAX)
+    for e in range(2, lim):
+        if buf[e] == 0x7D: return (READY, e + 1)
+    if avail >= SC_MTC_PAYLOAD_MAX: return (FAKE, 0)
     return (WAIT, 0)
 
 def qh_probe(buf):
@@ -138,8 +101,8 @@ def ol_probe(buf):
     if avail < ln: return (WAIT, 0)
     return (READY, ln) if buf[ln-1] == 0xFF else (FAKE, 0)
 
-CHAIN = [('RLS', rls_probe), ('QH', qh_probe), ('ETC', etc_probe),
-         ('MTC', mtc_probe), ('OL', ol_probe)]
+CHAIN = [('QH', qh_probe), ('RLS', rls_probe), ('ETC', etc_probe),
+         ('MTC', mtc_probe), ('OL', ol_probe)]  # 注册序：qh < rls < sc_etc < sc_mtc < sc_ol
 
 def run(stream, feed_limit=10000):
     """模拟 dispatch：stream 逐字节到达（每个事件一次完整探测轮）。"""
@@ -194,15 +157,14 @@ cases.append(("ETC 亮度 0A 40 03 00 0D", b(0x0A,0x40,0x03,0x00,0x0D)))
 cases.append(("MTC 初始化 {1}", b'{1}'))
 cases.append(("MTC 点阵 7B 41 00 7D (16点阵)", b'\x7B\x41\x00\x7D'))
 cases.append(("MTC 字体 7B 42 00 7D (宋体)", b'\x7B\x42\x00\x7D'))
-cases.append(("MTC 颜色 {A1 } + BCC", b'\x7B\x41\x31\x7D\x7D'))
+cases.append(("MTC 颜色 {A1 0x70 }（BCC=0x70 不校验）", b'\x7B\x41\x31\x70\x7D'))
 cases.append(("MTC '4' 全屏 67B", b'{4' + b'A'*64 + b'}'))
+cases.append(("MTC '{3 1 1234 } 3 }'（用户乱码帧，'}' 定界变长）", b'\x7B\x33\x31\x31\x32\x33\x34\x7D\x33\x7D'))
+cases.append(("MTC '{3 1 1234 } 3 }' ×2 粘包", b'\x7B\x33\x31\x31\x32\x33\x34\x7D\x33\x7D'*2))
+cases.append(("MTC '4' 全屏变长 25B", b'{4' + b'B'*22 + b'}'))
 cases.append(("MTC '6' 客车 15B", b'{60' + b'0123456789A' + b'}'))  # 3+11
-# 手工构造 '78' 帧：BCC = '7'^'8'^text
-def mk_78(text):
-    bcc = ord('7')^ord('8')
-    for x in text: bcc ^= x
-    return b'{78' + text + b(bcc) + b'}'
-cases.append(("MTC '78' 自定义语音(含GBK)", mk_78(b'\xB3\xB5\xC6\xBD\xB0\xB2')))
+# 手工构造 '78' 帧：无 BCC（'}' 定界后 BCC 语义取消，文本直至 '}'）
+cases.append(("MTC '78' 自定义语音(含GBK)", b'{78' + b'\xB3\xB5\xC6\xBD\xB0\xB2' + b'}'))
 cases.append(("MTC 0A 46 0A 主机查询", b(0x0A,0x46,0x0A)))
 cases.append(("MTC 0A 46 0D 清屏", b(0x0A,0x46,0x0D)))
 cases.append(("治超 清屏 FF 07 94 00 00 BCC FF", mk_ol(0x94, 0, b'\x00')))
@@ -255,7 +217,7 @@ print("\n=== 场景：卡死检测（任何 probe WAIT 且流中断时缓冲区�
 stall = [
     ("0xFF 0x07 垃圾(仅2B, 治超 WAIT)", b(0xFF,0x07)),
     ("0x0A 0x00 0x00 无0x0D (ETC WAIT 短流)", b(0x0A,0x00,0x00,0xB3)),
-    ("'{' 'A' 0x01 残帧 (MTC/QH WAIT)", b'{',0x41,0x01),
+    ("'{' 'A' 0x01 残帧 (MTC/QH WAIT)", b(0x7B, 0x41, 0x01)),
     ("0xFF 0x10 数据不足 (治超 WAIT)", b(0xFF,0x10,0x94,0x00)),
     ("'78' 未闭合无BCC (MTC WAIT)", b'{78'+b'AB'),
 ]

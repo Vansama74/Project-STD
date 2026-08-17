@@ -3,8 +3,8 @@
  * @brief   四川 ETC 费显协议（1D）帧解析
  *
  * 帧结构：0x0A + 显示方式 + 行号 + 数据 + 0x0D；数据变长（0x0D 定界，无固定 56B 全屏长度），
- * 单行 ≤24B、全屏 ≤145B（GBK，汉字高位在前），上限取自参考项目 9K1F212701。
- * 数据首字节 0x20=清屏（行号 0 时清全屏）；0x30=初始化（参考项目实际行为=软件复位）。
+ * 单行 ≤24B、全屏 ≤145B（GBK，汉字高位在前）。
+ * 数据首字节 0x20=清屏（行号 0 时清全屏）；0x30=初始化（实际行为=软件复位）。
  * 返回码约定：00 正常 / 01 数据超长 / 02 帧头帧尾或命令编号错误。
  */
 
@@ -12,13 +12,12 @@
 
 /**
  * @brief  ETC 帧各类型最大数据字节数。
- * @note   参考项目 9K1F212701 etc.c `cmd_etc_disPlay_ctrl`：
- *         单行 `if (tempLen - 4 <= 24)` → 数据 ≤24B（12 汉字）；
- *         全屏无独立上限，仅受 0x0D 定界扫描约束（索引 i>148 拒帧）
- *         → tempLen ≤149 → 数据 ≤145B（帧长减 4 字节开销：头 3 + 0D）。
+ * @note   单行数据 ≤24B（12 汉字）；
+ *         全屏无独立上限，仅受 0x0D 定界扫描约束（扫描索引 >148 拒帧）
+ *         → 帧总长 ≤149 → 数据 ≤145B（帧长减 4 字节开销：头 3 + 0D）。
  */
-#define SC_ETC_DATA_MAX_FULL   (145U) /* 全屏（9K1F212701：0x0D 索引 ≤148 → 149-4） */
-#define SC_ETC_DATA_MAX_LINE   (24U)  /* 单行（9K1F212701 上限 24B） */
+#define SC_ETC_DATA_MAX_FULL   (145U) /* 全屏（0x0D 定界扫描索引 ≤148 → 149-4） */
+#define SC_ETC_DATA_MAX_LINE   (24U)  /* 单行（上限 24B） */
 #define SC_ETC_DATA_MAX_SCROLL (142U) /* 滚屏数据（协议 §9 帧 0A 01 00 md rt st d0..dn 0D：
                                         * 7 字节帧开销 → 149-7=142，与 0x0D 定界上限一致） */
 
@@ -112,7 +111,7 @@ sc_etc_parsed_cmd_t sc_etc_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.p.display.text     = &raw[6];
                 cmd.p.display.text_len = (uint16_t)(raw_len - 7U);
             } else {
-                if (cmd.p.display.row > 6U) { /* 参考 9K1F212701：单行行号 1~6，0=全屏 */
+                if (cmd.p.display.row > 6U) { /* 单行行号 1~6，0=全屏 */
                     cmd.sta = SC_ETC_PARSE_ERR_PARAM;
                     break;
                 }

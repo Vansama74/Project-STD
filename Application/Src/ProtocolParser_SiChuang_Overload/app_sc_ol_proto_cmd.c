@@ -9,7 +9,7 @@
  * 应答帧构造说明（文档 3.5.1 (7) 示例内部不一致）：
  *   文档 A1~A5 示例长度字段为 0x20(32) 但示例帧实际 20 字节（数据 14B，7 字），
  *   空行示例仅 7 字节。本实现维持「16B/行」固定应答（FF 16 A<n> <亮度> <16B 数据> BCC FF）
- *   以兼容既有测试工具；行存储本身已变长（≤24B，9K1F212701 语义，参考项目无应答实现可依）。
+ *   以兼容既有测试工具；行存储本身已变长（≤24B，不足不补空格、超长截断）。
  *   B6/B9/B8 应答按文档原文回显：FF 07 <命令> 00 <当前值> BCC FF。
  */
 
@@ -26,12 +26,12 @@
 
 /* ---- 当前屏状态（查询应答回显用）---- */
 static uint8_t s_ol_lines[SC_OL_LINE_COUNT][SC_OL_LINE_TEXT_MAX]; /**< 八行显示内容（空行 0x00） */
-static uint8_t s_ol_line_len[SC_OL_LINE_COUNT]; /**< 各行实际文本长度（变长数据，9K1F212701 语义） */
+static uint8_t s_ol_line_len[SC_OL_LINE_COUNT]; /**< 各行实际文本长度（变长数据） */
 static uint8_t s_ol_brightness = 0xFF; /**< 当前亮度（00 最暗，FF 最亮，初始最亮） */
 static uint8_t s_ol_lane       = 0x00; /**< 通行灯状态（00 红 / 01 绿） */
 static uint8_t s_ol_flash      = 0x00; /**< 黄闪状态（00 关 / 01 开） */
 
-/** 显示颜色跟踪：参考 9K1F212701 全局 fontColor —— 显示颜色跟随通行灯状态
+/** 显示颜色跟踪：显示颜色跟随通行灯状态
  *  （99 帧 00=红 / 01=绿；上电默认绿）。 */
 static display_color_t s_ol_color = COLOR_GREEN;
 
@@ -95,7 +95,7 @@ static void _sc_ol_clear_screen(void)
  */
 static void _sc_ol_exec_line(const sc_ol_line_t *p)
 {
-    /* 变长数据存储（9K1F212701：不足不补空格，>24B 截断） */
+    /* 变长数据存储（不足不补空格，>24B 截断） */
     uint8_t n = (uint8_t)((p->text_len > SC_OL_LINE_TEXT_MAX) ? SC_OL_LINE_TEXT_MAX : p->text_len);
     memset(s_ol_lines[p->row], 0, SC_OL_LINE_TEXT_MAX);
     memcpy(s_ol_lines[p->row], p->text, n);
@@ -105,7 +105,7 @@ static void _sc_ol_exec_line(const sc_ol_line_t *p)
     if (!d)
         return;
 
-    /* 参考 9K1F212701 MakeSixteenLattOneLine：先整行清黑再渲染收到内容 */
+    /* 先整行清黑再渲染收到内容 */
     dev_display_fill(d, 0, (uint16_t)p->row * FONT_16, d->screen_rows, FONT_16, COLOR_BLACK);
     dev_display_commit_frame(d);
 
@@ -120,7 +120,7 @@ static void _sc_ol_exec_line(const sc_ol_line_t *p)
             .v_align   = ALIGN_LEFT_UP,
             .word_wrap = false,
         },
-        .color     = s_ol_color, /* 参考 9K1F212701：显示颜色跟随通行灯状态 */
+        .color     = s_ol_color, /* 显示颜色跟随通行灯状态 */
         .text      = (const char *)s_ol_lines[p->row],
         .len       = n,
         .font_size = FONT_16,
@@ -131,8 +131,7 @@ static void _sc_ol_exec_line(const sc_ol_line_t *p)
 
 /**
  * @brief  执行 80 全屏显示：先整屏清黑再自动换行渲染（0 数据帧 = 清屏）。
- * @note   参考 9K1F212701 cmd_disPlayAll_ctrl → makefonttolatt_all：
- *         MakeSixteenLattAll 先 app_funcs_fill(black) 清屏再按屏宽自动排版。
+ * @note   先整屏清黑再按屏宽自动排版渲染。
  * @param  p  全屏显示参数。
  */
 static void _sc_ol_exec_full_screen(const sc_ol_full_screen_t *p)
@@ -169,8 +168,7 @@ static void _sc_ol_exec_full_screen(const sc_ol_full_screen_t *p)
 
 /**
  * @brief  执行亮度调节：XX 00=自动调光 / 01~FF 映射硬件 1~8 档（FF 最亮）。
- * @note   参考 9K1F212701 cmd_setLight_ctrl：val==0 → 开启自动调光
- *         （setlightflag=true）；非 0 → 关闭自动调光，lightLev=(val+1)/32。
+ * @note   val==0 → 开启自动调光；非 0 → 关闭自动调光，硬件档=(val+1)/32。
  * @param  val  亮度原始值。
  */
 static void _sc_ol_exec_brightness(uint8_t val)
@@ -186,7 +184,7 @@ static void _sc_ol_exec_brightness(uint8_t val)
     }
     if (g_light_sensor_task_handle != nullptr)
         osThreadSuspend(g_light_sensor_task_handle);    /* 关闭自动调光 */
-    dev_display_set_brightness(d, (uint8_t)((val + 1U) / 32U)); /* 参考 lightLev=(val+1)/32：31~62→1 … 224~255→8 */
+    dev_display_set_brightness(d, (uint8_t)((val + 1U) / 32U)); /* (val+1)/32：31~62→1 … 224~255→8 */
 }
 
 /**
@@ -233,7 +231,7 @@ void sc_ol_execute_cmd(channel_t *ch, const sc_ol_parsed_cmd_t *cmd)
             break;
         case SC_OL_PCMD_LANE_LIGHT:
             s_ol_lane = cmd->p.byte_val.val;
-            /* 参考 9K1F212701：通行灯命令同步更新显示颜色 fontColor */
+            /* 通行灯命令同步更新显示颜色 */
             s_ol_color = (s_ol_lane != 0U) ? COLOR_GREEN : COLOR_RED;
             dev_io_lane_light(s_ol_lane != 0U); /* 00 红 / 01 绿 */
             break;

@@ -4,8 +4,8 @@
  *
  * 帧格式：`FF + 长度(1B，含头尾总长 07~FF，0xFE 排除防 RLS 吞帧) + 命令 + 亮度(00~FF) +
  * 数据(行显示变长 ≤24B；全屏可变长 ≤249B) + BCC + FF`。
- * BCC = 帧头/长度/命令/亮度/数据段五字段逐字节异或（参考 9K1F212701 weight.c xorCheck）。
- * 全屏显示 80；行显示 81~88（参考项目支持 8 行）；清屏 94；亮度 96（00=自动调光）；
+ * BCC = 帧头/长度/命令/亮度/数据段五字段逐字节异或。
+ * 全屏显示 80；行显示 81~88（支持 8 行）；清屏 94；亮度 96（00=自动调光）；
  * 通行灯 99（00红/01绿）；黄闪 98（00关/01开）；
  * 查询类（屏须应答）：A0 取显示内容 → A1~A8 每行独立帧；B6 取亮度；B9 取通行灯；B8 取黄闪。
  */
@@ -14,11 +14,11 @@
 #include <stdint.h>
 #include "app_dispatch.h"
 
-/** 帧最小/最大长度（FF 07 94 00 BCC FF = 7；长度字段 1 字节，上限 255 对齐参考 9K1F212701，容纳 0x80 全屏长数据段） */
+/** 帧最小/最大长度（FF 07 94 00 BCC FF = 7；长度字段 1 字节，上限 255，容纳 0x80 全屏长数据段） */
 #define SC_OL_FRAME_LEN_MIN (7U)
 #define SC_OL_FRAME_LEN_MAX (0xFFU)
 
-/** 每行数据字节数（8 列 × 2，应答帧用；9K1F212701 行显示数据=列数×2）与行文本上限（FONT16 24B，参考 9K1F212701 makefonttolatt_oneline 截断） */
+/** 每行数据字节数（8 列 × 2，应答帧用；行显示数据=列数×2）与行文本上限（FONT16 24B，超长截断） */
 #define SC_OL_BYTES_PER_LINE (16U)
 #define SC_OL_LINE_TEXT_MAX  (24U)
 #define SC_OL_LINE_COUNT     (8U)
@@ -27,7 +27,7 @@
  * @brief 治超协议命令类型。
  */
 typedef enum {
-    SC_OL_PCMD_FULL_SCREEN = 0, /**< 80 全屏显示（参考 9K1F212701 getCmdNo 0x80） */
+    SC_OL_PCMD_FULL_SCREEN = 0, /**< 80 全屏显示 */
     SC_OL_PCMD_LINE_1,       /**< 81 第一行显示 */
     SC_OL_PCMD_LINE_2,       /**< 82 第二行显示 */
     SC_OL_PCMD_LINE_3,       /**< 83 第三行显示 */

@@ -45,8 +45,8 @@
 | `app_iap.c` | provide RJ45；**仅 UDP**；`IAP_QUEUE_DEPTH=2` |
 | `app_ldi.c` | provide RJ45；**无 485/232**；`LDI_QUEUE_DEPTH=4` |
 | `app_qh_proto.c` | provide 485+232；`QH_PAYLOAD_MAX=259`；`QH_QUEUE_DEPTH=3` |
-| `app_sc_etc_proto.c` | provide 485+232；`SC_ETC_PAYLOAD_MAX=149`；`SC_ETC_QUEUE_DEPTH=3`；心跳计时任务 |
-| `app_sc_mtc_proto.c` | provide 485+232；`SC_MTC_PAYLOAD_MAX=74`；`SC_MTC_QUEUE_DEPTH=3`；'{' BCC 校验 probe |
+| `app_sc_etc_proto.c` | provide 485+232；`SC_ETC_PAYLOAD_MAX=149`；`SC_ETC_QUEUE_DEPTH=3`；心跳计时任务（2026-08-17 已停用，见「修订」） |
+| `app_sc_mtc_proto.c` | provide 485+232；`SC_MTC_PAYLOAD_MAX=74`；`SC_MTC_QUEUE_DEPTH=3`；'{' '}' 定界变长 probe（上限 74B） |
 | `app_sc_ol_proto.c` | provide 485+232；`SC_OL_PAYLOAD_MAX=249`；`SC_OL_QUEUE_DEPTH=3`；FF+len probe（07~FF，0xFE 排除） |
 | `app_uart_baud.c` | DIP1 波特率选择 + `pl_uart_set_baud` 运行态切换（RS232+RS485） |
 | `app_rls.c` | provide 485；`mem_pool[RLS_PAYLOAD_MAX]`；`RLS_QUEUE_DEPTH=2` |
@@ -109,8 +109,7 @@
 | 用例 | 期望 |
 |------|------|
 | RS485 青海 / RLS 帧 | 各自 READY；RLS 满长 ≤530 可 READY |
-| 四川 MTC '{' 帧（无 BCC 参考格式） | '1','2','5'→3B；'3'→20B；'4'→67B；'6'→15/24B；'7'固定→4B；'8','9'→4B 全部 READY（BCC 不校验，9K1F212701 语义） |
-| 四川 MTC '{' 帧（带 BCC 变体） | 帧长 +1 变体同样 READY（字段按长度定位） |
+| 四川 MTC '{' 帧（'}' 定界变长） | '1','2','5'→3B；'3' 单行行号[2]+变长文本[3..]；'4' 全屏变长文本[2..]；'6' 客车 ≥15B/货车 ≥24B（数字串 ≥11/20B）；'7'固定→4B、'78' 自定义文本变长；'8','9'→4B 全部 READY（无 BCC，9K1F212701 语义） |
 | 四川 ETC 0A 帧 | 行号 0~6；单行 ≤24B；0x30 → 软件复位（9K1F212701 语义） |
 | 四川治超 FF 帧 | 80 全屏 + 81~88 八行；亮度 00=自动调光（9K1F212701 语义） |
 | TEST 键 | 任意业务数据到达仅中止当前检测序列，monitor 回 IDLE；TEST 键始终可用（9K1F212701：收包清 testMode，按键扫描持续） |
@@ -145,3 +144,7 @@
   - ETC 行号 1~6、单行 ≤24B、0x30 软件复位、显示颜色跟随通行灯；
   - 治超 80 全屏显示 + 81~88 八行、亮度 00 自动调光、颜色跟随通行灯；
   - TEST 键：`app_factory_mode_interrupt` 由销毁 factory_monitor 任务改为置中止标志，monitor 分片等待回 IDLE。
+- 2026-08-17：MTC '{' 帧族改「'}' 定界变长」（对齐 9K1F212701 mtc.c 逐字节扫 '}'），废除定长双长度与 '78' BCC 校验；修复上位机 `{3 1 1234 } 3 }`（10B）单行乱码（旧定长 probe 跨帧拼凑 20B 认领含 '}'/'{' 垃圾文本）；字段偏移按变长重算；payload 仍 74B；宿主推演 `tool/sc_mtc_frame_sim.py`（`--old` 复现）。MTC vs 青海残余风险更新为「青海帧数据段含 0x7D 且半帧到达被截断认领」（01 §6、doc/CLAUDE.md 帧头冲突纪律）。
+- 2026-08-17（ETC 心跳停用 + MTC '4' 全屏换行修复）：
+  - ETC 心跳计时任务 #if 0 停用、任务不再创建（ucHeap 任务栈 -1KB）：5 分钟超时「ETC车道关闭」显示不再生效；黄闪 0A 38 开启后的 10 秒自动关闭依赖同一任务 tick 一并失效，须 0A 39 显式关闭；0A 50 心跳帧解析保留（识别后丢弃）；`sc_etc_show_lane_closed`/`sc_etc_hs_timeout`/`sc_etc_activity_refresh` 保留待恢复（无引用，链接期 gc-sections 丢弃）。恢复方法见 `app_sc_etc_proto.c` 注释；
+  - MTC '4' 全屏渲染改整屏 word_wrap（w=屏宽、h=整屏高、word_wrap=true，先清屏后渲染）：原 16B/行固定切 ≤4 行且单行 word_wrap=false，第一行超宽溢出被裁、超 64B 文本被丢弃；'3' 单行保持 word_wrap=false + h=当前字号（截断语义，未变）。

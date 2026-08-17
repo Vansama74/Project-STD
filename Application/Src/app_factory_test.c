@@ -43,8 +43,8 @@ osThreadId_t g_factory_test;
 /* ---- 业务数据中止机制 ----
  * 业务数据（任意通道）到达时 app_factory_mode_interrupt() 置位本标志。
  * monitor 任务不销毁、不回退：各按键等待点分片唤醒检查标志，中止当前
- * 检测序列后回到 IDLE 继续等待 TEST 键。参考裸机 9K1F212701：
- * 收包仅清 testMode/testKey，主循环按键扫描持续运行，TEST 键始终可用。 */
+ * 检测序列后回到 IDLE 继续等待 TEST 键。业务数据到达仅中止当前
+ * 检测序列，按键扫描持续运行，TEST 键始终可用。 */
 static volatile bool s_factory_abort;
 
 /**
@@ -313,7 +313,7 @@ sw_app_initcall(_factory_test_init);
 
 /* 收到业务数据时中止工厂监控当前序列（置中止标志，monitor 任务回 IDLE 重新待机）。
  * 不销毁任务：TEST 键出厂检测/老化入口必须随时可用。
- * 参考 9K1F212701 裸机：收包仅清 testMode/testKey，按键扫描持续运行。 */
+ * 业务数据到达仅中止当前检测序列，按键扫描持续运行。 */
 void app_factory_mode_interrupt(void)
 {
     s_factory_abort = true;

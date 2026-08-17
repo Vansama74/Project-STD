@@ -22,11 +22,6 @@
 #include "dev_rs232_voice.h"
 #include "app_sc_mtc_proto_voice.h"
 
-/** 每行数据字节数（8 个汉字） */
-#define SC_MTC_BYTES_PER_LINE (16U)
-/** 屏上行数 */
-#define SC_MTC_LINE_COUNT     (4U)
-
 /* ---- 显示状态（7B 41/42/'A' 修改，后续显示命令生效）---- */
 static display_color_t s_mtc_color      = COLOR_RED; /* 'A' 默认红 */
 static font_size_t s_mtc_font_size      = FONT_16;   /* 7B 41 默认 16 点阵 */
@@ -52,7 +47,7 @@ static void _sc_mtc_clear_screen(void)
  * @param  row    行索引 0~5（协议行号 '1'~'6'，FONT16 下 6 行屏）。
  * @param  text   文本（GBK/ASCII 混合）。
  * @param  len    文本字节数。
- * @note   参考 9K1F212701 MakeSixteenLattOneLine：先整行清黑再渲染收到内容
+ * @note   先整行清黑再渲染收到内容
  *         （文本短于行宽时旧内容残留必须清除）。
  */
 static void _sc_mtc_render_line(uint8_t row, const uint8_t *text, uint16_t len)
@@ -148,7 +143,7 @@ static void _sc_mtc_exec_self_check(void)
 
 /**
  * @brief  执行 '3' 单行显示。
- * @param  p  单行参数（行号 + 16B）。
+ * @param  p  单行参数（行号 + 变长文本）。
  */
 static void _sc_mtc_exec_one_line(const sc_mtc_one_line_t *p)
 {
@@ -156,27 +151,48 @@ static void _sc_mtc_exec_one_line(const sc_mtc_one_line_t *p)
 }
 
 /**
- * @brief  执行 '4' 全屏显示：先整屏清黑，64B 按 16B/行切 4 行渲染。
+ * @brief  执行 '4' 全屏显示：先整屏清黑，变长文本按屏宽自动换行渲染。
  * @param  p  全屏参数。
- * @note   参考 9K1F212701 cmd_mtc_displayall_ctrl → makefonttolatt_all：先清屏
- *         再渲染；文档「4行×8列共32汉字」→ 4 行 × 16B（每行 8 汉字）布局。
+ * @note   先清屏再渲染（字库引擎按屏宽自动排版）。对齐四川 ETC 全屏与
+ *         治超 80 全屏先例：w=screen_rows（屏宽）、h=screen_cols（整屏高）、
+ *         word_wrap=true，由渲染引擎按当前字号（7B 41 可改）自动折行。
+ *         旧实现按 16B/行固定切分 ≤4 行且单行 word_wrap=false：第一行超宽时
+ *         溢出被裁、总文本超 64B 被丢弃，故弃用。
  */
 static void _sc_mtc_exec_full_screen(const sc_mtc_full_screen_t *p)
 {
-    _sc_mtc_clear_screen();
-    const uint8_t *cur = p->text;
-    uint16_t remain    = p->text_len;
-    for (uint8_t i = 0; i < SC_MTC_LINE_COUNT && remain > 0U; i++) {
-        uint16_t n = (remain > SC_MTC_BYTES_PER_LINE) ? SC_MTC_BYTES_PER_LINE : remain;
-        _sc_mtc_render_line(i, cur, n);
-        cur += n;
-        remain -= n;
+    dev_display_t *d = dev_display_get();
+    if (!d)
+        return;
+
+    dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_BLACK);
+    if (p->text_len == 0U) {
+        dev_display_commit_frame(d);
+        return;
     }
+
+    app_render(&(render_cfg_t){
+        .type      = RENDER_TEXT,
+        .x         = 0,
+        .y         = 0,
+        .w         = d->screen_rows,
+        .h         = d->screen_cols,
+        .style     = &(render_style_t){
+            .h_align   = ALIGN_LEFT_UP,
+            .v_align   = ALIGN_LEFT_UP,
+            .word_wrap = true,
+        },
+        .color     = s_mtc_color,
+        .text      = (const char *)p->text,
+        .len       = p->text_len,
+        .font_size = s_mtc_font_size,
+        .font_type = s_mtc_font_type,
+        .text_enc  = FONT_ENC_GBK,
+    });
 }
 
 /**
- * @brief  执行 '6' 固定格式显示（客车 X1~X11 / 货车 X1~X20，参考 9K1F212701 mtc.c
- *         cmd_mtc_fixdisplay_ctrl 字段布局）。
+ * @brief  执行 '6' 固定格式显示（客车 X1~X11 / 货车 X1~X20 字段布局）。
  * @param  p  固定格式参数。
  *
  * 客车（type=0，X0='0' 后 11B）：
@@ -203,8 +219,8 @@ static void _sc_mtc_exec_fixed(const sc_mtc_fixed_t *p)
     uint16_t buf_len[4] = {0};
     uint8_t line_count  = 0;
 
-    /* p->raw 由 parse 定位在 X1 起（参考 9K1F212701 mtc.c cmd_mtc_fixdisplay_ctrl：
-     * inbuf[3]=X1）；此前实现误再偏移一位导致各字段整体错位 */
+    /* p->raw 由 parse 定位在 X1 起（X1 为首参数字节）；
+     * 此前实现误再偏移一位导致各字段整体错位 */
     const uint8_t *dta = p->raw; /* X1 起 */
 
     if (p->type == 0U) {
@@ -273,8 +289,7 @@ static void _sc_mtc_exec_fixed(const sc_mtc_fixed_t *p)
 /**
  * @brief  执行 '8' 亮度设定：0 开启自动调光（光敏），1~8 直接映射硬件档。
  * @param  val  亮度值 0~8（二进制或 ASCII 均由 parse 归一）。
- * @note   参考 9K1F212701 cmd_mtc_setlight_ctrl：0 → setlightflag=true（自动调光）；
- *         1~8 → setlightflag=false + lightLev=val（直接映射）。
+ * @note   0 → 自动调光；1~8 → 关闭自动调光并直接映射硬件档。
  */
 static void _sc_mtc_exec_brightness(uint8_t val)
 {

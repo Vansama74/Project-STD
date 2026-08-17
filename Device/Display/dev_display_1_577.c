@@ -21,8 +21,8 @@
  * ================================================================ */
 #define MODULE_CODE                "1000000577"
 
-#define _1_577_MODULE_ROWS         (3U)  /* 每行模块数（水平） */
-#define _1_577_MODULE_COLS         (3U)  /* 每列模块数（垂直） */
+#define _1_577_MODULE_ROWS         (1U)  /* 每行模块数（水平） */
+#define _1_577_MODULE_COLS         (1U)  /* 每列模块数（垂直） */
 #define _1_577_MODULE_PIXEL_ROW    (64U) /* 单模块每行的像素个数 */
 #define _1_577_MODULE_PIXEL_COL    (32U) /* 单模块每列的像素个数 */
 #define _1_577_CHANNELS_PER_MODULE (2U)  /* 每模块通道数（R1G1B1 + R2G2B2） */
