@@ -231,13 +231,22 @@ void frame_dispatch_task(void *argument)
     uint32_t frame_len = 0; /**< 探测到的完整帧长度 */
     uint8_t aux        = 0; /**< 辅助信息（如命令码） */
 
+    /* WAIT 头阻塞预算状态（跨通知连续计时，本任务单消费者独占） */
+    static bool     s_wait_active = false; /**< 连续 any_wait 预算激活 */
+    static uint32_t s_wait_tick   = 0;     /**< 预算起点 tick */
+    static uint16_t s_wait_avail  = 0;     /**< 预算起点的 avail（检测增长） */
+
     for (;;) {
         /* 阻塞等待：任一通道收到数据时唤醒 */
         if (osMessageQueueGet(g_dispatch.ch_queue, &ch, NULL, osWaitForever) != osOK)
             continue;
 
-        /* 通道已销毁或未初始化，跳过 */
-        if (ch == nullptr) continue;
+        /* 通道回验：通知携带的指针必须仍注册在案，否则丢弃该通知。
+         * 防御连接任务退出后栈上通道实例悬垂（配合通道静态化根治）：
+         * 已注销（get 返回 NULL 或其它实例）的脏通知不进调度，
+         * 也避免用野 ch_id 越界索引 ch_proto_map。 */
+        if (ch == nullptr || app_channel_get(ch->ch_id) != ch)
+            continue;
 
         /* 根据通道 ID 查表获得该通道承载的协议掩码 */
         proto_mask_t proto = g_dispatch.ch_proto_map[ch->ch_id];
@@ -267,11 +276,20 @@ void frame_dispatch_task(void *argument)
             rb_lock(rb);
             uint16_t avail = rb_avail(rb, nullptr);
 
-            /* 内循环：从同一缓冲区中连续提取多帧 */
+            /* 内循环：从同一缓冲区中连续提取多帧。
+             * 防御性迭代上限：单轮通知最多解析 64 帧，超出则强制丢 1 字节
+             * 重同步后退出，杜绝任何异常路径（如 SKIP 0 字节）死循环。 */
+            uint8_t inner_guard = 0;
             while (avail > 0) {
-                bool any_wait   = false; /* 有协议：帧头可能匹配但数据不足 */
-                bool any_fake   = false; /* 有协议：明确不是我的帧 */
-                bool any_parsed = false; /* 有协议：READY 读走或 SKIP 跳过 */
+                if (++inner_guard > 64U) {
+                    avail -= rb_skip(rb, 1, nullptr);
+                    break;
+                }
+
+                bool any_wait    = false; /* 有协议：帧头可能匹配但数据不足 */
+                bool any_fake    = false; /* 有协议：明确不是我的帧 */
+                bool any_overrun = false; /* 有协议：frame_len 越界不可信 */
+                bool any_parsed  = false; /* 有协议：READY 读走或 SKIP 跳过 */
 
                 /* 按协议优先级顺序探测已注册协议 */
                 uint32_t inner_iter = g_dispatch.registered_mask;
@@ -288,29 +306,51 @@ void frame_dispatch_task(void *argument)
                     proto_probe_sta_t state = g_dispatch.proto_probe[j](ch, rb, &frame_len, &aux);
 
                     if (state == PROTO_PROBE_READY) {
-                        /* 完整帧就绪：从缓冲区读出 → 推入协议处理队列 */
-                        if (avail >= frame_len) {
-                            uint16_t actual = rb_read(rb, msg->data, frame_len, nullptr);
-                            avail           = rb_avail(rb, nullptr);
+                        /* 越界钳制：frame_len > 静态缓冲上限（1044B）时不可信，
+                         * 不消费该帧；本轮不置 any_parsed，交给外层决策按
+                         * 重同步 skip 1 字节处理，防止 rb_read 写穿缓冲。 */
+                        if (frame_len > FRAME_DATA_MAX_LEN) {
+                            any_overrun = true;
+                            break;
+                        }
 
-                            if (actual == frame_len) {
-                                msg->data_len = frame_len;
-                                msg->ch       = ch;
-                                osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0);
-                            } else {
-                                /* 异常：读出字节数不匹配，丢弃已读部分 */
-                                rb_skip(rb, actual, nullptr);
-                                avail = rb_avail(rb, nullptr);
-                            }
+                        /* 帧头已匹配但数据未到齐：置 any_wait 等新字节，
+                         * 不再置 any_parsed —— 旧代码此处置位而 avail 不变，
+                         * 内层 while 空转活锁。 */
+                        if (avail < frame_len) {
+                            any_wait = true;
+                            break;
+                        }
+
+                        /* 完整帧就绪：从缓冲区读出 → 推入协议处理队列 */
+                        uint16_t actual = rb_read(rb, msg->data, frame_len, nullptr);
+                        avail           = rb_avail(rb, nullptr);
+
+                        if (actual == frame_len) {
+                            msg->data_len = frame_len;
+                            msg->ch       = ch;
+                            osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0);
+                        } else {
+                            /* 异常：读出字节数不匹配，丢弃已读部分 */
+                            rb_skip(rb, actual, nullptr);
+                            avail = rb_avail(rb, nullptr);
                         }
                         any_parsed = true;
                         break; /* 成功解析一帧，回到 while 继续下一帧 */
 
                     } else if (state == PROTO_PROBE_SKIP) {
-                        /* 帧结构合法但不属于本设备，跳过整帧 */
-                        if (avail >= frame_len) {
-                            avail -= rb_skip(rb, frame_len, nullptr);
+                        /* 帧结构合法但不属于本设备，跳过整帧。
+                         * frame_len 越界同样不可信 → 交外层重同步处理。 */
+                        if (frame_len > FRAME_DATA_MAX_LEN) {
+                            any_overrun = true;
+                            break;
                         }
+                        /* 数据未到齐 → 置 any_wait 等新字节（防空转） */
+                        if (avail < frame_len) {
+                            any_wait = true;
+                            break;
+                        }
+                        avail -= rb_skip(rb, frame_len, nullptr);
                         any_parsed = true;
                         break; /* SKIP 与 READY 一样终止本轮链路 */
 
@@ -324,18 +364,38 @@ void frame_dispatch_task(void *argument)
                     }
                 }
 
-                /* 无协议成功解析时的决策（§3.2 修复后语义）:
-                 *   any_wait  → 禁止 skip，等更多字节
-                 *   !any_wait && any_fake → 全部不认识，skip 1 字节重同步
-                 *   !any_wait && !any_fake → 空缓冲区异常保护
+                /* 无协议成功解析时的决策:
+                 *   any_wait    → 禁 skip，等更多字节（带 500ms 时间预算防
+                 *                  帧头匹配后数据永不到齐的挂死）
+                 *   any_overrun → frame_len 越界不可信，skip 1 字节重同步
+                 *   any_fake    → 全部不认识，skip 1 字节重同步
+                 *   其它        → 空缓冲区异常保护（防死循环）
                  */
                 if (!any_parsed) {
-                    if (any_wait)
-                        break;           /* 等待更多数据到达 */
-                    else if (any_fake)
+                    if (any_wait) {
+                        /* 时间预算依据：串口 9600 波特率下最大帧 259B 传完约
+                         * 259*10/9600 ≈ 270ms，500ms 预算留足余量，不误伤
+                         * "帧头已匹配、载荷未到齐"的正常等待。 */
+                        uint32_t now = osKernelGetTickCount();
+                        if (!s_wait_active || avail > s_wait_avail) {
+                            /* 首次等待 / 有新字节到达 → 重置预算起点 */
+                            s_wait_active = true;
+                            s_wait_tick   = now;
+                            s_wait_avail  = avail;
+                        } else if ((now - s_wait_tick) > pdMS_TO_TICKS(500U)) {
+                            /* 500ms 无消费且 avail 未增长 → 强制重同步 */
+                            avail -= rb_skip(rb, 1, nullptr);
+                            s_wait_active = false;
+                        }
+                        break; /* 等待更多数据到达 */
+                    } else if (any_fake || any_overrun) {
+                        s_wait_active = false; /* 有字节被消费，重置预算 */
                         avail -= rb_skip(rb, 1, nullptr); /* 重同步 */
-                    else
+                    } else {
                         break; /* 无协议绑定或探测函数全空，防死循环 */
+                    }
+                } else {
+                    s_wait_active = false; /* 有帧被消费，重置预算 */
                 }
             }
             rb_unlock(rb);
@@ -344,21 +404,27 @@ void frame_dispatch_task(void *argument)
 }
 
 /* ================================================================
- *  app_channel_send — 通道发送（OCP：虚表分派）
+ *  channel_send — 通道发送（OCP：虚表分派）
  *
  *  协议处理任务调用此函数回复数据，通过 ch_ops 虚表分派到
  *  具体通道的 send 实现。新增通道类型无需修改此函数。
  *
- *  安全守卫: ch->ops == nullptr 表示通道已销毁，拒绝发送。
+ *  安全守卫: ch->ops == nullptr 表示通道已销毁，拒绝发送（返回 -1）。
  *            TCP/UDP 连接任务退出前会置 ops = nullptr。
+ *  通道回验: ch 必须仍注册在案（app_channel_get 返回同一指针），
+ *            防御连接任务退出后栈上通道实例悬垂（配合通道静态化根治）；
+ *            ch_id 越界时 app_channel_get 返回 NULL 即不通过。
  * ================================================================ */
 
-void channel_send(channel_t *ch, uint8_t *data, uint16_t len)
+int32_t channel_send(channel_t *ch, uint8_t *data, uint16_t len)
 {
     if (ch == nullptr || ch->ops == nullptr)
-        return;
-    if (ch->ops->send)
-        ch->ops->send(ch, data, len);
+        return -1;
+    if (app_channel_get(ch->ch_id) != ch)
+        return -1;
+    if (ch->ops->send == nullptr)
+        return -1;
+    return ch->ops->send(ch, data, len);
 }
 
 /* ================================================================

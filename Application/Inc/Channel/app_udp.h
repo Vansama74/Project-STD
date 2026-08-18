@@ -2,10 +2,10 @@
  * @file    app_udp.h
  * @brief   UDP 广播接收通道
  *
- * 默认监听端口 10011，同口承载：
+ * 监听端口固定 10011（宏 `LDI_DISCOVERY_PORT`，定义于 app_ldi.h），同口承载：
  *   - 创迪发现口（LDI 21H/12H）
  *   - IAP 固件升级（0x5A5A5A5A）
- * 端口可改，但出厂联调默认保持 10011。
+ * 端口固定，禁止修改接口。
  */
 
 #pragma once
@@ -15,7 +15,8 @@
 #include "cmsis_os2.h"
 #include "app_dispatch.h"
 
-/** @brief UDP 通道子类（每 bind 实例） */
+/** @brief UDP 通道子类（文件级 static 单实例，UAF 根治：
+ *  连接任务重入复用同一实例，ch 指针恒定；dispatch 侧回验兜底） */
 typedef struct {
     channel_t me;
     void *conn; /**< 不透明句柄（中间件 netconn），在 .c 中 cast 回具体类型 */
@@ -37,6 +38,5 @@ static inline osThreadId_t app_udp_start(void)
     return osThreadNew(udp_task, NULL, &udp_task_attr);
 }
 
-void app_udp_set_port(uint16_t port);
 uint16_t app_udp_get_port(void);
 void app_udp_broadcast(const uint8_t *data, uint16_t len);

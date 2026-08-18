@@ -16,7 +16,8 @@
 /* 复用 app_tcp_server.h 中的 tcp_ch_ops */
 #include "app_tcp_server.h"
 
-/** @brief TCP Client 通道子类（单例，自带远端配置） */
+/** @brief TCP Client 通道子类（单例，自带远端配置；连接期实例为
+ *  文件级 static 单实例，UAF 根治：重连复用同一实例，ch 指针恒定） */
 typedef struct {
     channel_t me;
     void *conn; /**< 不透明句柄（中间件 netconn），在 .c 中 cast 回具体类型 */

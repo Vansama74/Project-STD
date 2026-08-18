@@ -1,6 +1,6 @@
 /**
  * @file    app_udp.c
- * @brief   UDP 广播接收通道（默认端口 10011）
+ * @brief   UDP 广播接收通道（端口固定 10011，宏 LDI_DISCOVERY_PORT）
  *
  * 同端口承载两类协议（由 app_dispatch 按帧头分流）：
  *   - 创迪发现口：LDI 21H/12H 搜索
@@ -9,16 +9,13 @@
 
 #include "app_udp.h"
 #include "app_dispatch.h"
+#include "app_ldi.h"
 #include "pl_net.h"
 #include "pl_net_adapt.h"
 
 /* ---- 配置 ---- */
-static uint16_t g_udp_port = 10011; /**< 创迪发现口 + IAP 共用 */
-
-void app_udp_set_port(uint16_t port)
-{
-    g_udp_port = port;
-}
+/* 端口固定（宏 LDI_DISCOVERY_PORT，创迪发现口 + IAP 共用），设计原则禁止修改接口 */
+static uint16_t g_udp_port = LDI_DISCOVERY_PORT;
 
 uint16_t app_udp_get_port(void)
 {
@@ -57,11 +54,18 @@ static void udp_link_listener(bool link_up)
 void udp_connect_task(void *argument);
 
 /* ---- 连接任务属性 ---- */
-const osThreadAttr_t udp_connect_attr = {
+static const osThreadAttr_t udp_connect_attr = {
     .name       = "udp_connect_task",
     .stack_size = 256 * 4,
     .priority   = osPriorityNormal,
 };
+
+/* ---- 文件级单实例通道：UAF 根治 ----
+ * 连接任务退出后栈上通道实例悬垂是历史 UAF 根源。通道实例提为文件级
+ * static，ch 指针生命周期恒定；连接任务重入时复用同一实例（init 重新
+ * 拷贝模板重置状态）。已注销/未注册的旧通知由 dispatch 侧
+ * app_channel_get 回验丢弃（app_dispatch.c）。 */
+static udp_channel_t s_udp_ch;
 
 /* ---- UDP 通道 ops （注意：不能命名为 udp_send，与 LwIP 内部符号冲突）---- */
 static int32_t udp_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
@@ -156,10 +160,9 @@ void udp_connect_task(void *argument)
 {
     struct netconn *conn = (struct netconn *)argument;
 
-    udp_channel_t udp;
-    udp_channel_init(&udp, conn, &g_udp_channel_tmpl);
+    udp_channel_init(&s_udp_ch, conn, &g_udp_channel_tmpl);
 
-    channel_t *ch = &udp.me;
+    channel_t *ch = &s_udp_ch.me;
     struct netbuf *buf;
     err_t err;
 
@@ -170,18 +173,18 @@ void udp_connect_task(void *argument)
             netbuf_data(buf, &data, &len);
             if (len > 0) {
                 const ip_addr_t *addr = netbuf_fromaddr(buf);
-                udp.src_ip[0]         = ip4_addr1((const ip4_addr_t *)addr);
-                udp.src_ip[1]         = ip4_addr2((const ip4_addr_t *)addr);
-                udp.src_ip[2]         = ip4_addr3((const ip4_addr_t *)addr);
-                udp.src_ip[3]         = ip4_addr4((const ip4_addr_t *)addr);
-                udp.src_port          = netbuf_fromport(buf);
+                s_udp_ch.src_ip[0]    = ip4_addr1((const ip4_addr_t *)addr);
+                s_udp_ch.src_ip[1]    = ip4_addr2((const ip4_addr_t *)addr);
+                s_udp_ch.src_ip[2]    = ip4_addr3((const ip4_addr_t *)addr);
+                s_udp_ch.src_ip[3]    = ip4_addr4((const ip4_addr_t *)addr);
+                s_udp_ch.src_port     = netbuf_fromport(buf);
                 app_channel_dispatch(ch, (uint8_t *)data, len);
             }
         } while (netbuf_next(buf) >= 0);
         netbuf_delete(buf);
     }
 
-    udp_channel_deinit(&udp);
+    udp_channel_deinit(&s_udp_ch);
     osSemaphoreRelease(udp_disconnect_sem);
     osThreadExit();
 }
