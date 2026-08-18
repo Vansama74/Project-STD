@@ -299,8 +299,6 @@ SRC_APPLICATION = \
 	Application/Src/app_default_display.c \
 	Application/Src/app_dispatch.c \
 	Application/Src/app_render.c \
-	Application/Src/MSL/app_msl.c \
-	Application/Src/MSL/app_msl_cmd.c \
 	Application/Src/app_key.c \
 	Application/Src/app_light_sensor.c \
 	Application/Src/IAP/app_iap.c \
@@ -337,6 +335,8 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c \
+	Application/Src/MSL/app_msl.c \
+	Application/Src/MSL/app_msl_cmd.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
