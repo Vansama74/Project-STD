@@ -60,7 +60,7 @@
 | 限制 | 状态 / 说明 |
 |------|------|
 | 出厂新机 0AH 改 IP 不同步 Sector1 | **已修复（Q1）**：空 Sector1 写路径完整初始化（镜像 Bootloader 语义），Bootloader/Recovery 可读到该 IP |
-| 0AH 写失败/断电无保护 | **已修复（Q2）**：两步写返回值如实应答（00H/01H），上位机重发恢复；上电同步钩子覆盖 Sector1 空/损坏（均完整初始化自愈，仅升级中间态拒绝覆盖，见 [02 §10](./02_decoupling_solutions.md)）；掉电后按 [02 §8](./02_decoupling_solutions.md) 语义回退 |
+| 0AH 写失败/断电无保护 | **已修复（Q2）**：两步写返回值如实应答（00H/01H），上位机重发恢复；上电同步钩子覆盖 Sector1 空/损坏（均完整初始化自愈，升级中间态仅放行 net_cfg 更新、update_sta/app_info 保留，见 [02 §10](./02_decoupling_solutions.md)）；掉电后按 [02 §8](./02_decoupling_solutions.md) 语义回退 |
 | 运行中擦写 Sector1 停顿 1~2s | 每次 16KB 全扇区擦除（Q3 接受现状，仅增加同值跳过，不做磨损均衡）；出厂配置操作可接受，高频改 IP 需产品论证 |
 
 ---

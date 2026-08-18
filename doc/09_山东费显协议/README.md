@@ -33,11 +33,14 @@
 | 屏幕分辨率 | 192×96 |
 | 版本号应答 | 裸 ASCII 应答产品程序编码 PROGRAM_CODE（`9K10212482`） |
 
+注：`PROGRAM_CODE`（`app_boot.h` 常量）同时由主固件启动时落库 Sector1 `app_info.version`（供 IAP 0x03「上报固件状态」返回版本号，见 `doc/07` §13）；本协议 `'2'` 命令仍直接应答编译期常量，不读 Sector1。
+
 ## 3. 帧头冲突纪律（与青海/四川MTC 互斥）
 
 山东与青海帧完全同构（`{`+cmd+len+`}`），命令字 `'1'~'5','7','8'` 全部落入青海 probe 命令集：
 
-- **全协议 Makefile 构建**：青海 probe 先注册（字母序 `qh < sd`）先认领山东帧。`'3'/'4'/'5'` 语义与青海巧合一致（行为等价）；`'1'/'2'/'7'/'8'` 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询等）。
-- **量产**：EIDE 目录排除纪律——山东项目须排除 `ProtocolParser_QingHai` + `ProtocolParser_SiChuang_MTC`（`{` 帧族二选一）；当前 `.eide/eide.yml` Debug 目标（四川 MTC 现行）已排除山东目录。
+- **全协议 Makefile 构建**：青海 probe 先注册（源码收录序 `qh_proto_init` 在前）先认领山东帧。`'3'/'4'/'5'` 语义与青海巧合一致（行为等价）；`'1'/'2'/'7'/'8'` 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询等）。
+- **量产**：EIDE 目录排除纪律——山东项目须排除 `ProtocolParser_QingHai` + `ProtocolParser_SiChuang_MTC`（`{` 帧族二选一）；当前 `.eide/eide.yml` Debug 目标（贵州现行）已排除山东目录。
+- **编译期互斥守卫**：山东主文件携带 `g_brace_proto_guard`（`#ifndef STD_ALL_PROTO` 包裹、`__attribute__((used))`）——EIDE 量产构建多个 `{` 帧族编入即链接报 `multiple definition`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序纪律约束）。
 
 详见 `doc/05_协议模块多协议兼容优化/01_architecture.md` §3.3 / §6。

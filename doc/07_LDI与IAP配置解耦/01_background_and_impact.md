@@ -71,7 +71,7 @@ app_ldi_cmd.c              app_iap.c/.h         ← 升级协议，可裁
 
 - W25 有有效 LDI 配置，**且 Sector1 记录有效（`app_flash_iap_is_config_valid(g_config)` 为真）**，且与 Sector1 不一致 → `app_flash_iap_update_net_cfg`（`app_ldi.c:100-104`）
 - W25 无效 → Sector1 有效则从 `g_config->net_cfg` 拷贝 IP（`app_ldi.c:108`）；Sector1 也无效 → 用上电默认 IP
-- **前置条件（已修复，2026-08-14）**：Sector1 为空/无效时原代码**不会**同步写入；现改为统一调用 `app_flash_iap_update_net_cfg`——空/损坏扇区均完整初始化覆盖（镜像 Bootloader 语义，损坏自愈；仅升级中间态——valid 且 update_sta≠updated——被守卫拒绝覆盖，见 [02 §10](./02_decoupling_solutions.md)）。出厂新机（Sector1 空）走 0AH 改 IP 后 Sector1 已有有效记录，Bootloader/Recovery 能读到该 IP（见 [02 §9](./02_decoupling_solutions.md)）
+- **前置条件（已修复，2026-08-14）**：Sector1 为空/无效时原代码**不会**同步写入；现改为统一调用 `app_flash_iap_update_net_cfg`——空/损坏扇区均完整初始化覆盖（镜像 Bootloader 语义，损坏自愈；升级中间态——valid 且 update_sta≠updated——仅放行 net_cfg 字段更新、update_sta/app_info 原样保留，2026-08-18 修订，见 [02 §10](./02_decoupling_solutions.md)）。出厂新机（Sector1 空）走 0AH 改 IP 后 Sector1 已有有效记录，Bootloader/Recovery 能读到该 IP（见 [02 §9](./02_decoupling_solutions.md)）
 
 **运行时 `cmd_set_ip`（0AH）**（`Application/Src/LDI/app_ldi_cmd.c:430-431`）：
 

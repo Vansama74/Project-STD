@@ -54,7 +54,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | `rb_provide_rj45_buf` | **1536** | RJ45 RB |
 | `rb_provide_rs485_buf` | **768** | RS485 RB |
 | `rb_provide_rs232_buf` | **768** | RS232 RB |
-| `s_rs485_buf` / `s_rs232_0_buf` | **640** / **640** | UART DMA；无 RS232_1 |
+| `s_rs485_buf` / `s_rs232_0_buf` | **1280** / **1280** | UART DMA 乒乓双缓冲（640×2）；无 RS232_1 |
 | `s_iap_queue_buf` | **2104** | 深度 2 |
 | `s_ldi_queue_buf` | **2080** | 深度 **4** |
 | `s_qh_queue_buf` | **801** | 深度 **3** |
@@ -80,6 +80,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | RLS | 2 | 1076 | 维持 | — EIDE 排除 |
 | AH_MQTT | 3 | ~1623 | **1→3**（任务内；initcall 关则未激活路径） | — EIDE 排除 |
 | 山东 | 3 | 801 | 新增（payload 259，与青海同构） | — EIDE 排除 |
+| 贵州 | 3 | 801 | 新增（payload 259，与青海同构；13 命令含 0x01/0x02） | — EIDE 排除 |
 
 语义与 Put 丢帧行为 → **doc/05** `01` §4.1 / `02` §2.1。
 
@@ -95,6 +96,8 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | + RB/DMA/queue 瘦身与修订（本采样） | **~120820 / 92.2%** | **38208 / 58.3%** |
 
 主要释放：删 RS232_1 DMA、DMA 2048→640、RJ45 RB 2304→1536；RS485/232 RB 512→768 略增；LDI/QH queue 加深略增。**净效果 SRAM 明显留白**。
+
+> 注（2026-08-18）：UART RX 已改乒乓双缓冲（s_rs485_buf/s_rs232_0_buf 640→1280×2），Makefile 口径实测 bss 130036（原 128724，+1312 = 双缓冲 1280 + 静态通道实例 32）、text 334256（+1184，框架/协议防御代码）。EIDE 口径总量以 EIDE 重采为准。
 
 ---
 
@@ -186,6 +189,24 @@ CCM 增量 **0**。
 
 增量构成：`dev_display_fill` 起点越界早退分支（`x >= screen_rows || y >= screen_cols` 丢弃）≈ +16B code；无新增静态存储。SRAM / CCM 不变。
 
+2026-08-17（贵州协议接入）追加采样（同口径 `make -j8`）：
+
+| 段 | 贵州基线 | 本任务后 | 增量 |
+|----|----------|----------|------|
+| text | 329472 | **333072** | **+3600** |
+| data | 1620 | **1620** | **+0** |
+| bss（size 工具口径，含 .ccmram 2432） | 127564 | **128724** | **+1160** |
+
+增量构成（nm 实测）：
+- 帧 queue 静态体：`s_gz_queue_buf` **801**（3×267，payload 259）+ `s_gz_queue_cb` **80** = 881
+- 任务内帧缓冲（static bss）：`msg_buf` **267**
+- 状态：`s_gz_mask`/`s_gz_mask_rs232`/队列句柄 **12**
+- 任务栈（ucHeap，非 bss）：`gz_handle_task` **1×1KB**（地区协议处理任务 4→5）
+- text +3600：probe/parse/cmd/voice 四文件代码（`gz_parse_frame` 0x20C、`_gz_exec_fixed` 0x268、`gz_execute_cmd` 0xAC 等）+ rodata（文明用语 4 串 UTF-8、颜色/亮度/音量映射表、队列/任务 attr）
+
+SRAM 合计（贵州基线 +1160）：**≈127691B（97.4%）**，未超 124KB（126976B）上限。
+CCM 增量 **0**（无新 CCM 对象）。
+
 ---
 
 ## §4 复现
@@ -214,6 +235,8 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 - 2026-08-17（MTC '}' 定界变长修复）：'{' 帧族废除定长双长度与 '78' BCC 校验（删除 BCC 函数与定长 switch），probe 改 '}' 扫描；修复上位机 `{3 1 1234 } 3 }` 单行乱码。queue payload 仍 74B、深度 3 → bss **不变**；text 重采 **327624（-656）**；SRAM ≈**125363B（95.7%）**，未超上限。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/sc_mtc_frame_sim.py`。
 - 2026-08-17（ETC 心跳停用 + MTC '4' 全屏换行修复）：ETC 心跳计时任务 #if 0 停用、不再创建 → ucHeap 任务栈 **-1KB**（4→3）；「ETC车道关闭」5 分钟超时显示与黄闪 10 秒自动关闭一并失效（0A 38 开启后须 0A 39 显式关闭；0A 50 帧解析保留）；MTC '4' 全屏改整屏 word_wrap 渲染（原 16B/行切 ≤4 行，超宽溢出被裁、超 64B 丢弃）；data/bss **不变**（1620/126396），text 重采 **327408（-216）**；SRAM ≈**125363B（95.7%）**，未超上限。
 - 2026-08-17（新增山东协议）：ProtocolParser_ShanDong 六文件接入 Makefile（EIDE Debug 目标排除）；§6 增量账：text **+1464**、bss **+1160**（queue 801 + cb 80 + 帧缓冲 267 + 状态 12）、data 不变；ucHeap 任务栈 +1KB（3→4）；SRAM ≈**126523B（96.5%）**，未超 124KB（126976B）上限。
+- 2026-08-18（框架/驱动层缺陷修复）：UART RX 单缓冲 IDLE → **乒乓双缓冲 circular**（HT/TC+IDLE 增量冲刷，s_rs485_buf/s_rs232_0_buf 640→1280×2，bss +1280B）；channel_send 与 frame_dispatch_task 增加通道指针回验；W25Qxx 加 SPI 互斥；TCP Server 改串行单客户端、UDP/TCP 通道静态化（+32B）。重采（Makefile 口径）：bss **130036（+1312）**、text **334256（+1184）**、data 不变。
 - 2026-08-17（默认显示注册机制 + 山东版本应答 PROGRAM_CODE）：新增 `app_default_display.c`（注册制默认显示，回退欢迎画面）+ `app_sd_proto_default.c`（山东上电画面注册）+ `app_boot.h`（PROGRAM_CODE 共用，开机画面与版本应答）；`'2'` 版本应答改裸 ASCII PROGRAM_CODE（删除占位 `SD_FX_1.0`）；重采 text **329112（+240）**、bss **127564（+8：s_default_fn 4B + 尾部对齐 4B）**、data 不变；SRAM ≈**126531B（96.5%）**，未超上限。
 - 2026-08-17（文本常量字节数组 → UTF-8 字符串字面量）：山东/四川ETC 显示文本、四川MTC 固定标签与语音表、青海文明用语表全部改为 UTF-8 字面量（语音发送前 UTF8ToGBK 运行时转 GBK；显示改 FONT_ENC_UTF8）；山东上电画面 COLOR_GREEN→COLOR_YELLOW；青海文明用语 '0' 同时修正为 doc/04 裸机文本「贵州高速公路」（原数组字节有损）；青海自检/费额语音补 UTF8ToGBK 转换（原以 UTF-8 字节直送 GBK 语音板）；重采 text **329456（+344，rodata +149 + 转换代码 ~+195）**、bss **127564（+0）**、data 不变；SRAM ≈**126531B（96.5%）**，未超上限。
 - 2026-08-17（dev_display_fill 越界下溢修复）：`dev_display_fill` 起点越界（x≥rows / y≥cols）早退丢弃，消除 `screen_* - x/y` uint16 下溢巨值写穿 pixel_map（CCMRAM）→ HardFault 的缺陷（山东 '3' 行号 ≥3 在小屏构建触发：y=row*16 ≥ 32 屏高；故障地址 0x10010000 = CCMRAM 末尾+1）；该修复同时保护青海/ETC/MTC 行渲染与 app_render 字形擦除路径；重采 text **329472（+16）**、bss/data 不变；SRAM ≈**126531B（96.5%）**，未超上限。
+- 2026-08-17（新增贵州协议）：ProtocolParser_GuiZhou 四文件接入 Makefile（EIDE Debug 目标排除，与青海同列）；§6 增量账：text **+3600**、bss **+1160**（queue 801 + cb 80 + 帧缓冲 267 + 状态 12）、data 不变；ucHeap 任务栈 +1KB（4→5）；SRAM ≈**127691B（97.4%）**，未超 124KB（126976B）上限。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/gz_frame_sim.py`。

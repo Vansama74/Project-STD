@@ -11,11 +11,20 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
   - GCC Release：`make -j8 CONFIG=Release`
   - Clang Debug：`make -j8 TOOLCHAIN=clang`
   - Clang Release：`make -j8 TOOLCHAIN=clang CONFIG=Release`
+- **`{` 帧族编译期互斥守卫**：Makefile 默认定义 `-DSTD_ALL_PROTO`（全协议共存开发构建，`g_brace_proto_guard` 守卫失效）；EIDE 量产构建不定义该宏——多个 `{` 帧族协议（青海/山东/贵州/四川MTC）同时编入即链接报 `multiple definition of 'g_brace_proto_guard'`，强制互斥。
 - **编译数据库**：`bear --output build/Debug/compile_commands.json -- make -B -j8`（`-B` 强制全量重编译）
 - **烧录**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/Project_STD.hex verify reset exit"`
 - **整片擦除**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"`
 - **J-Link 一键烧录**：`bash tool/flash_all.sh`（Bootloader + Recovery + 主固件一次 J-Link 会话烧完，**默认烧后擦除 Sector1（0x08004000~0x08007FFF）恢复出厂配置态**；`--keep-config` 保留板级配置；`--erase` 整片擦除；`--verify` 校验；`--dry-run` 预览命令不烧录）
-- **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info` 真实值只由 Recovery 升级流程写入。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 W25Qxx 外部 Flash 同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
+- **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info.size/crc32` 真实值只由 Recovery 升级流程写入（`app_info.version` 由主固件启动时从 PROGRAM_CODE 落库，供 IAP 0x03 上报）。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 W25Qxx 外部 Flash 同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
+- **0x03 版本为空判断路径**：现场 IAP 0x03 上报 `app_info.version` 全 0 时，按序判断：
+  ① 看 RTT 是否有 `[fwver]` 日志——**无日志 = 主固件从未运行，设备落在 Recovery 态**（旧
+  Sector1 记录 size/crc32 与新烧固件失配 → 条件 D 判 App 损坏），补做「擦 Sector1」后重启
+  即可；有 `[fwver] write ok` 仍为空 = 应答来自 Recovery（0x03 应答 ReData[10] `update_sta`
+  ==2 且 ReData[0] `size`≠0 为 Recovery 态特征，主固件态 update_sta==0）；有 `erase/write
+  failed` = 擦写路径问题；② 确认烧录物为最新构建（`arm-none-eabi-strings
+  build/Debug/Project_STD.elf | grep 9K10212482`，EIDE 与 make 共用 `build/Debug` 同名产物，
+  注意陈旧覆盖）。
 - **清理**：`make clean`（仅删除 `build/$(CONFIG)` 目录）
 
 ### 构建产物
@@ -41,6 +50,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/07_LDI与IAP配置解耦` | LDI↔IAP 配置解耦（方案 A 已落地，`app_board_net_cfg`） |
 | `doc/08_协议模块接入规则` | 新协议接入权威指引（规则/串口/网络/检查清单） |
 | `doc/09_山东费显协议` | 山东车道费额显示器协议接入记录 |
+| `doc/10_贵州费显协议` | 贵州常规费显协议接入记录（13 命令/裁决差异表/帧头冲突纪律） |
 
 ## 硬件架构
 
@@ -67,7 +77,7 @@ SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-0
 ├─ ucHeap           **36KB** FreeRTOS heap_4（任务栈/TCB/动态 OS 对象）
 ├─ 协议 RB          RJ45 **1536** / RS485 **768** / RS232 **768**（三槽 provide）
 ├─ UART DMA         RS485/RS232 各 **640**（无 RS232_1 DMA）
-├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3（不占 ucHeap）
+├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3 / GZ3（不占 ucHeap）
 ├─ RTT Up           2KB；W25 sec、s_dma_bounce 等
 └─ _user_heap_stack newlib + MSP 预留
 
@@ -91,6 +101,8 @@ CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 
 | 11 注 | `0x080E0000` | 128KB | 已释放 — LDI 配置已迁移至 W25Qxx 最后一个 4KB 扇区（不再占内部 Flash） | — |
 
 **外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + LDI 设备配置（最后一个 4KB 扇区），通过 `dev_storage_read` 接口访问。LDI 配置绑定在 `Application/Src/LDI/app_ldi_cfg.c`（`sw_dev_initcall` 中 `s_ldi_base = dev_storage_capacity(w25) - 4096`）。
+
+**出厂默认网络配置（三固件统一）**：192.168.114.200/24（网关 192.168.114.1、端口 9528）。Recovery 上电 `MX_LWIP_Init` 直读 Sector1.net_cfg 配 netif（空/无效回退统一默认）；主固件 `ldi_ctx_init` 上电同步三分支：**Sector1 为网络配置真源、W25 为恢复镜像**（Sector1 优先；Sector1 空/损坏时以 W25 自愈回写；皆空用统一出厂默认，详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §11/§12）。**所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效**（运行时不即时改 netif）；Bootloader 对 Sector1 损坏态（magic 不匹配或 CRC 错）自动重建出厂记录自愈（详见 §12）。UDP 发现口 10011 固定（宏 `LDI_DISCOVERY_PORT`）。
 
 ## 软件分层架构
 
@@ -239,6 +251,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 3-app | app | `sc_mtc_proto_init` | `Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c` | 四川 MTC 费显协议自注册（RS485+RS232） |
 | 3-app | app | `sc_ol_proto_init` | `Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c` | 四川治超屏协议自注册（RS485+RS232） |
 | 3-app | app | `sd_proto_init` | `Application/Src/ProtocolParser_ShanDong/app_sd_proto.c` | 山东费显协议自注册（RS485+RS232） |
+| 3-app | app | `gz_proto_init` | `Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c` | 贵州费显协议自注册（RS485+RS232） |
 | 3-app | app | `app_uart_baud_init` | `Application/Src/app_uart_baud.c` | DIP1 波特率选择（RS232+RS485 同步切换） |
 | 3-app | app | `rls_module_init` | `Application/Src/RLS/app_rls.c` | RLS 协议自注册（RS485） |
 | 3-app | app | `_factory_test_init` | `Application/Src/app_factory_test.c` | 出厂检测 monitor |
@@ -253,7 +266,7 @@ pl_sys (SystemClock_Config, delay, reset)
 .sw_initcall : { KEEP(*(SORT(.sw_initcall.0))) ... KEEP(*(SORT(.sw_initcall.4))) }
 ```
 
-每个 `*_initcall(fn)` 宏生成一个 `initcall_entry_t` 常量放入对应 section。`initcall_run(start, end)` 顺序遍历调用。同层内按函数名字母序排列（`SORT()` 保证确定性）。
+每个 `*_initcall(fn)` 宏生成一个 `initcall_entry_t` 常量放入对应 section。`initcall_run(start, end)` 顺序遍历调用。同层内按**链接顺序（源码收录序）**执行——`SORT()` 对同名 section 退化为 .o 链接顺序，Makefile/EIDE 源码收录序即调用序（`app_dispatch_init` 靠收录序在协议之前）。
 
 ## 中断体系
 
@@ -388,12 +401,13 @@ scan_task:
 frame_dispatch_task:
   osMessageQueueGet(g_ch_queue) ←── rs485_task / rs232_task / udp_connect_task / ...
   rb_lock(rb) → probe → rb_read → osMessageQueuePut(frame_queue[i])
+  （取出的 channel_t * 先经 app_channel_get 回验，脏通知丢弃）
   
 协议处理任务 (iap/ldi/ah_mqtt):
   osMessageQueueGet(frame_queue[i]) → 处理 → channel_send
 
 UART 通道任务 (rs485_task / rs232_task):
-  osMessageQueueGet(rx_queue, &len) ←── UART ISR 空闲中断
+  osMessageQueueGet(rx_queue, {block,offset,len}) ←── UART ISR 空闲中断
   app_channel_dispatch → rb_write → osMessageQueuePut(ch_queue)
 
 网络通道任务 (UDP/TCP):
@@ -572,7 +586,7 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 
 **LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t`（116B）= magic(4) + cfg(106) + padding(2) + CRC32(4)。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。
 
-> **解耦已落地（2026-08-14）**：LDI 与 IAP 协议均经中立模块 `app_board_net_cfg`（`Application/Config`）读写 Sector 1 网络配置，互不依赖对方协议目录；`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 已删除。守卫语义（空/损坏自愈、升级中间态拒绝、同值跳过）见 `doc/07_LDI与IAP配置解耦`。
+> **解耦已落地（2026-08-14）**：LDI 与 IAP 协议均经中立模块 `app_board_net_cfg`（`Application/Config`）读写 Sector 1 网络配置，互不依赖对方协议目录；`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 已删除。守卫语义（空/损坏自愈、升级中间态仅放行 net_cfg 字段更新、同值跳过）见 `doc/07_LDI与IAP配置解耦`。
 
 ## Render 引擎 (`Application/Src/app_render.c`)
 
@@ -655,7 +669,7 @@ app_render(&(render_cfg_t){
 
 **接收**：通道任务 → `app_channel_dispatch(ch,data,len)` → `rb_write` → `osMessageQueuePut(ch_queue,&ch)` → `frame_dispatch_task` → probe → `rb_read` → `osMessageQueuePut(frame_queue[i],&msg)` → 协议任务
 
-**发送**：协议任务 → `channel_send(ch,data,len)` → `ch->ops->send(ch,data,len)` → UART DMA / LWIP netconn
+**发送**：协议任务 → `channel_send(ch,data,len)`（入口回验 `app_channel_get(ch->ch_id)==ch`，防悬垂通道指针）→ `ch->ops->send(ch,data,len)` → UART DMA / LWIP netconn
 
 ### 多协议共享 RB（doc/05 核心成果）
 
@@ -688,19 +702,19 @@ app_render(&(render_cfg_t){
 | 5 | `CH_ID_MQTT` | LwIP MQTT | `mqtt_channel_t` | `app_mqtt.c` |
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 
-**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH/山东（`.eide/eide.yml` excludeList；山东与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH/山东/贵州（`.eide/eide.yml` excludeList；山东/贵州与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
 RS485/RS232 按板级资源（Device 层）与通道生命周期（Application 层）分层，全库无统一 UART 通道抽象类型。
 
 **Device 层（板级静态资源）**：
-- `dev_rs485.c`（USART1，RE=PA8）：仅静态 DMA 缓冲 `s_rs485_buf[RS485_BUF_SIZE=640]`（`Device/Inc/dev_rs485.h`）+ RE 方向回调 `rs485_dir_cb`（`pl_uart_set_dir_cb` 注入，`hw_dev_initcall`）。
-- `dev_rs232.c`（USART3）：仅 `dev_rs232_get_buf(index)` — index0 返回 640B 缓冲（`RS232_BUF_SIZE`），index1（USART6）返回 `nullptr`（无协议 RX）。
+- `dev_rs485.c`（USART1，RE=PA8）：静态 DMA 乒乓双缓冲 `s_rs485_buf[2×RS485_BUF_SIZE=1280B]`（`Device/Inc/dev_rs485.h`，块 640×2）+ RE 方向回调 `rs485_dir_cb`（`pl_uart_set_dir_cb` 注入，`hw_dev_initcall`）。
+- `dev_rs232.c`（USART3）：仅 `dev_rs232_get_buf(index)` — index0 返回 1280B 乒乓缓冲（`RS232_BUF_SIZE`=640 块 ×2），index1（USART6）返回 `nullptr`（无协议 RX）。
 - `dev_rs232_voice.c`（USART6）：语音板 TTS 专用 TX。`dev_rs232_voice_play` / `dev_rs232_voice_volume` 组帧后经 `pl_uart_send(PL_UART6)` 发送，不经过 dispatch 框架。
 
 **Application 层（通道生命周期 + 任务循环）**：
-- `app_rs485.c`：`rs485_ch_t`（`channel_t me` + `uart/rx_queue/rx_buf`），`rs485_task` 循环 `osMessageQueueGet(rx_queue)` → `app_channel_dispatch`。`app_rs485_start()` 注册通道 + 注入 RX 回调 + `pl_uart_start_rx` + 创建任务（栈 256×4）。
+- `app_rs485.c`：`rs485_ch_t`（`channel_t me` + `uart/rx_queue/rx_buf`），`rs485_task` 循环 `osMessageQueueGet(rx_queue, {块号,偏移,长度})` → 按块拷贝 → `app_channel_dispatch`。`app_rs485_start()` 注册通道 + 注入 RX 回调 + `pl_uart_start_rx` + 创建任务（栈 256×4）。
 - `app_rs232.c`：同构（`rs232_ch_t` / `rs232_task`，栈 256×4）。`app_rs232_1_start()` 为桩函数（返回 `nullptr` — USART6 语音 TX 不经通道任务）。
 - `app_boot` 中 `app_rs485_start()` / `app_rs232_start()` 创建任务，`app_rs232_1_start()` 已注释。
 
@@ -712,14 +726,15 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 
 - `iap_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大），循环 `osMessageQueueGet` → 帧解析 → 命令分派
 - `IAP_QUEUE_DEPTH=2`，静态 SRAM 队列（不占 ucHeap）
-- 命令表 `g_iap_cmd_table[]`（`app_iap_cmd.c`）：0x00 Test / 0x01 上报 IP 配置 / 0x02 强制修改 IP（写 Flash）/ 0x03 上报固件版本·大小·CRC32·升级状态 / 0x04 准备升级 / 0x05 发送升级包 / 0x06 进 Recovery（写 RTC 备份寄存器标志）/ 0x07 软复位
+- 命令表 `g_iap_cmd_table[]`（`app_iap_cmd.c`）：0x00 Test / 0x01 上报 IP 配置 / 0x02 强制修改 IP（写 Flash）/ 0x03 上报固件版本·大小·CRC32·升级状态（version 由主固件启动时经 `app_board_net_cfg_fw_version_update` 从 PROGRAM_CODE 落库 Sector1 `app_info.version`，见 doc/07 §13）/ 0x04 准备升级 / 0x05 发送升级包 / 0x06 进 Recovery（写 RTC 备份寄存器标志）/ 0x07 软复位
+- **0x03 应答 version 字节序**：载荷 11 word（ReData[0]=size、[1]=crc32、[2..9]=version[32] ASCII、[10]=update_sta）；version 按**大端 word 构造**（对齐 0x01 IP 约定：`v[4i]<<24|v[4i+1]<<16|v[4i+2]<<8|v[4i+3]`），存储侧保持纯 ASCII，禁 memcpy 裸拷（否则上位机按 4 字节一组反转显示）。主固件与 Recovery `cmd.c` 同构。
 - `iap_probe_frame`：验证帧头 + 长度（≤256）+ CRC32，返回 READY/WAIT/FAKE
 
 **0E 远程升级协议文档待完善项**（2026-08-14，协议文档与固件实现的一致性缺口，需在协议文档侧补齐）：
 
 | # | 缺口 | 现状 |
 |---|------|------|
-| 1 | **4B02 应答帧结果码** | 协议文档当前版本无此定义；固件已按扩展实现：len 0→1，1 word 结果码（0=成功含同值跳过，1=升级中间态拒绝/擦写错误），借鉴 4B04 应答 0/1 先例。老上位机按「B402 无载荷」解析时会多读一个 word，混合部署需联调验证（详见 doc/07 §10） |
+| 1 | **4B02 应答帧结果码** | 协议文档当前版本无此定义；固件已按扩展实现：len 0→1，1 word 结果码（0=成功含同值跳过，1=擦写错误），借鉴 4B04 应答 0/1 先例。老上位机按「B402 无载荷」解析时会多读一个 word，混合部署需联调验证（详见 doc/07 §10） |
 | 2 | **4B06「进 Recovery」应答后重启** | 协议要求应答后重启；主固件实现只写 RTC 备份寄存器标志（`FLAG_FORCE_UPDATE`）未复位，实际复位由后续流程触发——协议与实现出入 |
 | 3 | **4B04「准备升级」应答结果码** | 协议文档有 0/1 结果码先例；主固件实现应答无载荷（len=0），未按文档回结果码 |
 | 4 | **LDI 0AH 失败码 01H** | 实现已使用（00H=成功、01H=失败：W25 保存或 Sector1 同步任一步失败即 01H），协议文档需明确该语义（与 0BH / `ldi_status_rsp_t` 既有约定一致） |
@@ -744,8 +759,13 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 山东车道费额显示器通信协议（协议文档编号 39）。帧 `'{' + 命令字('1'~'5','7','8') + 二进制 len + 参数 + '}'`（无 BCC；**与青海完全同构**），`SD_PAYLOAD_MAX=259`、`SD_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `sd_proto_init`）。目标屏幕 192×96（FONT_16 6 行，协议行号 1~5 全覆盖）。
 
 - `'1'` 全屏单色（01红/02绿/03黄）→ 整屏 `dev_display_fill`；`'2'` 取版本号 → 裸 ASCII 应答 PROGRAM_CODE（协议未定义应答格式）；`'3'` 单行（颜色'0'~'2' + 行号'1'~'5' + GBK 文本，先清行再渲染）；`'4'` 全屏可编辑（颜色 + X/Y 坐标 + 文本，先清屏后整屏 word_wrap，0x0A 回车由渲染引擎换行、0x0D 被跳过）；`'5'` 清屏；`'7'` 亮度（'0'~'5'：0=恢复光敏任务自动调光，1~5=挂起光敏任务 + 硬件档 {3,4,5,7,8}）；`'8'` 外设（bit0 绿灯/bit1 红灯/bit2 黄闪报警，红灯优先，PD14/PD15）。无 `'6'` 命令。除 `'2'` 外协议未定义应答 → 不回（对齐青海单向模式）。
-- **帧头冲突纪律**：命令字 '1'~'5','7','8' 全部落入青海 probe 命令集（'1'~'9','A','B'），全协议 Makefile 构建下青海 probe 先注册（字母序 qh < sd）先认领山东帧——'3'/'4'/'5' 语义与青海巧合一致，'1'/'2'/'7'/'8' 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询；'2'=版本 vs 自检；'7'=亮度 vs 文明语音；'8'=外设 vs 亮度）。**量产必须 EIDE 目录排除与青海/四川MTC 互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已排除山东目录（与青海同列），山东量产目标须启用山东并排除青海+MTC。
+- **帧头冲突纪律**：命令字 '1'~'5','7','8' 全部落入青海 probe 命令集（'1'~'9','A','B'），全协议 Makefile 构建下青海 probe 先注册（源码收录序 qh 在前）先认领山东帧——'3'/'4'/'5' 语义与青海巧合一致，'1'/'2'/'7'/'8' 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询；'2'=版本 vs 自检；'7'=亮度 vs 文明语音；'8'=外设 vs 亮度）。**量产必须 EIDE 目录排除与青海/四川MTC 互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已排除山东目录（与青海/四川MTC 同列，Debug 保留贵州），山东量产目标须启用山东并排除青海+MTC。编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。
 - 上电画面「山东省 高速公路 欢迎您」已实现：`app_sd_proto_default.c` 经 `app_default_display_register` 注册（`sw_app_initcall`），显示「山东省 高速公路 欢迎您」（FONT_16 居中黄字；UTF-8 字面量，`FONT_ENC_UTF8` 渲染）。
+
+## 贵州协议 (`Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c`)
+
+贵州常规费显协议（协议文档 06 贵州常规费显协议，2020-06-17 修订）。帧 `'{' + 命令字('1'~'9','A','B',0x01,0x02) + 二进制 len + 参数 + '}'`（无 BCC；**与青海完全同构**），`GZ_PAYLOAD_MAX=259`、`GZ_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `gz_proto_init`）。13 命令：'1' 主机查询（仅回「正常」帧 `7B 31 01 00 7D` 至源通道）、'2' 自检（黄色全屏 + 语音「系统正在加电自检」）、'3' 单行（len 3~18，先清行再渲染）、'4' 全屏可编辑（len 4~86，**按 X/Y 坐标渲染** word_wrap=true，len>71 文本截断 64）、'5' 清屏、'6' 固定格式（客/货行文裸机对齐：客车 车型/金额/余额/信息1，信息2 不显示；货车 有超重→金额/余额/总重/超重、无超重→车型/金额/余额/总重；金额 ≥0.5 元同步费额语音；金额/重量整数运算分/吨分无浮点）、'7' 礼貌用语语音（'0'~'3'，'0'=「您好！欢迎行驶贵州高速公路」）、'8' 亮度（0=恢复光敏任务，1~5=挂起光敏 + 硬件 {3,4,5,7,8}）、'9' 音量（1~5 → 语音板 {1,3,5,7,9}）、'A' 外设（bit0 绿/bit1 红/bit2 黄闪，**红优先**）、'B' 费额语音（金额 ASCII 串→分，≥0.5 元播报，不显示）、0x01 全屏点亮（01红/02绿/**03黄**）、0x02 版本号（串口回裸 ASCII PROGRAM_CODE + 屏幕红字「版本:PROGRAM_CODE」FONT_SELF_ADAPT 居中）。无上电画面（不建 default 文件）。
+- **帧头冲突纪律**：命令字 '1'~'9','A','B' 全部落入青海 probe 命令集（**完全重叠**），全协议 Makefile 构建下青海 probe 先注册（源码收录序 qh 在前）先认领贵州帧——'1'/'3'/'4'/'5'/'7'/'8'/'9'/'B' 语义基本一致，'2'/'6'/'A' 细节差异（贵州 '2'=自检黄屏+语音、'6'=固定格式行文不同、'A'=红优先）。**量产必须 EIDE 目录排除与青海互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已启用贵州（排除青海/山东/四川MTC）。编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。0x01/0x02 二进制命令字青海/山东/四川MTC probe 首命令字快拒，无冲突。金额串转分 `gz_amount_to_fen`（整数部分×100 + 小数前两位，`%.2f` 语义）。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/gz_frame_sim.py`。
 
 ## 四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）
 
@@ -754,7 +774,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 - **ETC（1D）**：帧 `0A + 显示方式(00/01) + 行号(00~06) + 数据 + 0D`（数据**变长 0x0D 定界**：单行 ≤24B、全屏 ≤145B，无固定 56B——上限对齐 9K1F212701 etc.c `cmd_etc_disPlay_ctrl` 0x0D 扫描索引 ≤148，GBK）；`0A 36/37/38/39 0D` 灯控 → `dev_io_lane_light`/`dev_io_flash_light` 且同步显示颜色（fontColor 语义）；`0A 40 XX YY 0D` 亮度（XX=00 自动调光）；`0A 50 0D` 心跳（解析保留，识别后丢弃）。应答 `0A 00/01/02 0D`（收到即回，心跳不回）。**0x20 清屏（行号 0 全屏）、0x30 初始化 → 软件复位**。全屏渲染按 9K1F212701 `MakeSixteenLattAll` 语义：清屏后自第 1 行第 1 列按屏宽自动换行。**心跳超时显示已停用（2026-08-17）**：原独立计时任务（栈 256×4，5 分钟无有效帧 → 「ETC车道关闭」）已 #if 0、任务不再创建；黄闪 0A 38 开启后的 10 秒自动关闭依赖同一任务 tick，一并失效——开启后须 0A 39 显式关闭。恢复方法见 `app_sc_etc_proto.c` 注释。
 - **MTC（1E 方案二）**：帧 `'{' + 命令('1'~'9','A') + 参数 + '}'`——**'}' 定界变长，无长度字段、无 BCC**（对齐 9K1F212701 mtc.c：各命令 handler 逐字节扫 '}' 定帧，参考扫描上限 228；本设备 probe 上限 `SC_MTC_PAYLOAD_MAX=74B` 队列约束）。字段偏移按变长重算：'3' 单行 = 行号[2]+变长文本[3..]，'4' 全屏 = 变长文本[2..]（先清屏后整屏 word_wrap 渲染：w=screen_rows 屏宽、h=screen_cols 整屏高、word_wrap=true，渲染引擎按当前字号自动折行——2026-08-17 修复，原 16B/行切 ≤4 行且单行不换行，第一行超宽溢出被裁、超 64B 被丢弃；'3' 单行保持 word_wrap=false + h=当前字号截断语义），'6' 固定格式 = 类型[2]+数字串（客车 ≥11B / 货车 ≥20B），'1','2','5'→3B、'7'固定→4B（'78' 自定义文本变长）、'8','9'→4B。带 BCC 变体不加判别：BCC 字节视为内容尾部（与参考语义一致），BCC 不校验。主机查询 `0A 46 0A → 0A 64 0A`、清屏 `0A 46 0D`；附加 7B 40~45 原始帧族（同样 '}' 定界）：40 改波特率（`app_uart_baud_apply`）、41 点阵大小、42 字体、43 协议类型（仅记录）、44 全屏点亮、45 版本号 → `SC_FX_P7.62_1.0`。'6' 字段布局按 9K1F212701 mtc.c。'7' 语音经 `dev_rs232_voice`（固定用语 GBK 直送，动态变量不拼读）。7B 46（1280B 载荷）不实现（超 RB 768）。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/sc_mtc_frame_sim.py`（`--old` 可复现旧定长乱码链）。
 - **治超（1F 3.5.1）**：帧 `FF + 长度(07~FF，1 字节；0xFE 显式排除给 RLS) + 命令 + 亮度 + 数据(可变长) + BCC(五字段异或) + FF`；**80 全屏显示、81~88 八行显示（9K1F212701 语义：行数据变长 = 总长-6，≤24B 截断、不足不补空格、先清行再渲染）**、94 清屏、96 亮度（00=自动调光，非 0 按 lightLev=(val+1)/32 映射 1~8 档）、99 通行灯（同步显示颜色）、98 黄闪；查询 A0 → A1~A8 每行独立帧（固定 16B 应答兼容工具，参考项目无应答实现）、B6/B9/B8 → 回显当前状态。**与 RLS 区分**：RLS 第二字节 0xFE(254) 被治超 probe 显式排除（长度上限放宽至 FF 后 0xFE 落入合法区间，不排除会把 RLS 帧吞掉并 WAIT 卡死链式），RLS probe 亦要求第二字节 0xFE，双向快拒成立。
-- **帧头冲突纪律**：MTC '{' 与青海 '{' 同帧头——MTC probe 以「'}' 定界变长扫描 + 上限 74B」认领，完整青海帧由青海 probe 先认领（qh_proto_init 先注册，字母序 q < sc）；残余风险两类：①青海 '3' 帧总长 ≤74 且数据段含 '}' 字节（GBK 尾字节可为 0x7D）且半帧到达时被 MTC 截断认领，②青海 'A'/'B' 空数据帧与 MTC 7B 41/42 同长（QH probe 先认领）；量产由 EIDE 目录排除纪律兜底（doc/05 §6）。
+- **帧头冲突纪律**：MTC '{' 与青海 '{' 同帧头——MTC probe 以「'}' 定界变长扫描 + 上限 74B」认领，完整青海帧由青海 probe 先认领（qh_proto_init 先注册，源码收录序 QH 在前）；残余风险两类：①青海 '3' 帧总长 ≤74 且数据段含 '}' 字节（GBK 尾字节可为 0x7D）且半帧到达时被 MTC 截断认领，②青海 'A'/'B' 空数据帧与 MTC 7B 41/42 同长（QH probe 先认领）；量产由 EIDE 目录排除纪律兜底（doc/05 §6）；编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。
 
 ## RLS 协议 (`Application/Src/RLS/app_rls.c`)
 
