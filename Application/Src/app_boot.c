@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "app_board_net_cfg.h"
 #include "app_boot.h"
 #include "app_default_display.h"
 #include "app_key.h"
@@ -109,6 +110,12 @@ static void init_task(void *argument) {
 
   dev_eth_start();
   sw_board_init(); /* sw_initcall 自注册：协议 + 通道任务 */
+
+  /* 版本落库：PROGRAM_CODE 写入 Sector1 app_info.version，供 IAP 0x03 上报。
+   * 16KB 扇区擦除耗时数百 ms，写入前喂一次狗；同值跳过保证每次版本发布只擦一次 */
+  pl_iwdg_refresh(pl_iwdg_get_handle());
+  int32_t ver_ret = app_board_net_cfg_fw_version_update(PROGRAM_CODE);
+  (void)ver_ret; /* 失败不阻断启动（升级中间态/擦写错误静默降级，IAP 0x03 报旧值） */
 
   app_splash_display();
 

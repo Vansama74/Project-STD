@@ -20,9 +20,9 @@
 #include "app_test.h"
 #include "dev_io_ctrl.h"
 #include "stm32f4xx_hal.h"
+#include "app_boot.h"
 
 #define AGING_TEXT   "重庆创迪科技发展有限公司设备老化测试"
-#define PROGRAM_CODE "9K10212482"
 
 static const font_size_t s_aging_sizes[] = {
     FONT_16,

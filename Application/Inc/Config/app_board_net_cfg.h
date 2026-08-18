@@ -11,7 +11,7 @@
  *
  * 记录布局与 Bootloader / Recovery 各自的 Drivers/BSP/Config/config_info.h 二进制
  * 兼容，由下方 static_assert 锁定尺寸与偏移。写入守卫语义（空/损坏自愈、升级中间态
- * 拒绝覆盖、同值跳过擦写）见 doc/07_LDI与IAP配置解耦。
+ * 仅放行 net_cfg 字段更新、同值跳过擦写）见 doc/07_LDI与IAP配置解耦。
  */
 
 #pragma once
@@ -89,10 +89,35 @@ int32_t app_board_net_cfg_get(app_board_net_cfg_t *out);
  *  - 空扇区：完整初始化，镜像老 Bootloader Init_Config_Info 首次上电语义
  *    （magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF + net_cfg + CRC32）；
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理，完整初始化后写新配置（自愈）；
- *  - 有效记录且 update_sta != updated（升级中间态）：拒绝覆盖，返回 -1；
+ *  - 有效记录且 update_sta != updated（升级中间态）：仅更新 net_cfg，update_sta 与
+ *    app_info 原样保留（Bootloader 条件 D 判定不受影响）（2026-08-18 修订）；
  *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port），其余字段
  *    原样保留；与现扇区 net_cfg 完全一致（含 port）时跳过擦写。
  *
- * @return 0 成功（含同值跳过）；<0 失败（-1 = 升级中间态拒绝覆盖，其余为擦/写错误码）
+ * @return 0 成功（含同值跳过）；<0 为擦/写错误码
  */
 int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4], uint32_t port);
+
+/**
+ * @brief 同步固件版本号到内部 Flash（app_info.version[32]，IAP 0x03「上报固件状态」用）
+ *
+ * 只允许改 app_info.version 并重算 config_crc，**绝不动** app_info.size / app_info.crc32 /
+ * net_cfg / update_sta 的既有值（size/crc32 由 Recovery 升级流程写入，改动会触发 Bootloader
+ * 条件 D 判 App 损坏）。
+ *
+ * 分支语义（与 app_board_net_cfg_update 同构，见 doc/07_LDI与IAP配置解耦 02 §13）：
+ *  - 空扇区：完整初始化（magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF +
+ *    net_cfg 全 0）+ 填 version。调用点安排在 sw_board_init()（含 ldi_ctx_init 从 W25Qxx
+ *    回写 net_cfg）之后，正常路径不会走到此分支；若走到（如 ldi_ctx_init 未回写），
+ *    net_cfg 会被写成 0.0.0.0/port0，由后续 0AH / 上电同步恢复；
+ *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理（自愈），完整初始化后填 version；
+ *  - 有效记录且 update_sta != updated（升级中间态，Bootloader 条件 A/B 写入）：拒绝覆盖，
+ *    返回 -1；
+ *  - 有效记录且 update_sta == updated：仅更新 app_info.version，其余字段原样保留；与现扇区
+ *    version 一致时跳过擦写（Q3：不做磨损均衡）。
+ *
+ * @param version 版本字符串（如 PROGRAM_CODE），须满足 strlen(version) < 32
+ * @return 0 成功（含同值跳过）；<0 失败（-1 = 升级中间态拒绝覆盖，-2 = version 过长，
+ *         其余为擦/写错误码）
+ */
+int32_t app_board_net_cfg_fw_version_update(const char *version);
