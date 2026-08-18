@@ -145,8 +145,10 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
      * memset/行循环写穿 pixel_map（CCMRAM）导致 HardFault。 */
     if (x >= dev->screen_rows || y >= dev->screen_cols)
         return;
-    if (x + w > dev->screen_rows) w = dev->screen_rows - x;
-    if (y + h > dev->screen_cols) h = dev->screen_cols - y;
+    /* 截断判断用 32 位运算：右对齐下溢 cur_x≈0xFFF0 时，x+w 的 uint16 加法回绕成
+     * 小值绕过判界，改为 (uint32_t)x + w 后正确识别越界并截断 */
+    if ((uint32_t)x + w > dev->screen_rows) w = dev->screen_rows - x;
+    if ((uint32_t)y + h > dev->screen_cols) h = dev->screen_cols - y;
 
     for (uint16_t row = 0; row < h; row++)
         memset(&dev->pixel_map[(y + row) * dev->screen_rows + x], (uint8_t)color, w);
@@ -155,13 +157,23 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
 
 void dev_display_draw_bitmap(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint8_t *bitmap, display_color_t color)
 {
-    if (x + w > dev->screen_rows || y + h > dev->screen_cols) return;
+    /* 起点越界早退（与 fill 对齐）：x+w / y+h 为 uint16 加法，
+     * 起点已回绕出屏时 32 位判界也无法救回，直接丢弃整区域 */
+    if (x >= dev->screen_rows || y >= dev->screen_cols)
+        return;
+    /* 越界判断用 32 位运算防 x+w / y+h 的 uint16 回绕绕过判界（根因同 fill） */
+    if ((uint32_t)x + w > dev->screen_rows || (uint32_t)y + h > dev->screen_cols)
+        return;
 
     uint16_t row_bytes = (w + 7) / 8;
     for (uint16_t row = 0; row < h; row++) {
         for (uint16_t col = 0; col < w; col++) {
-            if (bitmap[row * row_bytes + col / 8] & (0x80 >> (col % 8)))
-                dev->pixel_map[(y + row) * dev->screen_rows + (x + col)] = (uint8_t)color;
+            if (bitmap[row * row_bytes + col / 8] & (0x80 >> (col % 8))) {
+                /* 索引中间值用 uint32 防 (y+row)*rows + (x+col) 的 uint16 回绕；
+                 * 早退保证终值仍落在 pixel_map 内 */
+                uint32_t idx = (uint32_t)(y + row) * dev->screen_rows + (uint32_t)(x + col);
+                dev->pixel_map[idx] = (uint8_t)color;
+            }
         }
     }
     dev->dirty = true;

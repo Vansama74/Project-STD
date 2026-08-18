@@ -386,6 +386,16 @@ font_chip_id_t app_render_chip_current(void)
     return FONT_CHIP_W25Q64;
 }
 
+/* ---- 内部: 渲染趟行宽读取守卫（line_idx 超出测量趟记录行数时钳制到末行，防读穿 line_widths） ---- */
+static uint16_t _line_width_get(const uint16_t *widths, uint8_t idx, uint8_t count)
+{
+    if (count == 0)
+        return 0;
+    if (idx >= count)
+        idx = (uint8_t)(count - 1);
+    return widths[idx];
+}
+
 /* ---- 渲染分支（各功能静态内联）---- */
 
 static inline void _render_text(const render_cfg_t *cfg)
@@ -428,6 +438,9 @@ static inline void _render_text(const render_cfg_t *cfg)
 
     while (char_pos < text_len) {
         if (text_buf[char_pos] == '\n') {
+            /* 防 ≥33 换行文本写穿 line_widths[32]（栈溢出），与折行分支同策略：截断终止 */
+            if (line_count >= (sizeof(line_widths) / sizeof(line_widths[0])))
+                return;
             line_widths[line_count++] = line_w;
             line_w                    = 0;
             char_pos++;
@@ -448,9 +461,10 @@ static inline void _render_text(const render_cfg_t *cfg)
 
         if (line_w + glyph_w > cfg->w) {
             if (word_wrap) {
-                line_widths[line_count++] = line_w;
+                /* 防 line_widths[32] 越界写：先判后写（原判断滞后一次写入会写穿下标 32） */
                 if (line_count >= (sizeof(line_widths) / sizeof(line_widths[0])))
                     return;
+                line_widths[line_count++] = line_w;
                 line_w = glyph_w;
             } else {
                 /* 不换行：超出部分截断，不计入宽度 */
@@ -460,6 +474,9 @@ static inline void _render_text(const render_cfg_t *cfg)
             line_w += glyph_w;
         }
     }
+    /* 最后一行：同样先判后写防 line_widths[32] 越界 */
+    if (line_count >= (sizeof(line_widths) / sizeof(line_widths[0])))
+        return;
     line_widths[line_count++] = line_w; /* 最后一行 */
 
     /* ---- 垂直对齐 ---- */
@@ -476,9 +493,9 @@ static inline void _render_text(const render_cfg_t *cfg)
     uint16_t line_origin_x = cfg->x;
     if (cfg->style) {
         if (cfg->style->h_align == ALIGN_CENTER)
-            line_origin_x += (cfg->w - line_widths[line_idx]) / 2;
+            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count)) / 2;
         else if (cfg->style->h_align == ALIGN_RIGHT_DOWN)
-            line_origin_x += (cfg->w - line_widths[line_idx]);
+            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
     }
     cur_x    = line_origin_x;
     char_pos = 0;
@@ -490,9 +507,9 @@ static inline void _render_text(const render_cfg_t *cfg)
             line_origin_x = cfg->x;
             if (cfg->style) {
                 if (cfg->style->h_align == ALIGN_CENTER)
-                    line_origin_x += (cfg->w - line_widths[line_idx]) / 2;
+                    line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count)) / 2;
                 else if (cfg->style->h_align == ALIGN_RIGHT_DOWN)
-                    line_origin_x += (cfg->w - line_widths[line_idx]);
+                    line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
             }
             cur_x = line_origin_x;
             char_pos++;
@@ -509,9 +526,9 @@ static inline void _render_text(const render_cfg_t *cfg)
                     line_origin_x = cfg->x;
                     if (cfg->style) {
                         if (cfg->style->h_align == ALIGN_CENTER)
-                            line_origin_x += (cfg->w - line_widths[line_idx]) / 2;
+                            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count)) / 2;
                         else if (cfg->style->h_align == ALIGN_RIGHT_DOWN)
-                            line_origin_x += (cfg->w - line_widths[line_idx]);
+                            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
                     }
                     cur_x = line_origin_x;
                     if (cur_y + line_h > cfg->h) return;
@@ -542,9 +559,9 @@ static inline void _render_text(const render_cfg_t *cfg)
                     line_origin_x = cfg->x;
                     if (cfg->style) {
                         if (cfg->style->h_align == ALIGN_CENTER)
-                            line_origin_x += (cfg->w - line_widths[line_idx]) / 2;
+                            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count)) / 2;
                         else if (cfg->style->h_align == ALIGN_RIGHT_DOWN)
-                            line_origin_x += (cfg->w - line_widths[line_idx]);
+                            line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
                     }
                     cur_x = line_origin_x;
                     if (cur_y + line_h > cfg->h) return;

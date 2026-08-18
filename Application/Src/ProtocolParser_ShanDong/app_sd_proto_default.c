@@ -15,7 +15,7 @@
 #include "initcall.h"
 
 /* 「山东省 高速公路 欢迎您」（协议文档 §0 上电显示原文，UTF-8 字面量） */
-static const uint8_t s_sd_default_text[] = "山东省 高速公路 欢迎您";
+static const uint8_t s_sd_default_text[] = "山东省\n高速公路\n欢迎您";
 
 /** @brief 清屏后居中渲染「山东省 高速公路 欢迎您」（FONT_16 居中黄字）。 */
 static void _sd_default_show(void)

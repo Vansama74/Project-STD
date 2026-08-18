@@ -2,7 +2,7 @@
 
 #include "app_mqtt.h"
 #include "ah_mqtt.h"
-#include "text_cvt.h"
+#include "app_render.h"
 #include "app_render.h"
 #include "dev_display.h"
 
@@ -43,17 +43,18 @@ static const font_size_t disp_size[]    = {0, 0, FONT_16, FONT_24, FONT_32, 0, 0
  */
 static void cmd_display(channel_t *ch, char *buff)
 {
-    uint32_t length     = strlen(buff), gbk_len;
+    uint32_t length     = strlen(buff);
     cmd_display_t *para = (cmd_display_t *)buff;
-    char gbk_txt[128]   = {0};
 
-    UTF8ToGBK(para->text, length - sizeof(cmd_display_t), gbk_txt, &gbk_len);
+    /* AH 平台文本为 UTF-8：直接以 FONT_ENC_UTF8 交给 app_render
+     * （渲染引擎内部自行 UTF8ToGBK 取字模）。勿在此预转 GBK——
+     * GBK 字节再被 FONT_ENC_UTF8 路径二次解析会双重转换乱码。 */
     app_render(&(render_cfg_t){
         .type = RENDER_TEXT,
         .x = 0, .y = 0,
         .w = dev_display_get()->screen_rows, .h = dev_display_get()->screen_cols,
         .color    = disp_color[(uint8_t)(para->color) - 0x30],
-        .text      = gbk_txt, .len = (uint16_t)gbk_len,
+        .text      = para->text, .len = (uint16_t)(length - sizeof(cmd_display_t)),
         .font_size = disp_size[(uint8_t)(para->size) - 0x30],
         .font_type = FONT_ST,
         .text_enc  = FONT_ENC_UTF8,

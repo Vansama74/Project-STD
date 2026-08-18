@@ -184,7 +184,12 @@ static void _sc_ol_exec_brightness(uint8_t val)
     }
     if (g_light_sensor_task_handle != nullptr)
         osThreadSuspend(g_light_sensor_task_handle);    /* 关闭自动调光 */
-    dev_display_set_brightness(d, (uint8_t)((val + 1U) / 32U)); /* (val+1)/32：31~62→1 … 224~255→8 */
+    uint8_t level = (uint8_t)((val + 1U) / 32U);
+    /* 0 档根因防护：val=1~31 时 (val+1)/32=0，light_level=0 → OE 恒高 → 整屏全灭。
+     * 硬件档位必须落在 1~8，最低钳制为 1。 */
+    if (level == 0U)
+        level = 1U;
+    dev_display_set_brightness(d, level); /* (val+1)/32：31~62→1 … 224~255→8 */
 }
 
 /**
