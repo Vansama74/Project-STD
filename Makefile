@@ -36,7 +36,6 @@ DEFINES = -DUSE_HAL_DRIVER -DSTM32F407xx -DSTD_ALL_PROTO
 
 INC_DIRS = \
 	-I Application/Inc \
-	-I Application/Inc/MSL \
 	-I Application/Inc/IAP \
 	-I Application/Inc/LDI \
 	-I Application/Inc/Config \
@@ -335,8 +334,6 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c \
-	Application/Src/MSL/app_msl.c \
-	Application/Src/MSL/app_msl_cmd.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \

@@ -38,9 +38,3 @@ void app_light_sensor_init(void)
     g_light_sensor_task_handle = osThreadNew(app_light_sensor_task, NULL, &attr);
 }
 sw_app_initcall(app_light_sensor_init);
-
-/* MSL 联动所需 getter（保留：app_msl_cmd.c 引用；广播功能已回退） */
-light_sensor_dev_t *app_light_sensor_get(void)
-{
-    return &s_sensor_dev;
-}
