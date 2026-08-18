@@ -8,7 +8,9 @@
 
 #include "dev_rs232.h"
 
-static uint8_t s_rs232_0_buf[RS232_BUF_SIZE];
+/* 乒乓双缓冲：2 × RS232_BUF_SIZE = 1280B（.bss 静态，SRAM 账见 doc/06）
+ * pl_uart circular DMA 覆盖整缓冲，HT/TC 各冲刷一块。 */
+static uint8_t s_rs232_0_buf[2 * RS232_BUF_SIZE];
 
 uint8_t *dev_rs232_get_buf(uint8_t index)
 {

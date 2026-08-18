@@ -6,7 +6,8 @@
 
 #include <stdint.h>
 
-/* IDLE DMA（仅 index0）：≥ QH 最大帧 259，且 ≤ RB_SIZE_RS232−1 */
+/* 乒乓双缓冲单块大小（仅 index0）：≥ QH 最大帧 259，且 ≤ RB_SIZE_RS232−1。
+ * 实际 DMA 缓冲 = 2 × RS232_BUF_SIZE = 1280B（pl_uart circular 周期）。 */
 #define RS232_BUF_SIZE (640U)
 
 uint8_t *dev_rs232_get_buf(uint8_t index);
