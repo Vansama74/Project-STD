@@ -593,11 +593,11 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 数据驱动字库引擎，字库存储在 W25Qxx Flash 中，模块 `sw_app_initcall` 自注册。
 
 ### 字库组织
-- 字库 = **(字号, 编码, 字型)** 三元组的顺序拼接
-- `g_font_regions_orig[]` 描述表（`flash_region_t`，40 项三元组 = 5 字号×2 编码(ASCII/GBK)×4 字型(宋/仿宋/楷/黑)，经 `dev_storage_read` 读取）
-- `_glyph_bytes(key)` = 每字符字节数：ASCII `(size/2宽+7)/8×size`，GBK `(size宽+7)/8×size`
-- `_font_offset(key)` = 线性扫描累加 unit_size，找到目标单元的起始偏移
-- `_char_addr(key, ch)` = 单字符 Flash 地址：ASCII `base+(ch-0x20)×bpc`，GBK `base+((hi-0x81)×190+(lo-offset))×bpc`
+- 字库 = **(字号, 编码, 字型)** 三元组，由 `font_chip_config_t` 芯片配置描述（`s_chip_configs[]`，当前激活 W25Q64；区块表按芯片配置动态取用，非固定 40 项全局表）
+- `_packed_glyph_bytes(size, charset)` = 每字符打包字节数：ASCII `size×((size/2+7)/8)`，GBK `size×((size+7)/8)`
+- `_glyph_width_px(size, charset)` = 字符像素宽：ASCII `size/2`，GBK `size`
+- `_find_region(size, charset, type)` = 在当前激活芯片配置的区块表中按三元组查找（未命中回退首项）
+- `_flash_addr(size, charset, type, ch)` = 单字符 Flash 绝对地址：`char_idx×bpc` 后按 sec/page/byte 分步计算，含芯片级 sec/page/byte 修正（ASCII 原始码/减 0x20、GBK 190 列/94 列按芯片配置区分）
 
 ### Tagged Union API
 
