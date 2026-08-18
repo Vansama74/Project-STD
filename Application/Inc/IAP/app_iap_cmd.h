@@ -24,4 +24,5 @@ typedef enum {
 } rtn_cmd_t;
 
 typedef void (*iap_cmd_handler_fn_t)(channel_t *, iap_frame_t *);
-extern const iap_cmd_handler_fn_t g_iap_cmd_table[];
+#define IAP_CMD_COUNT (8U) /* 命令表条目数（cmd 0x00~0x07），与 app_iap_cmd.c 中 g_iap_cmd_table[] 定义保持同步 */
+extern const iap_cmd_handler_fn_t g_iap_cmd_table[IAP_CMD_COUNT];
