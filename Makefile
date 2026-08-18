@@ -36,6 +36,7 @@ DEFINES = -DUSE_HAL_DRIVER -DSTM32F407xx -DSTD_ALL_PROTO
 
 INC_DIRS = \
 	-I Application/Inc \
+	-I Application/Inc/MSL \
 	-I Application/Inc/IAP \
 	-I Application/Inc/LDI \
 	-I Application/Inc/Config \
@@ -298,6 +299,8 @@ SRC_APPLICATION = \
 	Application/Src/app_default_display.c \
 	Application/Src/app_dispatch.c \
 	Application/Src/app_render.c \
+	Application/Src/MSL/app_msl.c \
+	Application/Src/MSL/app_msl_cmd.c \
 	Application/Src/app_key.c \
 	Application/Src/app_light_sensor.c \
 	Application/Src/IAP/app_iap.c \

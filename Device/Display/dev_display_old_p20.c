@@ -15,50 +15,24 @@
  *  P20 模组参数
  * ================================================================ */
 
-#define P20_MODULE_ROWS         (1U)  /* 每行模块数 */
-#define P20_MODULE_COLS         (1U)  /* 每列模块数 */
+#define P20_MODULE_ROWS         (2U)  /* 每行模块数 */
+#define P20_MODULE_COLS         (2U)  /* 每列模块数 */
 #define P20_MODULE_PIXEL_ROW    (24U) /* 单模块像素行数 */
 #define P20_MODULE_PIXEL_COL    (12U) /* 单模块像素列数 */
 #define P20_CHANNELS_PER_MODULE (2U)  /* 每模块通道数（R1G1B1 + R2G2B2） */
 #define P20_SCAN_LINES          (1U)  /* 静态扫描 */
 
 /* ---- 派生参数（由模组参数计算，勿手动修改） ---- */
-#define P20_SCREEN_ROWS    (P20_MODULE_ROWS * P20_MODULE_PIXEL_ROW)                                                  /* 16 */
-#define P20_SCREEN_COLS    (P20_MODULE_COLS * P20_MODULE_PIXEL_COL)                                                  /* 16 */
-#define P20_BUFFER_SIZE    (P20_SCREEN_ROWS * P20_SCREEN_COLS)                                                       /* 256 */
-#define P20_TOTAL_CHANNELS (P20_MODULE_COLS * P20_CHANNELS_PER_MODULE)                                               /* 4 */
-#define P20_CHANNEL_PIXELS (P20_MODULE_PIXEL_ROW * P20_MODULE_PIXEL_COL * P20_MODULE_ROWS / P20_CHANNELS_PER_MODULE) /* 64 */
-#define P20_SCAN_LINE_PX   (P20_CHANNEL_PIXELS / P20_SCAN_LINES)                                                     /* 64 */
-
-/* ================================================================
- *  hub75_buff 布局
- *
- * HUB75 协议以"组"为单位移位输出，每组 16 字节对应 4×4 像素块。
- * 屏幕 16×16 像素 → 4×4 组，每组覆盖 4 行 × 4 列。
- *
- * 每个组 16 字节 = 4 行 × 4 列，每组内布局：
- *   偏移  row%4  col: 0   1   2   3
- *   ───── ─────  ───────────────────
- *    0..3    0       6   4   2   0   ← 行镜像 (3 - col)
- *    4..7    1       7   5   3   1   ← 行镜像 + 偏移 1
- *    8..11   2       8  10  12  14   ← 行正序 + 偏移 9
- *   12..15   3       9  11  13  15   ← 行正序 + 偏移 8
- *
- * 每组 2 字节一组（对应 R/G/B 三色），每组内 4 行的偏移规律
- * 由 HUB75 驱动芯片的数据输入格式决定。
- * ================================================================ */
-
-#define GROUP_PIXEL_W 4  /* 每组覆盖的列数 */
-#define GROUP_PIXEL_H 4  /* 每组覆盖的行数 */
-#define GROUP_SIZE    16 /* 每组的字节数 = GROUP_PIXEL_W × GROUP_PIXEL_H */
-
-/* 组内行偏移的基准值 */
-#define GROUP_ROW0_OFFSET  0 /* row%4 == 0: 双字节对偏移 0 */
-#define GROUP_ROW1_OFFSET  1 /* row%4 == 1: 双字节对偏移 1 */
-#define GROUP_ROW2_OFFSET  9 /* row%4 == 2: 双字节对偏移 9 */
-#define GROUP_ROW3_OFFSET  8 /* row%4 == 3: 双字节对偏移 8 */
-
-#define GROUP_COLS_PER_ROW (P20_MODULE_ROWS * GROUP_PIXEL_W) /* 每行模块的水平组数 */
+#define P20_SCREEN_ROWS    (P20_MODULE_ROWS * P20_MODULE_PIXEL_ROW)
+#define P20_SCREEN_COLS    (P20_MODULE_COLS * P20_MODULE_PIXEL_COL)
+#define P20_PIXEL_MAP_SIZE (P20_SCREEN_ROWS * P20_SCREEN_COLS)
+#define P20_HUB75_BUF_SIZE (P20_SCREEN_ROWS * P20_MODULE_COLS * 16U)
+// #define P20_TOTAL_CHANNELS (P20_MODULE_COLS * P20_CHANNELS_PER_MODULE)
+// #define P20_CHANNEL_PIXELS (P20_MODULE_PIXEL_ROW * P20_MODULE_ROWS * 8U)
+// #define P20_SCAN_LINE_PX   (P20_CHANNEL_PIXELS / P20_SCAN_LINES)
+#define P20_TOTAL_CHANNELS (8U)
+#define P20_CHANNEL_PIXELS (192U)
+#define P20_SCAN_LINE_PX   (192U)
 
 /* ---- BSRR 预计算查表 ---- */
 typedef struct {
@@ -72,8 +46,8 @@ typedef struct {
     dev_display_t me;
 } dev_display_p20_t;
 
-[[gnu::section(".ccmram")]] static uint8_t p20_pixel_map[P20_BUFFER_SIZE];
-[[gnu::section(".ccmram")]] static uint8_t p20_hub75_buff[P20_BUFFER_SIZE];
+[[gnu::section(".ccmram")]] static uint8_t p20_pixel_map[P20_PIXEL_MAP_SIZE];
+[[gnu::section(".ccmram")]] static uint8_t p20_hub75_buff[P20_HUB75_BUF_SIZE];
 
 static dev_display_p20_t g_p20 = {
     .me = {
@@ -89,10 +63,10 @@ static dev_display_p20_t g_p20 = {
         .total_channels      = P20_TOTAL_CHANNELS,
         .channel_pixels      = P20_CHANNEL_PIXELS,
         .scan_line_pixels    = P20_SCAN_LINE_PX,
-        .buffer_size         = P20_BUFFER_SIZE,
+        .buffer_size         = P20_PIXEL_MAP_SIZE,
         .pixel_map           = p20_pixel_map,
         .hub75_buff          = p20_hub75_buff,
-        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
+        .light_level         = 1,
     },
 };
 
@@ -111,37 +85,32 @@ dev_display_t *dev_display_p20_get(void)
 
 static void _p20_prepare(dev_display_t *dev)
 {
-    int32_t group_index = 0; /* 当前像素所属的"组"索引 */
-    int32_t pixel_col   = 0; /* 像素列坐标 x (0..15) */
-    int32_t pixel_row   = 0; /* 像素行坐标 y (0..15) */
+    int32_t group_index = 0;
+    int32_t group_row = 0, group_col = 0;
+    int32_t pixel_col = 0, pixel_row = 0;
 
     for (int32_t linear = 0; linear < (int32_t)dev->buffer_size; linear++) {
         pixel_col = linear % (int32_t)dev->screen_rows; /* 行优先: x 先递增 */
         pixel_row = linear / (int32_t)dev->screen_rows;
 
-        /* 计算组索引: 每组 4×4 像素，横向 GROUP_PIXEL_W 列、纵向 GROUP_PIXEL_H 行 */
-        group_index = pixel_col / GROUP_PIXEL_W + (pixel_row / GROUP_PIXEL_H * GROUP_COLS_PER_ROW);
+        group_row   = pixel_row % 12 / 4 + (pixel_row % 12 / 4 + 1) / 4;
+        group_col   = pixel_col % 24 / 4;
+        group_index = (1 - group_row % 2) * 6 + group_row / 2 * 2 * 6 + group_col % 6;
 
-        /* 根据行模 4 结果选择组内偏移，匹配 HUB75 驱动芯片的输入格式 */
-        switch (pixel_row % GROUP_PIXEL_H) {
-            case 0: /* 第 0 行: 行镜像 (3 - col%4), 双字节对起始偏移 0 */
-                dev->hub75_buff[GROUP_ROW0_OFFSET + 2 * (GROUP_PIXEL_W - 1 - pixel_col % GROUP_PIXEL_W) + group_index * GROUP_SIZE] = dev->pixel_map[linear];
-                break;
+        int32_t col = pixel_col % 24 % 4, row = pixel_row % 12 % 4;
+        int32_t res = (col + (1 - row) * 4) * (1 - row / 2) + ((3 - col) + row * 4) * (row / 2);
 
-            case 1: /* 第 1 行: 行镜像, 双字节对起始偏移 1 */
-                dev->hub75_buff[GROUP_ROW1_OFFSET + 2 * (GROUP_PIXEL_W - 1 - pixel_col % GROUP_PIXEL_W) + group_index * GROUP_SIZE] = dev->pixel_map[linear];
-                break;
+        uint16_t offset = 0;
+        if ((pixel_col < 24) && (pixel_row < 12))
+            offset = 0 * 384;
+        else if ((pixel_col >= 24) && (pixel_row < 12))
+            offset = 1 * 384;
+        else if ((pixel_col < 24) && (pixel_row >= 12))
+            offset = 2 * 384;
+        else if ((pixel_col >= 24) && (pixel_row >= 12))
+            offset = 3 * 384;
 
-            case 2: /* 第 2 行: 行正序, 双字节对起始偏移 8 */
-                dev->hub75_buff[GROUP_ROW2_OFFSET + 2 * (pixel_col % GROUP_PIXEL_W) + group_index * GROUP_SIZE] = dev->pixel_map[linear];
-                break;
-
-            case 3: /* 第 3 行: 行正序, 双字节对起始偏移 9 */
-                dev->hub75_buff[GROUP_ROW3_OFFSET + 2 * (pixel_col % GROUP_PIXEL_W) + group_index * GROUP_SIZE] = dev->pixel_map[linear];
-                break;
-            default:
-                break;
-        }
+        dev->hub75_buff[res + (group_index) * 16 + offset] = dev->pixel_map[linear];
     }
 }
 

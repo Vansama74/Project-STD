@@ -139,9 +139,9 @@ typedef struct [[gnu::packed]] {
     uint32_t magic;
     uint16_t screen_rows;
     uint16_t screen_cols;
-    uint8_t  color;         /* 非黑像素颜色 (display_color_t) */
-    uint32_t crc32;         /* bitmap 数据的 CRC32 */
-    uint8_t  bitmap[];      /* ((rows*cols+7)/8) 字节, MSB first per row */
+    uint8_t color;    /* 非黑像素颜色 (display_color_t) */
+    uint32_t crc32;   /* bitmap 数据的 CRC32 */
+    uint8_t bitmap[]; /* ((rows*cols+7)/8) 字节, MSB first per row */
 } render_persist_t;
 
 /** @brief 将当前显存写入存储设备持久化扇区 */
@@ -150,3 +150,10 @@ void app_render_save(void);
 /** @brief 从存储设备加载持久化数据恢复显存
  *  @return true=成功恢复并置脏标记, false=无有效数据/尺寸不匹配/CRC错误 */
 bool app_render_restore(void);
+
+// 关于msl的api
+void msl_render_text(const render_cfg_t *cfg);
+void msl_render_bitmap(const render_cfg_t *cfg);
+void msl_render_fill(const render_cfg_t *cfg);
+
+void app_bitmap_sychro(dev_display_t *dsp, uint8_t addr, render_cfg_t ctx, bool pers);

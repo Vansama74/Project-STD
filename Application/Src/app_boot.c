@@ -28,6 +28,7 @@
 #include "pl_gpio.h"
 #include "pl_iwdg.h"
 #include "pl_rtc.h"
+#include "pl_uart.h"
 
 #define SPLASH_DURATION_MS 5000U
 
@@ -136,6 +137,19 @@ static void init_task(void *argument) {
   /* USART6：语音板 TTS 旁路 TX（dev_rs232_voice），禁止协议 bind；不启 RX
    * 通道任务 */
   app_rs232_1_start();
+
+  printf("\nInit Task Done\n");
+  /* phtty/yy 点阵启动自检（全屏红 bitmap sync），本地以 app_splash_display
+   * 代替，代码保留可按需启用 */
+  // render_cfg_t ctx = {
+  //     .type  = RENDER_BITMAP,
+  //     .x     = 0,
+  //     .y     = 0,
+  //     .w     = dev_display_get()->screen_rows,
+  //     .h     = dev_display_get()->screen_cols,
+  //     .color = COLOR_RED,
+  // };
+  // app_bitmap_sychro(dev_display_get(), 0x01, ctx, true);
 
   // app_test_run();
   app_default_display();
