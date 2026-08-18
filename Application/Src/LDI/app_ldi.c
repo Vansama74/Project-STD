@@ -66,11 +66,86 @@ ldi_ctx_t g_ldi = {
 void ldi_ctx_init(ldi_ctx_t *self)
 {
     app_flash_ldi_cfg_info_t flash_cfg = {0};
+    bool flash_valid                   = false;
 
     if (app_flash_ldi_load_config(&flash_cfg)) {
-        /* Flash 有有效配置：应用到运行环境 */
+        /* Flash 记录的 module_count 钳制：超设备类型上限（LDI_DEV_TYPE_COUNT=13）或
+         * 存储数组容量（APP_FLASH_LDI_MAX_MODULES=11）视为非法记录，回退默认配置，
+         * 防后续按 module_count 遍历 flash_cfg.modules[] 越界读。 */
+        if (flash_cfg.module_count <= LDI_DEV_TYPE_COUNT &&
+            flash_cfg.module_count <= APP_FLASH_LDI_MAX_MODULES)
+            flash_valid = true;
+    }
 
-        /* 网络参数（device_ip/mask/gw/host_ip/host_port 等） */
+    /* ---- 方案 X（doc/07 §12）：Sector1 为网络配置唯一真源，W25 为恢复镜像 ----
+     * Sector1 有效性判定分两步：公开接口 app_board_net_cfg_get 做 magic+CRC 校验
+     * （返回 0 = 有效），整记录读取得 update_sta 判升级中间态。两者均为内存映射
+     * 拷贝，上电可安全执行（不擦写内部 Flash）。 */
+    app_board_sys_info_t sys_info;
+    app_board_net_cfg_read(&sys_info);
+    app_board_net_cfg_t board_cfg = {0};
+    bool board_valid              = (app_board_net_cfg_get(&board_cfg) == 0);
+
+    if (board_valid && sys_info.update_sta == APP_BOARD_UPDATED) {
+        /* ---- 分支 1：Sector1 有效且非升级中间态 → 以 Sector1 为准 ----
+         * 网络字段（device_ip/netmask/gateway/device_port）全部取自 Sector1.net_cfg。
+         * 缺陷 B 修复：device_port 必须读 Sector1.net_cfg.port，而非编译期默认
+         * （app_tcp_server_get_port），否则 0AH/4B02 改过的端口上电即被默认值覆盖。 */
+        memcpy(self->cfg.device_ip, board_cfg.ip, sizeof(self->cfg.device_ip));
+        memcpy(self->cfg.netmask, board_cfg.mask, sizeof(self->cfg.netmask));
+        memcpy(self->cfg.gateway, board_cfg.gw, sizeof(self->cfg.gateway));
+        self->cfg.device_port = (uint16_t)board_cfg.port;
+
+        if (flash_valid) {
+            /* W25 已有有效配置：非网络字段（host/lane/cert/modules）沿用 W25，
+             * 网络字段仍以 Sector1 为准（Sector1 优先，不覆盖 W25）。 */
+            memcpy(self->cfg.host_ip, flash_cfg.host_ip, sizeof(self->cfg.host_ip));
+            self->cfg.host_port = flash_cfg.host_port;
+            memcpy(self->cfg.lane_hex, flash_cfg.lane_hex, sizeof(self->cfg.lane_hex));
+            memcpy(self->cfg.cert, flash_cfg.cert, sizeof(self->cfg.cert));
+
+            /* module: 以编译期 type 做键匹配，同步 index */
+            for (uint8_t i = 0; i < self->cfg.module_count; i++) {
+                for (uint8_t j = 0; j < flash_cfg.module_count; j++) {
+                    if (flash_cfg.modules[j].device_type == self->cfg.modules[i].device_type) {
+                        self->cfg.modules[i].device_index = flash_cfg.modules[j].device_index;
+                        break;
+                    }
+                }
+            }
+            app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
+
+            /* 缺陷 C/A 修复（镜像自愈）：Sector1 与 W25 的网络字段逐项比对，
+             * 任一不一致 → 用当前 cfg（网络字段取自 Sector1）刷新 W25 镜像。
+             * 覆盖两类陈旧场景：① 4B02 只写 Sector1、不写 W25 → 镜像残留旧值，
+             * 擦 Sector1 恢复出厂时会回滚旧 IP；② 单次 W25 写失败导致的永久陈旧。
+             * W25 为 SPI 4KB 擦写，无内部 Flash 总线停顿，上电执行安全。 */
+            if (memcmp(self->cfg.device_ip, flash_cfg.device_ip, sizeof(flash_cfg.device_ip)) != 0 ||
+                memcmp(self->cfg.netmask, flash_cfg.netmask, sizeof(flash_cfg.netmask)) != 0 ||
+                memcmp(self->cfg.gateway, flash_cfg.gateway, sizeof(flash_cfg.gateway)) != 0 ||
+                self->cfg.device_port != flash_cfg.device_port) {
+                app_flash_ldi_save_config(&self->cfg);
+            }
+        } else {
+            /* W25 空/无效：host 字段取编译期默认，并把当前 cfg 的网络字段写为 W25
+             * 恢复镜像——维护「擦 Sector1 恢复出厂后仍可还原用户配置」能力。
+             * W25 为 SPI 外设擦写（4KB 扇区），不暂停 CPU 总线，区别于内部 Flash
+             * 擦除（1~2s 停顿），上电执行安全。 */
+            memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
+            self->cfg.host_port = app_tcp_client_get_host_port();
+            app_flash_ldi_save_config(&self->cfg);
+        }
+
+        /* 应用到 LwIP / TCP Server */
+        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
+        app_tcp_server_set_port(self->cfg.device_port);
+        self->cfg_valid = true;
+
+    } else if (flash_valid) {
+        /* ---- 分支 2：Sector1 空/损坏/升级中间态 + W25 有效 → 以 W25 为准并回写自愈 ----
+         * cfg 全字段取自 W25；回写 Sector1 由 app_board_net_cfg_update 内部处理
+         * 全部分支（空/损坏完整初始化自愈；中间态下 update_sta/app_info 保留、仅
+         * net_cfg 写入（2026-08-18 语义修订），见 doc/07 §10 方案 1）。 */
         memcpy(self->cfg.device_ip, flash_cfg.device_ip, sizeof(self->cfg.device_ip));
         self->cfg.device_port = flash_cfg.device_port;
         memcpy(self->cfg.netmask, flash_cfg.netmask, sizeof(self->cfg.netmask));
@@ -79,11 +154,6 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg.host_port = flash_cfg.host_port;
         memcpy(self->cfg.lane_hex, flash_cfg.lane_hex, sizeof(self->cfg.lane_hex));
         memcpy(self->cfg.cert, flash_cfg.cert, sizeof(self->cfg.cert));
-
-        /* 应用到 LwIP / TCP Server / TCP Client */
-        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
-        app_tcp_server_set_port(self->cfg.device_port);
-        app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
 
         /* module: 以编译期 type 做键匹配，同步 index */
         for (uint8_t i = 0; i < self->cfg.module_count; i++) {
@@ -94,36 +164,34 @@ void ldi_ctx_init(ldi_ctx_t *self)
                 }
             }
         }
+
+        /* 应用到 LwIP / TCP Server / TCP Client */
+        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
+        app_tcp_server_set_port(self->cfg.device_port);
+        app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
         self->cfg_valid = true;
 
-        /* 同步 IP 到板级网络配置（Sector1，app_board_net_cfg_update 内部处理全部分支）：
-         * - Sector1 空/损坏  → 完整初始化覆盖（镜像 Bootloader 语义；损坏无保护价值，自愈）
-         * - 有效且不一致      → 更新 net_cfg；一致 → 跳过擦写（不磨损扇区）
-         * - 升级中间态        → 守卫拒绝覆盖（valid 但 update_sta != updated），仅返回错误 */
+        /* 回写 Sector1 自愈（升级中间态仅 net_cfg 写入，update_sta/app_info 保留） */
         (void)app_board_net_cfg_update(self->cfg.device_ip, self->cfg.netmask,
                                        self->cfg.gateway, self->cfg.device_port);
 
     } else {
-        /* 外部 flash 无有效配置，尝试从板级网络配置（Sector1）读取 */
-        app_board_net_cfg_t board_cfg;
-        if (app_board_net_cfg_get(&board_cfg) == 0) {
-            memcpy(self->cfg.device_ip, board_cfg.ip, 4);
-            memcpy(self->cfg.netmask, board_cfg.mask, 4);
-            memcpy(self->cfg.gateway, board_cfg.gw, 4);
-        } else {
-            /* Sector1 也无有效配置，使用上电默认 IP */
-            uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
-            pl_net_get_ip(ip, mask, gw);
-            memcpy(self->cfg.device_ip, ip, sizeof(ip));
-            memcpy(self->cfg.netmask, mask, sizeof(mask));
-            memcpy(self->cfg.gateway, gw, sizeof(gw));
-        }
+        /* ---- 分支 3：Sector1 与 W25 皆空/无效 → 统一出厂默认 ----
+         * 默认 IP 取 pl_net 上电值（三固件统一 192.168.114.200/24，doc/07 §11），
+         * 端口取 TCP Server 编译期默认。set_ip 回灌网口保证 cfg 与网口一致。 */
+        uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
+        pl_net_get_ip(ip, mask, gw);
+        memcpy(self->cfg.device_ip, ip, sizeof(ip));
+        memcpy(self->cfg.netmask, mask, sizeof(mask));
+        memcpy(self->cfg.gateway, gw, sizeof(gw));
         self->cfg.device_port = app_tcp_server_get_port();
         memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
         self->cfg.host_port = app_tcp_client_get_host_port();
-        self->cfg_valid     = true;
-        /* 不在上电阶段写 Flash：擦除会暂停 CPU 总线 1~2s，损坏 LwIP 时序。
-           配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，风险可控。 */
+        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
+        app_tcp_server_set_port(self->cfg.device_port);
+        self->cfg_valid = true;
+        /* 不写任何 Flash：配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，
+         * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径。 */
     }
 }
 
@@ -380,6 +448,14 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
         }
 
         if (g_ldi.cfg_valid) {
+            /* data_len 下限：身份字段必须完整落在帧内（标准头 cert 偏移 10 + 8 = 18B；
+             * 1BH 头 cert 偏移 14 + 8 = 22B）。不足视为畸形帧直接 SKIP 整帧，
+             * 不再对帧尾之外的垃圾字节做 memcmp 身份校验。 */
+            if (data_len < (uint32_t)cert_off + sizeof(g_ldi.cfg.cert)) {
+                *total_len = (uint32_t)(sizeof(ldi_frame_t) + data_len + 2);
+                return PROTO_PROBE_SKIP;
+            }
+
             /* 帧结构合法但车道/设备不匹配 → SKIP 整帧 */
             if (memcmp(g_ldi.cfg.lane_hex, frame->data_crc + lane_off, sizeof(g_ldi.cfg.lane_hex)) ||
                 memcmp(g_ldi.cfg.cert, frame->data_crc + cert_off, sizeof(g_ldi.cfg.cert))) {
