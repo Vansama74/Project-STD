@@ -99,11 +99,6 @@ virtualFolder:
                 - path: Application/Src/RLS/app_rls_cmd.c
                 - path: Application/Src/RLS/app_rls.c
               folders: []
-            - name: msl
-              files:
-                - path: Application/Src/MSL/app_msl.c
-                - path: Application/Src/MSL/app_msl_cmd.c
-              folders: []
     - name: Drivers
       files: []
       folders:
@@ -305,8 +300,6 @@ virtualFolder:
             - path: Device/Display/dev_display_1_969.c
             - path: Device/Display/dev_display_1_577.c
             - path: Device/Display/dev_display_1_260.c
-            - path: Device/Display/dev_display_p20.c
-            - path: Device/Display/dev_display_old_p20.c
           folders: []
     - name: Platform
       files:
@@ -394,7 +387,6 @@ targets:
         - Application/Inc/ProtocolParser_SiChuang_Overload
         - Application/Inc/ProtocolParser_ShanDong
         - Application/Inc/ProtocolParser_GuiZhou
-        - Application/Inc/MSL
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
@@ -407,11 +399,6 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
-      - <virtual_root>/Device/Display/dev_display_p20.c
-      - <virtual_root>/Application/protocol/ah/ah_mqtt_cmd.c
-      - <virtual_root>/Application/protocol/ah/ah_mqtt.c
-      - <virtual_root>/Application/channel/app_mqtt.c
-      - <virtual_root>/Device/Display/dev_display_old_p20.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -430,7 +417,7 @@ targets:
             language-cpp: c++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-3
+            optimization: level-fast
             warnings: all-warnings
           global:
             $float-abi-type: hard
@@ -522,7 +509,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: JLink
+    uploader: Custom
   Release:
     cppPreprocessAttrs:
       defineList:
