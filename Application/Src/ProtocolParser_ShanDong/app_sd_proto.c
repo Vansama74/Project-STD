@@ -18,6 +18,13 @@
 #include "app_sd_proto_parse.h"
 #include "app_sd_proto_cmd.h"
 
+/* '{' 帧族互斥守卫：同一构建只允许编入一个 '{' 帧族协议（青海/山东/贵州/四川MTC）。
+ * 多个同时编入 → 链接期 multiple definition 强制报错；
+ * Makefile 全协议开发构建定义 STD_ALL_PROTO 跳过守卫（共存由 probe 注册序与文档纪律约束）。 */
+#ifndef STD_ALL_PROTO
+__attribute__((used)) char g_brace_proto_guard;
+#endif
+
 /* 地区协议通道 RB：与青海/RLS/四川等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
 RB_PROVIDE_WEAK(rb_provide_rs232, RB_SIZE_RS232);

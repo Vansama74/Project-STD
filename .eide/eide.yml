@@ -87,6 +87,13 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto_cmd.c
                 - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto_default.c
               folders: []
+            - name: ProtocolParser_GuiZhou
+              files:
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c
+              folders: []
             - name: rls
               files:
                 - path: Application/Src/RLS/app_rls_cmd.c
@@ -379,6 +386,7 @@ targets:
         - Application/Inc/ProtocolParser_SiChuang_MTC
         - Application/Inc/ProtocolParser_SiChuang_Overload
         - Application/Inc/ProtocolParser_ShanDong
+        - Application/Inc/ProtocolParser_GuiZhou
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
@@ -386,9 +394,11 @@ targets:
       - <virtual_root>/Drivers/BSP/Display/scan.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
-      - <virtual_root>/Application/protocol/rls
       - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
     settings:
       debugger: cortex-debug
     toolchain: GCC

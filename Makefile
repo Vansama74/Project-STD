@@ -30,7 +30,9 @@ FLOAT-ABI = -mfloat-abi=hard
 MCU_FLAGS = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
 # ---- Common Flags ----
-DEFINES = -DUSE_HAL_DRIVER -DSTM32F407xx
+# -DSTD_ALL_PROTO：全协议共存开发构建——'{' 帧族互斥守卫 g_brace_proto_guard 失效；
+# EIDE 量产构建不定义该宏，多 '{' 族协议编入即链接报 multiple definition 强制互斥。
+DEFINES = -DUSE_HAL_DRIVER -DSTM32F407xx -DSTD_ALL_PROTO
 
 INC_DIRS = \
 	-I Application/Inc \
@@ -41,6 +43,7 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_SiChuang_ETC \
 	-I Application/Inc/ProtocolParser_SiChuang_MTC \
 	-I Application/Inc/ProtocolParser_SiChuang_Overload \
+	-I Application/Inc/ProtocolParser_GuiZhou \
 	-I Application/Inc/ProtocolParser_ShanDong \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
@@ -327,6 +330,10 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_ShanDong/app_sd_proto_parse.c \
 	Application/Src/ProtocolParser_ShanDong/app_sd_proto_cmd.c \
 	Application/Src/ProtocolParser_ShanDong/app_sd_proto_default.c \
+	Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c \
+	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c \
+	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c \
+	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
