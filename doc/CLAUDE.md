@@ -223,7 +223,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 2-dev | dev | `dev_display_1_577_init` | `dev_display_1_577.c` | 1-577 模组实例注册（EIDE 现行） |
 | 2-dev | dev | `dev_display_1_260_init` | `dev_display_1_260.c` | 1-260 模组实例注册（Makefile 默认） |
 | 2-dev | dev | `dev_display_1_969_init` | `dev_display_1_969.c` | 1-969 模组实例注册（备用） |
-| 2-dev | dev | `dev_display_p20_init` | `dev_display_p20.c` | P20 模组实例注册（未编入任何构建） |
+| 2-dev | dev | `dev_display_p20_init` | `dev_display_p20.c` | P20 模组实例注册（未编入任何构建；`dev_display_old_p20.c` 旧硬件 2×2 版同名符号，同样未编入） |
 | 2-dev | dev | `dev_w25qxx_init` | `dev_w25qxx.c` | SPI Flash JEDEC 识别 |
 | 2-dev | dev | `dev_eth_init` | `dev_eth.c` | ETH MAC + DP83848 PHY |
 | 2-dev | dev | `dev_rs485_init` | `dev_rs485.c` | RS485 RE 方向回调注入 |
@@ -470,7 +470,7 @@ struct dev_display {
 
 ### 现行模组 (`dev_display_1_577.c`，EIDE Debug 主例)
 
-单模块 64×32 像素，2 通道/模块，**3×3 拼屏 → 192×96** 屏幕，1/8 扫描（`MODULE_CODE "1000000577"`）。`dev_display_1_260.c` 为 Makefile 默认模组；`dev_display_1_969.c` 为备用模组（CCM 占用同量级 38208B）；`dev_display_p20.c` 未编入任何构建，仅保留。
+单模块 64×32 像素，2 通道/模块，**3×3 拼屏 → 192×96** 屏幕，1/8 扫描（`MODULE_CODE "1000000577"`）。`dev_display_1_260.c` 为 Makefile 默认模组；`dev_display_1_969.c` 为备用模组（CCM 占用同量级 38208B）；`dev_display_p20.c` 未编入任何构建，仅保留；`dev_display_old_p20.c`（phtty/yy 合并引入的旧硬件 2×2 驱动，与 p20.c 同名符号）亦未编入任何构建（EIDE excludeList 排除）。
 
 `g_bsrr[TOTAL_CHANNELS][8]` CCMRAM 预计算查表：每通道×8 色阶 = `_1_577_bsrr_t`（含 r/g/b 三组 `pl_hub75_bsrr_t`），模组 init 时根据 HUB75 引脚定义填入。扫描时直接查表输出，无需分支。
 
@@ -702,7 +702,7 @@ app_render(&(render_cfg_t){
 | 5 | `CH_ID_MQTT` | LwIP MQTT | `mqtt_channel_t` | `app_mqtt.c` |
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 
-**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH/山东/贵州（`.eide/eide.yml` excludeList；山东/贵州与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/p20/old_p20/RLS/AH/山东/贵州（`.eide/eide.yml` excludeList；山东/贵州与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
