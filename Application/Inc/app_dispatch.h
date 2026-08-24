@@ -52,7 +52,8 @@ typedef enum {
     CH_ID_UDP        = 4,
     CH_ID_MQTT       = 5,
     CH_ID_RS232_1    = 6, /**< [仅语音 TX] USART6 — 禁止任何协议 bind_channel */
-    CH_ID_MAX        = 7,
+    CH_ID_UDP_CQ     = 7, /**< CQ 业务口 UDP（PROTO_CHONGQING 读 Sector1 net_cfg.port 默认 20103；dev 构建固定 20103） */
+    CH_ID_MAX        = 8,
 } channel_id_t;
 
 /* ---- 通道连接状态 ---- */

@@ -1,6 +1,6 @@
 /**
  * @file    dev_tcp_client.c
- * @brief       TCP 客户端通道（连接 192.168.114.100:9529）
+ * @brief       TCP 客户端通道（连接 192.168.2.17:9529）
  */
 
 #include "app_tcp_client.h"

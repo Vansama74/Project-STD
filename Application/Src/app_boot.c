@@ -13,6 +13,7 @@
 #include "app_boot.h"
 #include "app_default_display.h"
 #include "app_key.h"
+#include "app_net_boot.h"
 #include "app_render.h"
 #include "app_rs232.h"
 #include "app_rs485.h"
@@ -28,7 +29,6 @@
 #include "pl_gpio.h"
 #include "pl_iwdg.h"
 #include "pl_rtc.h"
-#include "pl_uart.h"
 
 #define SPLASH_DURATION_MS 5000U
 
@@ -118,6 +118,12 @@ static void init_task(void *argument) {
   int32_t ver_ret = app_board_net_cfg_fw_version_update(PROGRAM_CODE);
   (void)ver_ret; /* 失败不阻断启动（升级中间态/擦写错误静默降级，IAP 0x03 报旧值） */
 
+  /* 网络配置横切应用（app_net_boot 中立模块）：Sector1 net_cfg → netif + TCP
+   * Server 口（PROTO_CHONGQING 只应用 netif）。顺序约束：fw_version_update 对
+   * 空/损坏扇区初始化时 net_cfg 置 0 → 本函数判无效写默认（accept_write）；
+   * ldi_module_init（sw_board_init 内）的 W25 自愈/回写已先于本调用完成。 */
+  app_net_boot_apply();
+
   app_splash_display();
 
   /* 半秒周期任务 */
@@ -130,26 +136,16 @@ static void init_task(void *argument) {
 
   app_tcp_server_start();
   app_tcp_client_start();
+
   app_udp_start();
+  /* CQ 业务口 UDP（端口 Sector1 net_cfg.udp_port，默认 20103，PROTO_CHONGQING 读） */
+  app_udp_cq_start();
   app_rs485_start();
   /* TX1/RX1：地区协议 RS232（USART3） */
   app_rs232_start();
   /* USART6：语音板 TTS 旁路 TX（dev_rs232_voice），禁止协议 bind；不启 RX
    * 通道任务 */
   app_rs232_1_start();
-
-  printf("\nInit Task Done\n");
-  /* phtty/yy 点阵启动自检（全屏红 bitmap sync），本地以 app_splash_display
-   * 代替，代码保留可按需启用 */
-  // render_cfg_t ctx = {
-  //     .type  = RENDER_BITMAP,
-  //     .x     = 0,
-  //     .y     = 0,
-  //     .w     = dev_display_get()->screen_rows,
-  //     .h     = dev_display_get()->screen_cols,
-  //     .color = COLOR_RED,
-  // };
-  // app_bitmap_sychro(dev_display_get(), 0x01, ctx, true);
 
   // app_test_run();
   app_default_display();

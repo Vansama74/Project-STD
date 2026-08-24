@@ -126,7 +126,12 @@ static void cmd_ForceModifyIP_02(channel_t *ch, iap_frame_t *IAP_Data)
      * 0x00000001 失败（擦写错误）。
      * 兼容性风险：老上位机若按「B402 无载荷」解析，会多读到一个 word
      * （被忽略还是报错取决于上位机实现），混合部署期需联调验证。 */
-    int32_t ret = app_board_net_cfg_update(net_info.ip, net_info.mask, net_info.gw, net_info.port);
+    /* 方案 B（2026-08-21）：4B02 写 TCP 业务口（包内 port），udp_port 保留现值
+     * （get 失败用出厂默认 20103）。 */
+    app_board_net_cfg_t cur_cfg;
+    uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
+    int32_t ret = app_board_net_cfg_update(net_info.ip, net_info.mask, net_info.gw, net_info.port,
+                                           udp_port);
     uint32_t result = ret < 0 ? 1 : 0;
     cmd_SendReData(ch, IAP_Data->seq, rtn_cmd02, 1, &result);
 }

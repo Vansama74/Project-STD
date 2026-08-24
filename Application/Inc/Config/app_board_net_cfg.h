@@ -3,8 +3,9 @@
  * @brief   板级系统配置存储（内部 Flash Sector 1, 0x08004000, 16KB）
  *
  * 本模块是 Sector1 配置记录的**唯一布局归属**，LDI 与 IAP 协议共同依赖：
- *  - 网络配置（ip/mask/gw/port）：LDI 0AH / IAP 4B02 写入，Bootloader / Recovery /
- *    主固件共享同一套上电 IP；
+ *  - 网络配置（ip/mask/gw 共享 + port/udp_port 双端口）：LDI 0AH / IAP 4B02 写
+ *    port（TCP 口），CQ setip 写 udp_port（UDP 口）；Bootloader / Recovery / 主固件
+ *    共享同一套上电 IP；
  *  - 固件信息 + 升级状态（app_info / update_sta）：IAP 升级流程专用，与 net_cfg
  *    同扇区同记录，由本模块统一做读-改-写（16KB 整扇区擦除），避免双模块擦写
  *    所有权冲突。
@@ -26,12 +27,18 @@
 
 /* ---- Sector1 记录布局 ---- */
 
-/* 网络配置 */
+/* 网络配置
+ * 字段语义（方案 B，2026-08-21，TCP/UDP 端口彻底分离）：
+ *  - port     = TCP 业务口（LDI 0AH 写 / IAP 0x02 写 / 0x01 报 / TCP Server 监听，
+ *               LDI/IAP 生态，出厂默认 9528）；
+ *  - udp_port = CQ UDP 业务口（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。
+ * ip/mask/gw 两套口共享（setip 与 0AH 都写，现状不变）。 */
 __attribute__((aligned(4))) typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
     uint32_t port;
+    uint32_t udp_port;
 } app_board_net_cfg_t;
 
 /* main app 信息 */
@@ -58,14 +65,16 @@ __attribute__((aligned(4))) typedef struct {
 } app_board_sys_info_t;
 
 /* ---- 布局锁定：与 Bootloader / Recovery config_info.h 二进制兼容 ---- */
-static_assert(sizeof(app_board_net_cfg_t) == 16, "net_cfg 布局 16B");
+static_assert(sizeof(app_board_net_cfg_t) == 20, "net_cfg 布局 20B");
 static_assert(sizeof(app_board_fw_info_t) == 40, "fw_info 布局 40B");
-static_assert(sizeof(app_board_sys_info_t) == 68, "sys_info 布局 68B");
+static_assert(sizeof(app_board_sys_info_t) == 72, "sys_info 布局 72B");
 static_assert(offsetof(app_board_sys_info_t, magic) == 0, "magic 偏移 0");
 static_assert(offsetof(app_board_sys_info_t, update_sta) == 4, "update_sta 偏移 4");
 static_assert(offsetof(app_board_sys_info_t, app_info) == 8, "app_info 偏移 8");
 static_assert(offsetof(app_board_sys_info_t, net_cfg) == 48, "net_cfg 偏移 48");
-static_assert(offsetof(app_board_sys_info_t, config_crc) == 64, "config_crc 偏移 64");
+static_assert(offsetof(app_board_net_cfg_t, port) == 12, "port 偏移 12");
+static_assert(offsetof(app_board_net_cfg_t, udp_port) == 16, "udp_port 偏移 16");
+static_assert(offsetof(app_board_sys_info_t, config_crc) == 68, "config_crc 偏移 68");
 
 /**
  * @brief 读当前 Sector1 整记录（内存映射拷贝，无有效性判定）
@@ -83,7 +92,11 @@ void app_board_net_cfg_read(app_board_sys_info_t *out);
 int32_t app_board_net_cfg_get(app_board_net_cfg_t *out);
 
 /**
- * @brief 同步设备 IP/掩码/网关/端口 到内部 Flash（LDI 0AH / IAP 4B02 改 IP 时调用）
+ * @brief 同步设备 IP/掩码/网关/TCP 口/UDP 口 到内部 Flash（LDI 0AH / IAP 4B02 / CQ setip 时调用）
+ *
+ * 字段语义（方案 B，2026-08-21）：port = TCP 业务口（LDI/IAP 生态），udp_port = CQ UDP
+ * 业务口。调用方按协议口径填对应端口、另一端口保留现值（先 get，失败用出厂默认）——
+ * LDI 0AH / IAP 4B02 写 port、保留 udp_port；CQ setip 写 udp_port、保留 port。
  *
  * 分支语义（见 doc/07_LDI与IAP配置解耦 02 §9/§10）：
  *  - 空扇区：完整初始化，镜像老 Bootloader Init_Config_Info 首次上电语义
@@ -91,12 +104,13 @@ int32_t app_board_net_cfg_get(app_board_net_cfg_t *out);
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理，完整初始化后写新配置（自愈）；
  *  - 有效记录且 update_sta != updated（升级中间态）：仅更新 net_cfg，update_sta 与
  *    app_info 原样保留（Bootloader 条件 D 判定不受影响）（2026-08-18 修订）；
- *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port），其余字段
- *    原样保留；与现扇区 net_cfg 完全一致（含 port）时跳过擦写。
+ *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port/udp_port），其余
+ *    字段原样保留；与现扇区 net_cfg 完全一致（含 port 与 udp_port）时跳过擦写。
  *
  * @return 0 成功（含同值跳过）；<0 为擦/写错误码
  */
-int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4], uint32_t port);
+int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4],
+                                 uint32_t port, uint32_t udp_port);
 
 /**
  * @brief 同步固件版本号到内部 Flash（app_info.version[32]，IAP 0x03「上报固件状态」用）

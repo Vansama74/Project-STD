@@ -40,3 +40,19 @@ static inline osThreadId_t app_udp_start(void)
 
 uint16_t app_udp_get_port(void);
 void app_udp_broadcast(const uint8_t *data, uint16_t len);
+
+/* ---- CQ 业务口 UDP 通道（CH_ID_UDP_CQ；PROTO_CHONGQING 读 Sector1 net_cfg.port
+       默认 20103，dev 共存构建固定 20103，见 app_udp.c _udp_cq_read_port）---- */
+
+void udp_cq_task(void *argument);
+extern const osThreadAttr_t udp_cq_task_attr;
+
+static inline osThreadId_t app_udp_cq_start(void)
+{
+    return osThreadNew(udp_cq_task, NULL, &udp_cq_task_attr);
+}
+
+uint16_t app_udp_cq_get_port(void);
+
+/** @brief CQ 业务口广播（255.255.255.255:20103，SOF_BROADCAST）。 */
+void app_udp_cq_broadcast(const uint8_t *data, uint16_t len);

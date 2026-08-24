@@ -2,8 +2,10 @@
  * @file    app_board_net_cfg.c
  * @brief   板级系统配置存储（内部 Flash Sector 1, 0x08004000）
  *
- * app_board_sys_info_t 记录 = magic(4B) | update_sta(4B) | FWInfo(40B) | NetConfig(16B) | CRC32(4B)
- * 总长 68B（17 words），按 word 写入 Flash。
+ * app_board_sys_info_t 记录 = magic(4B) | update_sta(4B) | FWInfo(40B) | NetConfig(20B) | CRC32(4B)
+ * 总长 72B（18 words），按 word 写入 Flash。
+ * NetConfig 字段语义（方案 B，2026-08-21）：port=TCP 业务口（LDI/IAP），
+ * udp_port=CQ UDP 业务口。
  *
  * 操作流程：
  *   读取 → 直接内存映射 (ADDR_CONFIG_SECTOR) → 空/完整性检查 → 使用
@@ -100,7 +102,7 @@ static int32_t _write(const app_board_sys_info_t *info)
 }
 
 /**
- * @brief 同步设备 IP/掩码/网关/端口 到内部 Flash（读-改-net_cfg-写）
+ * @brief 同步设备 IP/掩码/网关/TCP 口/UDP 口 到内部 Flash（读-改-net_cfg-写）
  *
  * 分支语义（定案 Q1/Q2/Q3 先行修复 + 方案 1 细化守卫，2026-08-14）：
  *  - 空扇区：完整初始化，镜像老 Bootloader Init_Config_Info 首次上电语义
@@ -110,15 +112,16 @@ static int32_t _write(const app_board_sys_info_t *info)
  *    Bootloader 写记录永远是完整结构，不存在「magic 无效的升级中间态」，
  *    损坏记录无保护价值，覆盖它使 0AH/4B02 可自愈。
  *  - 有效记录且 update_sta != updated（升级中间态，Bootloader 条件 A/B 写入的
- *    强制升级/崩溃过频记录）：仅更新 net_cfg（ip/mask/gw/port），update_sta 与
+ *    强制升级/崩溃过频记录）：仅更新 net_cfg（ip/mask/gw/port/udp_port），update_sta 与
  *    app_info 原样保留（Bootloader 条件 D 判定不受影响）——0AH/4B02 改 IP 在
  *    中间态同样生效，IAP 0x01 上报立即反映新值（2026-08-18 修订）。
- *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port），其余字段
- *    原样保留；与现扇区 net_cfg 完全一致（含 port）时跳过擦写（Q3：不做磨损均衡）。
+ *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port/udp_port），其余字段
+ *    原样保留；与现扇区 net_cfg 完全一致（含 port 与 udp_port）时跳过擦写（Q3：不做磨损均衡）。
  *
  * @return 0 成功（含同值跳过）；<0 为擦/写错误码
  */
-int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4], uint32_t port)
+int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4], uint32_t port,
+                                 uint32_t udp_port)
 {
     app_board_sys_info_t info;
     app_board_net_cfg_read(&info);
@@ -149,9 +152,10 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
     memcpy(info.net_cfg.ip, ip, 4);
     memcpy(info.net_cfg.mask, mask, 4);
     memcpy(info.net_cfg.gw, gw, 4);
-    info.net_cfg.port = port;
+    info.net_cfg.port     = port;
+    info.net_cfg.udp_port = udp_port;
 
-    /* Q3：net_cfg（含 port）与现扇区一致则跳过擦写，返回成功（不做磨损均衡）。
+    /* Q3：net_cfg（含 port 与 udp_port）与现扇区一致则跳过擦写，返回成功（不做磨损均衡）。
      * 条件用 valid 而非 !empty：空/损坏时 old_cfg 为无效快照，必须走写路径 */
     if (valid && memcmp(&info.net_cfg, &old_cfg, sizeof(old_cfg)) == 0)
         return 0;

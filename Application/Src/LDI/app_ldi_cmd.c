@@ -494,10 +494,15 @@ void cmd_set_ip(channel_t *ch, void *data)
     g_ldi.cfg_valid = true;
 
     /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
-     * 任一失败即如实应答失败，不再静默回 00H。 */
+     * 任一失败即如实应答失败，不再静默回 00H。
+     * 方案 B（2026-08-21）：0AH 写 TCP 业务口（device_port），udp_port 保留现值
+     * （get 失败用出厂默认 20103）。 */
     int32_t w25_ret    = _ldi_save_config_ret(&g_ldi.cfg);
+    app_board_net_cfg_t cur_cfg;
+    uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
     int32_t board_ret  = app_board_net_cfg_update(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
-                                                  g_ldi.cfg.gateway, g_ldi.cfg.device_port);
+                                                  g_ldi.cfg.gateway, g_ldi.cfg.device_port,
+                                                  udp_port);
 
     ldi_status_rsp_t rsp = {.status = (w25_ret < 0 || board_ret < 0) ? 0x01 : 0x00};
     ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_IP_RSP);
@@ -1103,7 +1108,9 @@ static void cmd_rep_func(channel_t *ch, void *data)
  * 处理 21H 设备搜索请求（创迪发现口，默认 UDP/10011）
  *
  * 回复 12H: CmdType(1) + IP(4) + Port(2) + Gateway(4) + Mask(4) + ErrCode(1)
- * 优先单播回源（上位机常在临时端口收包），同时广播一份兼容只监听 10011 的工具。
+ * 广播为主（2026-08-21：搜索应答面向广播工具，广播复用常驻通道 conn 不占
+ * netconn 池，是可靠路径），回源单播仅容错、失败静默——回源依赖通道级
+ * src 快照，多协议交错（10011 同口承载 LDI/IAP/CQ）下可能发错目标。
  * 不承担业务控制；网络参数取自 g_ldi.cfg（无配置时回退 pl_net 当前值）。
  */
 static void cmd_search(channel_t *ch, void *data)
@@ -1125,7 +1132,11 @@ static void cmd_search(channel_t *ch, void *data)
     }
 
     memcpy(rsp.ip, ip, sizeof(rsp.ip));
-    uint16_t port = LDI_DISCOVERY_PORT;
+    /* 12H 应答 Port 字段语义 = 设备「配置功能端口」（TCP 业务端口，出厂默认 9528，
+     * 协议文档 doc/02 附件2），非 UDP 发现口 10011。取 g_ldi.cfg 的 device_port，
+     * 未配置时回退出厂默认 9528——此前误用 LDI_DISCOVERY_PORT 导致上位机把 10011
+     * 当配置端口读回并写回，污染 Sector1/W25 后 TCP Server 错误改监听 10011。 */
+    uint16_t port = g_ldi.cfg_valid ? g_ldi.cfg.device_port : LDI_DEFAULT_CONFIG_PORT;
     rsp.port[0]   = (uint8_t)(port >> 8);
     rsp.port[1]   = (uint8_t)port;
     memcpy(rsp.gateway, gw, sizeof(rsp.gateway));
@@ -1149,11 +1160,15 @@ static void cmd_search(channel_t *ch, void *data)
     frame->data_crc[payload_len]     = (uint8_t)(crc >> 8);
     frame->data_crc[payload_len + 1] = (uint8_t)(crc & 0xFF);
 
-    /* 严格按发现协议：先单播回请求源，再广播兼容仅监听广播的工具。 */
+    /* 发送顺序：广播为主、回源为辅（2026-08-21）。
+     * 回源依赖通道 src 快照（s_udp_ch.src_ip/src_port），LDI 帧排队处理期间
+     * 10011 上后续 IAP/CQ 帧会覆盖快照 → 回源可能发错目标，故先发广播保证
+     * 搜索工具必达，回源仅容错且失败静默。帧级 src 快照（frame_msg_t 扩展）
+     * 属架构改造，本轮不做，留作已知限制（doc/07）。 */
+    app_udp_broadcast(g_ldi.tx_buf, frame_len);
+
     if (ch != NULL && ch->ops != NULL && ch->ops->send != NULL)
         (void)channel_send(ch, g_ldi.tx_buf, frame_len);
-
-    app_udp_broadcast(g_ldi.tx_buf, frame_len);
 
     osMutexRelease(g_ldi.tx_lock);
 }

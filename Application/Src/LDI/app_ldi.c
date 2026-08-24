@@ -63,6 +63,16 @@ ldi_ctx_t g_ldi = {
     },
 };
 
+/**
+ * @brief  LDI 上下文装载：Sector1/W25 自愈 + LDI 设备配置装载。
+ *
+ * 职责（2026-08-21 解耦修订）：只做配置真源裁定与自愈——
+ * 网络字段以 Sector1.net_cfg 为唯一真源、W25 为恢复镜像（三分支判定），
+ * 非网络字段（host/lane/cert/modules）与 TCP Client 远端装载，Sector1 空/损坏
+ * 时从 W25 回写自愈。**不再应用网络**：pl_net_set_ip /
+ * app_tcp_server_set_port 移交中立模块 app_net_boot（app_boot.c init_task
+ * 在本函数之后调用 app_net_boot_apply 统一应用 netif 与 TCP Server 口）。
+ */
 void ldi_ctx_init(ldi_ctx_t *self)
 {
     app_flash_ldi_cfg_info_t flash_cfg = {0};
@@ -78,16 +88,24 @@ void ldi_ctx_init(ldi_ctx_t *self)
     }
 
     /* ---- 方案 X（doc/07 §12）：Sector1 为网络配置唯一真源，W25 为恢复镜像 ----
-     * Sector1 有效性判定分两步：公开接口 app_board_net_cfg_get 做 magic+CRC 校验
-     * （返回 0 = 有效），整记录读取得 update_sta 判升级中间态。两者均为内存映射
-     * 拷贝，上电可安全执行（不擦写内部 Flash）。 */
-    app_board_sys_info_t sys_info;
-    app_board_net_cfg_read(&sys_info);
+     * Sector1 有效性判定：公开接口 app_board_net_cfg_get 做 magic+CRC 校验
+     * （返回 0 = 有效）。内存映射拷贝，上电可安全执行（不擦写内部 Flash）。 */
     app_board_net_cfg_t board_cfg = {0};
     bool board_valid              = (app_board_net_cfg_get(&board_cfg) == 0);
 
-    if (board_valid && sys_info.update_sta == APP_BOARD_UPDATED) {
-        /* ---- 分支 1：Sector1 有效且非升级中间态 → 以 Sector1 为准 ----
+    /* net_cfg 合法性（与 app_net_boot 同口径）：IP 非 0 且端口 1~65535。
+     * 2026-08-21 修订：Sector1 记录有效且 net_cfg 合法即采纳（update_sta 不再参与
+     * 分支判定，含升级中间态）——app_board_net_cfg_update 自 2026-08-18 起在中间态
+     * 也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若此处仍按
+     * update_sta != updated 落入分支 2，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg，
+     * setip 失效。Bootloader 条件 D 对中间态记录本就进 Recovery（不启动主固件），
+     * 主固件可运行态下采纳 Sector1 net_cfg 无副作用。 */
+    bool net_valid = board_valid &&
+        (board_cfg.ip[0] | board_cfg.ip[1] | board_cfg.ip[2] | board_cfg.ip[3]) != 0U &&
+        board_cfg.port > 0U && board_cfg.port <= 65535U;
+
+    if (net_valid) {
+        /* ---- 分支 1：Sector1 有效（magic+CRC）且 net_cfg 合法 → 以 Sector1 为准 ----
          * 网络字段（device_ip/netmask/gateway/device_port）全部取自 Sector1.net_cfg。
          * 缺陷 B 修复：device_port 必须读 Sector1.net_cfg.port，而非编译期默认
          * （app_tcp_server_get_port），否则 0AH/4B02 改过的端口上电即被默认值覆盖。 */
@@ -136,13 +154,14 @@ void ldi_ctx_init(ldi_ctx_t *self)
             app_flash_ldi_save_config(&self->cfg);
         }
 
-        /* 应用到 LwIP / TCP Server */
-        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
-        app_tcp_server_set_port(self->cfg.device_port);
+        /* 网络应用（pl_net_set_ip / app_tcp_server_set_port）已移交
+         * app_net_boot_apply（2026-08-21 解耦），此处仅装载 cfg 与自愈 */
         self->cfg_valid = true;
 
     } else if (flash_valid) {
-        /* ---- 分支 2：Sector1 空/损坏/升级中间态 + W25 有效 → 以 W25 为准并回写自愈 ----
+        /* ---- 分支 2：Sector1 空/损坏/记录无效或 net_cfg 非法 + W25 有效 → 以 W25 为准
+         * 并回写自愈 ----（2026-08-21 修订：升级中间态不再落入本分支——Sector1 有效且
+         * net_cfg 合法即走分支 1，见上方 net_valid 判定）
          * cfg 全字段取自 W25；回写 Sector1 由 app_board_net_cfg_update 内部处理
          * 全部分支（空/损坏完整初始化自愈；中间态下 update_sta/app_info 保留、仅
          * net_cfg 写入（2026-08-18 语义修订），见 doc/07 §10 方案 1）。 */
@@ -165,20 +184,25 @@ void ldi_ctx_init(ldi_ctx_t *self)
             }
         }
 
-        /* 应用到 LwIP / TCP Server / TCP Client */
-        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
-        app_tcp_server_set_port(self->cfg.device_port);
+        /* TCP Client 远端应用；netif / TCP Server 口已移交
+         * app_net_boot_apply 统一应用（2026-08-21 解耦） */
         app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
         self->cfg_valid = true;
 
-        /* 回写 Sector1 自愈（升级中间态仅 net_cfg 写入，update_sta/app_info 保留） */
+        /* 回写 Sector1 自愈（升级中间态仅 net_cfg 写入，update_sta/app_info 保留）。
+         * 方案 B（2026-08-21）：W25 device_port 写 TCP 业务口，udp_port 保留现值
+         * （Sector1 无效时 get 失败，用出厂默认 20103）。 */
+        app_board_net_cfg_t cur_cfg;
+        uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
         (void)app_board_net_cfg_update(self->cfg.device_ip, self->cfg.netmask,
-                                       self->cfg.gateway, self->cfg.device_port);
+                                       self->cfg.gateway, self->cfg.device_port,
+                                       udp_port);
 
     } else {
         /* ---- 分支 3：Sector1 与 W25 皆空/无效 → 统一出厂默认 ----
          * 默认 IP 取 pl_net 上电值（三固件统一 192.168.114.200/24，doc/07 §11），
-         * 端口取 TCP Server 编译期默认。set_ip 回灌网口保证 cfg 与网口一致。 */
+         * 端口取 TCP Server 编译期默认。cfg 默认填充仅保证 LDI 上下文自洽，
+         * netif 应用由后续 app_net_boot_apply 统一执行（2026-08-21 解耦）。 */
         uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
         pl_net_get_ip(ip, mask, gw);
         memcpy(self->cfg.device_ip, ip, sizeof(ip));
@@ -187,8 +211,6 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg.device_port = app_tcp_server_get_port();
         memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
         self->cfg.host_port = app_tcp_client_get_host_port();
-        pl_net_set_ip(self->cfg.device_ip, self->cfg.netmask, self->cfg.gateway);
-        app_tcp_server_set_port(self->cfg.device_port);
         self->cfg_valid = true;
         /* 不写任何 Flash：配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，
          * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径。 */
@@ -411,6 +433,15 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
 
     uint32_t data_len = ((uint32_t)frame->len[0] << 24) | ((uint32_t)frame->len[1] << 16) |
                         ((uint32_t)frame->len[2] << 8) | (uint32_t)frame->len[3];
+    /* CQ 12B 二进制重启/搜索帧（FF FF 00 00 00 00 00 02 + 2B DATA + CRC16-XMODEM，
+     * len 恒为 2）与 LDI 共占 10011（CH_ID_UDP），且其 CRC 恰好通过 LDI 校验——
+     * 若按 LDI 帧认领会吞掉 CQ 搜索/重启请求（CQ probe 链序在 LDI 之后失收）。
+     * LDI 合法 DATA：21H 搜索 = 1B、其余命令 ≥ 20B 头，len==2 无合法命令
+     * （doc/03 PartB Q23 实态修正：原「CQ 帧 len 域全 0 → FAKE」与实态不符）。
+     * 明确 FAKE 放行给链序靠后的 CQ probe。 */
+    if (data_len == 2U)
+        return PROTO_PROBE_FAKE;
+
     /* DATA 至少要有 CmdType；上限保护，避免脏 LEN 越界 */
     if (data_len < 1 || data_len > (sizeof(mem_pool) - sizeof(ldi_frame_t) - 2))
         return PROTO_PROBE_FAKE;
