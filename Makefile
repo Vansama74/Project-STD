@@ -29,10 +29,27 @@ FPU       = -mfpu=fpv4-sp-d16
 FLOAT-ABI = -mfloat-abi=hard
 MCU_FLAGS = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
+# ---- Protocol selection ----
+# PROTO=ALL：全协议共存开发构建（默认，-DSTD_ALL_PROTO 豁免 '{' 帧族互斥守卫）
+# PROTO=CQ ：重庆量产口径——编入 CQ + cJSON，剔除 LDI 目录文件（网络配置应用由中立
+#            模块 app_net_boot 承担，CQ 构建不启动 TCP Server/Client 通道），
+#            追加 -DPROTO_CHONGQING（'{' 帧族仍编入，保持 -DSTD_ALL_PROTO 豁免守卫）
+PROTO ?= ALL
+
 # ---- Common Flags ----
 # -DSTD_ALL_PROTO：全协议共存开发构建——'{' 帧族互斥守卫 g_brace_proto_guard 失效；
 # EIDE 量产构建不定义该宏，多 '{' 族协议编入即链接报 multiple definition 强制互斥。
 DEFINES = -DUSE_HAL_DRIVER -DSTM32F407xx -DSTD_ALL_PROTO
+ifeq ($(PROTO),CQ)
+  DEFINES += -DPROTO_CHONGQING
+endif
+
+# 功能开关显式覆盖（命令行传入即追加）：例如 make PROTO=CQ CQ_FAULT_SCREEN=0
+# 关闭 CQ 心跳故障屏。勿直接覆盖 DEFINES——命令行 DEFINES 会整体替换 makefile
+# 内赋值（含 += 不追加），丢掉平台宏并破坏「排除 LDI ↔ PROTO_CHONGQING」成对。
+ifdef CQ_FAULT_SCREEN
+  DEFINES += -DCQ_FAULT_SCREEN=$(CQ_FAULT_SCREEN)
+endif
 
 INC_DIRS = \
 	-I Application/Inc \
@@ -44,7 +61,9 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_SiChuang_MTC \
 	-I Application/Inc/ProtocolParser_SiChuang_Overload \
 	-I Application/Inc/ProtocolParser_GuiZhou \
+	-I Application/Inc/ProtocolParser_YunNan \
 	-I Application/Inc/ProtocolParser_ShanDong \
+	-I Application/Inc/ProtocolParser_ChongQing \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -56,6 +75,7 @@ INC_DIRS = \
 	-I Drivers/CMSIS/Device/ST/STM32F4xx/Include \
 	-I Drivers/STM32F4xx_HAL_Driver/Inc \
 	-I Middlewares/Third_Party/SEGGER_RTT \
+	-I Middlewares/Third_Party/cJSON \
 	-I Middlewares/Third_Party/LwIP/src/include \
 	-I Middlewares/Third_Party/LwIP/system \
 	-I Middlewares/Third_Party/FreeRTOS/Source/include \
@@ -295,6 +315,7 @@ SRC_APPLICATION = \
 	Application/Src/app_test.c \
 	Application/Src/app_factory_test.c \
 	Application/Src/app_boot.c \
+	Application/Src/app_net_boot.c \
 	Application/Src/app_default_display.c \
 	Application/Src/app_dispatch.c \
 	Application/Src/app_render.c \
@@ -308,6 +329,9 @@ SRC_APPLICATION = \
 	Application/Src/LDI/app_ldi_cfg.c \
 	Application/Src/LDI/app_ldi_device.c \
 	Application/Src/LDI/app_vms_ctrl.c \
+	Application/Src/ProtocolParser_ChongQing/app_cq_proto.c \
+	Application/Src/ProtocolParser_ChongQing/app_cq_proto_parse.c \
+	Application/Src/ProtocolParser_ChongQing/app_cq_proto_cmd.c \
 	Application/Src/AH_MQTT/ah_mqtt.c \
 	Application/Src/AH_MQTT/ah_mqtt_cmd.c \
 	Application/Src/RLS/app_rls.c \
@@ -334,6 +358,10 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c \
 	Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c \
+	Application/Src/ProtocolParser_YunNan/app_yn_proto.c \
+	Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c \
+	Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c \
+	Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
@@ -342,12 +370,22 @@ SRC_APPLICATION = \
 	Application/Src/Channel/app_rs232.c \
 	Application/Src/Channel/app_rs485.c
 
+# PROTO=CQ：剔除 LDI 目录文件（网络配置应用由中立模块 app_net_boot 承担）
+ifeq ($(PROTO),CQ)
+  SRC_APPLICATION := $(filter-out Application/Src/LDI/%,$(SRC_APPLICATION))
+endif
+
+# cJSON 第三方中间件（CQ JSON 解析）
+SRC_CJSON = \
+	Middlewares/Third_Party/cJSON/cJSON.c
+
 # ---- All Sources ----
 SRC_ALL = \
 	$(SRC_KERNEL) \
 	$(SRC_PLATFORM) \
 	$(SRC_DEVICE) \
 	$(SRC_APPLICATION) \
+	$(SRC_CJSON) \
 	$(SRC_CORE) \
 	$(SRC_HAL) \
 	$(SRC_RTT) \

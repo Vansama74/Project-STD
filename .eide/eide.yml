@@ -11,6 +11,7 @@ virtualFolder:
     - name: Application
       files:
         - path: Application/Src/app_boot.c
+        - path: Application/Src/app_net_boot.c
         - path: Application/Src/app_default_display.c
         - path: Application/Src/app_render.c
         - path: Application/Src/app_key.c
@@ -93,6 +94,19 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c
                 - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c
                 - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c
+              folders: []
+            - name: ProtocolParser_YunNan
+              files:
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c
+              folders: []
+            - name: ProtocolParser_ChongQing
+              files:
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto.c
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_parse.c
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_cmd.c
               folders: []
             - name: rls
               files:
@@ -265,6 +279,10 @@ virtualFolder:
             - path: Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT_printf.c
             - path: Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT_Syscalls_GCC.c
           folders: []
+        - name: cJSON
+          files:
+            - path: Middlewares/Third_Party/cJSON/cJSON.c
+          folders: []
     - name: Compiler
       files:
         - path: Compiler/startup.c
@@ -359,6 +377,7 @@ targets:
       defineList:
         - USE_HAL_DRIVER
         - STM32F407xx
+        - PROTO_CHONGQING
       incList:
         - Core/Inc
         - Drivers/CMSIS/Include
@@ -387,18 +406,26 @@ targets:
         - Application/Inc/ProtocolParser_SiChuang_Overload
         - Application/Inc/ProtocolParser_ShanDong
         - Application/Inc/ProtocolParser_GuiZhou
+        - Application/Inc/ProtocolParser_YunNan
+        - Application/Inc/ProtocolParser_ChongQing
+        - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/rls
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Application/protocol/ldi
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -413,11 +440,11 @@ targets:
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c23
-            language-cpp: c++23
+            language-c: gnu23
+            language-cpp: gnu++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-fast
+            optimization: level-3
             warnings: all-warnings
           global:
             $float-abi-type: hard
@@ -509,7 +536,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: Custom
+    uploader: JLink
   Release:
     cppPreprocessAttrs:
       defineList:
@@ -532,6 +559,8 @@ targets:
         - Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
         - Middlewares/Third_Party/FreeRTOS/Source/include
         - Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
+        - Application/Inc/ProtocolParser_ChongQing
+        - Middlewares/Third_Party/cJSON
         - Compiler
         - Drivers/BSP/Display
         - Drivers/BSP/Key
