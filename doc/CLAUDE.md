@@ -6,17 +6,56 @@
 
 STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
-- **构建**：`make -j8`（根目录 Makefile，`TOOLCHAIN=gcc|clang`，`CONFIG=Debug|Release`）
+- **构建**：`make -j8`（根目录 Makefile，`TOOLCHAIN=gcc|clang`，`CONFIG=Debug|Release`，`PROTO=ALL|CQ`）
   - GCC Debug：`make -j8`（默认，`-Og -g`）
   - GCC Release：`make -j8 CONFIG=Release`
   - Clang Debug：`make -j8 TOOLCHAIN=clang`
   - Clang Release：`make -j8 TOOLCHAIN=clang CONFIG=Release`
+  - **`PROTO ?= ALL`**：默认全协议 dev 构建（CQ 恒定编入，位于 LDI 源之后）。
+    **`PROTO=CQ`**：重庆量产口径——从源码列表剔除 LDI 目录文件、追加
+    `-DPROTO_CHONGQING`（`{` 帧族仍编入并保留 `-DSTD_ALL_PROTO` 豁免守卫。
+    **注（2026-08-24 修订）**：TCP Server/Client 通道两口径**均启动**——
+    `app_boot.c` 实际无 `#ifndef PROTO_CHONGQING` 口径裁剪，此前「CQ 构建不
+    启动 TCP 通道」表述与代码不符，已按代码实态更正）。
+    **网络配置应用（两口径统一，2026-08-21 解耦，2026-08-24 端口应用两口径化）**：
+    中立模块 `app_net_boot`（`app_net_boot_apply`，`app_boot.c` init_task 在
+    `app_board_net_cfg_fw_version_update` 之后、splash 之前调用——fw_version_update
+    空扇区初始化 net_cfg=0，app_net_boot 随后判无效写默认）读 Sector1 net_cfg →
+    `pl_net_set_ip` + `app_tcp_server_set_port`（口取 `net_cfg.port` = TCP 业务口，
+    两口径统一应用）；Sector1 空/损坏/非法 → accept_write 写本构建默认记录落盘并
+    应用（方案 B 2026-08-21：两口径默认均 **port=9528（TCP 口）+ udp_port=20103
+    （CQ UDP 口）**，IP 各自口径）：CQ 192.168.1.5/255.255.255.0/192.168.1.1，
+    dev 192.168.114.200/255.255.255.0/192.168.114.1。
+    LDI `ldi_ctx_init` 与 CQ `cq_proto_init` 不再直接改 netif（ldi 保留 Sector1/W25
+    自愈与配置装载）。
+    **CQ setip 双构建语义**（doc/03 PartB B.7.1，2026-08-21 方案 B）：setip 命令
+    端口写入 Sector1 `net_cfg.udp_port`（CQ UDP 业务口专有字段），TCP 口
+    `net_cfg.port` **保留现值不再被 setip 污染**；改 IP 两构建重启后均生效（均走
+    `app_net_boot_apply`）；改端口仅 PROTO_CHONGQING 构建对 CQ 业务口生效
+    （`_udp_cq_read_port` 读 Sector1 net_cfg.udp_port，无效/0 回退 20103），dev
+    构建 CQ 业务口固定 20103（`#else` 分支）、setip 的 port 对 dev 构建任何口都
+    不生效——端口修改验证须用 `make PROTO=CQ` 或 EIDE `PROTO_CHONGQING` 目标。
+    **CQ 心跳超时故障屏开关**（`app_cq_proto.h` `CQ_FAULT_SCREEN`，1 开 / 0 关，
+    doc/03 PartB B.7.2，2026-08-21 新增、2026-08-24 改名单层宏）：默认跟随构建
+    口径——PROTO_CHONGQING 开启、共存/其他构建（通用版多协议固件）关闭（他省
+    上位机不发重庆 syn1，120s 故障屏会误触发）；可显式覆盖 `-DCQ_FAULT_SCREEN=1`
+    强制开 / `=0` 强制关（旧名 CQ_FAULT_SCREEN_ENABLED / CQ_FAULT_SCREEN_FORCE_ON
+    已废弃，不保留兼容别名）。
+    关闭时 `cq_proto_timer_task` 不计数、不渲染（`s_cq_sync_counter` 恒 0、
+    `s_cq_fault_shown` 恒 false），warn1 倒计时不受开关影响。
+    **不变量：排除 LDI 与定义 `PROTO_CHONGQING` 必须成对**（app_net_boot 兜底后
+    中间态不再致命，但 PROTO_CHONGQING 仍决定默认口径与端口应用对象，不成对 =
+    口径错配）。EIDE Debug 目标当前为 CQ 量产口径（excludeList 排除 ldi +
+    defineList 含 PROTO_CHONGQING）。
 - **`{` 帧族编译期互斥守卫**：Makefile 默认定义 `-DSTD_ALL_PROTO`（全协议共存开发构建，`g_brace_proto_guard` 守卫失效）；EIDE 量产构建不定义该宏——多个 `{` 帧族协议（青海/山东/贵州/四川MTC）同时编入即链接报 `multiple definition of 'g_brace_proto_guard'`，强制互斥。
+- **EIDE 持有 eide.yml（外部编辑纪律）**：EIDE 运行时用自己的内存模型回写 `.eide/eide.yml`，会冲掉外部直接编辑（曾两次发生：CQ 文件夹收录、app_net_boot.c 收录被回写丢失，导致 EIDE 构建 undefined reference）。**外部改完 yml 后必须立刻在 EIDE 中「重新加载项目」（EIDE: Reload Project）让它读入新条目，期间不要先做任何会触发保存的 GUI 操作**；构建前先确认 EIDE 编译列表含新增源文件。
 - **编译数据库**：`bear --output build/Debug/compile_commands.json -- make -B -j8`（`-B` 强制全量重编译）
+- **编译开关总表**：`doc/构建开关总表.md`（2026-08-24 新增，收录 PROTO_CHONGQING / STD_ALL_PROTO / CQ_FAULT_SCREEN / g_brace_proto_guard 等全部编译期开关及各构建入口默认值）
 - **烧录**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/Project_STD.hex verify reset exit"`
 - **整片擦除**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"`
 - **J-Link 一键烧录**：`bash tool/flash_all.sh`（Bootloader + Recovery + 主固件一次 J-Link 会话烧完，**默认烧后擦除 Sector1（0x08004000~0x08007FFF）恢复出厂配置态**；`--keep-config` 保留板级配置；`--erase` 整片擦除；`--verify` 校验；`--dry-run` 预览命令不烧录）
 - **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info.size/crc32` 真实值只由 Recovery 升级流程写入（`app_info.version` 由主固件启动时从 PROGRAM_CODE 落库，供 IAP 0x03 上报）。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 W25Qxx 外部 Flash 同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
+- **三固件同步烧录纪律（方案 B 布局变更，2026-08-21）**：方案 B 把 Sector1 记录从 68B 扩到 72B（`NetConfig_t` 新增 `udp_port`，`config_crc` 偏移 64→68，Bootloader/Recovery 的 `config_info.h` 已同步修改）。**设备上 Bootloader/Recovery 若仍是旧 68B 布局（未随主固件重烧）**：旧 Bootloader 按旧偏移读 `config_crc`（读到新记录的 `udp_port` 字段）→ 判 CRC 失配 → 重建**旧布局**出厂记录；主固件按 72B 读又失配 → 反复自愈改写，两布局交替重建、Sector1 永不稳定（网络配置回出厂态；残留升级中间态还可能被旧 Bootloader 条件 A/B/D 误判 → 设备陷 Recovery、主固件不运行 → UDP 10011/20103 全部无响应，LDI 搜索/CQ 业务均失效）。**纪律：方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次 J-Link 会话）**，单固件重烧后按惯例擦 Sector1。
 - **0x03 版本为空判断路径**：现场 IAP 0x03 上报 `app_info.version` 全 0 时，按序判断：
   ① 看 RTT 是否有 `[fwver]` 日志——**无日志 = 主固件从未运行，设备落在 Recovery 态**（旧
   Sector1 记录 size/crc32 与新烧固件失配 → 条件 D 判 App 损坏），补做「擦 Sector1」后重启
@@ -51,6 +90,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/08_协议模块接入规则` | 新协议接入权威指引（规则/串口/网络/检查清单） |
 | `doc/09_山东费显协议` | 山东车道费额显示器协议接入记录 |
 | `doc/10_贵州费显协议` | 贵州常规费显协议接入记录（13 命令/裁决差异表/帧头冲突纪律） |
+| `doc/11_云南费显协议` | 云南常规费显协议接入记录（13 命令/24 点阵渲染/已确认决定） |
 
 ## 硬件架构
 
@@ -77,12 +117,14 @@ SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-0
 ├─ ucHeap           **36KB** FreeRTOS heap_4（任务栈/TCB/动态 OS 对象）
 ├─ 协议 RB          RJ45 **1536** / RS485 **768** / RS232 **768**（三槽 provide）
 ├─ UART DMA         RS485/RS232 各 **640**（无 RS232_1 DMA）
-├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3 / GZ3（不占 ucHeap）
+├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3 / GZ3 / YN3（不占 ucHeap）
 ├─ RTT Up           2KB；W25 sec、s_dma_bounce 等
 └─ _user_heap_stack newlib + MSP 预留
 
 CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 同量级 1-969）
 ├─ pixel_map / hub75_buff / row_dst / g_bsrr   **仅显存与 BSRR**
+├─ 例外（2026-08-20）：CQ 协议帧队列/缓冲 **6377B**（s_cq_queue_buf 3156 + queue_cb 80 +
+│   任务帧缓冲 1052 + JSON/文本缓冲 2089；SRAM 全协议构建余量不足，CPU 独占访问无 DMA）
 └─ （无 ucHeap、无协议 RB、无 UART DMA）
 ```
 
@@ -95,14 +137,14 @@ CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 
 | 扇区 | 地址 | 大小 | 内容 | 读写方式 |
 |---|---|---|---|---|
 | 0 | `0x08000000` | 16KB | Bootloader（独立工程，`ORIGIN 0x08000000 LENGTH 16K`） | 烧录时写入 |
-| 1 | `0x08004000` | 16KB | 板级系统配置 (magic + update_sta + FWInfo + NetConfig + CRC32) | `app_board_net_cfg.c` 内存映射读 + 擦写 |
+| 1 | `0x08004000` | 16KB | 板级系统配置 (magic + update_sta + FWInfo + NetConfig + CRC32；记录 72B，NetConfig 20B 含 port/udp_port 双端口，方案 B 2026-08-21) | `app_board_net_cfg.c` 内存映射读 + 擦写 |
 | 2~5 | `0x08008000`~`0x08040000` | 224KB | Recovery 固件（独立工程，`ORIGIN 0x08008000 LENGTH 224K`） | IAP 升级时写入 |
 | 6~11 | `0x08040000`~`0x080FFFFF` | 768KB | 主固件 (.text/.rodata/.initcall) | 烧录时写入 |
 | 11 注 | `0x080E0000` | 128KB | 已释放 — LDI 配置已迁移至 W25Qxx 最后一个 4KB 扇区（不再占内部 Flash） | — |
 
 **外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + LDI 设备配置（最后一个 4KB 扇区），通过 `dev_storage_read` 接口访问。LDI 配置绑定在 `Application/Src/LDI/app_ldi_cfg.c`（`sw_dev_initcall` 中 `s_ldi_base = dev_storage_capacity(w25) - 4096`）。
 
-**出厂默认网络配置（三固件统一）**：192.168.114.200/24（网关 192.168.114.1、端口 9528）。Recovery 上电 `MX_LWIP_Init` 直读 Sector1.net_cfg 配 netif（空/无效回退统一默认）；主固件 `ldi_ctx_init` 上电同步三分支：**Sector1 为网络配置真源、W25 为恢复镜像**（Sector1 优先；Sector1 空/损坏时以 W25 自愈回写；皆空用统一出厂默认，详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §11/§12）。**所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效**（运行时不即时改 netif）；Bootloader 对 Sector1 损坏态（magic 不匹配或 CRC 错）自动重建出厂记录自愈（详见 §12）。UDP 发现口 10011 固定（宏 `LDI_DISCOVERY_PORT`）。
+**出厂默认网络配置（三固件统一）**：192.168.114.200/24（网关 192.168.114.1、TCP 口 9528；CQ UDP 口 20103，方案 B 2026-08-21）。Recovery 上电 `MX_LWIP_Init` 直读 Sector1.net_cfg 配 netif（空/无效回退统一默认）；主固件 `ldi_ctx_init` 上电同步三分支：**Sector1 为网络配置真源、W25 为恢复镜像**（Sector1 有效且 net_cfg 合法即优先采纳，含升级中间态，`update_sta` 不参与分支判定（2026-08-21 修订）；Sector1 空/损坏/记录无效或 net_cfg 非法时以 W25 自愈回写；皆空用统一出厂默认，详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §11/§12）。**netif 应用由中立模块 `app_net_boot`（`app_net_boot_apply`）统一执行**——`ldi_ctx_init` 只做自愈与配置装载（2026-08-21 解耦）；Sector1 空/损坏/非法时 `app_net_boot` accept_write 写本构建默认落盘并应用（两口径默认均 port=9528/udp_port=20103，IP 各自口径：CQ 192.168.1.5、dev 114.200，详见 §14/§15）。**所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效**（运行时不即时改 netif）；Bootloader 对 Sector1 损坏态（magic 不匹配或 CRC 错）自动重建出厂记录自愈（详见 §12）。UDP 发现口 10011 固定（宏 `LDI_DISCOVERY_PORT`）。**搜索/上报端口字段语义**：LDI 12H 应答 port 与 IAP 0x01 上报 port 均为配置功能端口（TCP 业务口，出厂默认 9528，宏 `LDI_DEFAULT_CONFIG_PORT`），搜索/上报的传输渠道才是 UDP 10011——勿混淆（2026-08-18 修复 12H 误报 10011 的污染循环）。
 
 ## 软件分层架构
 
@@ -192,9 +234,12 @@ pl_sys (SystemClock_Config, delay, reset)
                  └─ init_task:
                       ├─ dev_eth_start()          ← LwIP + netif
                       ├─ sw_board_init()          ← initcall_run(__sw_initcall)
+                      ├─ app_board_net_cfg_fw_version_update()  ← PROGRAM_CODE 落库 Sector1（空扇区 net_cfg 置 0）
+                      ├─ app_net_boot_apply()     ← Sector1 net_cfg → netif + TCP Server 口（CQ 构建只应用 netif；空/损坏写默认落盘）
                       ├─ app_splash_display()     ← 开机画面 (FW/MD 版本, 5s)
                       ├─ osThreadNew(half_sec_task)
-                      ├─ app_tcp_server_start() / app_tcp_client_start() / app_udp_start()
+                      ├─ app_tcp_server_start() / app_tcp_client_start()  (#ifndef PROTO_CHONGQING)
+                      │   / app_udp_start()
                       ├─ app_rs485_start() / app_rs232_start()  (app_rs232_1_start 注释)
                       ├─ app_default_display()    ← 自注册默认显示界面（协议注册回调则用之，否则默认欢迎画面）
                       └─ osThreadExit()           ← 自我销毁
@@ -252,6 +297,8 @@ pl_sys (SystemClock_Config, delay, reset)
 | 3-app | app | `sc_ol_proto_init` | `Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c` | 四川治超屏协议自注册（RS485+RS232） |
 | 3-app | app | `sd_proto_init` | `Application/Src/ProtocolParser_ShanDong/app_sd_proto.c` | 山东费显协议自注册（RS485+RS232） |
 | 3-app | app | `gz_proto_init` | `Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c` | 贵州费显协议自注册（RS485+RS232） |
+| 3-app | app | `yn_proto_init` | `Application/Src/ProtocolParser_YunNan/app_yn_proto.c` | 云南费显协议自注册（RS485+RS232；不注册默认显示——使用固件默认显示，用户决定 8） |
+| 3-app | app | `cq_proto_init` | `Application/Src/ProtocolParser_ChongQing/app_cq_proto.c` | 重庆CQ协议自注册（UDP_CQ 业务口 + UDP 搜索口双 mask；cJSON 钩子换绑 FreeRTOS 堆；网络配置应用移交 app_net_boot） |
 | 3-app | app | `app_uart_baud_init` | `Application/Src/app_uart_baud.c` | DIP1 波特率选择（RS232+RS485 同步切换） |
 | 3-app | app | `rls_module_init` | `Application/Src/RLS/app_rls.c` | RLS 协议自注册（RS485） |
 | 3-app | app | `_factory_test_init` | `Application/Src/app_factory_test.c` | 出厂检测 monitor |
@@ -582,7 +629,7 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 - `_write`：`pl_flash_unlock → pl_flash_program_word × N → pl_flash_lock`（按 word 编程）
 - `_erase`：`pl_flash_erase_sector(sector, voltage)`
 
-**板级系统配置** (`Application/Src/Config/app_board_net_cfg.c`)：`app_board_sys_info_t` 记录（68B）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(16) + CRC32(4)，布局由头文件 `static_assert` 锁定（与 Bootloader/Recovery 二进制兼容）。网络配置经 `app_board_net_cfg_get` / `app_board_net_cfg_update` 读写（LDI 0AH / IAP 4B02 共用），FWInfo/update_sta 经 `app_board_net_cfg_read` 整记录读取（IAP 命令用）。
+**板级系统配置** (`Application/Src/Config/app_board_net_cfg.c`)：`app_board_sys_info_t` 记录（72B，方案 B 2026-08-21）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(20) + CRC32(4)，布局由头文件 `static_assert` 锁定（与 Bootloader/Recovery 二进制兼容）。NetConfig 字段语义：`ip/mask/gw` 两套口共享；`port` = **TCP 业务口**（LDI 0AH / IAP 0x01 报 0x02 写 / TCP Server 监听，出厂默认 9528）；`udp_port` = **CQ UDP 业务口**（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。网络配置经 `app_board_net_cfg_get` / `app_board_net_cfg_update(ip,mask,gw,port,udp_port)` 读写（LDI 0AH / IAP 4B02 写 port 保留 udp_port；CQ setip 写 udp_port 保留 port），FWInfo/update_sta 经 `app_board_net_cfg_read` 整记录读取（IAP 命令用）。**升级兼容**：旧 68B 记录按新 72B 布局重算 CRC 必失配 → 走空/损坏自愈路径重写（网段配置丢失一次，由 ldi_ctx_init W25 镜像回写或 app_net_boot 默认落盘恢复）；**反向同理**——设备上旧 68B 布局 Bootloader/Recovery 读新 72B 记录同样失配 → 反复重建旧布局出厂记录，**方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次会话），否则 Sector1 两布局交替重建、设备可能陷 Recovery（网络全部无响应）**（2026-08-21 纪律强化）。
 
 **LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t`（116B）= magic(4) + cfg(106) + padding(2) + CRC32(4)。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。
 
@@ -626,12 +673,15 @@ app_render(&(render_cfg_t){
 | `app_sc_etc` | 协议 | RS485 + RS232 | `sw_app_initcall` | 四川 ETC 费显协议（0A 帧族；心跳超时显示已停用） |
 | `app_sc_mtc` | 协议 | RS485 + RS232 | `sw_app_initcall` | 四川 MTC 费显协议（'{' 方案二 + 0A 46 查询 + 7B 40~45） |
 | `app_sc_ol` | 协议 | RS485 + RS232 | `sw_app_initcall` | 四川治超屏协议（FF+len 帧族，BCC 异或） |
+| `app_yn_proto` | 协议 | RS485 + RS232 | `sw_app_initcall` | 云南费显协议 |
+| `app_cq_proto` | 协议 | UDP_CQ（业务 20103）+ UDP（搜索 10011，RJ45 共享 RB） | `sw_app_initcall` | 重庆高速二代费显协议（JSON `{` + 12B 二进制；队列/缓冲置 CCMRAM；**心跳故障屏开关 `CQ_FAULT_SCREEN`（1 开 / 0 关）：PROTO_CHONGQING 默认开、共存构建默认关（他省上位机不发 syn1），可 `-DCQ_FAULT_SCREEN=1/0` 覆盖，见 doc/03 PartB B.7.2；旧名 CQ_FAULT_SCREEN_ENABLED / CQ_FAULT_SCREEN_FORCE_ON 已废弃**） |
 | `app_uart_baud` | 应用 | — | `sw_app_initcall` | DIP1 波特率选择与运行态切换（RS232+RS485） |
 | `app_rls` | 协议 | RS485 | `sw_app_initcall` | RLS 重庆高速二代费显协议 |
 | `app_vms_ctrl` | 协议 | (LDI 子模块) | — | VMS 情报板控制（LDI→Render 桥接） |
 | `ah_mqtt` | 协议 | MQTT | (已注释) | AH 平台 MQTT（签到/状态上报/指令） |
 | `app_mqtt` | 通道 | CH_ID_MQTT | — | MQTT 网络传输通道 |
 | `app_udp` | 通道 | CH_ID_UDP | — | UDP 广播通道（端口 10011） |
+| `app_udp`（CQ 实例） | 通道 | CH_ID_UDP_CQ | — | CQ 业务口 UDP 通道（`PROTO_CHONGQING` 读 Sector1 net_cfg.udp_port 默认 20103（方案 B 2026-08-21），dev 共存构建固定 20103；`app_udp_cq_start`/`app_udp_cq_broadcast`） |
 | `app_tcp_server` | 通道 | CH_ID_TCP_SERVER | — | TCP 服务器通道 |
 | `app_tcp_client` | 通道 | CH_ID_TCP_CLIENT | — | TCP 客户端通道 |
 | `app_rs232` | 通道 | RS232（USART3） | — | RS232-0 通道启动（USART6 语音仅 TX，不启通道） |
@@ -639,6 +689,7 @@ app_render(&(render_cfg_t){
 | `app_key` | 应用 | — | `sw_app_initcall` | 按键轮询去抖 (20ms) |
 | `app_light_sensor` | 应用 | — | `sw_app_initcall` | 光传感器自动亮度 (1s 周期) |
 | `app_boot` | 编排 | — | — | RTOS 启动编排 |
+| `app_net_boot` | 应用 | — | — | 网络配置横切应用（Sector1 net_cfg → netif + TCP Server 口；空/损坏/非法写本构建默认落盘并应用，两口径共用） |
 | `app_default_display` | 应用 | — | — | 注册制默认显示界面（协议 sw_initcall 注册回调则用之，否则默认欢迎画面） |
 | `app_test` | 测试 | — | — | 硬件测试用例 |
 
@@ -679,7 +730,7 @@ app_render(&(render_cfg_t){
 - **链式 probe 契约**：READY/SKIP 消费后取下一帧；WAIT/FAKE 继续试下一协议；一轮无消费时 any_wait 停等更多字节 / any_fake 跳 1 字节重同步。
 - **probe 首字节快拒**：探测函数首字节不匹配即返回 FAKE，禁止盲 WAIT 阻塞链式探测。
 
-**帧 queue 深度（静态 SRAM 队列，不占 ucHeap）**：IAP 2 / LDI 4 / QH 3 / RLS 2 / AH_MQTT 3 / SC_ETC 3 / SC_MTC 3 / SC_OL 3。
+**帧 queue 深度（静态 SRAM 队列，不占 ucHeap）**：IAP 2 / LDI 4 / QH 3 / RLS 2 / AH_MQTT 3 / SC_ETC 3 / SC_MTC 3 / SC_OL 3 / SD 3 / GZ 3 / CQ 3（**CQ 队列体置 CCMRAM**，见上）。
 
 ### 新增协议步骤
 
@@ -701,8 +752,9 @@ app_render(&(render_cfg_t){
 | 4 | `CH_ID_UDP` | LwIP UDP | `udp_channel_t` | `app_udp.c` (端口 10011) |
 | 5 | `CH_ID_MQTT` | LwIP MQTT | `mqtt_channel_t` | `app_mqtt.c` |
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
+| 7 | `CH_ID_UDP_CQ` | LwIP UDP（业务口，`PROTO_CHONGQING` 读 Sector1 net_cfg.udp_port 默认 20103（方案 B）；dev 共存构建固定 20103） | `udp_channel_t`（CQ 实例） | `app_udp.c`（`app_udp_cq_start`；CQ 协议 bind，JSON 业务 + 12B 二进制） |
 
-**选编口径**：EIDE Debug 编 1-577 模组 + IAP/LDI/青海/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}` 默认编入），排除 1-260/1-969/RLS/AH/山东/贵州（`.eide/eide.yml` excludeList；山东/贵州与青海/MTC `{` 帧族互斥，量产项目按目标启用）；Makefile 编 1-260 + 全协议（Kernel 源集与 EIDE 一致，含 `bcc_utils.c`）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 编 1-969 模组 + IAP/LDI/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）/重庆CQ（`ProtocolParser_ChongQing` + cJSON，Debug 未排除），排除 1-260/1-577/RLS/AH/山东/贵州/青海/云南（`.eide/eide.yml` excludeList；LDI 与 CQ 同编为开发共存口径：CQ 业务口 dev 构建固定 20103 不读 Sector1 net_cfg.udp_port，10011 口 12B 二进制帧先经 LDI probe，LDI 对 `data_len==2`（CQ 12B 帧 len=00 00 00 02 且 CRC 恰好通过 LDI 校验）显式 FAKE 放行、仍由 CQ 认领，见 doc/03 PartB Q23/Q24；量产 CQ 目标需 excludeList 排除 ldi 并 define PROTO_CHONGQING）；Makefile 编 1-260 + 全协议（含 CQ，`PROTO=CQ` 剔除 LDI 并追加 -DPROTO_CHONGQING）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
@@ -767,6 +819,11 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 贵州常规费显协议（协议文档 06 贵州常规费显协议，2020-06-17 修订）。帧 `'{' + 命令字('1'~'9','A','B',0x01,0x02) + 二进制 len + 参数 + '}'`（无 BCC；**与青海完全同构**），`GZ_PAYLOAD_MAX=259`、`GZ_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `gz_proto_init`）。13 命令：'1' 主机查询（仅回「正常」帧 `7B 31 01 00 7D` 至源通道）、'2' 自检（黄色全屏 + 语音「系统正在加电自检」）、'3' 单行（len 3~18，先清行再渲染）、'4' 全屏可编辑（len 4~86，**按 X/Y 坐标渲染** word_wrap=true，len>71 文本截断 64）、'5' 清屏、'6' 固定格式（客/货行文裸机对齐：客车 车型/金额/余额/信息1，信息2 不显示；货车 有超重→金额/余额/总重/超重、无超重→车型/金额/余额/总重；金额 ≥0.5 元同步费额语音；金额/重量整数运算分/吨分无浮点）、'7' 礼貌用语语音（'0'~'3'，'0'=「您好！欢迎行驶贵州高速公路」）、'8' 亮度（0=恢复光敏任务，1~5=挂起光敏 + 硬件 {3,4,5,7,8}）、'9' 音量（1~5 → 语音板 {1,3,5,7,9}）、'A' 外设（bit0 绿/bit1 红/bit2 黄闪，**红优先**）、'B' 费额语音（金额 ASCII 串→分，≥0.5 元播报，不显示）、0x01 全屏点亮（01红/02绿/**03黄**）、0x02 版本号（串口回裸 ASCII PROGRAM_CODE + 屏幕红字「版本:PROGRAM_CODE」FONT_SELF_ADAPT 居中）。无上电画面（不建 default 文件）。
 - **帧头冲突纪律**：命令字 '1'~'9','A','B' 全部落入青海 probe 命令集（**完全重叠**），全协议 Makefile 构建下青海 probe 先注册（源码收录序 qh 在前）先认领贵州帧——'1'/'3'/'4'/'5'/'7'/'8'/'9'/'B' 语义基本一致，'2'/'6'/'A' 细节差异（贵州 '2'=自检黄屏+语音、'6'=固定格式行文不同、'A'=红优先）。**量产必须 EIDE 目录排除与青海互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已启用贵州（排除青海/山东/四川MTC）。编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。0x01/0x02 二进制命令字青海/山东/四川MTC probe 首命令字快拒，无冲突。金额串转分 `gz_amount_to_fen`（整数部分×100 + 小数前两位，`%.2f` 语义）。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/gz_frame_sim.py`。
 
+## 云南协议 (`Application/Src/ProtocolParser_YunNan/app_yn_proto.c`)
+
+云南常规费显协议（协议文档 01 云南常规费显协议-云南LED费显P5，2022.7.5，云南弥玉项目 2022-S134）。帧 `'{' + 命令字('1'~'9','A','B',0x01,0x02) + 二进制 len + 参数 + '}'`（无 BCC；**与青海/贵州完全同构**），`YN_PAYLOAD_MAX=259`、`YN_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `yn_proto_init`）。13 命令：'1' 主机查询（回「正常」帧 `7B 31 01 00 7D` 至源通道，恒回正常）、'2' 自检（**复用 app_factory_test.c 老化循环显示序列**——整屏单字居中，字号 {FONT_16/24/32}×字体 {ST/FS/KT/HT} 循环「重庆创迪科技发展有限公司设备老化测试」，每 5s 播报「系统正在自检」，一次性任务 `yn_selftest_task` 防重入，**可被下一帧命令打断**，打断退出不清屏）、'3' 单行（len 3~18，**FONT_24 渲染**行高 24px——协议 24 点阵，先清行再渲染；行号 '1'~'5' **全按协议接受**，行 5 在 96px 屏高下「执行但不落屏」——渲染调用照常发出、渲染层越界早退）、'4' 全屏可编辑（len 4~86，**按 X/Y 坐标渲染** word_wrap=true，FONT_24，0x0A 换行 0x0D 跳过）、'5' 清屏、'6' **单行清除**（'1'~'5'；与贵州 '6' 固定格式语义不同）、'7' 礼貌用语语音（'0'~'3'，协议原文云南文案）、'8' 亮度（**0x00=NUL=恢复光敏自动调光、'1'~'8' 恒等映射硬件档并挂起光敏任务**，8 最亮）、'9' 音量（1~5 → 语音板 {1,3,5,7,9}）、'A' 外设（bit0 绿/bit1 红/bit2 黄闪，**红优先**）、'B' 费额语音（金额 ASCII 串→分，**0 元不播**、小数播小数末位 0 剔除，不显示）、0x01 全屏点亮（**01红/02绿/03黄/04蓝/05紫/06青/07白**——DATA0 与 display_color_t 枚举恒等，P5 全彩屏 8 色除黑）、0x02 版本号（串口回裸 ASCII **PROGRAM_CODE**）。**无上电效果**：不建 default 文件、不注册默认显示（使用固件默认显示，用户决定 8）。
+- **帧头冲突纪律**：命令字 '1'~'9','A','B' 全部落入青海 probe 命令集（**完全重叠**），全协议 Makefile 构建下青海 probe 先注册（源码收录序 qh 在前）先认领云南帧（与贵州处境一致）。**量产必须 EIDE 目录排除与青海/山东/贵州/四川MTC 互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已启用四川MTC、**排除云南**（`Application/protocol/ProtocolParser_YunNan`，与青海/山东/贵州同列）。编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。0x01/0x02 二进制命令字青海/山东/四川MTC probe 首命令字快拒，无冲突。金额串转分 `yn_amount_to_fen`。已确认决定记录见 `doc/11_云南费显协议/README.md` §8。
+
 ## 四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）
 
 三个四川地区协议模块均绑定 `CH_ID_RS485` + `CH_ID_RS232` 双通道、queue 深度 3（静态 SRAM），与青海同构（acquire → register → bind → set_frame_queue）。协议文档提取自 1D/1E/1F，要点：
@@ -820,7 +877,7 @@ udp_task: 绑定端口→循环{创建 udp_connect_task→等待信号量→销�
   └─ udp_connect_task (每个客户端一个):
        1. udp_channel_init: ch.ops=udp_ch_ops, state=UP, app_channel_register
        2. 循环 netconn_recv → 提取源IP/端口 → app_channel_dispatch
-       3. udp_channel_deinit: ops=nullptr, state=DOWN, app_channel_register(NULL)
+       3. udp_channel_deinit: ops=nullptr, state=DOWN, conn=NULL, app_channel_register(NULL)
        4. osSemaphoreRelease 通知 udp_task 重连
 ```
 
@@ -832,10 +889,11 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 
 ### LwIP 配置要点 (`Platform/Inc/lwipopts.h`)
 
-关键参数（133 行，覆盖 `opt.h` 默认值的部分与 CubeMX 生成配置）：
-- **内存**：`MEM_SIZE=12KB`；`MEMP_NUM_PBUF=16`、`PBUF_POOL_SIZE=16`（未覆盖，取 `opt.h` 默认值）
+关键参数（139 行，覆盖 `opt.h` 默认值的部分与 CubeMX 生成配置）：
+- **内存**：`MEM_SIZE=12KB`；`MEMP_NUM_PBUF=16`、`PBUF_POOL_SIZE=16`（未覆盖，取 `opt.h` 默认值；SRAM 水位 87-94%，每 +16 池约 +4KB，另行核算后才可调）
+- **netconn/UDP PCB 池（2026-08-21 覆盖，修复 LDI 搜索广播丢包）**：`MEMP_NUM_NETCONN=8`、`MEMP_NUM_UDP_PCB=8`（opt.h 默认 4）——dev 共存构建 baseline 4 netconn 已满（UDP 10011 + UDP 20103 + TCP Server listener + TCP Client），广播临时 `netconn_new` 必然 NULL 静默失败（LDI 12H 搜索应答 50-75% 无响应）；扩到 8 留余量，bss 增量 304B。**新增 UDP 端口协议时仍须随通道数核算（doc/06 预算）**
 - **硬件校验和**：`CHECKSUM_GEN_IP/UDP/TCP=0`、`CHECKSUM_CHECK_*_HW` 卸载到 MAC
-- **UDP 广播**：`LWIP_BROADCAST` 未定义；实际 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1`（IAP 升级依赖）
+- **UDP 广播**：`LWIP_BROADCAST` 未定义；实际 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1`（IAP 升级依赖）。`app_udp_broadcast`/`app_udp_cq_broadcast` 复用常驻通道 conn（`udp_task`/`udp_cq_task` 创建时已 `ip_set_option(SOF_BROADCAST)`）直接 `netconn_sendto` 广播，常驻 conn 未就绪（断链重建窗口，deinit 置 conn=NULL）才回退临时 conn（2026-08-21）
 - **MQTT**：`LWIP_MQTT` / `MQTT_MAX_IN_FLIGHT` 未定义；USER CODE 1 定义 `MQTT_REQ_MAX_IN_FLIGHT=16`、`LWIP_SO_RCVTIMEO=1`
 - **TCP**：`LWIP_TCP_KEEPALIVE=1`；`TCP_MSS=536`（未覆盖，取 `opt.h` 默认值）
 - **线程**：`TCPIP_THREAD_PRIO=24`（=osPriorityHigh）、`TCPIP_THREAD_STACKSIZE=1024`

@@ -1,7 +1,11 @@
 # Part A：STD 设备层架构优化
 
-**状态**：`[计划中]`
-**目标**：在 @Device 层新增三个协议无关的基础设施模块，使任何协议解析器（LDI / CQ / 未来新协议）都能直接调用统一接口，无需关心底层硬件差异。
+**状态**：`[已废弃]`
+**废弃原因（用户决策）**：跳过统一服务层（`dev_service_*`），CQ 协议模块按
+`doc/08_协议模块接入规则` 惯例**直调** STD 既有设备接口（`app_render` /
+`dev_display` / `dev_io_ctrl` / `dev_rs232_voice` / `app_board_net_cfg` /
+`pl_net`），不再新建 `dev_service.*` / `dev_voice.*` / `dev_io_lane_light_PIC.*`
+中间层。本文保留存档，仅作历史设计推演记录，与已落地实现（Part B）无关。
 
 ---
 

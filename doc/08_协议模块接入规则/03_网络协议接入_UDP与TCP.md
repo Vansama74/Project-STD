@@ -27,16 +27,17 @@
 - 帧格式：`0x5A5A5A5A | seq(4B) | cmd(4B) | len(4B) | data | CRC32(4B)`（`app_iap.c:5-7` 注释；`FRAME_HEAD (0x5A5A5A5AU)` 定义于 `app_iap.h:12`；`FRAME_MIN_LEN (5U)`、`FRAME_MAX_LEN (5U+256U)` :9-10）。
 - 只 bind `CH_ID_UDP`（`app_iap.c:39-53`）；与 LDI 同槽链式共存：首字节 0x5A vs 0xFF 快拒互斥。
 - probe（`app_iap.c:96-155`）要点：首字节 `0x5A` 快拒 → 4B 帧头比对 `FRAME_HEAD` → len 合法性 ≤256 → 数据不足时**二次帧头扫描**（范围内出现另一 `0x5A` 立即 FAKE 重同步，防止伪头粘包）→ CRC32 校验 → READY。
-- **广播应答**：`cmd01/cmd02` 回复经 `udp->src_ip` 回传，源 IP 置全 `0xFF`（255.255.255.255 广播）（`app_iap_cmd.c:60-63`）。依赖 `udp_channel_t` 在收包时记录 `src_ip[4]`/`src_port`（`app_udp.c:161-167`）。
+- **广播应答**：`cmd01/cmd02` 回复经 `udp->src_ip` 回传，源 IP 置全 `0xFF`（255.255.255.255 广播）（`app_iap_cmd.c:60-63`）。依赖 `udp_channel_t` 在收包时记录 `src_ip[4]`/`src_port`（`app_udp.c`）。**已知限制（2026-08-21）**：src 快照是通道级单例，帧排队期间后续帧会覆盖快照——IAP 停等一问一答、低流量，竞态不修改，仅记录（见 doc/07 修订）。
 
 ### 2.2 LDI UDP 搜索（21H/12H）
 
-- LDI 协议 bind UDP 通道用于「创迪发现口」搜索/应答（`app_udp.c:9-11` 注释：同端口 10011 承载 LDI 21H/12H 搜索与 IAP 升级，按帧头分流）。LDI probe 首字节 `0xFF` 快拒 + STX `0xFF 0xFF` + CRC16-XMODEM（`app_ldi.c:313-373`）。
+- LDI 协议 bind UDP 通道用于「创迪发现口」搜索/应答（`app_udp.c` 注释：同端口 10011 承载 LDI 21H/12H 搜索与 IAP 升级，按帧头分流）。**注意区分两个端口语义**：10011 仅为搜索/上报的 UDP 传输渠道；12H 应答与 IAP 0x01 上报内容中的 `port` 字段是设备「配置功能端口」（TCP 业务口 9528，见 doc/07 §12 ④）。LDI probe 首字节 `0xFF` 快拒 + STX `0xFF 0xFF` + CRC16-XMODEM（`app_ldi.c:313-373`）。
+- **12H 应答发送顺序（2026-08-21）**：广播为主（`app_udp_broadcast` 先发，复用常驻 conn 不占 netconn 池）、回源为辅（`channel_send` 后发、失败静默）——回源依赖通道级 src 快照，多协议交错下可能发错目标，广播是可靠路径。
 
 ### 2.3 UDP 通道实现要点（新协议发包侧）
 
-- 应答直接 `channel_send(ch, data, len)`：`udp_ch_send` 用 `udp->src_ip` 重建 `ip_addr_t` 发回源地址（`app_udp.c:68-84`）——**通道层自动回源，协议层无需管理 IP**。
-- 通道生命周期：`udp_task` 建 netconn/bind/派生 `udp_connect_task`；断链时 `udp_channel_deinit` 置 `ops=nullptr`、`state=DOWN`、`app_channel_register(CH_ID_UDP, nullptr)`（`app_udp.c:133-154, 171-187`）。协议层不要持有裸 `channel_t *` 跨断链使用——`channel_send` 对 `ops==nullptr` 有守卫（`app_dispatch.c:349-356`），但状态判断应像 LDI 那样经 `app_channel_get(CH_ID_*)` 每次现查。
+- 应答直接 `channel_send(ch, data, len)`：`udp_ch_send` 用 `udp->src_ip` 重建 `ip_addr_t` 发回源地址（`app_udp.c`）——**通道层自动回源，协议层无需管理 IP**。
+- 通道生命周期：`udp_task` 建 netconn/bind/派生 `udp_connect_task`；断链时 `udp_channel_deinit` 置 `ops=nullptr`、`state=DOWN`、`conn=NULL`（2026-08-21 补）、`app_channel_register(CH_ID_UDP, nullptr)`。协议层不要持有裸 `channel_t *` 跨断链使用——`channel_send` 对 `ops==nullptr` 有守卫（`app_dispatch.c`），但状态判断应像 LDI 那样经 `app_channel_get(CH_ID_*)` 每次现查。
 
 ## 3. TCP 范例（LDI 双通道）
 
@@ -48,7 +49,7 @@
 
 ## 4. LwIP 约束
 
-- **广播依赖**：`lwipopts.h` 中 `LWIP_BROADCAST` 未定义，但 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1` 已生效（IAP 升级依赖，见 doc/CLAUDE.md「LwIP 配置要点」）；代码侧广播先 `ip_set_option(conn->pcb.udp, SOF_BROADCAST)`（`app_udp.c:56, 119`；`app_udp_broadcast` 直接用 `IP4_ADDR 255.255.255.255`）。新协议需要广播时照抄，勿改 lwipopts 默认。
+- **广播依赖**：`lwipopts.h` 中 `LWIP_BROADCAST` 未定义，但 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1` 已生效（IAP 升级依赖，见 doc/CLAUDE.md「LwIP 配置要点」）；`MEMP_NUM_NETCONN=8`/`MEMP_NUM_UDP_PCB=8`（2026-08-21 覆盖，修复池满广播丢包）。代码侧广播：`udp_task`/`udp_cq_task` 建常驻 conn 时 `ip_set_option(conn->pcb.udp, SOF_BROADCAST)`；`app_udp_broadcast`/`app_udp_cq_broadcast` **复用常驻通道 conn**（`app_channel_get` 回验 + conn 非空）`netconn_sendto` 255.255.255.255，常驻未就绪回退临时 conn。新协议需要广播时调用 `app_udp_broadcast`（10011 口）或 `app_udp_cq_broadcast`（20103 口），勿自行 `netconn_new` 临时 conn。
 - **`pl_net_adapt.h` 禁止在任何 .h 中引用**（doc/CLAUDE.md 架构约束）：LwIP 类型（`struct netconn`、`ip_addr_t` 等）不得泄漏进协议头文件。协议 .c 需要 LwIP API 时只 include `pl_net.h`/`pl_net_adapt.h` 于 .c 内。
 - **IP 类型隔离先例**：`udp_channel_t.src_ip` 用 `uint8_t[4]` 字节数组而非 `ip_addr_t`（`app_udp.c:160-164`），避免 Application 层暴露 middleware 类型。新协议存储对端地址照此办理。
 

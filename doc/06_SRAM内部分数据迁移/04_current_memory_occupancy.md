@@ -59,6 +59,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | `s_ldi_queue_buf` | **2080** | 深度 **4** |
 | `s_qh_queue_buf` | **801** | 深度 **3** |
 | ETH/LwIP 池 | ram_heap / RX_POOL / PBUF 等 | 永留 SRAM（大户） |
+| LwIP memp 池（netconn/udp_pcb） | 8×netconn + 8×udp_pcb（2026-08-21 起 `lwipopts.h` 显式 `MEMP_NUM_NETCONN=8`/`MEMP_NUM_UDP_PCB=8`，原 opt.h 默认 4） | 实测 bss 增量 **304B**；**新增 UDP 端口协议时随通道数核算本行**（每通道常驻 1 netconn + 1 udp_pcb，广播复用常驻 conn 不占池） |
 
 `s_rls_queue_buf`（**1076**，深度 2）与 AH_MQTT 队列（~1623，任务内 static）为**源码口径**，**不在本采样 elf 内**（EIDE Debug 排除 RLS/AH；仅 Makefile 构建时才计入 bss）。
 
@@ -81,6 +82,17 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | AH_MQTT | 3 | ~1623 | **1→3**（任务内；initcall 关则未激活路径） | — EIDE 排除 |
 | 山东 | 3 | 801 | 新增（payload 259，与青海同构） | — EIDE 排除 |
 | 贵州 | 3 | 801 | 新增（payload 259，与青海同构；13 命令含 0x01/0x02） | — EIDE 排除 |
+| 云南 | 3 | 801 | 新增（payload 259，与青海/贵州同构；13 命令含 0x01/0x02） | — EIDE 排除 |
+| 重庆CQ | 3 | 3156 | 新增（payload 1044，JSON `{` 定界 + 12B 二进制）；**队列体+任务帧缓冲+JSON/文本缓冲置 CCMRAM**（SRAM 全协议构建仅余 ~1.9KB；CPU 独占访问无 DMA，见文末修订） | ✅ 编入（CCM） |
+
+> **重庆CQ 内存例外（2026-08-20）**：CQ 队列 `s_cq_queue_buf` 3156B + `s_cq_queue_cb` 80B +
+> 任务帧缓冲 1052B + JSON 缓冲 1045B + 文本缓冲 1044B = **6377B 置 `.ccmram`**。
+> 理由：全协议 dev 构建 SRAM 仅余 ~1.9KB，CQ 帧队列 3236B 无法入 SRAM；
+> 这些缓冲为 CPU 独占访问（osMessageQueue 静态内存经 CPU memcpy 读写、无 DMA/ETH），
+> CCMRAM 可用（Makefile 1-260 显存 2432B；EIDE 1-577 口径 38208B + 6377B 亦不超 64KB）。
+> cJSON 解析树为 **FreeRTOS 堆瞬时分配**（钩子 pvPortMalloc/pvPortFree，ucHeap 36KB
+> 内支出，解析后 `cJSON_Delete` 归还）。`cq_proto_handle_task`/`cq_proto_timer_task`
+> 各 1KB 栈（ucHeap，地区协议处理任务 +1KB、定时任务 +1KB）。
 
 语义与 Put 丢帧行为 → **doc/05** `01` §4.1 / `02` §2.1。
 
@@ -207,6 +219,25 @@ CCM 增量 **0**。
 SRAM 合计（贵州基线 +1160）：**≈127691B（97.4%）**，未超 124KB（126976B）上限。
 CCM 增量 **0**（无新 CCM 对象）。
 
+2026-08-24（云南协议接入）追加采样（同口径 `make clean && make -j8`，对照构建同树剔除云南实测增量；数字为同日用户决定 1~10 修订后重采）：
+
+| 段 | 云南基线（剔除云南） | 修订后 | 增量 |
+|----|----------------------|----------|------|
+| text | 349796 | **352860** | **+3064** |
+| data | 1656 | **1656** | **+0** |
+| bss（size 工具口径，含 .ccmram） | 136772 | **138196** | **+1424** |
+
+增量构成（对照构建实测；初版 +3120/+1168，修订后 自检单字缓冲 256B 入 bss、default 文件代码移除）：
+- 帧 queue 静态体：`s_yn_queue_buf` **801**（3×267，payload 259）+ `s_yn_queue_cb` **80** = 881
+- 任务内帧缓冲（static bss）：`msg_buf` **267**
+- 自检单字全屏缓冲（static bss）：`_yn_selftest_fill_char` 内 `buf` **256**
+- 状态：`s_yn_mask`/`s_yn_mask_rs232`/队列句柄 **12** + 尾部对齐 8
+- 任务栈（ucHeap，非 bss）：`yn_handle_task` **1×1KB**（地区协议处理任务 5→6）；`yn_selftest_task`（1KB）为瞬态任务（上电熄灭任务 `yn_bootoff_task` 已随修订移除）
+- text +3064：probe/parse/cmd/voice 四文件代码（含自检老化循环显示序列）+ rodata（文明用语 4 串、PROGRAM_CODE 应答、映射表、队列/任务 attr）
+
+SRAM 合计（云南基线 +1424）：**≈129115B（98.5%）**，未超 124KB（126976B）上限。
+CCM 增量 **0**（无新 CCM 对象）。
+
 ---
 
 ## §4 复现
@@ -240,3 +271,7 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 - 2026-08-17（文本常量字节数组 → UTF-8 字符串字面量）：山东/四川ETC 显示文本、四川MTC 固定标签与语音表、青海文明用语表全部改为 UTF-8 字面量（语音发送前 UTF8ToGBK 运行时转 GBK；显示改 FONT_ENC_UTF8）；山东上电画面 COLOR_GREEN→COLOR_YELLOW；青海文明用语 '0' 同时修正为 doc/04 裸机文本「贵州高速公路」（原数组字节有损）；青海自检/费额语音补 UTF8ToGBK 转换（原以 UTF-8 字节直送 GBK 语音板）；重采 text **329456（+344，rodata +149 + 转换代码 ~+195）**、bss **127564（+0）**、data 不变；SRAM ≈**126531B（96.5%）**，未超上限。
 - 2026-08-17（dev_display_fill 越界下溢修复）：`dev_display_fill` 起点越界（x≥rows / y≥cols）早退丢弃，消除 `screen_* - x/y` uint16 下溢巨值写穿 pixel_map（CCMRAM）→ HardFault 的缺陷（山东 '3' 行号 ≥3 在小屏构建触发：y=row*16 ≥ 32 屏高；故障地址 0x10010000 = CCMRAM 末尾+1）；该修复同时保护青海/ETC/MTC 行渲染与 app_render 字形擦除路径；重采 text **329472（+16）**、bss/data 不变；SRAM ≈**126531B（96.5%）**，未超上限。
 - 2026-08-17（新增贵州协议）：ProtocolParser_GuiZhou 四文件接入 Makefile（EIDE Debug 目标排除，与青海同列）；§6 增量账：text **+3600**、bss **+1160**（queue 801 + cb 80 + 帧缓冲 267 + 状态 12）、data 不变；ucHeap 任务栈 +1KB（4→5）；SRAM ≈**127691B（97.4%）**，未超 124KB（126976B）上限。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/gz_frame_sim.py`。
+- 2026-08-24（新增云南协议）：ProtocolParser_YunNan 五文件接入 Makefile（EIDE Debug 目标排除，与青海/山东/贵州同列；PROTO=CQ 口径保留——`{` 帧族随既有纪律编入）；§6 对照构建增量账：text **+3120**、bss **+1168**（queue 801 + cb 80 + 帧缓冲 267 + 状态 12 + 对齐 8）、data 不变；ucHeap 常驻任务栈 +1KB（5→6），自检/熄灭任务瞬态；SRAM ≈**128891B（98.3%）**，未超 124KB（126976B）上限。构建验证：PROTO=ALL text 352916/data 1656/bss 137940；PROTO=CQ text 339060/data 852/bss 134464，均链接通过。
+- 2026-08-24（云南协议修订，用户决定 1~10）：移除 `app_yn_proto_default.c`（上电效果 default 文件，Makefile/eide.yml 同步删除，不再注册默认显示）；'2' 自检改老化循环显示 + 每 5s 语音「系统正在自检」（可被下一帧打断，新增自检单字缓冲 static buf 256B）；'8' 亮度 0x00 恢复光敏自动；0x01 全屏点亮扩 01红~07白 七色；0x02 应答改 PROGRAM_CODE（删硬编码 YN_FX_P5_1.0）。重采：**PROTO=ALL text 352860（-56）/ data 1656 / bss 138196（+256）**；**PROTO=CQ text 338996（-64）/ data 852 / bss 134720（+256）**，均链接通过。
+- 2026-08-20（新增重庆CQ协议）：ProtocolParser_ChongQing 四文件 + cJSON 接入 Makefile（恒定编入，CQ 源在 LDI 之后）；`PROTO=CQ` 剔除 LDI 目录 + `-DPROTO_CHONGQING`。Makefile 全协议口径重采：**text 348240（+12056，含 cJSON ~8.5K 代码）**、**data 1652（+32，cJSON hooks/全局指针）**、**bss 136456（+6436 = CCM +6377 + SRAM ~59）**。CQ 静态体构成（**全部置 `.ccmram`**）：queue_buf 3156 + queue_cb 80 + 任务帧缓冲 1052 + JSON 缓冲 1045 + 文本缓冲 1044 = **6377B CCM**；SRAM 净增 ~59B（mask/计数器/hooks/UDP_CQ 通道实例），全协议构建 SRAM 余量仍 >1.7KB，链接通过。ucHeap 任务栈 +2KB（cq_proto_handle_task / cq_proto_timer_task 各 1KB）。cJSON 解析树为 ucHeap 瞬时分配（钩子 pvPortMalloc/pvPortFree）。**CCM 例外说明**：本项目 CCM 惯例为「仅显存」，CQ 帧队列因 SRAM 余量不足（全协议构建仅余 ~1.9KB）破例入 CCM——缓冲为 CPU 独占访问（无 DMA/ETH），Makefile 1-260 口径 CCM 2432+6377=8809B / EIDE 1-577 口径 38208+6377=44585B，均不超 64KB。
+- 2026-08-20（cJSON 升级官方 v1.7.18）：`Middlewares/Third_Party/cJSON/` 由裸机拷贝 v1.x 老版（编译 3 条 -Wmisleading-indentation 警告）替换为 DaveGamble/cJSON **v1.7.18** 官方源（GitHub codeload tarball）；parse 层类型判定改 `cJSON_IsString/IsNumber/IsObject` 辅助函数（`app_cq_proto_parse.c`），`cJSON_InitHooks` 换绑 FreeRTOS 堆不变（hooks 字段名仍 malloc_fn/free_fn），`cJSON_Parse`/GBK 字节直传用法不变。重采（Makefile 口径，cJSON 编译 warning 清零，仅余 HAL flash_ex 3 条既有 unused-parameter）：全协议 text **350004（+1764，cJSON 代码 ~8.5K→~10.2K）**、data **1656（+4）**、bss **136460（+4）**；`PROTO=CQ` text **335796（+1772）**、data **852（+4）**、bss **132984（+4）**。cJSON 解析树瞬时堆仍 ucHeap 内 2~4KB 量级（cJSON 结构体尺寸不变，钩子仍 pvPortMalloc/pvPortFree，解析后 cJSON_Delete 归还）。
