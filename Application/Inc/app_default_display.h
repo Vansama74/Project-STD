@@ -17,3 +17,10 @@ void app_default_display_register(app_default_display_fn_t fn);
 
 /** @brief 渲染默认显示界面：有注册回调则调用之，否则渲染默认欢迎画面 */
 void app_default_display(void);
+
+/**
+ * @brief 恢复默认显示界面：有注册回调则调用之，否则清屏兜底。
+ * @note  供协议模块在显示覆盖画面（如 CQ 心跳故障屏）后恢复默认画面调用；
+ *        与 app_default_display 的区别：无注册回调时清屏而非渲染欢迎画面。
+ */
+void app_default_display_show(void);

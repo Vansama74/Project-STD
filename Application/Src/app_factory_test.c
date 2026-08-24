@@ -47,6 +47,14 @@ osThreadId_t g_factory_test;
  * 检测序列，按键扫描持续运行，TEST 键始终可用。 */
 static volatile bool s_factory_abort;
 
+/* ---- 工厂测试激活态（供心跳类定时任务查询，暂停计数）---- */
+static volatile bool s_factory_active;
+
+bool app_factory_test_active(void)
+{
+    return s_factory_active;
+}
+
 /**
  * @brief  等待 TEST 键按下，支持业务数据中止。
  * @param  timeout_ms  等待时限（osWaitForever 表示永久）。
@@ -128,9 +136,11 @@ static void factory_monitor_task(void *argument)
     for (;;) {
     idle_restart:
         /* ===== IDLE: 等待 TEST 激活（业务数据中止 → 重新 IDLE） ===== */
-        s_factory_abort = false; /* 进入检测序列前清中止标志 */
+        s_factory_abort  = false; /* 进入检测序列前清中止标志 */
+        s_factory_active = false; /* 回 IDLE 即退出激活态 */
         if (!_factory_wait_tst(osWaitForever))
             continue;
+        s_factory_active = true; /* 进入检测序列：激活态（占用显示资源） */
 
         /* ===== 第1次按键 → SHOW_CODE: 显示固件/模组信息 ===== */
         {
