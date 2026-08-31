@@ -318,6 +318,7 @@ virtualFolder:
             - path: Device/Display/dev_display_1_969.c
             - path: Device/Display/dev_display_1_577.c
             - path: Device/Display/dev_display_1_260.c
+            - path: Device/Display/dev_display_1_263.c
           folders: []
     - name: Platform
       files:
@@ -414,18 +415,16 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan
+      - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
-      - <virtual_root>/Application/protocol/ldi
       - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Device/Display/dev_display_1_577.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -457,7 +456,6 @@ targets:
           linker:
             $outputTaskExcludes:
               - .s19
-              - .bin
             $toolName: auto
             LIB_FLAGS: -lm
             output-format: elf
@@ -536,7 +534,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: JLink
+    uploader: Custom
   Release:
     cppPreprocessAttrs:
       defineList:

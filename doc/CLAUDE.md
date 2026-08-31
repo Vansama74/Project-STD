@@ -80,7 +80,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 | 目录 | 角色 |
 |---|---|
-| `doc/01_显示系统` | 显示层：1-260/1-577/1-969 模组驱动、自适应字号 |
+| `doc/01_显示系统` | 显示层：1-260/1-577/1-969/1-263 模组驱动、自适应字号 |
 | `doc/02_LDI协议与外设接口` | LDI 协议与光敏/字库等外设接口 |
 | `doc/03_重庆高速二代费显协议` | RLS 重庆协议接入记录 |
 | `doc/04_青海高速费显协议` | 青海协议接入记录 |
@@ -91,6 +91,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/09_山东费显协议` | 山东车道费额显示器协议接入记录 |
 | `doc/10_贵州费显协议` | 贵州常规费显协议接入记录（13 命令/裁决差异表/帧头冲突纪律） |
 | `doc/11_云南费显协议` | 云南常规费显协议接入记录（13 命令/24 点阵渲染/已确认决定） |
+| `doc/12_缅甸费显项目适配` | 缅甸费显 8051→STD 替代方案设计（方案 B 接口板：TB62726×6 12 位 7 段灯板、3.3V→5V 电平转换、位带 WT588D、FF/E0 20 字节帧 10 命令接入；**方案设计，未实施**） |
 
 ## 硬件架构
 
@@ -265,9 +266,10 @@ pl_sys (SystemClock_Config, delay, reset)
 | 1-pl | pl | `pl_hub75_init` | `pl_hub75.c` | HUB75 GPIO |
 | 1-pl | pl | `pl_rtt_init` | `pl_rtt.c` | SEGGER RTT |
 | 2-dev | dev | `dev_display_init` | `dev_display.c` | HUB75 引脚 + DBG 冻结 |
-| 2-dev | dev | `dev_display_1_577_init` | `dev_display_1_577.c` | 1-577 模组实例注册（EIDE 现行） |
-| 2-dev | dev | `dev_display_1_260_init` | `dev_display_1_260.c` | 1-260 模组实例注册（Makefile 默认） |
+| 2-dev | dev | `dev_display_1_577_init` | `dev_display_1_577.c` | 1-577 模组实例注册（备用） |
+| 2-dev | dev | `dev_display_1_260_init` | `dev_display_1_260.c` | 1-260 模组实例注册（备用，Makefile/EIDE 均已排除） |
 | 2-dev | dev | `dev_display_1_969_init` | `dev_display_1_969.c` | 1-969 模组实例注册（备用） |
+| 2-dev | dev | `dev_display_1_263_init` | `dev_display_1_263.c` | 1-263 模组实例注册（P6 32x32；Makefile 与 EIDE Debug 现行） |
 | 2-dev | dev | `dev_display_p20_init` | `dev_display_p20.c` | P20 模组实例注册（未编入任何构建） |
 | 2-dev | dev | `dev_w25qxx_init` | `dev_w25qxx.c` | SPI Flash JEDEC 识别 |
 | 2-dev | dev | `dev_eth_init` | `dev_eth.c` | ETH MAC + DP83848 PHY |
@@ -754,7 +756,7 @@ app_render(&(render_cfg_t){
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 | 7 | `CH_ID_UDP_CQ` | LwIP UDP（业务口，`PROTO_CHONGQING` 读 Sector1 net_cfg.udp_port 默认 20103（方案 B）；dev 共存构建固定 20103） | `udp_channel_t`（CQ 实例） | `app_udp.c`（`app_udp_cq_start`；CQ 协议 bind，JSON 业务 + 12B 二进制） |
 
-**选编口径**：EIDE Debug 编 1-969 模组 + IAP/LDI/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）/重庆CQ（`ProtocolParser_ChongQing` + cJSON，Debug 未排除），排除 1-260/1-577/RLS/AH/山东/贵州/青海/云南（`.eide/eide.yml` excludeList；LDI 与 CQ 同编为开发共存口径：CQ 业务口 dev 构建固定 20103 不读 Sector1 net_cfg.udp_port，10011 口 12B 二进制帧先经 LDI probe，LDI 对 `data_len==2`（CQ 12B 帧 len=00 00 00 02 且 CRC 恰好通过 LDI 校验）显式 FAKE 放行、仍由 CQ 认领，见 doc/03 PartB Q23/Q24；量产 CQ 目标需 excludeList 排除 ldi 并 define PROTO_CHONGQING）；Makefile 编 1-260 + 全协议（含 CQ，`PROTO=CQ` 剔除 LDI 并追加 -DPROTO_CHONGQING）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 编 1-263 模组 + IAP/LDI/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）/重庆CQ（`ProtocolParser_ChongQing` + cJSON，Debug 未排除），排除 1-260/1-969/1-577/RLS/AH/山东/贵州/青海/云南（`.eide/eide.yml` excludeList；LDI 与 CQ 同编为开发共存口径：CQ 业务口 dev 构建固定 20103 不读 Sector1 net_cfg.udp_port，10011 口 12B 二进制帧先经 LDI probe，LDI 对 `data_len==2`（CQ 12B 帧 len=00 00 00 02 且 CRC 恰好通过 LDI 校验）显式 FAKE 放行、仍由 CQ 认领，见 doc/03 PartB Q23/Q24；量产 CQ 目标需 excludeList 排除 ldi 并 define PROTO_CHONGQING）；Makefile 编 1-263 + 全协议（含 CQ，`PROTO=CQ` 剔除 LDI 并追加 -DPROTO_CHONGQING；1-260 已随 1-263 收录切换移出 SRC_DEVICE）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 

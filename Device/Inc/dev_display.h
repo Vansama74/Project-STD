@@ -102,6 +102,9 @@ dev_display_t *dev_display_1_260_get(void);
 /** @brief 获取 1-577 模组显示实例 */
 dev_display_t *dev_display_1_577_get(void);
 
+/** @brief 获取 1-263 模组显示实例（P6 32x32，1/8 扫，2 通道） */
+dev_display_t *dev_display_1_263_get(void);
+
 /** @brief 注册活动显示实例（由显示模组的 hw_dev_initcall 调用） */
 void dev_display_register(dev_display_t *dev);
 
