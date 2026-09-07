@@ -108,6 +108,13 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_parse.c
                 - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_cmd.c
               folders: []
+            - name: ProtocolParser_Anhui
+              files:
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_parse.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_cmd.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_voice.c
+              folders: []
             - name: rls
               files:
                 - path: Application/Src/RLS/app_rls_cmd.c
@@ -409,22 +416,23 @@ targets:
         - Application/Inc/ProtocolParser_GuiZhou
         - Application/Inc/ProtocolParser_YunNan
         - Application/Inc/ProtocolParser_ChongQing
+        - Application/Inc/ProtocolParser_Anhui
         - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/rls
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
-      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan
-      - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
       - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Device/Display/dev_display_1_260.c
     settings:
       debugger: cortex-debug
     toolchain: GCC

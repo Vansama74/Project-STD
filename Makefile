@@ -64,6 +64,7 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_YunNan \
 	-I Application/Inc/ProtocolParser_ShanDong \
 	-I Application/Inc/ProtocolParser_ChongQing \
+	-I Application/Inc/ProtocolParser_Anhui \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -362,6 +363,10 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c \
 	Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c \
 	Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c \
+	Application/Src/ProtocolParser_Anhui/app_anhui_proto.c \
+	Application/Src/ProtocolParser_Anhui/app_anhui_proto_parse.c \
+	Application/Src/ProtocolParser_Anhui/app_anhui_proto_cmd.c \
+	Application/Src/ProtocolParser_Anhui/app_anhui_proto_voice.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \

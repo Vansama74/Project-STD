@@ -126,6 +126,7 @@ FAKE         → any_fake，继续试下一协议
 | 四川 ETC | `0x0A` + 命令位(00/01/36~39/40/50) … `0x0D`（46 归属 MTC） |
 | 四川 MTC | `{`(0x7B) + 命令 + 参数 + `}`（**'}' 定界变长**，无长度字段、无 BCC，扫描上限 74B，9K1F212701 语义）；`0A 46 0A` / `0A 46 0D` 双帧型 |
 | 四川治超 | `0xFF` + 长度(07~FF，0xFE 排除) … `0xFF`（BCC 异或）；长度上限对齐 9K1F212701 容纳 0x80 全屏长数据段，0xFE 显式排除与 RLS `FF FE` 区分；81~88 行数据变长（=总长-6，≤24B 截断） |
+| 安徽 | `0x5A` + 屏号(01) + 命令(81~89,92,94~97) + 数据长(1B) + 数据 + CRC(不校验，文档注明无检验) + `0xA5`（长度字段定界，帧 ≤261）；与 IAP `0x5A5A5A5A` 同首字节但分处不同槽（安徽串口 / IAP 网口） |
 | 重庆CQ | JSON `{` 花括号深度定界（'"' 内跳过，深度>16/累计>1044 → FAKE）+ `FF FF` 12B 二进制精确匹配（重启/搜索两帧），CRC16-XMODEM（大端，帧内校验）；业务口 UDP_CQ(20103) + 搜索口 UDP(10011) |
 
 ---
@@ -138,8 +139,8 @@ FAKE         → any_fake，继续试下一协议
 | RJ45 | 同上（共享） | 同上 | TCP_S / TCP_C / UDP | LDI |
 | RJ45 | 同上 | 同上 + CQ | MQTT | AH_MQTT（initcall 可关） |
 | RJ45 | 同上 | CQ（weak 合并） | UDP_CQ / UDP | 重庆CQ（双 mask 共用一队列；CQ 源收录序在 LDI 之后） |
-| RS485 | 768 | QH / RLS / SC_ETC / SC_MTC / SC_OL / SD / GZ / YN | RS485 | 青海、RLS、四川三协议、山东、贵州、云南 |
-| RS232 | 768 | QH / SC_ETC / SC_MTC / SC_OL / SD / GZ / YN | RS232 | 青海、四川三协议、山东、贵州、云南 |
+| RS485 | 768 | QH / RLS / SC_ETC / SC_MTC / SC_OL / SD / GZ / YN / ANHUI | RS485 | 青海、RLS、四川三协议、山东、贵州、云南、安徽 |
+| RS232 | 768 | QH / SC_ETC / SC_MTC / SC_OL / SD / GZ / YN / ANHUI | RS232 | 青海、四川三协议、山东、贵州、云南、安徽 |
 
 **已取消（相对历史 8 槽方案）**：
 
@@ -164,6 +165,7 @@ FAKE         → any_fake，继续试下一协议
 | 山东 | `SD_QUEUE_DEPTH` | **3** | ~267 | ~801 | payload 259（len 字段 1B 上限，与青海同构） |
 | 贵州 | `GZ_QUEUE_DEPTH` | **3** | ~267 | ~801 | payload 259（与青海同构，13 命令含 0x01/0x02） |
 | 云南 | `YN_QUEUE_DEPTH` | **3** | ~267 | ~801 | payload 259（与青海/贵州同构，13 命令含 0x01/0x02；'3' 单行 FONT_24 渲染） |
+| 安徽 | `ANHUI_QUEUE_DEPTH` | **3** | 269 | **807** | payload 261（数据长 1B 上限 255 → 6+255；长度字段定界，CRC 不校验）；**队列体+cb+任务帧缓冲为静态 SRAM**（与青海/贵州/云南同，用户裁决 2026-09-04；+1156B SRAM，CQ 才是 CCMRAM 例外） |
 | 重庆CQ | `CQ_QUEUE_DEPTH` | **3** | 1052 | **3156** | payload 1044（JSON 花括号定界上限）；队列体+任务帧缓冲+JSON/文本缓冲**置 CCMRAM**（SRAM 全协议构建仅余 ~1.9KB，CPU 独占访问无 DMA） |
 
 变更记录（2026-08-14）：LDI 2→4、青海对齐协议后深度 3、AH 1→3；IAP/RLS 维持 2。
@@ -175,6 +177,7 @@ FAKE         → any_fake，继续试下一协议
 变更记录（2026-08-17）：新增贵州协议（GZ）深度 3、payload 259（与青海同构；命令字 '1'~'9','A','B' + 0x01/0x02 二进制命令字）。
 变更记录（2026-08-24）：新增云南协议（YN）深度 3、payload 259（与青海/贵州同构；命令字 '1'~'9','A','B' + 0x01/0x02；'6'=单行清除、'3'/'4' 按 24 点阵 FONT_24 渲染、0x02 应答 PROGRAM_CODE、无上电效果 default 文件）。
 变更记录（2026-08-24 修订，用户决定 1~10）：YN 语义定稿——'2' 自检改老化循环显示 + 每 5s 语音「系统正在自检」（可被下一帧打断）；'3'/'6' 行号 '1'~'5' 全接受（行 5 执行但不落屏）；'8' 亮度 0x00=恢复光敏自动、'1'~'8' 手动档；0x01 全屏点亮扩至 01红~07白 七色；0x02 应答 PROGRAM_CODE；移除上电效果 default 文件（不注册默认显示）。
+变更记录（2026-09-04）：新增安徽协议（ANHUI）深度 3、payload 261（数据长 1B 上限，CRC 文档注明不校验）；帧头 0x5A 串口槽唯一（IAP 5A5A5A5A 在网口槽不相交）；**队列体+cb+任务帧缓冲为静态 SRAM（+1156B，与青海/贵州/云南同——用户裁决，CQ 才是 CCMRAM 例外）**；SRAM 预算经链接期下限收紧 + RTT 缓冲 1KB 让位（doc/13 §6）；动态显示（0x86~0x89 滚动）留空 TODO、0x96/0x97 录制语音占位（语音板无段号接口），详见 doc/13。
 变更记录（2026-08-20）：新增重庆CQ（JSON `{` + 12B 二进制）深度 3、payload 1044、静态体 3156B **置 CCMRAM**；与 IAP/LDI 共享 RJ45 RB，CQ 源收录序在 LDI 之后（probe 注册序）。
 变更记录（2026-08-21）：CQ 业务端口语义修复——`PROTO_CHONGQING` 才读 Sector1 net_cfg.port（无效/0 回退 20103），dev 共存构建固定 20103（不读 LDI 语义的 net_cfg.port）；搜索应答 port 字段改报 `app_udp_cq_get_port()`；10011 口 12B 帧「LDI 先探测、FAKE 放行、CQ 收单」实态修正（见 §6 兼容矩阵与 doc/03 PartB B.11）。
 变更记录（2026-08-21 方案 B）：Sector1.net_cfg 新增 `udp_port`（CQ UDP 业务口专有），TCP/UDP 端口彻底分离——`PROTO_CHONGQING` 改读 net_cfg.udp_port（setip 写入，默认 20103），dev 共存构建固定 20103；net_cfg.port 恒为 TCP 业务口不再被 setip 污染（见 doc/03 PartB B.7.1/B.11、doc/07 §15）。
@@ -220,6 +223,9 @@ sw_app_initcall(xxx_proto_init);
 | 贵州 0x01/0x02（二进制命令字） | RS485/RS232 链式 | 允许：0x01 全屏点亮 / 0x02 版本号为二进制命令字，不属于青海/山东/四川MTC 的 ASCII 命令集，各 probe 首命令字快拒，贵州 probe 无冲突认领 |
 | 云南 + 青海（`{` 帧族完全重叠） | RS485/RS232 链式 | ⚠️ **EIDE 目录排除纪律**：云南命令字 '1'~'9','A','B' 全部落入青海 probe 命令集，全协议构建下青海 probe 先认领（源码收录序 qh 在前）；与贵州同构但 '6' 单行清除（贵州固定格式）、'8' 0x00自动/1~8 档（贵州 0~5 档）语义差异，量产必须二选一 |
 | 云南 0x01/0x02（二进制命令字） | RS485/RS232 链式 | 允许：0x01 全屏点亮 / 0x02 版本号为二进制命令字，不属于青海/山东/四川MTC 的 ASCII 命令集，各 probe 首命令字快拒，云南 probe 无冲突认领 |
+| 安徽 + 串口各协议（青海/山东/贵州/云南/四川MTC/ETC/治超/RLS） | RS485/RS232 链式 | 允许：安徽首字节 0x5A 与既有串口首字节 0x7B/0x0A/0xFF 互斥，双向首字节快拒成立；安徽为 5A/A5 帧族**非 '{' 帧族，不定义 `g_brace_proto_guard`**，无 EIDE 目录排除要求 |
+| 安徽 + IAP（`5A` 首字节重叠） | **不同槽**（安徽 RS485/RS232 vs IAP RJ45/UDP） | 允许：物理 RB 不同不相交；IAP 仅绑定 UDP，串口槽无 IAP 帧 |
+| 安徽 + `CH_ID_RS232_1` | — | **禁止**（语音专用，安徽只 bind RS485 + RS232） |
 | `{` 帧族任意两两（QH/SD/GZ/SC_MTC/YN） | RS485/RS232 链式 | ⚠️ **编译期互斥守卫**：五个协议主文件各定义同名强符号 `g_brace_proto_guard`（`__attribute__((used))` 防 `--gc-sections` 丢弃，`#ifndef STD_ALL_PROTO` 包裹）——EIDE 量产构建多个编入即链接报 `multiple definition of 'g_brace_proto_guard'`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序与本文纪律约束）。EIDE excludeList 目录排除纪律仍为操作层首选 |
 | 重庆CQ + LDI | RJ45（UDP/UDP_CQ/TCP 共享） | ⚠️ **产品互斥**（Makefile `PROTO=CQ` 剔除 LDI 目录 / EIDE excludeList 目录排除）；全协议 dev 构建下二者共存于 RJ45：CQ JSON `{` 与 LDI `FF FF` 首字节互斥可分；**10011 口 12B 二进制帧（CQ 重启/搜索请求）先经 LDI probe：CQ 12B 帧 len=00 00 00 02 且 CRC16-XMODEM 恰好通过 LDI 校验，LDI probe 对 `data_len==2` 显式 FAKE 放行（2026-08-21 修复，此前沿身份校验路径 SKIP 吞帧致 CQ 12B 在 10011 无响应），CQ probe 仍认领——「LDI 先探测、FAKE 放行、CQ 收单」，无功能受限**。另：dev 共存构建 CQ 业务口固定 20103、不读 Sector1 net_cfg.udp_port（dev 构建无写入方；方案 B 2026-08-21 起 CQ 构建读 udp_port、TCP 口 port 不再被 setip 污染），见 doc/03 PartB B.11 |
 | 重庆CQ + IAP | RJ45（UDP 共享） | 允许：CQ 首字节 `{` 或 `FF FF`+12B 精确匹配，IAP 首字节 `0x5A` 快拒；CQ probe 对非匹配 `FF` 前缀 FAKE，互不误伤 |

@@ -50,7 +50,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | 对象 | 大小 | 说明 |
 |------|------|------|
 | `ucHeap` | **36864（36KB）** | FreeRTOS heap_4 @ SRAM |
-| `_acUpBuffer` | 2048 | RTT Up（已 4→2KB） |
+| `_acUpBuffer` | 1024 | RTT Up（已 4→2KB，2026-09-04 再 2→1KB 回 SEGGER 默认——安徽入 SRAM 让位，doc/13 §6） |
 | `rb_provide_rj45_buf` | **1536** | RJ45 RB |
 | `rb_provide_rs485_buf` | **768** | RS485 RB |
 | `rb_provide_rs232_buf` | **768** | RS232 RB |
@@ -83,6 +83,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | 山东 | 3 | 801 | 新增（payload 259，与青海同构） | — EIDE 排除 |
 | 贵州 | 3 | 801 | 新增（payload 259，与青海同构；13 命令含 0x01/0x02） | — EIDE 排除 |
 | 云南 | 3 | 801 | 新增（payload 259，与青海/贵州同构；13 命令含 0x01/0x02） | — EIDE 排除 |
+| 安徽 | 3 | 807 | 新增（payload 261 = 数据长 1B 上限；长度字段定界、CRC 文档注明不校验）；**队列体+cb+任务帧缓冲为静态 SRAM**（与青海/贵州/云南同，用户裁决 2026-09-04；+1156B SRAM = queue_buf 807 + cb 80 + 帧缓冲 269） | ✅ 编入（SRAM） |
 | 重庆CQ | 3 | 3156 | 新增（payload 1044，JSON `{` 定界 + 12B 二进制）；**队列体+任务帧缓冲+JSON/文本缓冲置 CCMRAM**（SRAM 全协议构建仅余 ~1.9KB；CPU 独占访问无 DMA，见文末修订） | ✅ 编入（CCM） |
 
 > **重庆CQ 内存例外（2026-08-20）**：CQ 队列 `s_cq_queue_buf` 3156B + `s_cq_queue_cb` 80B +
@@ -93,6 +94,15 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 > cJSON 解析树为 **FreeRTOS 堆瞬时分配**（钩子 pvPortMalloc/pvPortFree，ucHeap 36KB
 > 内支出，解析后 `cJSON_Delete` 归还）。`cq_proto_handle_task`/`cq_proto_timer_task`
 > 各 1KB 栈（ucHeap，地区协议处理任务 +1KB、定时任务 +1KB）。
+
+> **安徽内存记账（2026-09-04 修订，用户裁决：与青海/贵州/云南同 SRAM）**：安徽队列
+> `s_anhui_queue_buf` 807B + `s_anhui_queue_cb` 80B + 任务帧缓冲 269B + mask/句柄 12B
+> = **~1168B 静态 SRAM**（`.bss`），无 `.ccmram` 对象。`anhui_handle_task` 1KB 栈（ucHeap）。
+> SRAM 预算为此收紧三处（合计让出 2048B，详见 doc/13 §6）：链接脚本 `_Min_Heap_Size`
+> 1KB→512B、`_Min_Stack_Size` 2.5KB→2KB（链接期下限，运行时 heap/stack 共享同一区）；
+> RTT `BUFFER_SIZE_UP` 2KB→1KB（回 SEGGER 默认）。修复后 1-263 口径 PROTO=ALL：
+> text 356500 / data 1656 / bss 194020（含 CCM 65516）；`.data`+`.bss`+`._user_heap_stack`
+> ≈ 130160B（99.3%），余量 ~912B。PROTO=CQ：text 342636 / data 852 / bss 190544，均链接通过。
 
 语义与 Put 丢帧行为 → **doc/05** `01` §4.1 / `02` §2.1。
 
@@ -275,3 +285,5 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 - 2026-08-24（云南协议修订，用户决定 1~10）：移除 `app_yn_proto_default.c`（上电效果 default 文件，Makefile/eide.yml 同步删除，不再注册默认显示）；'2' 自检改老化循环显示 + 每 5s 语音「系统正在自检」（可被下一帧打断，新增自检单字缓冲 static buf 256B）；'8' 亮度 0x00 恢复光敏自动；0x01 全屏点亮扩 01红~07白 七色；0x02 应答改 PROGRAM_CODE（删硬编码 YN_FX_P5_1.0）。重采：**PROTO=ALL text 352860（-56）/ data 1656 / bss 138196（+256）**；**PROTO=CQ text 338996（-64）/ data 852 / bss 134720（+256）**，均链接通过。
 - 2026-08-20（新增重庆CQ协议）：ProtocolParser_ChongQing 四文件 + cJSON 接入 Makefile（恒定编入，CQ 源在 LDI 之后）；`PROTO=CQ` 剔除 LDI 目录 + `-DPROTO_CHONGQING`。Makefile 全协议口径重采：**text 348240（+12056，含 cJSON ~8.5K 代码）**、**data 1652（+32，cJSON hooks/全局指针）**、**bss 136456（+6436 = CCM +6377 + SRAM ~59）**。CQ 静态体构成（**全部置 `.ccmram`**）：queue_buf 3156 + queue_cb 80 + 任务帧缓冲 1052 + JSON 缓冲 1045 + 文本缓冲 1044 = **6377B CCM**；SRAM 净增 ~59B（mask/计数器/hooks/UDP_CQ 通道实例），全协议构建 SRAM 余量仍 >1.7KB，链接通过。ucHeap 任务栈 +2KB（cq_proto_handle_task / cq_proto_timer_task 各 1KB）。cJSON 解析树为 ucHeap 瞬时分配（钩子 pvPortMalloc/pvPortFree）。**CCM 例外说明**：本项目 CCM 惯例为「仅显存」，CQ 帧队列因 SRAM 余量不足（全协议构建仅余 ~1.9KB）破例入 CCM——缓冲为 CPU 独占访问（无 DMA/ETH），Makefile 1-260 口径 CCM 2432+6377=8809B / EIDE 1-577 口径 38208+6377=44585B，均不超 64KB。
 - 2026-08-20（cJSON 升级官方 v1.7.18）：`Middlewares/Third_Party/cJSON/` 由裸机拷贝 v1.x 老版（编译 3 条 -Wmisleading-indentation 警告）替换为 DaveGamble/cJSON **v1.7.18** 官方源（GitHub codeload tarball）；parse 层类型判定改 `cJSON_IsString/IsNumber/IsObject` 辅助函数（`app_cq_proto_parse.c`），`cJSON_InitHooks` 换绑 FreeRTOS 堆不变（hooks 字段名仍 malloc_fn/free_fn），`cJSON_Parse`/GBK 字节直传用法不变。重采（Makefile 口径，cJSON 编译 warning 清零，仅余 HAL flash_ex 3 条既有 unused-parameter）：全协议 text **350004（+1764，cJSON 代码 ~8.5K→~10.2K）**、data **1656（+4）**、bss **136460（+4）**；`PROTO=CQ` text **335796（+1772）**、data **852（+4）**、bss **132984（+4）**。cJSON 解析树瞬时堆仍 ucHeap 内 2~4KB 量级（cJSON 结构体尺寸不变，钩子仍 pvPortMalloc/pvPortFree，解析后 cJSON_Delete 归还）。
+- 2026-09-04（新增安徽协议）：ProtocolParser_Anhui 四文件接入 Makefile（EIDE Debug 目标**编入不排除**——帧头 0x5A 串口槽唯一，无 '{' 守卫）；动态显示（0x86~0x89 滚动）留空 TODO、0x96/0x97 录制语音占位。增量：text **+~3.6KB**、SRAM **+~1168B**（queue_buf 807 + cb 80 + 帧缓冲 269 + mask/句柄 12，静态 SRAM 与青海/贵州/云南同）、CCM **+0**；ucHeap 任务栈 +1KB。构建：**Makefile 1-263 模组下 SRAM 溢出 1136B**（预算先于本任务耗尽）——链接脚本 `_Min_Heap_Size` 1KB→512B、`_Min_Stack_Size` 2.5KB→2KB、RTT `BUFFER_SIZE_UP` 2KB→1KB 合计让出 2048B 后 PROTO=ALL text **356500**/data 1656/bss 194020（含 CCM 65516）、PROTO=CQ text **342636**/data 852/bss 190544，均链接通过（详见 doc/13 §6）。
+- 2026-09-04（安徽内存回 SRAM，用户裁决）：安徽协议队列/控制块/任务帧缓冲由 `.ccmram` 移回静态 SRAM（与青海/贵州/云南一致，CQ 才是 CCMRAM 例外）；Makefile 模组保持 1-263（1-969 路线否决）；`Device/Display/dev_display_1_969.c` 还原 HEAD（1×1）。EIDE Debug 收录安徽四文件（virtualFolder + Debug incList，excludeList 不动）。链接期下限与 RTT 让位见上条。重采（`make clean` 全量）：PROTO=ALL text **356500** / data **1656** / bss **194020**（`.ccmram` 65516 = 1-263 显存 59136 + CQ 6377 + 3 对齐；`.bss` 125944、`._user_heap_stack` 2560 → SRAM ≈ **130160B（99.3%）**，余量 ~912B）；PROTO=CQ text **342636** / data **852** / bss **190544**（`.bss` 122468），均链接通过。

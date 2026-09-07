@@ -55,8 +55,10 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x400;      /* required amount of heap  */
-_Min_Stack_Size = 0xA00; /* required amount of stack */
+/* 2026-09-04：RAM 预算耗尽（安徽协议入 SRAM + 1-263 模组），heap 地板 1KB→512B、stack 地板 2.5KB→2KB，
+ * 与 RTT Up 缓冲 2KB→1KB 合计让出 2KB——两地板仅为链接期下限检查，运行时 heap/stack 仍共享同一区可互挤 */
+_Min_Heap_Size = 0x200;      /* required amount of heap  */
+_Min_Stack_Size = 0x800; /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY

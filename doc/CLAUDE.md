@@ -92,6 +92,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/10_贵州费显协议` | 贵州常规费显协议接入记录（13 命令/裁决差异表/帧头冲突纪律） |
 | `doc/11_云南费显协议` | 云南常规费显协议接入记录（13 命令/24 点阵渲染/已确认决定） |
 | `doc/12_缅甸费显项目适配` | 缅甸费显 8051→STD 替代方案设计（方案 B 接口板：TB62726×6 12 位 7 段灯板、3.3V→5V 电平转换、位带 WT588D、FF/E0 20 字节帧 10 命令接入；**方案设计，未实施**） |
+| `doc/13_安徽费显协议` | 安徽费显协议（2026-S304）接入记录（5A/A5 帧族 12 命令；动态显示留空；语音模板句 14 条；静态 SRAM 队列） |
 
 ## 硬件架构
 
@@ -113,16 +114,16 @@ Flash (1024KB, 起始 0x08000000)
 ├─ Sector 6~11: 0x08040000  768KB  主固件 .text/.rodata/.initcall（本工程，FLASH ORIGIN 0x08040000）
 └─ (Sector 11 已释放 — LDI 配置已迁移至 W25Qxx，不占内部 Flash)
 
-SRAM (128KB, 0x20000000) — Debug 链接约用 **92%（≈120820B）**（2026-08-14；以 06/04 为准）
+SRAM (128KB, 0x20000000) — Debug 全协议构建约用 **99.3%（≈130160B）**（2026-09-04 安徽入 SRAM 后重采；以 06/04 为准）
 ├─ .data / .bss     LwIP ram_heap + RX_POOL + PBUF_POOL 等（ETH 大户，永留 SRAM）
 ├─ ucHeap           **36KB** FreeRTOS heap_4（任务栈/TCB/动态 OS 对象）
 ├─ 协议 RB          RJ45 **1536** / RS485 **768** / RS232 **768**（三槽 provide）
-├─ UART DMA         RS485/RS232 各 **640**（无 RS232_1 DMA）
-├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3 / GZ3 / YN3（不占 ucHeap）
-├─ RTT Up           2KB；W25 sec、s_dma_bounce 等
-└─ _user_heap_stack newlib + MSP 预留
+├─ UART DMA         RS485/RS232 各 **1280**（乒乓 640×2；无 RS232_1 DMA）
+├─ 帧 queue 静态    IAP2 / LDI4 / QH3 / RLS2 / AH3 / SC_ETC3 / SC_MTC3 / SC_OL3 / SD3 / GZ3 / YN3 / ANHUI3（不占 ucHeap）
+├─ RTT Up           1KB（2026-09-04 2KB→1KB）；W25 sec、s_dma_bounce 等
+└─ _user_heap_stack newlib + MSP 预留（链接期下限 512B + 2KB，2026-09-04 由 1KB+2.5KB 收紧）
 
-CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **58%（38208B）**（1-577 3×3 / 同量级 1-969）
+CCMRAM (64KB, 0x10000000, NOLOAD) — 约用 **100%（65516B）**（Makefile 1-263 显存 59136B + CQ 6377B）
 ├─ pixel_map / hub75_buff / row_dst / g_bsrr   **仅显存与 BSRR**
 ├─ 例外（2026-08-20）：CQ 协议帧队列/缓冲 **6377B**（s_cq_queue_buf 3156 + queue_cb 80 +
 │   任务帧缓冲 1052 + JSON/文本缓冲 2089；SRAM 全协议构建余量不足，CPU 独占访问无 DMA）
@@ -300,6 +301,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 3-app | app | `sd_proto_init` | `Application/Src/ProtocolParser_ShanDong/app_sd_proto.c` | 山东费显协议自注册（RS485+RS232） |
 | 3-app | app | `gz_proto_init` | `Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c` | 贵州费显协议自注册（RS485+RS232） |
 | 3-app | app | `yn_proto_init` | `Application/Src/ProtocolParser_YunNan/app_yn_proto.c` | 云南费显协议自注册（RS485+RS232；不注册默认显示——使用固件默认显示，用户决定 8） |
+| 3-app | app | `anhui_proto_init` | `Application/Src/ProtocolParser_Anhui/app_anhui_proto.c` | 安徽费显协议自注册（RS485+RS232；5A/A5 帧族，动态显示留空） |
 | 3-app | app | `cq_proto_init` | `Application/Src/ProtocolParser_ChongQing/app_cq_proto.c` | 重庆CQ协议自注册（UDP_CQ 业务口 + UDP 搜索口双 mask；cJSON 钩子换绑 FreeRTOS 堆；网络配置应用移交 app_net_boot） |
 | 3-app | app | `app_uart_baud_init` | `Application/Src/app_uart_baud.c` | DIP1 波特率选择（RS232+RS485 同步切换） |
 | 3-app | app | `rls_module_init` | `Application/Src/RLS/app_rls.c` | RLS 协议自注册（RS485） |
@@ -676,6 +678,7 @@ app_render(&(render_cfg_t){
 | `app_sc_mtc` | 协议 | RS485 + RS232 | `sw_app_initcall` | 四川 MTC 费显协议（'{' 方案二 + 0A 46 查询 + 7B 40~45） |
 | `app_sc_ol` | 协议 | RS485 + RS232 | `sw_app_initcall` | 四川治超屏协议（FF+len 帧族，BCC 异或） |
 | `app_yn_proto` | 协议 | RS485 + RS232 | `sw_app_initcall` | 云南费显协议 |
+| `app_anhui_proto` | 协议 | RS485 + RS232 | `sw_app_initcall` | 安徽费显协议（5A/A5 帧族 12 命令；动态显示 0x86~0x89 留空 TODO、0x96/0x97 录制语音占位；坐标以模组驱动实际屏幕尺寸为准；0x92 8 档映射、0x95 音量字节执行层忽略；队列体静态 SRAM 与青海/贵州/云南同） |
 | `app_cq_proto` | 协议 | UDP_CQ（业务 20103）+ UDP（搜索 10011，RJ45 共享 RB） | `sw_app_initcall` | 重庆高速二代费显协议（JSON `{` + 12B 二进制；队列/缓冲置 CCMRAM；**心跳故障屏开关 `CQ_FAULT_SCREEN`（1 开 / 0 关）：PROTO_CHONGQING 默认开、共存构建默认关（他省上位机不发 syn1），可 `-DCQ_FAULT_SCREEN=1/0` 覆盖，见 doc/03 PartB B.7.2；旧名 CQ_FAULT_SCREEN_ENABLED / CQ_FAULT_SCREEN_FORCE_ON 已废弃**） |
 | `app_uart_baud` | 应用 | — | `sw_app_initcall` | DIP1 波特率选择与运行态切换（RS232+RS485） |
 | `app_rls` | 协议 | RS485 | `sw_app_initcall` | RLS 重庆高速二代费显协议 |
@@ -756,7 +759,7 @@ app_render(&(render_cfg_t){
 | 6 | `CH_ID_RS232_1` | UART (USART6，仅语音 TTS 旁路 TX) | `dev_rs232_voice`（直接 `pl_uart_send`） | 无通道任务、无 DMA RX，禁止协议 bind |
 | 7 | `CH_ID_UDP_CQ` | LwIP UDP（业务口，`PROTO_CHONGQING` 读 Sector1 net_cfg.udp_port 默认 20103（方案 B）；dev 共存构建固定 20103） | `udp_channel_t`（CQ 实例） | `app_udp.c`（`app_udp_cq_start`；CQ 协议 bind，JSON 业务 + 12B 二进制） |
 
-**选编口径**：EIDE Debug 编 1-263 模组 + IAP/LDI/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）/重庆CQ（`ProtocolParser_ChongQing` + cJSON，Debug 未排除），排除 1-260/1-969/1-577/RLS/AH/山东/贵州/青海/云南（`.eide/eide.yml` excludeList；LDI 与 CQ 同编为开发共存口径：CQ 业务口 dev 构建固定 20103 不读 Sector1 net_cfg.udp_port，10011 口 12B 二进制帧先经 LDI probe，LDI 对 `data_len==2`（CQ 12B 帧 len=00 00 00 02 且 CRC 恰好通过 LDI 校验）显式 FAKE 放行、仍由 CQ 认领，见 doc/03 PartB Q23/Q24；量产 CQ 目标需 excludeList 排除 ldi 并 define PROTO_CHONGQING）；Makefile 编 1-263 + 全协议（含 CQ，`PROTO=CQ` 剔除 LDI 并追加 -DPROTO_CHONGQING；1-260 已随 1-263 收录切换移出 SRC_DEVICE）。详见 doc/05，内存占用见 doc/06。
+**选编口径**：EIDE Debug 现编 1-969 模组（`_1_969_MODULE_ROWS/COLS` 已被外部改为 3×3，与本文 1×1 口径矛盾 [待更新: 需用户裁决]，excludeList 排除 1-260/1-577/1-263）+ IAP/LDI/四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）/安徽（`ProtocolParser_Anhui`，编入不排除——帧头 0x5A 串口槽唯一），排除 1-260/1-577/1-263/RLS/AH/山东/贵州/青海/云南/重庆CQ（`.eide/eide.yml` excludeList；**2026-09-04 曾误取消贵州排除→贵州+四川MTC 双 `{` 帧族同编无 STD_ALL_PROTO→链接报 `multiple definition of 'g_brace_proto_guard'`，已恢复贵州排除**；Debug defineList 含 PROTO_CHONGQING）；Makefile 编 1-263 + 全协议（含 CQ 与**安徽**——安徽帧头 0x5A 串口槽唯一、非 `{` 帧族无守卫，EIDE Debug 亦编入不排除；`PROTO=CQ` 剔除 LDI 并追加 -DPROTO_CHONGQING；1-260 已随 1-263 收录切换移出 SRC_DEVICE）。**注意**：Makefile 1-263（224×128）模组显存 59136B + CQ 6377B 已把 CCM 占至 ~20B 余量；安徽队列为**静态 SRAM**（+1156B，与青海/贵州/云南同，用户裁决 2026-09-04），SRAM 预算经链接期下限收紧（`_Min_Heap_Size` 1KB→512B、`_Min_Stack_Size` 2.5KB→2KB）+ RTT Up 缓冲 2KB→1KB 让位 2048B 后，PROTO=ALL/CQ 均链接通过（doc/13 §6）。详见 doc/05，内存占用见 doc/06。
 
 ## UART 通道子系统 (`Device/Comm/` + `Application/Src/Channel/`)
 
@@ -825,6 +828,11 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 
 云南常规费显协议（协议文档 01 云南常规费显协议-云南LED费显P5，2022.7.5，云南弥玉项目 2022-S134）。帧 `'{' + 命令字('1'~'9','A','B',0x01,0x02) + 二进制 len + 参数 + '}'`（无 BCC；**与青海/贵州完全同构**），`YN_PAYLOAD_MAX=259`、`YN_QUEUE_DEPTH=3`（静态 SRAM，与青海同 801B）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `yn_proto_init`）。13 命令：'1' 主机查询（回「正常」帧 `7B 31 01 00 7D` 至源通道，恒回正常）、'2' 自检（**复用 app_factory_test.c 老化循环显示序列**——整屏单字居中，字号 {FONT_16/24/32}×字体 {ST/FS/KT/HT} 循环「重庆创迪科技发展有限公司设备老化测试」，每 5s 播报「系统正在自检」，一次性任务 `yn_selftest_task` 防重入，**可被下一帧命令打断**，打断退出不清屏）、'3' 单行（len 3~18，**FONT_24 渲染**行高 24px——协议 24 点阵，先清行再渲染；行号 '1'~'5' **全按协议接受**，行 5 在 96px 屏高下「执行但不落屏」——渲染调用照常发出、渲染层越界早退）、'4' 全屏可编辑（len 4~86，**按 X/Y 坐标渲染** word_wrap=true，FONT_24，0x0A 换行 0x0D 跳过）、'5' 清屏、'6' **单行清除**（'1'~'5'；与贵州 '6' 固定格式语义不同）、'7' 礼貌用语语音（'0'~'3'，协议原文云南文案）、'8' 亮度（**0x00=NUL=恢复光敏自动调光、'1'~'8' 恒等映射硬件档并挂起光敏任务**，8 最亮）、'9' 音量（1~5 → 语音板 {1,3,5,7,9}）、'A' 外设（bit0 绿/bit1 红/bit2 黄闪，**红优先**）、'B' 费额语音（金额 ASCII 串→分，**0 元不播**、小数播小数末位 0 剔除，不显示）、0x01 全屏点亮（**01红/02绿/03黄/04蓝/05紫/06青/07白**——DATA0 与 display_color_t 枚举恒等，P5 全彩屏 8 色除黑）、0x02 版本号（串口回裸 ASCII **PROGRAM_CODE**）。**无上电效果**：不建 default 文件、不注册默认显示（使用固件默认显示，用户决定 8）。
 - **帧头冲突纪律**：命令字 '1'~'9','A','B' 全部落入青海 probe 命令集（**完全重叠**），全协议 Makefile 构建下青海 probe 先注册（源码收录序 qh 在前）先认领云南帧（与贵州处境一致）。**量产必须 EIDE 目录排除与青海/山东/贵州/四川MTC 互斥**（doc/05-01 §6）；当前 `.eide/eide.yml` Debug 目标已启用四川MTC、**排除云南**（`Application/protocol/ProtocolParser_YunNan`，与青海/山东/贵州同列）。编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。0x01/0x02 二进制命令字青海/山东/四川MTC probe 首命令字快拒，无冲突。金额串转分 `yn_amount_to_fen`。已确认决定记录见 `doc/11_云南费显协议/README.md` §8。
+
+## 安徽协议 (`Application/Src/ProtocolParser_Anhui/app_anhui_proto.c`)
+
+安徽费显协议（2026-S304 费显通信协议，2026-09 接入）。帧 `5A + 屏号(01) + 命令(1B) + 数据长(1B) + 数据 + CRC(1B) + A5`（长度字段定界，帧 ≤261；**CRC 文档注明「无检验，默认为 0」→ 不校验**），`ANHUI_PAYLOAD_MAX=261`、`ANHUI_QUEUE_DEPTH=3`（**队列体 807 + cb 80 + 任务帧缓冲 269 为静态 SRAM，与青海/贵州/云南同——用户裁决 2026-09-04，CQ 才是 CCMRAM 例外**）。绑定 `CH_ID_RS485` + `CH_ID_RS232`（`sw_app_initcall` 自注册 `anhui_proto_init`）。12 命令：0x81 清屏、0x82/0x83 显示点/关闭点（默认红色；**坐标上限以模组驱动实际屏幕尺寸为准**——`dev_display_get()` 的 `screen_rows` 宽/`screen_cols` 高，协议文档 128×64 不作为标准，parse 不校验坐标、越界由执行层判界丢弃，用户裁决 2026-09-04）、0x85 静态显示（X/Y 坐标 + GBK 文本，FONT_16 单行不换行；坐标口径同点命令）、0x86~0x89 动态显示 1~4 行（**留空 TODO，已裁决 2026-09-04 继续留空**——运动模式+速度 ×2ms+停留时间 2B ×100ms+文本，mode=0/全 0 帧=停止；parse 防御：数据长恰为 4 且非停止帧时 text 置空）、0x92 亮度（2B 大端 ≤999；0=恢复光敏自动、**1~999 均匀映射 8 档 1~8**：`level = 1 + value*7/999`，底层 8 档已具备 `DEV_DISPLAY_BRIGHTNESS_MAX=8`，用户裁决 2026-09-04）、0x94 通行灯/报警器（01 通行灯/02 报警器 → 黄闪灯）、0x95 播放声音（编号 01~14 模板句 + 音量 0~9 + 变长参数——**音量字节解析保留、执行层忽略**，语音板不支持协议调音量，不再调用 `dev_rs232_voice_volume`，用户裁决 2026-09-04；金额按文档示例中文读数「一千零三十点四二元」，读数规则暂不修；编号 15 自由文本：参数区即全部播报内容 GBK 原样透传语音板（232_2=USART6 语音口直送，路径不变）、超 200B 截断）、0x96/0x97 播放/录制语音段号（**占位**——语音板无段号接口）。协议未定义应答 → 单向不回；波特率沿用 DIP1。
+- **帧头冲突纪律**：帧头 `0x5A` 在 RS485/RS232 槽唯一（既有串口协议首字节 0x7B/0x0A/0xFF），首字节互斥快拒成立，**无需 EIDE 目录排除**；IAP `0x5A5A5A5A` 仅绑 UDP（RJ45 槽）不相交。**非 `{` 帧族 → 不定义 `g_brace_proto_guard`**，与青海/山东/贵州/云南/四川MTC 可同编共存。**内存注意**：Makefile 1-263 模组（224×128）显存 59136B + CQ 6377B 已把 CCM 占满（~20B 余量），安徽队列入 SRAM 后经链接期下限收紧（`_Min_Heap_Size` 1KB→512B、`_Min_Stack_Size` 2.5KB→2KB）+ RTT Up 缓冲 2KB→1KB 让位 2048B，PROTO=ALL/CQ 均链接通过（doc/13 §6）。待确认清单见 `doc/13_安徽费显协议/README.md` §8。
 
 ## 四川三协议（`ProtocolParser_SiChuang_{ETC,MTC,Overload}`）
 

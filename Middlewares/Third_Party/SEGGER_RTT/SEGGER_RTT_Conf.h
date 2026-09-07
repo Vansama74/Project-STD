@@ -92,7 +92,7 @@ Revision: $Rev: 24316 $
 #endif
 
 #ifndef BUFFER_SIZE_UP
-#define BUFFER_SIZE_UP (1024 * 2) // 4KB→2KB：给 ucHeap 回 SRAM 让出约 2KB（默认 1k）
+#define BUFFER_SIZE_UP (1024) // 4KB→2KB→1KB（2026-09-04）：安徽协议入 SRAM 后 RAM 预算耗尽，回 SEGGER 默认 1KB 让出 1KB；RTT 仅下行日志用
 #endif
 
 #ifndef BUFFER_SIZE_DOWN
