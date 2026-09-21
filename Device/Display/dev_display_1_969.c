@@ -119,7 +119,21 @@ static void _1_969_prepare(dev_display_t *dev)
     const uint8_t *pixel_map   = dev->pixel_map;
     uint8_t *hub75_buff        = dev->hub75_buff;
 
-    for (uint16_t row = 0; row < screen_cols; row++) {
+    /* ④a 脏矩形行子集（2026-09-08）：prepare 按逻辑行整行拷贝，有效脏矩形
+     * → 只重排矩形覆盖的 y 行范围；矩形无效 → 全量路径（保守回退）。 */
+    uint16_t row_begin = 0;
+    uint16_t row_end   = screen_cols;
+    if (dev->dirty_rect_valid) {
+        if (dev->dirty_rect_h == 0)
+            return; /* 空矩形：无行变化，无需重排 */
+        row_begin = dev->dirty_rect_y;
+        if (row_begin >= screen_cols)
+            return; /* 矩形整体在屏外（防御，提交侧已钳位） */
+        uint32_t end = (uint32_t)row_begin + dev->dirty_rect_h;
+        row_end      = (end > screen_cols) ? screen_cols : (uint16_t)end;
+    }
+
+    for (uint16_t row = row_begin; row < row_end; row++) {
         const uint8_t *src = pixel_map + (uint16_t)(row * screen_rows);
         uint8_t *dst = hub75_buff + _1_969_row_dst[row];
 

@@ -34,6 +34,13 @@
 #include "FreeRTOS.h"
 #include "task.h" /* taskENTER_CRITICAL/taskEXIT_CRITICAL */
 #include "cJSON.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * cq_handle_task / cq_timer_task：启动期各创建一次、永不退出。
+ * 两者共从 ucHeap 移出 2×1144B，CCM 占 2×1124B。 */
+PL_TASK_STATIC_STORAGE(cq_handle, 256);
+PL_TASK_STATIC_STORAGE(cq_timer, 256);
 #include "initcall.h"
 #include "app_default_display.h"
 #include "app_factory_test.h"
@@ -120,13 +127,13 @@ void cq_proto_init(void)
     /* 第 5 步：处理任务 + 1s 定时任务 */
     static const osThreadAttr_t s_cq_handle_attr = {
         .name       = "cq_handle_task",
-        .stack_size = 256 * 4, /* 帧缓冲为 static，不放大栈 */
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(cq_handle, 256),
     };
     static const osThreadAttr_t s_cq_timer_attr = {
         .name       = "cq_timer_task",
-        .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(cq_timer, 256),
     };
     osThreadNew(cq_proto_handle_task, NULL, &s_cq_handle_attr);
     osThreadNew(cq_proto_timer_task, NULL, &s_cq_timer_attr);

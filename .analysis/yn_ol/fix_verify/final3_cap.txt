@@ -1,0 +1,37 @@
+[rtt] connected: True sn=69403514
+[rtt] auto-discovered control block @ 0x2000f028
+[rtt] ch0 pBuffer=0x2000ec28 size=1024 WrOff=185 RdOff=97
+11:02:18.980 [mcu] t=    9.8s tick=32177 task=IDLE                 heap free=20656 min=18688 ok
+11:02:29.103 [mcu] t=   19.9s tick=42301 task=scan_task            heap free=20656 min=18688 ok
+11:02:39.220 [mcu] t=   30.0s tick=52418 task=IDLE                 heap free=20656 min=18688 ok
+11:02:49.329 [mcu] t=   40.2s tick=62528 task=IDLE                 heap free=20656 min=18688 ok
+11:02:59.445 [mcu] t=   50.3s tick=72644 task=scan_task            heap free=20656 min=18688 ok
+11:03:09.560 [mcu] t=   60.4s tick=82760 task=scan_task            heap free=20656 min=18688 ok
+11:03:19.661 [mcu] t=   70.5s tick=92861 task=scan_task            heap free=20656 min=18688 ok
+11:03:29.759 [mcu] t=   80.6s tick=102960 task=scan_task            heap free=20656 min=18688 ok
+11:03:39.863 [mcu] t=   90.7s tick=113064 task=Tmr Svc              heap free=20656 min=18688 ok
+11:03:49.967 [mcu] t=  100.8s tick=123169 task=scan_task            heap free=20656 min=18688 ok
+11:04:00.069 [mcu] t=  110.9s tick=133271 task=scan_task            heap free=20656 min=18688 ok
+11:04:10.172 [mcu] t=  121.0s tick=143374 task=IDLE                 heap free=20656 min=18688 ok
+11:04:20.271 [mcu] t=  131.1s tick=153474 task=IDLE                 heap free=20656 min=18688 ok
+11:04:30.376 [mcu] t=  141.2s tick=163579 task=IDLE                 heap free=20656 min=18688 ok
+11:04:40.479 [mcu] t=  151.3s tick=173683 task=scan_task            heap free=20656 min=18688 ok
+11:04:50.593 [mcu] t=  161.4s tick=183797 task=IDLE                 heap free=20656 min=18688 ok
+11:05:00.699 [mcu] t=  171.5s tick=193904 task=scan_task            heap free=20656 min=18688 ok
+11:05:10.801 [mcu] t=  181.6s tick=204007 task=EthLink              heap free=20656 min=18688 ok
+11:05:20.901 [mcu] t=  191.7s tick=214107 task=IDLE                 heap free=20656 min=18688 ok
+11:05:31.001 [mcu] t=  201.8s tick=224207 task=IDLE                 heap free=20656 min=18688 ok
+11:05:41.103 [mcu] t=  211.9s tick=234310 task=IDLE                 heap free=20656 min=18688 ok
+11:05:51.198 [mcu] t=  222.0s tick=244406 task=scan_task            heap free=20656 min=18688 ok
+11:06:01.303 [mcu] t=  232.1s tick=254511 task=IDLE                 heap free=20656 min=18688 ok
+11:06:11.413 [mcu] t=  242.2s tick=264621 task=scan_task            heap free=20456 min=18688 ok
+11:06:21.528 [mcu] t=  252.4s tick=274737 task=IDLE                 heap free=20656 min=18688 ok
+11:06:31.649 [mcu] t=  262.5s tick=284858 task=IDLE                 heap free=20656 min=18688 ok
+11:06:41.763 [mcu] t=  272.6s tick=294973 task=scan_task            heap free=20656 min=18688 ok
+11:06:51.878 [mcu] t=  282.7s tick=305088 task=IDLE                 heap free=20856 min=18688 ok
+11:07:01.981 [mcu] t=  292.8s tick=315192 task=IDLE                 heap free=20856 min=18688 ok
+11:07:12.084 [mcu] t=  302.9s tick=325295 task=scan_task            heap free=20856 min=18688 ok
+11:07:22.187 [mcu] t=  313.0s tick=335399 task=IDLE                 heap free=20856 min=18688 ok
+11:07:32.300 [mcu] t=  323.1s tick=345512 task=IDLE                 heap free=20856 min=18688 ok
+11:07:42.408 [mcu] t=  333.2s tick=355621 task=IDLE                 heap free=20856 min=18688 ok
+[rtt] done, elapsed=340.0s -> final3_rtt.log

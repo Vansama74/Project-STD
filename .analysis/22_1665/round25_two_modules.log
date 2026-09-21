@@ -1,0 +1,378 @@
+==============================================================================
+22-1665 第二十五轮：1×2（16×32）「两块模组都不显示」宿主级取证
+==============================================================================
+
+== 0. 宿主编译（桩 + harness + 现行驱动；-Wall -Wextra 零告警）==
+  [通过] 1×2（MODULE_ROWS=1 / MODULE_COLS=2）编过且零告警
+  [通过] 1×1 编过且零告警（对照）
+  1×2 基类字段：{'screen': '16x32', 'buffer': '512', 'scanline': '256', 'modules': '1x2'}
+  1×1 基类字段：{'screen': '16x16', 'buffer': '256', 'scanline': '128', 'modules': '1x1'}
+  [通过] 1×2 基类字段 screen=16x32 buffer=512 scanline=256 modules=1x2
+  [通过] 1×1 基类字段 screen=16x16 buffer=256 scanline=128 modules=1x1
+  [通过] 1×2 每帧 CLK = 256 = 128 × 2 模块
+  [通过] 1×2 每帧 BSRR 写序 = 256 时钟 × 2 端口 = 512 项
+  [通过] 1×1 每帧 CLK = 128（对照）
+
+== 1. Q1：1×2 的逐字输出（模块索引 ↔ 帧内时钟块）==
+  块 0 = state[  0..127]（最后移入 → 停在链首）解出颜色索引 [2]（1=红 / 2=绿）
+  块 1 = state[128..255]（最先移入 → 推到链尾）解出颜色索引 [1]
+  [通过] 块 0 装的是**模块 1**（全绿）的内容 → 链首/板端模块拿到的是模块索引 1
+  [通过] 块 1 装的是**模块 0**（全红）的内容 → 链尾/远端模块拿到的是模块索引 0
+
+  帧位流（模块区分图案，逐时钟；bit j = 线 j）示例（每 16 位一行，逗号=相邻时钟）
+  先移入 → 链尾（state[255..128]，扫描 p 递减即从左到右）：
+    5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 …
+  后移入 → 链首（state[127..0]，扫描 p 递减即从左到右）：
+    A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A …
+
+== 2. Q2：三种接线模型下每块物理屏显示什么 ==
+
+  ### 图案：模块区分图案：模块0=全红 / 模块1=全绿
+
+  ── 模型 SEPARATE（两级独立线；板端只有口 1 的 4 根脚被驱动） ──
+   [口 1 的模组（收 256 时钟、只留末 128 位 = 块 0 = 现行模块 M-1 的内容）]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+   [口 2 的模组（4 根数据脚从未被写 → 全黑）]
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+
+  ── 模型 CHAIN（同线级联；现行代码 _22_1665_CHAIN_HEAD_IS_MODULE0=0） ──
+   [板端（链首）模组 = 块 0 = 模块 1 的内容]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+   [远端（链尾）模组 = 块 1 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+
+  ── 模型 CHAIN-FLIP（同线级联；-D_22_1665_CHAIN_HEAD_IS_MODULE0=1：块交换） ──
+   [板端（链首）模组 = 块 0 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+   [远端（链尾）模组 = 块 1 = 模块 1 的内容]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+   （ASCII 图例：R=红 G=绿 Y=黄 .=灭；每块 16 行 × 16 列 = 一块 16×16 面板的物理像素）
+
+  ### 图案：模块区分图案：模块0=全红 / 模块1=全蓝
+
+  ── 模型 SEPARATE（两级独立线；板端只有口 1 的 4 根脚被驱动） ──
+   [口 1 的模组（收 256 时钟、只留末 128 位 = 块 0 = 现行模块 M-1 的内容）]
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+   [口 2 的模组（4 根数据脚从未被写 → 全黑）]
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+
+  ── 模型 CHAIN（同线级联；现行代码 _22_1665_CHAIN_HEAD_IS_MODULE0=0） ──
+   [板端（链首）模组 = 块 0 = 模块 1 的内容]
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+   [远端（链尾）模组 = 块 1 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+
+  ── 模型 CHAIN-FLIP（同线级联；-D_22_1665_CHAIN_HEAD_IS_MODULE0=1：块交换） ──
+   [板端（链首）模组 = 块 0 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+   [远端（链尾）模组 = 块 1 = 模块 1 的内容]
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+    YYYYYYYYYYYYYYYY
+
+  ### 图案：两行文本代理：上行=红 / 下行=绿（1\n2 的字形框）
+
+  ── 模型 SEPARATE（两级独立线；板端只有口 1 的 4 根脚被驱动） ──
+   [口 1 的模组（收 256 时钟、只留末 128 位 = 块 0 = 现行模块 M-1 的内容）]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+   [口 2 的模组（4 根数据脚从未被写 → 全黑）]
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+
+  ── 模型 CHAIN（同线级联；现行代码 _22_1665_CHAIN_HEAD_IS_MODULE0=0） ──
+   [板端（链首）模组 = 块 0 = 模块 1 的内容]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+   [远端（链尾）模组 = 块 1 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+
+  ── 模型 CHAIN-FLIP（同线级联；-D_22_1665_CHAIN_HEAD_IS_MODULE0=1：块交换） ──
+   [板端（链首）模组 = 块 0 = 模块 0 的内容]
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+    RRRRRRRRRRRRRRRR
+   [远端（链尾）模组 = 块 1 = 模块 1 的内容]
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+    GGGGGGGGGGGGGGGG
+
+== 3. Q3：现场观测的自洽性核对 ==
+  · 默认画面（内容仅在上半屏 = 模块 0 区域）
+      单块插口 1（模型 SEPARATE / CHAIN 的链首）→ 点亮行 （无）；上半区(0..7) 无内容
+  · TEST 一次（FW 在第 1 行 = 模块 0 区域 / MD 在第 2 行 = 模块 1 区域）
+      单块插口 1（模型 SEPARATE / CHAIN 的链首）→ 点亮行 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]；上半区(0..7) 有内容
+  [通过] 默认画面在链首块（模块 1 区域）无任何内容 → 单块插口 1 时**全黑** = 现场观测①
+  [通过] TEST 的 FW/MD 两行中，第 2 行（MD）落在链首块（模块 1 区域）→ 单块插口 1 时**只显示 MD** = 现场观测②
+
+== 4. 驱动改动自证：默认口径与改动前逐字节一致；flip 口径 = 块交换 ==
+  [通过] 1x1：默认口径改动前/后逐字节一致（frame_state / 扫描写序 / CLK 数 / set_row）
+  [通过] 1x2：默认口径改动前/后逐字节一致（frame_state / 扫描写序 / CLK 数 / set_row）
+  [通过] 2x1：默认口径改动前/后逐字节一致（frame_state / 扫描写序 / CLK 数 / set_row）
+  [通过] 2x2：默认口径改动前/后逐字节一致（frame_state / 扫描写序 / CLK 数 / set_row）
+  [通过] flip 口径（=1）：块 0 装模块 0（全红）、块 1 装模块 1（全绿）——链首那块改看模块 0 内容
+  [通过] flip 口径在 M = 1 时与默认口径逐字节相同（1×1 零影响）
+
+==============================================================================
+结果：通过 17 / 失败 0（全部断言通过）

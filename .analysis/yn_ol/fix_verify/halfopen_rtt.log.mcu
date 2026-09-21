@@ -1,0 +1,9 @@
+10:58:37.519 [mcu] t=    9.8s tick=529031 task=scan_task            heap free=20856 min=18688 ok
+10:58:47.624 [mcu] t=   19.9s tick=539137 task=IDLE                 heap free=20856 min=18688 ok
+10:58:57.732 [mcu] t=   30.0s tick=549245 task=IDLE                 heap free=20856 min=18688 ok
+10:59:07.838 [mcu] t=   40.2s tick=559351 task=IDLE                 heap free=20856 min=18688 ok
+10:59:17.940 [mcu] t=   50.3s tick=569454 task=scan_task            heap free=20856 min=18688 ok
+10:59:28.041 [mcu] t=   60.4s tick=579555 task=IDLE                 heap free=20856 min=18688 ok
+10:59:38.146 [mcu] t=   70.5s tick=589661 task=scan_task            heap free=20856 min=18688 ok
+10:59:48.250 [mcu] t=   80.6s tick=599765 task=IDLE                 heap free=20856 min=18688 ok
+10:59:58.348 [mcu] t=   90.7s tick=609864 task=scan_task            heap free=20856 min=18688 ok

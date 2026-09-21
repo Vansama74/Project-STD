@@ -197,11 +197,12 @@ static inline uint8_t _glyph_width_px(font_size_t size, font_enc_t charset)
     return (charset == FONT_ENC_ASCII) ? size / 2 : size;
 }
 
-/* ---- 内部: 查找字库区块（从当前激活配置中查找）---- */
-static const flash_region_t *_find_region(font_size_t size, font_enc_t charset, font_type_t type)
+/* ---- 内部: 查找字库区块（在指定配置中查找）---- */
+static const flash_region_t *_find_region_cfg(const font_chip_config_t *cfg, font_size_t size,
+                                              font_enc_t charset, font_type_t type)
 {
-    const flash_region_t *regions = (const flash_region_t *)s_active_config->regions;
-    for (uint8_t i = 0; i < s_active_config->region_count; i++) {
+    const flash_region_t *regions = (const flash_region_t *)cfg->regions;
+    for (uint8_t i = 0; i < cfg->region_count; i++) {
         if (regions[i].size == size &&
             regions[i].charset == charset &&
             regions[i].type == type)
@@ -219,21 +220,22 @@ static const flash_region_t *_find_region(font_size_t size, font_enc_t charset, 
  *   byte      = (FonfAddr % 4096) % 256
  *   readaddr  = (base + sec + X) × 4096 + (page + Y) × 256 + byte + Z
  */
-static uint32_t _flash_addr(font_size_t size, font_enc_t charset, font_type_t type, const uint8_t *ch)
+static uint32_t _flash_addr_cfg(const font_chip_config_t *cfg, font_size_t size, font_enc_t charset,
+                                font_type_t type, const uint8_t *ch)
 {
-    const flash_region_t *r = _find_region(size, charset, type);
+    const flash_region_t *r = _find_region_cfg(cfg, size, charset, type);
     uint16_t bytes          = _packed_glyph_bytes(size, charset);
 
     /* 计算字符索引 — ascii_raw_code 控制是否减 0x20 */
     uint32_t char_idx;
     if (charset == FONT_ENC_ASCII) {
-        if (s_active_config->ascii_raw_code) {
+        if (cfg->ascii_raw_code) {
             char_idx = ch[0]; /* W25Q64: 用原始字符码，如 'F'=0x46 */
         } else {
             char_idx = ch[0] - 0x20U; /* MX25L256: ASCII 从 0x20 开始 */
         }
     } else {
-        if (s_active_config->gbk_index_190) {
+        if (cfg->gbk_index_190) {
             /* MX25L256: GBK 190列序 — 与 Orig 工程 _char_addr 一致 */
             char_idx = (uint32_t)(ch[0] - 0x81) * 190
                      + (ch[1] >= 0x80 ? ch[1] - 0x41 : ch[1] - 0x40);
@@ -250,6 +252,12 @@ static uint32_t _flash_addr(font_size_t size, font_enc_t charset, font_type_t ty
     uint32_t byte = (fonf % 4096) % 256;
 
     return (uint32_t)(r->base + sec + r->sec_adj) * 4096 + (uint32_t)(page + r->page_adj) * 256 + byte + r->byte_adj;
+}
+
+/* ---- 内部: 单个字符在 Flash 中的绝对字节地址（当前激活配置）---- */
+static uint32_t _flash_addr(font_size_t size, font_enc_t charset, font_type_t type, const uint8_t *ch)
+{
+    return _flash_addr_cfg(s_active_config, size, charset, type, ch);
 }
 
 /* ---- 判断两字节是否为合法 GBK 码 ---- */
@@ -384,6 +392,125 @@ font_chip_id_t app_render_chip_current(void)
             return (font_chip_id_t)i;
     }
     return FONT_CHIP_W25Q64;
+}
+
+/* ================================================================
+ *  字库诊断（只读；现场自证用，见 app_diag.h）
+ *
+ *  用途：`0x20` 24/32 点阵无内容时，区分三种可能——
+ *    ① 字库地址越出物理容量（读取失败）→ addr_in_range=false / ret<0；
+ *    ② 字库该字号区块为空（读到全 0 或全 FF）→ nonzero=0 或 =total；
+ *    ③ 字库有数据（nonzero 正常）→ 问题在渲染/裁剪/屏体几何侧。
+ *  **不改任何渲染行为**：仅算术 + 一次 dev_storage_read（与渲染同路径）。
+ * ================================================================ */
+
+bool app_render_chip_info_get(app_render_chip_info_t *out)
+{
+    if (!out)
+        return false;
+    memset(out, 0, sizeof(*out));
+    out->name            = (s_active_config->name != nullptr) ? s_active_config->name : "?";
+    out->region_count    = s_active_config->region_count;
+    out->adaptive_count  = s_active_config->adaptive_count;
+    out->ascii_raw_code  = s_active_config->ascii_raw_code;
+    out->gbk_index_190   = s_active_config->gbk_index_190;
+    out->flash_capacity  = dev_storage_capacity(s_render_font);
+    return true;
+}
+
+uint32_t app_render_glyph_addr_for(font_chip_id_t chip, font_size_t size, font_type_t type,
+                                   font_enc_t charset, const uint8_t *ch)
+{
+    if (chip >= FONT_CHIP_CNT || ch == nullptr || size == 0)
+        return 0U;
+    if (charset != FONT_ENC_ASCII && charset != FONT_ENC_GBK)
+        return 0U;
+    return _flash_addr_cfg(&s_chip_configs[chip], size, charset, type, ch);
+}
+
+bool app_render_glyph_probe(font_size_t size, font_type_t type, font_enc_t charset,
+                            const uint8_t *ch, app_render_glyph_probe_t *out)
+{
+    if (!out || !ch || size == 0)
+        return false;
+    if (charset != FONT_ENC_ASCII && charset != FONT_ENC_GBK)
+        return false;
+
+    memset(out, 0, sizeof(*out));
+    const uint16_t bytes = _packed_glyph_bytes(size, charset);
+    out->total           = bytes;
+    out->addr            = _flash_addr(size, charset, type, ch);
+    out->capacity        = dev_storage_capacity(s_render_font);
+    out->addr_in_range   = ((uint64_t)out->addr + bytes) <= (uint64_t)out->capacity;
+
+    uint8_t buf[128]; /* 最大字形 FONT_32 GBK = 128B */
+    if (bytes > sizeof(buf))
+        return false;
+
+    out->ret = dev_storage_read(s_render_font, out->addr, buf, bytes);
+    if (out->ret < 0)
+        return true; /* 读取失败：head/nonzero 保持 0，返回值即为证据 */
+
+    for (uint16_t i = 0; i < bytes; i++) {
+        if (buf[i] != 0U)
+            out->nonzero++;
+    }
+    const uint8_t n = (bytes < sizeof(out->head)) ? (uint8_t)bytes : (uint8_t)sizeof(out->head);
+    memcpy(out->head, buf, n);
+    return true;
+}
+
+/* ---- 单字模裁剪绘制（app_scroll 滚动渲染专用；不影响既有 RENDER_TEXT 路径） ---- */
+
+uint8_t app_render_glyph_width_px(font_size_t size, font_enc_t charset)
+{
+    return _glyph_width_px(size, charset);
+}
+
+void app_render_draw_glyph_clipped(int16_t x, int16_t y,
+                                   uint16_t clip_x, uint16_t clip_y,
+                                   uint16_t clip_w, uint16_t clip_h,
+                                   font_size_t font_size, font_type_t font_type,
+                                   font_enc_t charset, const uint8_t *ch,
+                                   display_color_t color)
+{
+    if (!s_render_display || !s_render_font || !ch || !font_size)
+        return;
+    if (charset != FONT_ENC_ASCII && charset != FONT_ENC_GBK)
+        return;
+
+    uint16_t bytes = _packed_glyph_bytes(font_size, charset);
+    uint8_t buf[128]; /* 栈缓冲：最大字形 FONT_32 GBK = 128B；调用方栈 ≥1KB 够用 */
+    if (bytes > sizeof(buf))
+        return;
+
+    uint32_t addr = _flash_addr(font_size, charset, font_type, ch);
+    if (dev_storage_read(s_render_font, addr, buf, bytes) < 0)
+        return;
+
+    uint8_t gw = _glyph_width_px(font_size, charset);
+    /* 裁剪边界提升到 int32：x+col / y+row 与 clip+size 均防 uint16 回绕 */
+    int32_t cxl = clip_x, cyl = clip_y;
+    int32_t cxr = (int32_t)clip_x + clip_w;
+    int32_t cyb = (int32_t)clip_y + clip_h;
+
+    uint16_t row_bytes = (gw + 7) / 8;
+    for (uint16_t row = 0; row < font_size; row++) {
+        for (uint16_t col = 0; col < gw; col++) {
+            if (!(buf[row * row_bytes + col / 8] & (0x80 >> (col % 8))))
+                continue; /* bit=0 不落笔 */
+            int32_t px = (int32_t)x + col;
+            int32_t py = (int32_t)y + row;
+            if (px < 0 || py < 0)
+                continue;
+            if (px >= (int32_t)s_render_display->screen_rows ||
+                py >= (int32_t)s_render_display->screen_cols)
+                continue; /* 屏幕边界外丢弃 */
+            if (px < cxl || py < cyl || px >= cxr || py >= cyb)
+                continue; /* 裁剪矩形外丢弃 */
+            dev_display_set_pixel(s_render_display, (uint16_t)px, (uint16_t)py, color);
+        }
+    }
 }
 
 /* ---- 内部: 渲染趟行宽读取守卫（line_idx 超出测量趟记录行数时钳制到末行，防读穿 line_widths） ---- */
@@ -531,7 +658,11 @@ static inline void _render_text(const render_cfg_t *cfg)
                             line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
                     }
                     cur_x = line_origin_x;
-                    if (cur_y + line_h > cfg->h) return;
+                    /* 行首已完全越出区域（cur_y >= h）→ 后续行只会更远，终止渲染；
+                     * 仅下缘越界（cur_y < h <= cur_y+line_h）→ 保留本行继续绘制，
+                     * 由 dev_display_draw_bitmap 按屏幕交集裁剪出可见部分。
+                     * （2026-09-14 用户裁决：字号大于可用高度时不再整行丢弃） */
+                    if (cur_y >= cfg->h) return;
                 } else {
                     char_pos++;
                     continue;
@@ -564,7 +695,11 @@ static inline void _render_text(const render_cfg_t *cfg)
                             line_origin_x += (cfg->w - _line_width_get(line_widths, line_idx, line_count));
                     }
                     cur_x = line_origin_x;
-                    if (cur_y + line_h > cfg->h) return;
+                    /* 行首已完全越出区域（cur_y >= h）→ 后续行只会更远，终止渲染；
+                     * 仅下缘越界（cur_y < h <= cur_y+line_h）→ 保留本行继续绘制，
+                     * 由 dev_display_draw_bitmap 按屏幕交集裁剪出可见部分。
+                     * （2026-09-14 用户裁决：字号大于可用高度时不再整行丢弃） */
+                    if (cur_y >= cfg->h) return;
                 } else {
                     char_pos += 2;
                     continue;

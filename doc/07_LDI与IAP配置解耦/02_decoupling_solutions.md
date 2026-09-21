@@ -353,9 +353,9 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 
 | 分支 | 条件 | 行为 |
 |------|------|------|
-| 1 Sector1 优先 | Sector1 有效（magic+CRC）且 net_cfg 合法（IP 非 0、port 1~65535） | 网络字段取 Sector1（**含 port，缺陷 B 修复**）；W25 有效沿用其非网络字段（host/lane/cert/modules）、W25 空/无效回写镜像；netif/TCP Server 口应用移交 `app_net_boot`（§14）。**（2026-08-21 修订：`update_sta==APP_BOARD_UPDATED` 不再参与分支判定——有效记录含升级中间态一律采纳 Sector1.net_cfg；`app_board_net_cfg_update` 自 2026-08-18 起在中间态也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若中间态仍落分支 2，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg 导致 setip 失效；Bootloader 条件 D 对中间态记录本就在主固件启动前进 Recovery，主固件运行态下该放宽无副作用）** |
+| 1 Sector1 优先 | Sector1 有效（magic+CRC）且 net_cfg 合法（IP 非 0、port 1~65535） | 网络字段取 Sector1（**含 port，缺陷 B 修复**）；W25 有效沿用其非网络字段（host/lane/cert/modules）并 `app_tcp_client_set_remote(host)`；W25 空/无效：host 取通道当前远端（**2026-09-18 起编译期哨兵 `0.0.0.0:0`，本分支不 `set_remote`**）并把整份 cfg 写入 W25 镜像（⚠ 会把哨兵 host 落入 W25——出厂连上位机是否另给默认 host 待拍板）；netif/TCP Server 口应用移交 `app_net_boot`（§14）。**（2026-08-21 修订：`update_sta==APP_BOARD_UPDATED` 不再参与分支判定——有效记录含升级中间态一律采纳 Sector1.net_cfg；`app_board_net_cfg_update` 自 2026-08-18 起在中间态也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若中间态仍落分支 2，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg 导致 setip 失效；Bootloader 条件 D 对中间态记录本就在主固件启动前进 Recovery，主固件运行态下该放宽无副作用）** |
 | 2 W25 自愈 | Sector1 空/损坏/记录无效或 net_cfg 非法 + W25 有效 | cfg 全字段取 W25；`app_tcp_client_set_remote` 应用（netif/TCP Server 口应用移交 `app_net_boot`，§14）；`app_board_net_cfg_update` 回写 Sector1（空/损坏完整初始化自愈；有效但 net_cfg 非法仅放行 net_cfg 更新、update_sta/app_info 原样保留）。**（2026-08-21 方案 B：回写以 W25 device_port 为 TCP 口，udp_port 保留现值（get 失败用 20103））** |
-| 3 出厂默认 | 两者皆空/无效 | `pl_net_get_ip` 统一出厂默认（§11）填 cfg；不写任何 Flash（netif 应用由 `app_net_boot` 执行，§14） |
+| 3 出厂默认 | 两者皆空/无效 | `pl_net_get_ip` 统一出厂默认（§11）填 cfg；host 取通道当前远端（哨兵则 cfg 报 `0.0.0.0:0`，不 `set_remote`）；不写任何 Flash（netif 应用由 `app_net_boot` 执行，§14） |
 
 **生效语义**：所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一**重启生效**（运行时网口不即时变更，属既定策略，非缺陷）。
 
@@ -447,6 +447,10 @@ Server 口（**两口径统一，2026-08-24 修订**：TCP 口应用不再随 PR
 **LDI 瘦身**：`ldi_ctx_init` 三分支末尾的 `pl_net_set_ip` /
 `app_tcp_server_set_port` 与末尾 `[netcfg] apply` 日志删除；分支 2 保留
 `app_tcp_client_set_remote`；分支判定/自愈日志保留。
+**TCP Client 远端不经 `app_net_boot`**（2026-09-18）：通道编译期默认哨兵
+`0.0.0.0:0`（未配置不 `netconn_new`/不 connect）；现行唯一 `set_remote` 调用方
+仍是 LDI 装载（W25 有效 host）。0AH 写 host 只落盘，**重启后**才由 `ldi_ctx_init`
+再 `set_remote`（与改 IP「重启生效」同口径，运行时不即时改 Client 远端）。
 
 **CQ 瘦身**：`app_cq_proto.c` 的 `_cq_net_cfg_apply` 整块删除（含 `s_cq_def_ip/mask/gw`
 常量与 `[cq] net_cfg_apply` 日志），`cq_proto_init` 不再承担网络启动职责；
@@ -519,6 +523,14 @@ Bootloader/Recovery 同步升级后按 72B 布局读写，与主固件自愈后�
 
 ## 修订
 
+- 2026-09-18：**TCP Client 通道层与 LDI 解耦**——`g_tcp_client` 编译期默认改为
+  `0.0.0.0:0`（不再硬编码 `192.168.2.17:9529`）；未配置不 connect。`app_boot` 仍启动
+  Client 任务。LDI 仍是唯一 `set_remote` 调用方：W25 有效 host 才注入；W25 空继承
+  通道哨兵并在分支 1 写入 W25（出厂连上位机默认 host **待拍板**，本轮不擅自回填
+  旧地址）。§12 三分支表 / §14 同步。YN_OL 绑 `CH_ID_TCP_CLIENT` 只消费入站、不配远端。
+  **待拍板（未改代码）**：A LDI 空 W25 出厂 host 是否另给默认；B 板上已有 `192.168.2.17`
+  的 W25 镜像是否清/留；C `set_remote` 是否中立化（迁出 LDI）；D YN_OL 是否需要主动外连；
+  E idle 任务是否保留（现状 1s 轮询空转）。
 - 2026-08-14：首版方案，待审核。
 - 2026-08-14（同日修订）：§2.2 增补完整调用点清单（全仓 7 处 `ADDR_CONFIG_SECTOR` 使用点 + LDI 侧 4 处调用 + 4 处独立结构体定义）与布局锁定步骤；§2.3 DoD 门禁扩大至全仓；新增 §8 失败场景与掉电语义；§7 补充断电与擦写寿命风险。
 - 2026-08-14（同日再修订）：新增 **§9 先行修复定案**——Q1（镜像 Bootloader 语义）、Q2（如实应答 + 上位机重发）、Q3（接受现状 + 同值跳过）三决策落地；§2.2 步骤 6、§6、§8.3 中「待用户确认」标记改为定案结论；范围声明为「先行修复，07 解耦主体重构暂缓」。

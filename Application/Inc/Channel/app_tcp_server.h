@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include "cmsis_os2.h"
 #include "app_dispatch.h"
+#include "pl_task_guard.h"
 
 /** @brief TCP Server 通道子类 */
 typedef struct {
@@ -29,7 +30,8 @@ void tcp_server_task(void *argument);
 
 static inline osThreadId_t app_tcp_server_start(void)
 {
-    return osThreadNew(tcp_server_task, NULL, &tcp_server_task_attr);
+    return pl_task_create_checked(osThreadNew(tcp_server_task, NULL, &tcp_server_task_attr),
+                                   "tcp_server_task");
 }
 void app_tcp_server_set_port(uint16_t port);
 uint16_t app_tcp_server_get_port(void);

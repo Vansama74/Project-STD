@@ -99,6 +99,15 @@ void app_test_io_output(void)
  *  无法确保：
  *  - _1_260_prepare() 的像素重排逻辑（本测试绕过 prepare）
  *  - pixel_map 坐标映射
+ *
+ *  口径前提（2026-09-17 复核）：本测试假定 `hub75_buff` = 「1 字节/像素颜色索引」
+ *  （并行多通道模组 1_263 / 1_969 / 22_1703 / p20 符合）。**22_1665 不适用**——
+ *  它的 `hub75_buff` = 帧状态数组（1B/时钟位/组，长度 = `scan_line_pixels` = 128 × 模块数，
+ *  不是 `buffer_size`），按像素下标写它得到的是无意义的帧位流。
+ *  注意：本测试**绕过 prepare**，故它只验证「颜色 → 通道/链段 → 移位链 → 实物灯」这半条链；
+ *  逻辑坐标侧的走位请用 `app_test_pixel_scan()`（全链路）或 `app_test_prepare_mapping()`。
+ *  22-1665 的现场判读（含 TEST 键全屏判读与双 HUB 口判定）见
+ *  doc/01_显示系统/22-1665模组驱动分析与迁移记录.md §5 与 `.analysis/22_1665/README.md`。
  * ================================================================ */
 
 void app_test_led_mapping(void)
@@ -115,39 +124,6 @@ void app_test_led_mapping(void)
     }
 
     for (;;);
-}
-
-/* ================================================================
- *  扫描行顺序测试
- *
- *  逐行点亮水平线，用于确认 1/8 扫描模组的行地址映射顺序。
- *  每条线显示 1 秒后切换到下一行。
- * ================================================================ */
-
-void app_test_scan_line_order(void)
-{
-    dev_display_t *dsp = dev_display_get();
-    if (!dsp) return;
-
-    for (uint8_t line = 0; line < 8; line++) {
-        /* 清屏 */
-        dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
-        dev_display_commit_frame(dsp);
-        osDelay(100);
-
-        /* 在第 line 行画一条水平红线 */
-        for (uint16_t x = 0; x < dsp->screen_rows; x++) {
-            dev_display_set_pixel(dsp, x, line, COLOR_RED);
-        }
-        dev_display_commit_frame(dsp);
-
-        /* 保持显示 1 秒 */
-        osDelay(1000);
-    }
-
-    /* 测试完成后清屏 */
-    dev_display_fill(dsp, 0, 0, dsp->screen_rows, dsp->screen_cols, COLOR_BLACK);
-    dev_display_commit_frame(dsp);
 }
 
 /* ================================================================
@@ -263,12 +239,11 @@ void app_test_prepare_mapping(void)
 
 void app_test_run(void)
 {
-    app_test_oblique_scan();
-    // app_test_led_mapping();       /* 直接写 hub75_buff，按 hub75_buff线形点亮LED ，测试物理 LED 灯序映射 */
+    // app_test_oblique_scan();
+    app_test_led_mapping();       /* 直接写 hub75_buff，按 hub75_buff线形点亮LED ，测试物理 LED 灯序映射 */
     // app_test_prepare_mapping();   /* 逐行点亮像素，测试 prepare 映射是否正确 */
     // app_test_pixel_scan();        /* 逐行素点亮再熄灭，测试屏幕所有像素点是否正常 */
     // app_test_render_text();       /* 渲染文字"车道关闭"，测试字库读取和文字渲染功能 */
-    // app_test_scan_line_order();   /* 逐行点亮水平线，测试 1/8 扫描的行地址映射顺序 */
     // app_test_diagonal();          /* 画对角线，测试整体坐标映射是否正确（直线=正确） */
     // app_test_io_output();         /* 依次点亮车道灯和黄闪灯各 1 秒，测试 IO 输出功能 */
 }

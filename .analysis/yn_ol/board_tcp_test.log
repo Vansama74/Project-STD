@@ -1,0 +1,829 @@
+2026-09-18 09:32:58.407 [====] run step=baseline (pid=336832)
+2026-09-18 09:32:58.407 [====] ======================================================================
+2026-09-18 09:32:58.407 [====] 步骤 0：本机网络确认 + TCP 可达性；步骤 1：基线（单连接，'1' 查询 ×3 + 重连 ×3）
+2026-09-18 09:32:58.407 [====] ======================================================================
+2026-09-18 09:32:58.409 [step0] host local addrs: 2: enp193s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 100 |     altname enx785536083bed |     inet 192.168.0.39/24 brd 192.168.0.255 scope global noprefixroute enp193s0 |        valid_lft forever preferred_lft forever |     inet 192.168.2.17/24 brd 192.168.2.255 scope global noprefixroute enp193s0 |        valid_lft forever preferred_lft forever |     inet 192.168.1.17/24 brd 192.168.1.255 scope global noprefixroute enp193s0 |        valid_lft forever preferred_lft forever |     inet 192.168.114.17/24 brd 192.168.114.255 scope global noprefixroute enp193s0 |        valid_lft forever preferred_lft forever
+2026-09-18 09:32:58.410 [step0] route to 192.168.114.200: 192.168.114.200 dev enp193s0 src 192.168.114.17 uid 1000  |     cache
+2026-09-18 09:32:58.410 [step1.1] connect 192.168.114.200:9528 OK local=192.168.114.17:42236 dt=0.3ms linger=None
+2026-09-18 09:32:58.410 [step1.1-q1] send 7B 31 00 7D (4B) (同连接第 1 次)
+2026-09-18 09:32:58.411 [step1.1-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:00.412 [step1.1] q1 verdict: R1_hits=1 raw_ok=7B 31 01 00 7D
+2026-09-18 09:33:00.413 [step1.1-q2] send 7B 31 00 7D (4B) (同连接第 2 次)
+2026-09-18 09:33:00.413 [step1.1-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:02.414 [step1.1] q2 verdict: R1_hits=1 raw_ok=7B 31 01 00 7D
+2026-09-18 09:33:02.414 [step1.1-q3] send 7B 31 00 7D (4B) (同连接第 3 次)
+2026-09-18 09:33:02.414 [step1.1-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:04.416 [step1.1] q3 verdict: R1_hits=1 raw_ok=7B 31 01 00 7D
+2026-09-18 09:33:04.416 [step1.1] closed socket (local 192.168.114.17:42236) linger=None
+2026-09-18 09:33:04.416 [step1.1] RESULT: 3 次查询中 3/3 收到期望应答 7B 31 01 00 7D
+2026-09-18 09:33:05.417 [step1.2] connect 192.168.114.200:9528 OK local=192.168.114.17:39120 dt=0.3ms linger=None
+2026-09-18 09:33:05.417 [step1.2-q1] send 7B 31 00 7D (4B) (重连后第 1 次)
+2026-09-18 09:33:05.418 [step1.2-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:07.419 [step1.2-q2] send 7B 31 00 7D (4B) (重连后第 2 次)
+2026-09-18 09:33:07.419 [step1.2-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:09.421 [step1.2-q3] send 7B 31 00 7D (4B) (重连后第 3 次)
+2026-09-18 09:33:09.421 [step1.2-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:11.423 [step1.2] closed socket (local 192.168.114.17:39120) linger=None
+2026-09-18 09:33:11.423 [step1.2] RESULT: 重连后 3 次查询中 3/3 收到期望应答
+2026-09-18 09:33:16.333 [====] run step=repro (pid=339353)
+2026-09-18 09:33:16.333 [====] ======================================================================
+2026-09-18 09:33:16.333 [====] 步骤 2：串行占位复现（A 保持打开，B/C 新连接）；步骤 3：FIN / RST 恢复条件
+2026-09-18 09:33:16.333 [====] ======================================================================
+2026-09-18 09:33:16.333 [A] connect 192.168.114.200:9528 OK local=192.168.114.17:59536 dt=0.3ms linger=None
+2026-09-18 09:33:16.333 [A-q1] send 7B 31 00 7D (4B) (基线确认 A 被服务)
+2026-09-18 09:33:16.333 [A-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:18.334 [A] baseline R1_hits=1
+2026-09-18 09:33:18.335 [B] connect 192.168.114.200:9528 OK local=192.168.114.17:59548 dt=0.3ms linger=None
+2026-09-18 09:33:18.335 [B-q1] send 7B 31 00 7D (4B) (A 仍打开；预期无应答)
+2026-09-18 09:33:20.337 [B-q1] NO RESPONSE within 2s
+2026-09-18 09:33:20.337 [B] B-q1 verdict: R1_hits=0 (0 = 复现「连接成功但无响应」)
+2026-09-18 09:33:20.337 [C] connect 192.168.114.200:9528 OK local=192.168.114.17:36438 dt=0.3ms linger=None
+2026-09-18 09:33:20.337 [C-q1] send 7B 31 00 7D (4B) (第二条新连接；预期无应答)
+2026-09-18 09:33:22.339 [C-q1] NO RESPONSE within 2s
+2026-09-18 09:33:22.340 [C] C-q1 verdict: R1_hits=0
+2026-09-18 09:33:22.340 [A-q2] send 7B 31 00 7D (4B) (B/C 已被占位后，A 应仍正常)
+2026-09-18 09:33:22.340 [A-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:24.342 [A] A-q2 verdict: R1_hits=1 (1 = A 仍被服务)
+2026-09-18 09:33:24.342 [A] closed socket (local 192.168.114.17:59536) linger=None
+2026-09-18 09:33:25.842 [B-q2] send 7B 31 00 7D (4B) (A 已 FIN 关闭 +1.5s；预期恢复)
+2026-09-18 09:33:25.842 [B-q2] recv +0.2ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:25.842 [B-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:27.844 [B] B-q2 verdict: R1_hits=2 (>=1 = 不需要重启即恢复)
+2026-09-18 09:33:28.344 [C-q2] send 7B 31 00 7D (4B) (C 是否也要等 B 关闭才被服务)
+2026-09-18 09:33:30.346 [C-q2] NO RESPONSE within 2s
+2026-09-18 09:33:30.346 [C] C-q2 verdict: R1_hits=0
+2026-09-18 09:33:30.346 [B] closed socket (local 192.168.114.17:59548) linger=None
+2026-09-18 09:33:31.346 [C-q3] send 7B 31 00 7D (4B) (B 关闭后 C 应被服务)
+2026-09-18 09:33:31.346 [C-q3] recv +0.3ms 7B 31 01 00 7D 7B 31 01 00 7D (10B)
+2026-09-18 09:33:31.346 [C-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:33.348 [C] C-q3 verdict: R1_hits=3
+2026-09-18 09:33:33.348 [C] closed socket (local 192.168.114.17:36438) linger=None
+2026-09-18 09:33:34.849 [A2] connect 192.168.114.200:9528 OK local=192.168.114.17:54276 dt=0.2ms linger=None
+2026-09-18 09:33:34.849 [A2-q1] send 7B 31 00 7D (4B) (RST 变体：确认 A2 被服务)
+2026-09-18 09:33:34.849 [A2-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:36.851 [A2] baseline R1_hits=1
+2026-09-18 09:33:36.851 [B2] connect 192.168.114.200:9528 OK local=192.168.114.17:54280 dt=0.2ms linger=None
+2026-09-18 09:33:36.852 [B2-q1] send 7B 31 00 7D (4B) (A2 仍打开；预期无应答)
+2026-09-18 09:33:38.853 [B2-q1] NO RESPONSE within 2s
+2026-09-18 09:33:38.853 [B2] B2-q1 verdict: R1_hits=0
+2026-09-18 09:33:38.853 [A2] closed socket (local 192.168.114.17:54276) linger=(1, 0)
+2026-09-18 09:33:40.353 [B2-q2] send 7B 31 00 7D (4B) (A2 已 RST 关闭 +1.5s；预期恢复)
+2026-09-18 09:33:40.353 [B2-q2] recv +0.2ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:40.354 [B2-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:42.355 [B2] B2-q2 verdict: R1_hits=2 (>=1 = RST 也能释放服务循环)
+2026-09-18 09:33:42.355 [B2] closed socket (local 192.168.114.17:54280) linger=None
+2026-09-18 09:33:43.356 [Z] connect 192.168.114.200:9528 OK local=192.168.114.17:58356 dt=0.3ms linger=None
+2026-09-18 09:33:43.356 [Z-q1] send 7B 31 00 7D (4B) (步骤 2/3 结束后的收尾基线)
+2026-09-18 09:33:43.356 [Z-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:33:45.358 [Z] final verdict: R1_hits=1
+2026-09-18 09:33:45.358 [Z] closed socket (local 192.168.114.17:58356) linger=None
+2026-09-18 09:34:00.440 [====] run step=halfopen (pid=345459)
+2026-09-18 09:34:00.440 [====] ======================================================================
+2026-09-18 09:34:00.440 [====] 步骤 4：半开连接模拟（本机与板子间该流临时 DROP，A 的 FIN 被丢）
+2026-09-18 09:34:00.440 [====] ======================================================================
+2026-09-18 09:34:00.452 [fw] iptables -D OUTPUT -p tcp -s 192.168.114.17 --sport 41200 -d 192.168.114.200 --dport 9528 -m comment --comment yn_ol_test -j DROP -> rc=1  iptables: Bad rule (does a matching rule exist in that chain?).
+2026-09-18 09:34:00.461 [fw] iptables -D INPUT -p tcp -s 192.168.114.200 --sport 9528 -d 192.168.114.17 --dport 41200 -m comment --comment yn_ol_test -j DROP -> rc=1  iptables: Bad rule (does a matching rule exist in that chain?).
+2026-09-18 09:34:00.470 [fw] remaining yn_ol_test rules: 0
+2026-09-18 09:34:00.484 [fw] after number-cleanup, remaining yn_ol_test rules: 0
+2026-09-18 09:34:00.488 [A] connect 192.168.114.200:9528 OK local=192.168.114.17:41200 dt=0.3ms linger=None
+2026-09-18 09:34:00.489 [A-q1] send 7B 31 00 7D (4B) (安装 DROP 规则前确认 A 被服务)
+2026-09-18 09:34:00.489 [A-q1] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 09:34:02.491 [A] baseline R1_hits=1
+2026-09-18 09:34:02.491 [step4] tcpdump started (pid=345762) -> /home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/halfopen_capture.txt
+2026-09-18 09:34:02.501 [fw] iptables -I OUTPUT 1 -p tcp -s 192.168.114.17 --sport 41200 -d 192.168.114.200 --dport 9528 -m comment --comment yn_ol_test -j DROP -> rc=0
+2026-09-18 09:34:02.506 [fw] iptables -I INPUT 1 -p tcp -s 192.168.114.200 --sport 9528 -d 192.168.114.17 --dport 41200 -m comment --comment yn_ol_test -j DROP -> rc=0
+2026-09-18 09:34:02.506 [fw] installed rule summary:
+2026-09-18 09:34:02.512 [fw] -P INPUT ACCEPT | -P FORWARD DROP | -P OUTPUT ACCEPT | -N DOCKER | -N DOCKER-BRIDGE | -N DOCKER-CT | -N DOCKER-FORWARD | -N DOCKER-INTERNAL | -N DOCKER-USER | -A INPUT -s 192.168.114.200/32 -d 192.168.114.17/32 -p tcp -m tcp --sport 9528 --dport 41200 -m comment --comment yn_ol_test -j DROP | -A FORWARD -j DOCKER-USER | -A FORWARD -j DOCKER-FORWARD | -A OUTPUT -s 192.168.114.17/32 -d 192.168.114.200/32 -p tcp -m tcp --sport 41200 --dport 9528 -m comment --comment yn_ol_test -j DROP | -A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 21114 -j ACCEPT | -A DOCKER ! -i docker0 -o docker0 -j DROP | -A DOCKER-BRIDGE -o docker0 -j DOCKER | -A DOCKER-CT -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT | -A DOCKER-FORWARD -j DOCKER-CT | -A DOCKER-FORWARD -j DOCKER-INTERNAL | -A DOCKER-FORWARD -j DOCKER-BRIDGE | -A DOCKER-FORWARD -i docker0 -j ACCEPT
+2026-09-18 09:34:02.512 [A] closed socket (local 192.168.114.17:41200) linger=None
+2026-09-18 09:34:02.512 [step4] A 的 FIN 已被防火墙丢弃 → 板子侧 A 进入半开/孤儿态
+2026-09-18 09:34:02.513 [B] connect 192.168.114.200:9528 OK local=192.168.114.17:41201 dt=0.2ms linger=None
+2026-09-18 09:34:02.513 [B-drop1] send 7B 31 00 7D (4B) (半开窗口 +0s / A 关闭 +0s；预期无应答)
+2026-09-18 09:34:04.515 [B-drop1] NO RESPONSE within 2s
+2026-09-18 09:34:07.515 [B-drop2] send 7B 31 00 7D (4B) (半开窗口 +5s / A 关闭 +5s；预期无应答)
+2026-09-18 09:34:09.517 [B-drop2] NO RESPONSE within 2s
+2026-09-18 09:34:12.518 [B-drop3] send 7B 31 00 7D (4B) (半开窗口 +10s / A 关闭 +10s；预期无应答)
+2026-09-18 09:34:14.519 [B-drop3] NO RESPONSE within 2s
+2026-09-18 09:34:17.519 [B-drop4] send 7B 31 00 7D (4B) (半开窗口 +15s / A 关闭 +15s；预期无应答)
+2026-09-18 09:34:19.521 [B-drop4] NO RESPONSE within 2s
+2026-09-18 09:34:22.521 [B-drop5] send 7B 31 00 7D (4B) (半开窗口 +20s / A 关闭 +20s；预期无应答)
+2026-09-18 09:34:24.523 [B-drop5] NO RESPONSE within 2s
+2026-09-18 09:34:27.523 [B-drop6] send 7B 31 00 7D (4B) (半开窗口 +25s / A 关闭 +25s；预期无应答)
+2026-09-18 09:34:29.525 [B-drop6] NO RESPONSE within 2s
+2026-09-18 09:34:32.525 [B] 半开窗口结论：30s 内 6 次查询共收到 R1_hits=0（0 = 半开期间完全无反应）
+2026-09-18 09:34:32.542 [fw] iptables -D OUTPUT -p tcp -s 192.168.114.17 --sport 41200 -d 192.168.114.200 --dport 9528 -m comment --comment yn_ol_test -j DROP -> rc=0
+2026-09-18 09:34:32.573 [fw] iptables -D INPUT -p tcp -s 192.168.114.200 --sport 9528 -d 192.168.114.17 --dport 41200 -m comment --comment yn_ol_test -j DROP -> rc=0
+2026-09-18 09:34:32.582 [fw] remaining yn_ol_test rules: 0
+2026-09-18 09:34:32.582 [B-rec1] send 7B 31 00 7D (4B) (规则已拆除 +0s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:34.584 [B-rec1] NO RESPONSE within 2s
+2026-09-18 09:34:35.585 [B-rec2] send 7B 31 00 7D (4B) (规则已拆除 +3s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:37.587 [B-rec2] NO RESPONSE within 2s
+2026-09-18 09:34:38.587 [B-rec3] send 7B 31 00 7D (4B) (规则已拆除 +6s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:40.589 [B-rec3] NO RESPONSE within 2s
+2026-09-18 09:34:41.589 [B-rec4] send 7B 31 00 7D (4B) (规则已拆除 +9s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:43.591 [B-rec4] NO RESPONSE within 2s
+2026-09-18 09:34:44.591 [B-rec5] send 7B 31 00 7D (4B) (规则已拆除 +12s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:46.592 [B-rec5] NO RESPONSE within 2s
+2026-09-18 09:34:47.592 [B-rec6] send 7B 31 00 7D (4B) (规则已拆除 +15s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:49.594 [B-rec6] NO RESPONSE within 2s
+2026-09-18 09:34:50.595 [B-rec7] send 7B 31 00 7D (4B) (规则已拆除 +18s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:52.595 [B-rec7] NO RESPONSE within 2s
+2026-09-18 09:34:53.595 [B-rec8] send 7B 31 00 7D (4B) (规则已拆除 +21s；预期由 FIN 重传送达后自愈)
+2026-09-18 09:34:55.169 [B-rec8] recv +1573.9ms 7B 31 01 00 7D (5B)
+2026-09-18 09:34:55.169 [B-rec8] recv +1574.2ms 7B 31 01 00 7D (5B)
+2026-09-18 09:34:55.169 [B-rec8] recv +1574.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:34:55.170 [B-rec8] recv +1574.5ms 7B 31 01 00 7D (5B)
+2026-09-18 09:34:55.596 [B] RECOVERED: 规则拆除后 23.0s 收到应答（无需重启板子）
+2026-09-18 09:34:55.596 [B] closed socket (local 192.168.114.17:41201) linger=None
+2026-09-18 09:34:59.599 [Z] connect 192.168.114.200:9528 FAIL errno=None (timed out) dt=3003.1ms
+2026-09-18 09:35:02.602 [Z] connect 192.168.114.200:10028 FAIL errno=None (timed out) dt=3002.5ms
+2026-09-18 09:35:02.602 [Z-q1] query skipped (no socket)
+2026-09-18 09:35:02.602 [Z] final verdict: R1_hits=0 (>=1 = 板子恢复服务)
+2026-09-18 09:35:02.634 [cap] packets=10 FIN=2 RST=0
+2026-09-18 09:35:02.634 [cap]   FIN: 1789695295.168218 IP 192.168.114.17.41200 > 192.168.114.200.9528: Flags [FP.], seq 3208336766, ack 1036600, win 64235, length 0
+2026-09-18 09:35:02.634 [cap]   FIN: 1789695295.168530 IP 192.168.114.200.9528 > 192.168.114.17.41200: Flags [F.], seq 1, ack 1, win 2139, length 0
+2026-09-18 09:35:02.634 [cap]   last-ack: 1789695295.168218 IP 192.168.114.17.41200 > 192.168.114.200.9528: Flags [FP.], seq 3208336766, ack 1036600, win 64235, length 0
+2026-09-18 09:35:02.634 [cap]   last-ack: 1789695295.168318 IP 192.168.114.200.9528 > 192.168.114.17.41200: Flags [.], ack 1, win 2139, length 0
+2026-09-18 09:35:02.634 [cap]   last-ack: 1789695295.168530 IP 192.168.114.200.9528 > 192.168.114.17.41200: Flags [F.], seq 1, ack 1, win 2139, length 0
+2026-09-18 09:35:02.634 [cap]   last-ack: 1789695295.168545 IP 192.168.114.17.41200 > 192.168.114.200.9528: Flags [.], ack 2, win 64235, length 0
+2026-09-18 09:37:03.480 [====] run step=final (pid=370655)
+2026-09-18 09:37:03.480 [====] ======================================================================
+2026-09-18 09:37:03.480 [====] 步骤 5：收尾基线（清空连接后重新验证单连接 '1' 查询）
+2026-09-18 09:37:03.480 [====] ======================================================================
+2026-09-18 09:37:03.480 [final] connect 192.168.114.200:9528 OK local=192.168.114.17:56202 dt=0.3ms linger=None
+2026-09-18 09:37:03.480 [final-q1] send 7B 31 00 7D (4B)
+2026-09-18 09:37:03.481 [final-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:37:05.482 [final-q2] send 7B 31 00 7D (4B)
+2026-09-18 09:37:05.483 [final-q2] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:37:07.484 [final-q3] send 7B 31 00 7D (4B)
+2026-09-18 09:37:07.485 [final-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:37:09.486 [final] closed socket (local 192.168.114.17:56202) linger=None
+2026-09-18 09:37:09.487 [final] RESULT: 3/3 收到 7B 31 01 00 7D；raw=<见上>
+2026-09-18 09:37:09.495 [final] leftover yn_ol_test rules: 0
+2026-09-18 09:37:35.140 [====] run step=burst (pid=375181)
+2026-09-18 09:37:35.140 [====] ======================================================================
+2026-09-18 09:37:35.140 [====] 附加实验：B 积压 6 条查询 → A 关闭后集中处理 → 60s 健康监控（TCP + ICMP）
+2026-09-18 09:37:35.140 [====] ======================================================================
+2026-09-18 09:37:35.140 [A] connect 192.168.114.200:9528 OK local=192.168.114.17:48758 dt=0.3ms linger=None
+2026-09-18 09:37:35.140 [A-q1] send 7B 31 00 7D (4B) (基线确认 A 被服务)
+2026-09-18 09:37:35.140 [A-q1] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 09:37:37.142 [A] baseline R1_hits=1
+2026-09-18 09:37:37.143 [B] connect 192.168.114.200:9528 OK local=192.168.114.17:48764 dt=0.3ms linger=None
+2026-09-18 09:37:37.143 [B] 积压 6 条 '1' 查询（每条等 0.3s，预期均无应答）
+2026-09-18 09:37:37.143 [B-queue1] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:37.443 [B-queue1] NO RESPONSE within 0s
+2026-09-18 09:37:37.743 [B-queue2] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:38.044 [B-queue2] NO RESPONSE within 0s
+2026-09-18 09:37:38.344 [B-queue3] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:38.644 [B-queue3] NO RESPONSE within 0s
+2026-09-18 09:37:38.945 [B-queue4] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:39.245 [B-queue4] NO RESPONSE within 0s
+2026-09-18 09:37:39.545 [B-queue5] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:39.845 [B-queue5] NO RESPONSE within 0s
+2026-09-18 09:37:40.146 [B-queue6] send 7B 31 00 7D (4B) (积压)
+2026-09-18 09:37:40.446 [B-queue6] NO RESPONSE within 0s
+2026-09-18 09:37:40.746 [B] 积压阶段共收到应答 0（预期 0）
+2026-09-18 09:37:40.747 [burst] 保持 A/B 打开 30s（模拟半开占位窗口）
+2026-09-18 09:37:45.747 [burst] hold +5s
+2026-09-18 09:37:50.747 [burst] hold +10s
+2026-09-18 09:37:55.747 [burst] hold +15s
+2026-09-18 09:38:00.748 [burst] hold +20s
+2026-09-18 09:38:05.748 [burst] hold +25s
+2026-09-18 09:38:10.748 [burst] hold +30s
+2026-09-18 09:38:10.748 [A] closed socket (local 192.168.114.17:48758) linger=None
+2026-09-18 09:38:10.748 [B-after] send 7B 31 00 7D (4B) (A 关闭 +0.0s；等集中应答)
+2026-09-18 09:38:10.750 [B-after] recv +1.2ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:10.750 [B-after] recv +1.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:10.750 [B-after] recv +1.6ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:10.750 [B-after] recv +1.8ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:10.750 [B-after] recv +2.0ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:13.250 [B-after] send 7B 31 00 7D (4B) (A 关闭 +2.5s；等集中应答)
+2026-09-18 09:38:13.250 [B-after] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:15.752 [B-after] send 7B 31 00 7D (4B) (A 关闭 +5.0s；等集中应答)
+2026-09-18 09:38:15.752 [B-after] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:18.254 [B] 集中应答：首个 +2.0s，轮次 [5, 1, 1]，合计 7 帧（积压 6 条）
+2026-09-18 09:38:18.254 [B] closed socket (local 192.168.114.17:48764) linger=None
+2026-09-18 09:38:19.254 [mon] 健康监控开始：每 2s 一轮 {connect → '1' 查询 → close} + ping
+2026-09-18 09:38:19.255 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:40968 dt=0.2ms linger=None
+2026-09-18 09:38:19.255 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:38:19.255 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:20.756 [mon] closed socket (local 192.168.114.17:40968) linger=None
+2026-09-18 09:38:20.757 [mon] +0.0s iter1: tcp_hit=1 ping=OK
+2026-09-18 09:38:22.758 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:40984 dt=0.2ms linger=None
+2026-09-18 09:38:22.758 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:38:22.758 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:24.260 [mon] closed socket (local 192.168.114.17:40984) linger=None
+2026-09-18 09:38:24.262 [mon] +3.5s iter2: tcp_hit=1 ping=OK
+2026-09-18 09:38:26.262 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:41000 dt=0.3ms linger=None
+2026-09-18 09:38:26.263 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:38:26.263 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:27.764 [mon] closed socket (local 192.168.114.17:41000) linger=None
+2026-09-18 09:38:27.765 [mon] +7.0s iter3: tcp_hit=1 ping=OK
+2026-09-18 09:38:29.766 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34320 dt=0.2ms linger=None
+2026-09-18 09:38:29.766 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:38:29.766 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:38:31.268 [mon] closed socket (local 192.168.114.17:34320) linger=None
+2026-09-18 09:38:32.270 [mon] +10.5s iter4: tcp_hit=1 ping=FAIL
+2026-09-18 09:38:36.773 [mon] connect 192.168.114.200:9528 FAIL errno=None (timed out) dt=2502.3ms
+2026-09-18 09:38:39.276 [mon] connect 192.168.114.200:10028 FAIL errno=None (timed out) dt=2502.6ms
+2026-09-18 09:38:40.278 [mon] +15.0s iter5: tcp_hit=0 ping=FAIL
+2026-09-18 09:38:44.779 [mon] connect 192.168.114.200:9528 FAIL errno=None (timed out) dt=2501.0ms
+2026-09-18 09:38:47.282 [mon] connect 192.168.114.200:10028 FAIL errno=None (timed out) dt=2502.6ms
+2026-09-18 09:38:48.284 [mon] +23.0s iter6: tcp_hit=0 ping=FAIL
+2026-09-18 09:38:52.787 [mon] connect 192.168.114.200:9528 FAIL errno=None (timed out) dt=2502.6ms
+2026-09-18 09:38:55.289 [mon] connect 192.168.114.200:10028 FAIL errno=None (timed out) dt=2502.3ms
+2026-09-18 09:38:56.291 [mon] +31.0s iter7: tcp_hit=0 ping=FAIL
+2026-09-18 09:39:00.793 [mon] connect 192.168.114.200:9528 FAIL errno=None (timed out) dt=2501.9ms
+2026-09-18 09:39:00.793 [mon] connect 192.168.114.200:10028 FAIL errno=111 ([Errno 111] Connection refused) dt=0.3ms
+2026-09-18 09:39:00.794 [mon] +39.0s iter8: tcp_hit=0 ping=OK
+2026-09-18 09:39:02.795 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34856 dt=0.3ms linger=None
+2026-09-18 09:39:02.795 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:02.795 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:04.296 [mon] closed socket (local 192.168.114.17:34856) linger=None
+2026-09-18 09:39:04.297 [mon] +43.5s iter9: tcp_hit=1 ping=OK
+2026-09-18 09:39:06.297 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34862 dt=0.2ms linger=None
+2026-09-18 09:39:06.298 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:06.298 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:07.799 [mon] closed socket (local 192.168.114.17:34862) linger=None
+2026-09-18 09:39:07.801 [mon] +47.0s iter10: tcp_hit=1 ping=OK
+2026-09-18 09:39:09.801 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34030 dt=0.2ms linger=None
+2026-09-18 09:39:09.802 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:09.802 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:11.303 [mon] closed socket (local 192.168.114.17:34030) linger=None
+2026-09-18 09:39:11.305 [mon] +50.5s iter11: tcp_hit=1 ping=OK
+2026-09-18 09:39:13.305 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34046 dt=0.3ms linger=None
+2026-09-18 09:39:13.306 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:13.306 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:14.807 [mon] closed socket (local 192.168.114.17:34046) linger=None
+2026-09-18 09:39:14.808 [mon] +54.1s iter12: tcp_hit=1 ping=OK
+2026-09-18 09:39:16.809 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:34052 dt=0.2ms linger=None
+2026-09-18 09:39:16.809 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:16.809 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:18.310 [mon] closed socket (local 192.168.114.17:34052) linger=None
+2026-09-18 09:39:18.311 [mon] +57.6s iter13: tcp_hit=1 ping=OK
+2026-09-18 09:39:20.312 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:60146 dt=0.3ms linger=None
+2026-09-18 09:39:20.312 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:20.313 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:21.814 [mon] closed socket (local 192.168.114.17:60146) linger=None
+2026-09-18 09:39:21.816 [mon] +61.1s iter14: tcp_hit=1 ping=OK
+2026-09-18 09:39:23.816 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:60150 dt=0.3ms linger=None
+2026-09-18 09:39:23.816 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:23.817 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:25.318 [mon] closed socket (local 192.168.114.17:60150) linger=None
+2026-09-18 09:39:25.320 [mon] +64.6s iter15: tcp_hit=1 ping=OK
+2026-09-18 09:39:27.320 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:60156 dt=0.2ms linger=None
+2026-09-18 09:39:27.320 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:27.321 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:28.822 [mon] closed socket (local 192.168.114.17:60156) linger=None
+2026-09-18 09:39:28.823 [mon] +68.1s iter16: tcp_hit=1 ping=OK
+2026-09-18 09:39:30.824 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:44654 dt=0.3ms linger=None
+2026-09-18 09:39:30.824 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:30.824 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:32.325 [mon] closed socket (local 192.168.114.17:44654) linger=None
+2026-09-18 09:39:32.327 [mon] +71.6s iter17: tcp_hit=1 ping=OK
+2026-09-18 09:39:34.327 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:44666 dt=0.3ms linger=None
+2026-09-18 09:39:34.327 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:34.328 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:35.829 [mon] closed socket (local 192.168.114.17:44666) linger=None
+2026-09-18 09:39:35.831 [mon] +75.1s iter18: tcp_hit=1 ping=OK
+2026-09-18 09:39:37.831 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:44678 dt=0.2ms linger=None
+2026-09-18 09:39:37.831 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:37.832 [mon] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:39.333 [mon] closed socket (local 192.168.114.17:44678) linger=None
+2026-09-18 09:39:39.334 [mon] +78.6s iter19: tcp_hit=1 ping=OK
+2026-09-18 09:39:41.335 [mon] connect 192.168.114.200:9528 OK local=192.168.114.17:59012 dt=0.3ms linger=None
+2026-09-18 09:39:41.335 [mon] send 7B 31 00 7D (4B)
+2026-09-18 09:39:41.335 [mon] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:39:42.837 [mon] closed socket (local 192.168.114.17:59012) linger=None
+2026-09-18 09:39:42.838 [mon] +82.1s iter20: tcp_hit=1 ping=OK
+2026-09-18 09:39:44.838 [mon] 异常轮次（t, tcp_connect_ok, hits, ping_ok）= [(10.5, True, 1, False), (15.0, False, 0, False), (23.0, False, 0, False), (31.0, False, 0, False), (39.0, False, 0, True)]
+2026-09-18 09:40:35.352 [====] run step=churn (pid=402581)
+2026-09-18 09:40:35.352 [====] ======================================================================
+2026-09-18 09:40:35.352 [====] 附加实验：连接抖动 20 轮（无积压/无并发占位），全程抓包
+2026-09-18 09:40:35.352 [====] ======================================================================
+2026-09-18 09:40:35.353 [churn] tcpdump started (pid=402584) -> /home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/churn_capture.txt
+2026-09-18 09:40:35.353 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:34422 dt=0.3ms linger=None
+2026-09-18 09:40:35.353 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:35.354 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:36.855 [churn] closed socket (local 192.168.114.17:34422) linger=None
+2026-09-18 09:40:36.857 [churn] +0.0s cycle1: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:38.358 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:34424 dt=0.3ms linger=None
+2026-09-18 09:40:38.358 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:38.358 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:39.859 [churn] closed socket (local 192.168.114.17:34424) linger=None
+2026-09-18 09:40:39.861 [churn] +3.0s cycle2: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:41.361 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:46328 dt=0.3ms linger=None
+2026-09-18 09:40:41.362 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:41.362 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:42.863 [churn] closed socket (local 192.168.114.17:46328) linger=None
+2026-09-18 09:40:42.865 [churn] +6.0s cycle3: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:44.366 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:46334 dt=0.3ms linger=None
+2026-09-18 09:40:44.366 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:44.366 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:45.867 [churn] closed socket (local 192.168.114.17:46334) linger=None
+2026-09-18 09:40:45.869 [churn] +9.0s cycle4: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:47.369 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:46348 dt=0.3ms linger=None
+2026-09-18 09:40:47.370 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:47.370 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:48.871 [churn] closed socket (local 192.168.114.17:46348) linger=None
+2026-09-18 09:40:48.873 [churn] +12.0s cycle5: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:50.373 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:33038 dt=0.4ms linger=None
+2026-09-18 09:40:50.374 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:50.374 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:51.875 [churn] closed socket (local 192.168.114.17:33038) linger=None
+2026-09-18 09:40:51.877 [churn] +15.0s cycle6: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:53.378 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:33046 dt=0.3ms linger=None
+2026-09-18 09:40:53.378 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:53.378 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:54.880 [churn] closed socket (local 192.168.114.17:33046) linger=None
+2026-09-18 09:40:54.882 [churn] +18.0s cycle7: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:56.383 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:33062 dt=0.3ms linger=None
+2026-09-18 09:40:56.383 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:56.383 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:40:57.885 [churn] closed socket (local 192.168.114.17:33062) linger=None
+2026-09-18 09:40:57.887 [churn] +21.0s cycle8: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:40:59.387 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:43550 dt=0.3ms linger=None
+2026-09-18 09:40:59.388 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:40:59.388 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:00.889 [churn] closed socket (local 192.168.114.17:43550) linger=None
+2026-09-18 09:41:00.891 [churn] +24.0s cycle9: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:02.392 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:43560 dt=0.3ms linger=None
+2026-09-18 09:41:02.392 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:02.392 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:03.894 [churn] closed socket (local 192.168.114.17:43560) linger=None
+2026-09-18 09:41:03.896 [churn] +27.0s cycle10: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:05.396 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:43574 dt=0.3ms linger=None
+2026-09-18 09:41:05.397 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:05.397 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:06.898 [churn] closed socket (local 192.168.114.17:43574) linger=None
+2026-09-18 09:41:06.900 [churn] +30.0s cycle11: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:08.401 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:43586 dt=0.3ms linger=None
+2026-09-18 09:41:08.401 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:08.401 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:09.903 [churn] closed socket (local 192.168.114.17:43586) linger=None
+2026-09-18 09:41:09.905 [churn] +33.0s cycle12: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:11.406 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:55796 dt=0.3ms linger=None
+2026-09-18 09:41:11.406 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:11.406 [churn] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:12.907 [churn] closed socket (local 192.168.114.17:55796) linger=None
+2026-09-18 09:41:12.910 [churn] +36.1s cycle13: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:14.410 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:55808 dt=0.3ms linger=None
+2026-09-18 09:41:14.410 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:14.411 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:15.912 [churn] closed socket (local 192.168.114.17:55808) linger=None
+2026-09-18 09:41:15.914 [churn] +39.1s cycle14: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:17.415 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:55812 dt=0.3ms linger=None
+2026-09-18 09:41:17.415 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:17.415 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:18.916 [churn] closed socket (local 192.168.114.17:55812) linger=None
+2026-09-18 09:41:18.918 [churn] +42.1s cycle15: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:20.419 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:59186 dt=0.3ms linger=None
+2026-09-18 09:41:20.419 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:20.420 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:21.921 [churn] closed socket (local 192.168.114.17:59186) linger=None
+2026-09-18 09:41:21.923 [churn] +45.1s cycle16: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:23.423 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:59192 dt=0.3ms linger=None
+2026-09-18 09:41:23.424 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:23.424 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:24.925 [churn] closed socket (local 192.168.114.17:59192) linger=None
+2026-09-18 09:41:24.927 [churn] +48.1s cycle17: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:26.428 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:59198 dt=0.3ms linger=None
+2026-09-18 09:41:26.428 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:26.428 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:27.930 [churn] closed socket (local 192.168.114.17:59198) linger=None
+2026-09-18 09:41:27.932 [churn] +51.1s cycle18: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:29.432 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:33550 dt=0.3ms linger=None
+2026-09-18 09:41:29.432 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:29.433 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:30.934 [churn] closed socket (local 192.168.114.17:33550) linger=None
+2026-09-18 09:41:30.936 [churn] +54.1s cycle19: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:32.437 [churn] connect 192.168.114.200:9528 OK local=192.168.114.17:33552 dt=0.3ms linger=None
+2026-09-18 09:41:32.437 [churn] send 7B 31 00 7D (4B)
+2026-09-18 09:41:32.437 [churn] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:41:33.938 [churn] closed socket (local 192.168.114.17:33552) linger=None
+2026-09-18 09:41:33.941 [churn] +57.1s cycle20: tcp_connect=OK tcp_hit=1 ping=OK
+2026-09-18 09:41:35.472 [churn] 异常轮次（t, tcp_connect_ok, hits, ping_ok）= 无
+2026-09-18 09:41:35.473 [cap] capture lines=300 ARP=60 ICMP=40 RST=0 SYN=19
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695635.812080 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695636.810967 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695637.810914 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695638.810862 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695639.810822 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695640.811835 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695641.810716 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695642.810664 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695643.810617 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695644.810565 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695645.811588 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695646.810469 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695647.810415 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695648.810359 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695649.810326 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695650.811331 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695651.810221 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695652.810166 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695653.810115 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:41:35.473 [cap]   ARP: 1789695654.810074 ARP, Request who-has 192.168.114.1 tell 192.168.114.200, length 46
+2026-09-18 09:42:06.475 [====] run step=watch (pid=411181)
+2026-09-18 09:42:06.475 [====] ======================================================================
+2026-09-18 09:42:06.475 [====] 附加实验：240s 被动观察（保持 1 条连接 + ping + 抓包）
+2026-09-18 09:42:06.475 [====] ======================================================================
+2026-09-18 09:42:06.476 [watch] connect 192.168.114.200:9528 OK local=192.168.114.17:52958 dt=0.3ms linger=None
+2026-09-18 09:42:06.476 [watch] tcpdump started (pid=411183) -> /home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/watch_capture.txt
+2026-09-18 09:42:06.478 [watch] send 7B 31 00 7D (4B) (+0s)
+2026-09-18 09:42:06.478 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:42:16.490 [watch] send 7B 31 00 7D (4B) (+10s)
+2026-09-18 09:42:16.490 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:42:26.502 [watch] send 7B 31 00 7D (4B) (+20s)
+2026-09-18 09:42:26.502 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:42:36.514 [watch] send 7B 31 00 7D (4B) (+30s)
+2026-09-18 09:42:36.514 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:42:46.526 [watch] send 7B 31 00 7D (4B) (+40s)
+2026-09-18 09:42:46.526 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:42:56.536 [watch] send 7B 31 00 7D (4B) (+50s)
+2026-09-18 09:42:56.537 [watch] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:43:06.548 [watch] send 7B 31 00 7D (4B) (+60s)
+2026-09-18 09:43:06.549 [watch] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 09:43:09.752 [watch] +62.3s PING FAIL（板子 ICMP 无响应）
+2026-09-18 09:43:16.559 [watch] send 7B 31 00 7D (4B) (+70s)
+2026-09-18 09:43:18.561 [watch] NO RESPONSE within 2s
+2026-09-18 09:43:18.561 [watch] +70.1s TCP 查询无应答
+2026-09-18 09:43:26.569 [watch] send 7B 31 00 7D (4B) (+80s)
+2026-09-18 09:43:28.571 [watch] NO RESPONSE within 2s
+2026-09-18 09:43:28.571 [watch] +80.1s TCP 查询无应答
+2026-09-18 09:43:36.579 [watch] send 7B 31 00 7D (4B) (+90s)
+2026-09-18 09:43:38.581 [watch] NO RESPONSE within 2s
+2026-09-18 09:43:38.581 [watch] +90.1s TCP 查询无应答
+2026-09-18 09:43:38.783 [watch] +92.3s PING OK（中断 30.0s）
+2026-09-18 09:43:46.591 [watch] send FAIL errno=104 ([Errno 104] Connection reset by peer) (+100s)
+2026-09-18 09:43:46.591 [watch] +100.1s TCP 查询无应答
+2026-09-18 09:43:56.603 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+110s)
+2026-09-18 09:43:56.603 [watch] +110.1s TCP 查询无应答
+2026-09-18 09:44:06.615 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+120s)
+2026-09-18 09:44:06.615 [watch] +120.1s TCP 查询无应答
+2026-09-18 09:44:16.628 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+130s)
+2026-09-18 09:44:16.628 [watch] +130.2s TCP 查询无应答
+2026-09-18 09:44:26.641 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+140s)
+2026-09-18 09:44:26.641 [watch] +140.2s TCP 查询无应答
+2026-09-18 09:44:36.654 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+150s)
+2026-09-18 09:44:36.654 [watch] +150.2s TCP 查询无应答
+2026-09-18 09:44:46.667 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+160s)
+2026-09-18 09:44:46.667 [watch] +160.2s TCP 查询无应答
+2026-09-18 09:44:56.681 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+170s)
+2026-09-18 09:44:56.681 [watch] +170.2s TCP 查询无应答
+2026-09-18 09:45:06.693 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+180s)
+2026-09-18 09:45:06.693 [watch] +180.2s TCP 查询无应答
+2026-09-18 09:45:16.707 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+190s)
+2026-09-18 09:45:16.707 [watch] +190.2s TCP 查询无应答
+2026-09-18 09:45:26.720 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+200s)
+2026-09-18 09:45:26.720 [watch] +200.2s TCP 查询无应答
+2026-09-18 09:45:36.732 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+210s)
+2026-09-18 09:45:36.732 [watch] +210.3s TCP 查询无应答
+2026-09-18 09:45:46.744 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+220s)
+2026-09-18 09:45:46.744 [watch] +220.3s TCP 查询无应答
+2026-09-18 09:45:56.756 [watch] send FAIL errno=32 ([Errno 32] Broken pipe) (+230s)
+2026-09-18 09:45:56.757 [watch] +230.3s TCP 查询无应答
+2026-09-18 09:46:06.567 [watch] closed socket (local 192.168.114.17:52958) linger=None
+2026-09-18 09:46:06.599 [watch] 事件表 = [(62.3, 'PING-FAIL-START'), (92.3, 'PING-OK-AFTER-30.0s')]
+2026-09-18 09:46:06.599 [cap] lines=466 ARP_request=219 ICMP=208 TCP=27
+2026-09-18 09:46:06.599 [cap] ARP 目标统计（前 3 个不同目标）：
+2026-09-18 09:46:06.599 [cap]   who-has 192.168.114.1: 209 次
+2026-09-18 09:46:06.599 [cap]   who-has 192.168.114.200: 9 次
+2026-09-18 09:46:06.600 [cap]   who-has 192.168.114.17: 1 次
+2026-09-18 09:46:06.600 [cap]   tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+2026-09-18 09:46:06.600 [cap]   listening on enp193s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+2026-09-18 09:46:06.600 [cap]   1789695728.682312 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39931, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695728.682478 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39931, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695730.684359 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39932, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695730.684491 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39932, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695732.686592 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39933, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695732.686699 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39933, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695734.689148 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39934, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695734.689276 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39934, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695736.490247 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 2060863599:2060863603, ack 17560, win 64235, length 4
+2026-09-18 09:46:06.600 [cap]   1789695736.490551 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 1:6, ack 4, win 2136, length 5
+2026-09-18 09:46:06.600 [cap]   1789695736.490571 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 6, win 64230, length 0
+2026-09-18 09:46:06.600 [cap]   1789695738.693613 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39935, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695738.693783 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39935, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695740.696055 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39936, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695740.696189 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39936, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695742.698416 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39937, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695742.698548 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39937, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695744.700917 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39938, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695744.701086 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39938, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695746.502035 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 4:8, ack 6, win 64230, length 4
+2026-09-18 09:46:06.600 [cap]   1789695746.502369 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 6:11, ack 8, win 2132, length 5
+2026-09-18 09:46:06.600 [cap]   1789695746.502390 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 11, win 64225, length 0
+2026-09-18 09:46:06.600 [cap]   1789695748.705612 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39939, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695748.705748 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39939, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695750.708384 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39940, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695750.708508 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39940, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695752.711029 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39941, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695752.711197 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39941, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695754.713498 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39942, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695754.713642 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39942, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695756.514620 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 8:12, ack 11, win 64225, length 4
+2026-09-18 09:46:06.600 [cap]   1789695756.514921 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 11:16, ack 12, win 2128, length 5
+2026-09-18 09:46:06.600 [cap]   1789695756.514950 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 16, win 64220, length 0
+2026-09-18 09:46:06.600 [cap]   1789695758.718042 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39943, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695758.718163 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39943, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695760.720441 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39944, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695760.720572 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39944, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695762.722600 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39945, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695762.722765 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39945, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695764.725357 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39946, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695764.725492 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39946, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695766.526494 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 12:16, ack 16, win 64220, length 4
+2026-09-18 09:46:06.600 [cap]   1789695766.526790 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 16:21, ack 16, win 2124, length 5
+2026-09-18 09:46:06.600 [cap]   1789695766.526834 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 21, win 64215, length 0
+2026-09-18 09:46:06.600 [cap]   1789695768.729824 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39947, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695768.729946 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39947, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695770.731811 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39948, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695770.731971 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39948, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695772.733466 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39949, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695772.733591 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39949, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695774.735677 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39950, seq 1, length 64
+2026-09-18 09:46:06.600 [cap]   1789695774.735802 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39950, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695776.536745 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 16:20, ack 21, win 64215, length 4
+2026-09-18 09:46:06.601 [cap]   1789695776.537056 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 21:26, ack 20, win 2120, length 5
+2026-09-18 09:46:06.601 [cap]   1789695776.537084 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 26, win 64210, length 0
+2026-09-18 09:46:06.601 [cap]   1789695778.739456 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39951, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695778.739615 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39951, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695780.741821 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39952, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695780.741946 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39952, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695782.744795 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39953, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695782.744927 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39953, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695784.747782 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39954, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695784.747909 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39954, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695786.548927 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 20:24, ack 26, win 64210, length 4
+2026-09-18 09:46:06.601 [cap]   1789695786.549274 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [P.], seq 26:31, ack 24, win 2116, length 5
+2026-09-18 09:46:06.601 [cap]   1789695786.549313 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [.], ack 31, win 64205, length 0
+2026-09-18 09:46:06.601 [cap]   1789695788.751711 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39955, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695790.754126 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39956, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695792.756370 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39957, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695794.758672 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39958, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695796.559400 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695796.768221 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695797.177221 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695798.016220 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695798.763224 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39959, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695799.680196 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695800.764975 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39960, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695802.766479 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39961, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695802.945218 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695804.768523 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39962, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695808.772551 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39963, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695809.728228 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695810.774490 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39964, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695812.776200 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39965, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695814.778558 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39966, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695818.782881 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39967, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695818.783110 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39967, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695820.785634 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39968, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695820.785761 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39968, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695822.788081 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39969, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695822.788189 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39969, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695823.040213 IP 192.168.114.17.52958 > 192.168.114.200.9528: Flags [P.], seq 24:28, ack 31, win 64205, length 4
+2026-09-18 09:46:06.601 [cap]   1789695823.040333 IP 192.168.114.200.9528 > 192.168.114.17.52958: Flags [R.], seq 31, ack 28, win 24584, length 0
+2026-09-18 09:46:06.601 [cap]   1789695824.790505 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39970, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695824.790630 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39970, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695826.793358 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39971, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695826.793483 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39971, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695828.795476 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39972, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695828.795641 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39972, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695830.797938 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39973, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695830.798105 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39973, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695832.800127 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39974, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695832.800248 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39974, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695834.802092 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39975, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695834.802213 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39975, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695836.805194 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39976, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695836.805353 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39976, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695838.807651 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39977, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695838.807774 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39977, seq 1, length 64
+2026-09-18 09:46:06.601 [cap]   1789695840.810002 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39978, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695840.810126 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39978, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695842.811949 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39979, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695842.812057 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39979, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695844.814291 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39980, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695844.814413 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39980, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695846.817602 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39981, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695846.817833 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39981, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695848.820126 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39982, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695848.820285 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39982, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695850.822539 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39983, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695850.822646 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39983, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695852.824951 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39984, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695852.825076 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39984, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695854.827357 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39985, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695854.827469 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39985, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695856.829943 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39986, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695856.830105 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39986, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695858.832793 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39987, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695858.832917 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39987, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695860.835196 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39988, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695860.835317 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39988, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695862.837612 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39989, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695862.837735 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39989, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695864.840117 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39990, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695864.840285 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39990, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695866.842991 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39991, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695866.843103 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39991, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695868.845424 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39992, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695868.845542 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39992, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695870.847890 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39993, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695870.848084 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39993, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695872.850572 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39994, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695872.850718 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39994, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695874.853077 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39995, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695874.853199 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39995, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695876.856225 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39996, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695876.856356 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39996, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695878.858707 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39997, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695878.858818 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39997, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695880.861342 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39998, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695880.861507 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39998, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695882.864051 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 39999, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695882.864179 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 39999, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695884.866188 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40000, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695884.866379 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40000, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695886.868801 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40001, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695886.868929 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40001, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695888.871678 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40002, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695888.871842 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40002, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695890.874771 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40003, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695890.874941 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40003, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695892.877315 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40004, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695892.877480 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40004, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695894.879833 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40005, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695894.879960 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40005, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695896.882969 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40006, seq 1, length 64
+2026-09-18 09:46:06.602 [cap]   1789695896.883090 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40006, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695898.885830 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40007, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695898.885979 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40007, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695900.888124 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40008, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695900.888248 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40008, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695902.890382 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40009, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695902.890512 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40009, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695904.892668 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40010, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695904.892875 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40010, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695906.895522 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40011, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695906.895691 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40011, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695908.898278 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40012, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695908.898403 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40012, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695910.900798 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40013, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695910.900926 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40013, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695912.903631 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40014, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695912.903765 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40014, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695914.906140 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40015, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695914.906303 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40015, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695916.908923 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40016, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695916.909051 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40016, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695918.911783 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40017, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695918.911913 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40017, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695920.913854 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40018, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695920.914057 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40018, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695922.916478 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40019, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695922.916638 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40019, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695924.918984 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40020, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695924.919108 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40020, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695926.921326 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40021, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695926.921453 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40021, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695928.923618 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40022, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695928.923740 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40022, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695930.926205 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40023, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695930.926367 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40023, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695932.928419 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40024, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695932.928547 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40024, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695934.930914 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40025, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695934.931048 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40025, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695936.933879 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40026, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695936.934002 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40026, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695938.936344 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40027, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695938.936451 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40027, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695940.938688 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40028, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695940.938847 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40028, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695942.940861 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40029, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695942.940986 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40029, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695944.943194 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40030, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695944.943343 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40030, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695946.946046 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40031, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695946.946241 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40031, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695948.948143 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40032, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695948.948305 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40032, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695950.950861 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40033, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695950.951037 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40033, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695952.953311 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40034, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695952.953430 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40034, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695954.955699 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40035, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695954.955834 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40035, seq 1, length 64
+2026-09-18 09:46:06.603 [cap]   1789695956.958413 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40036, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695956.958581 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40036, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695958.960276 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40037, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695958.960397 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40037, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695960.962073 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40038, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695960.962197 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40038, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695962.964136 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40039, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695962.964267 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40039, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695964.966691 IP 192.168.114.17 > 192.168.114.200: ICMP echo request, id 40040, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   1789695964.966864 IP 192.168.114.200 > 192.168.114.17: ICMP echo reply, id 40040, seq 1, length 64
+2026-09-18 09:46:06.604 [cap]   
+2026-09-18 09:46:06.604 [cap]   460 packets captured
+2026-09-18 09:46:06.604 [cap]   465 packets received by filter
+2026-09-18 09:46:06.604 [cap]   0 packets dropped by kernel
+2026-09-18 09:47:35.608 [====] run step=final (pid=451184)
+2026-09-18 09:47:35.609 [====] ======================================================================
+2026-09-18 09:47:35.609 [====] 步骤 5：收尾基线（清空连接后重新验证单连接 '1' 查询）
+2026-09-18 09:47:35.609 [====] ======================================================================
+2026-09-18 09:47:35.609 [final] connect 192.168.114.200:9528 OK local=192.168.114.17:39380 dt=0.3ms linger=None
+2026-09-18 09:47:35.609 [final-q1] send 7B 31 00 7D (4B)
+2026-09-18 09:47:35.609 [final-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:47:37.611 [final-q2] send 7B 31 00 7D (4B)
+2026-09-18 09:47:37.611 [final-q2] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:47:39.613 [final-q3] send 7B 31 00 7D (4B)
+2026-09-18 09:47:39.613 [final-q3] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:47:41.615 [final] closed socket (local 192.168.114.17:39380) linger=None
+2026-09-18 09:47:41.615 [final] RESULT: 3/3 收到 7B 31 01 00 7D；raw=<见上>
+2026-09-18 09:47:41.622 [final] leftover yn_ol_test rules: 0
+2026-09-18 09:48:32.714 [====] run step=liveness (pid=459153)
+2026-09-18 09:48:32.714 [====] ======================================================================
+2026-09-18 09:48:32.714 [====] 附加实验：300s 纯 liveness（无 TCP 流量；板子 1Hz ARP 心跳 + ping）
+2026-09-18 09:48:32.714 [====] ======================================================================
+2026-09-18 09:48:32.716 [live] board mac from neigh = 02:00:2d:00:34:32
+2026-09-18 09:48:32.717 [live] tcpdump started (pid=459157) filter=ether src 02:00:2d:00:34:32 and arp -> /home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/liveness_capture.txt
+2026-09-18 09:53:33.307 [live] ping 失败 0 次；中断窗口 = []
+2026-09-18 09:53:33.307 [live] 板子 ARP 心跳：309 包，1789696112.8~1789696412.8，间隔>3s 的空窗 = []
+2026-09-18 09:54:31.589 [====] run step=hold (pid=505723)
+2026-09-18 09:54:31.589 [====] ======================================================================
+2026-09-18 09:54:31.589 [====] 附加实验：长连接假设验证（保持 1 条连接 150s，观察是否 ~60s 后板子整体死亡）
+2026-09-18 09:54:31.589 [====] ======================================================================
+2026-09-18 09:54:31.589 [hold] connect 192.168.114.200:9528 OK local=192.168.114.17:49732 dt=0.3ms linger=None
+2026-09-18 09:54:31.589 [hold] 连接已建立，开始计时（每 2s ping；每 10s '1' 查询）
+2026-09-18 09:54:31.591 [hold] send 7B 31 00 7D (4B) (+0s)
+2026-09-18 09:54:31.592 [hold] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:54:41.602 [hold] send 7B 31 00 7D (4B) (+10s)
+2026-09-18 09:54:41.602 [hold] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:54:51.613 [hold] send 7B 31 00 7D (4B) (+20s)
+2026-09-18 09:54:51.613 [hold] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 09:55:01.625 [hold] send 7B 31 00 7D (4B) (+30s)
+2026-09-18 09:55:01.626 [hold] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 09:55:11.637 [hold] send 7B 31 00 7D (4B) (+40s)
+2026-09-18 09:55:11.637 [hold] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 09:55:14.841 [hold] +42.2s 板子 ICMP 首次无响应（连接建立后 42.2s）
+2026-09-18 09:55:21.648 [hold] send 7B 31 00 7D (4B) (+50s)
+2026-09-18 09:55:23.650 [hold] NO RESPONSE within 2s
+2026-09-18 09:55:31.659 [hold] send 7B 31 00 7D (4B) (+60s)
+2026-09-18 09:55:33.660 [hold] NO RESPONSE within 2s
+2026-09-18 09:55:41.667 [hold] send 7B 31 00 7D (4B) (+70s)
+2026-09-18 09:55:43.669 [hold] NO RESPONSE within 2s
+2026-09-18 09:55:43.872 [hold] +72.3s 板子 ICMP 恢复（中断 30.0s）
+2026-09-18 09:55:51.680 [hold] send FAIL errno=104 ([Errno 104] Connection reset by peer) (+80s)
+2026-09-18 09:56:01.692 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+90s)
+2026-09-18 09:56:11.705 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+100s)
+2026-09-18 09:56:21.718 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+110s)
+2026-09-18 09:56:31.730 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+120s)
+2026-09-18 09:56:41.742 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+130s)
+2026-09-18 09:56:51.755 [hold] send FAIL errno=32 ([Errno 32] Broken pipe) (+140s)
+2026-09-18 09:57:01.768 [hold] 结果：queries_ok=5 首次 ping 失败=42.24960766299955 恢复=72.28050268100014
+2026-09-18 09:57:01.768 [hold] closed socket (local 192.168.114.17:49732) linger=None
+2026-09-18 09:58:21.367 [====] run step=hold2 (pid=530179)
+2026-09-18 09:58:21.367 [====] ======================================================================
+2026-09-18 09:58:21.367 [====] 附加实验：静默长连接对照（不发送任何 TCP 数据，仅外部 ping，150s）
+2026-09-18 09:58:21.367 [====] ======================================================================
+2026-09-18 09:58:21.368 [hold2] connect 192.168.114.200:9528 OK local=192.168.114.17:45358 dt=0.3ms linger=None
+2026-09-18 09:58:21.368 [hold2] 连接已建立；本实验不发送任何 TCP 数据（板子侧 recv 阻塞等待）
+2026-09-18 10:00:51.554 [hold2] 结果：首次 ping 失败=None 恢复=None（150s 内未出现中断）
+2026-09-18 10:00:51.554 [hold2] closed socket (local 192.168.114.17:45358) linger=None
+2026-09-18 10:01:21.519 [====] run step=quick5 (pid=542988)
+2026-09-18 10:01:21.519 [====] ======================================================================
+2026-09-18 10:01:21.519 [====] 附加实验：单连接快速 5 连发（短寿命）对照
+2026-09-18 10:01:21.519 [====] ======================================================================
+2026-09-18 10:01:21.519 [quick5] connect 192.168.114.200:9528 OK local=192.168.114.17:58140 dt=0.2ms linger=None
+2026-09-18 10:01:21.519 [quick5-q1] send 7B 31 00 7D (4B) (快速连发)
+2026-09-18 10:01:21.520 [quick5-q1] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 10:01:22.320 [quick5-q2] send 7B 31 00 7D (4B) (快速连发)
+2026-09-18 10:01:22.321 [quick5-q2] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 10:01:23.121 [quick5-q3] send 7B 31 00 7D (4B) (快速连发)
+2026-09-18 10:01:23.121 [quick5-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 10:01:23.922 [quick5-q4] send 7B 31 00 7D (4B) (快速连发)
+2026-09-18 10:01:23.922 [quick5-q4] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 10:01:24.723 [quick5-q5] send 7B 31 00 7D (4B) (快速连发)
+2026-09-18 10:01:24.723 [quick5-q5] recv +0.3ms 7B 31 01 00 7D (5B)
+2026-09-18 10:01:25.524 [quick5] closed socket (local 192.168.114.17:58140) linger=None
+2026-09-18 10:01:25.524 [quick5] 5 次查询共收到 5 个应答；连接寿命 4.0s
+2026-09-18 10:02:55.687 [quick5] 结果：90s 内未出现中断
+2026-09-18 10:03:33.885 [====] run step=final (pid=552679)
+2026-09-18 10:03:33.885 [====] ======================================================================
+2026-09-18 10:03:33.885 [====] 步骤 5：收尾基线（清空连接后重新验证单连接 '1' 查询）
+2026-09-18 10:03:33.885 [====] ======================================================================
+2026-09-18 10:03:33.885 [final] connect 192.168.114.200:9528 OK local=192.168.114.17:38976 dt=0.3ms linger=None
+2026-09-18 10:03:33.885 [final-q1] send 7B 31 00 7D (4B)
+2026-09-18 10:03:33.886 [final-q1] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 10:03:35.887 [final-q2] send 7B 31 00 7D (4B)
+2026-09-18 10:03:35.888 [final-q2] recv +0.5ms 7B 31 01 00 7D (5B)
+2026-09-18 10:03:37.889 [final-q3] send 7B 31 00 7D (4B)
+2026-09-18 10:03:37.890 [final-q3] recv +0.4ms 7B 31 01 00 7D (5B)
+2026-09-18 10:03:39.891 [final] closed socket (local 192.168.114.17:38976) linger=None
+2026-09-18 10:03:39.891 [final] RESULT: 3/3 收到 7B 31 01 00 7D；raw=<见上>
+2026-09-18 10:03:39.898 [final] leftover yn_ol_test rules: 0
+2026-09-18 10:28:59.023 [====] run step=--help (pid=727871)
+2026-09-18 10:28:59.023 [====] unknown step --help; use one of ['baseline', 'repro', 'halfopen', 'burst', 'churn', 'watch', 'liveness', 'hold', 'hold2', 'quick5', 'cleanup', 'final']

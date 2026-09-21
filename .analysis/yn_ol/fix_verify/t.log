@@ -1,0 +1,16 @@
+tcp_connect to port 9528
+[tcp_cli] connecting 192.168.0.127:9528 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_slowtmr: no active pcbs

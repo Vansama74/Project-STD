@@ -1,0 +1,52 @@
+===== [all_1263] make  =====
+build exit=0
+warn_total=3
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:948:60: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1027:74: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1063:75: warning: unused parameter 'Banks' [-Wunused-parameter]
+.text                173556   134480272
+.rodata              203840   134653832
+.data                  1672   536870912
+.ccmram               38332   268435456
+.bss                 124732   536872584
+._user_heap_stack      2564   536997316
+Total               2174353
+34fd021addd8891607d6c2d1df2bb434  build/Debug/Project_STD.elf
+0f9e128d65b6ff3338963bd372f079f1  build/Debug/Project_STD.hex
+e53c3737ca0bc48a858e33bfdc002771  build/Debug/Project_STD.bin
+
+===== [cq_1263] make PROTO=CQ =====
+build exit=0
+warn_total=3
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:948:60: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1027:74: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1063:75: warning: unused parameter 'Banks' [-Wunused-parameter]
+.text                160380   134480272
+.rodata              203184   134640656
+.data                   872   536870912
+.ccmram               36076   268435456
+.bss                 121256   536871784
+._user_heap_stack      2560   536993040
+Total               2092610
+bd6e9fcd51b1d52569884bf501fbc654  build/Debug/Project_STD.elf
+5b46c7566a2bbf9a9359cbd8f0dd2cb6  build/Debug/Project_STD.hex
+78c6a4cc99d9331d0038e7ed9f1453fe  build/Debug/Project_STD.bin
+
+===== [all_221665] make DISP=22_1665 =====
+build exit=0
+warn_total=3
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:948:60: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1027:74: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1063:75: warning: unused parameter 'Banks' [-Wunused-parameter]
+.text                173812   134480272
+.rodata              204096   134654088
+.data                  1672   536870912
+.ccmram               44156   268435456
+.bss                 124736   536872584
+._user_heap_stack      2560   536997320
+Total               2182922
+e72167414ec963537f6c48021c01dcf9  build/Debug/Project_STD.elf
+bfe10ee970274106b0d28c3d485f72f8  build/Debug/Project_STD.hex
+d438e7f735a502586d57636fc2ffa863  build/Debug/Project_STD.bin
+
+===== DONE =====

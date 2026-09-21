@@ -16,6 +16,58 @@
 #include "bit_utils.h"
 #include "initcall.h"
 #include "app_factory_test.h"
+#include "pl_task_static.h"
+#include "app_diag.h"    /* APP_DIAG_BANNER：队列满丢帧 / WAIT 预算到期告警（2026-09-17 YN_OL 联调轮） */
+#include "SEGGER_RTT.h"  /* 同上：告警输出通道（NO_BLOCK_SKIP，不阻塞调度） */
+
+/* ---- WAIT 头阻塞预算（any_wait 强制重同步阈值；2026-09-17 YN_OL 联调轮复核）----
+ * 语义：帧头已匹配但数据未到齐时，头部前缀在预算时间内**没有任何前进** →
+ *       判「残帧卡头」，强制 skip 1 字节重同步（见 frame_dispatch_task）。
+ * 取值依据（9600bps 串口，DIP1 OFF 默认档；10 bit/字节）：
+ *   · RLS 最长帧 530B ≈ 530×10/9600 = 552ms（当前协议集中最大的单帧）；
+ *   · YN_OL / 青海 / 贵州 / 云南常规 / GZ_OL 等 259B 级 ≈ 270ms；
+ *   · 取 1000ms → 对最长帧留 ~1.8× 余量，不误伤「载荷正在到齐」的正常等待。
+ * **为什么不是 500ms（原值）**：500ms < RLS 552ms——长帧在传完前预算即到期，
+ * 强制 skip 会拦腰打断合法长帧（本轮复核结论，doc/15 §9）。
+ * 可用 -DFRAME_WAIT_BUDGET_MS=xxx 覆盖。 */
+#ifndef FRAME_WAIT_BUDGET_MS
+#define FRAME_WAIT_BUDGET_MS 1000U
+#endif
+
+/* ---- probe 决策诊断（盲区 B）打印最小间隔 ----
+ * 语义：同一 RB 上「(协议 idx, 判定 sta, 头部指纹) 有变化」才打印，
+ *       且两条之间至少间隔 PROBE_DBG_MIN_MS（默认 200ms，最高 5 行/秒）。
+ * 目的：`{`（0x7B）帧到达但**没有任何协议消费**时（WAIT = 等不齐 / FAKE = 无协议认领），
+ *       把「卡在探测层」这件事变成 RTT 里可直接读出的事实（此前完全静默）。
+ * 可用 -DPROBE_DBG_MIN_MS=xxx 覆盖。 */
+#ifndef PROBE_DBG_MIN_MS
+#define PROBE_DBG_MIN_MS 200U
+#endif
+
+/* ---- 通道通知投递重试预算 ----
+ * 语义：ch_queue 投递失败（队列满）时先重试一次再计数丢弃（见 app_channel_dispatch）。
+ * 依据：队列 32 深、消费者为最高优先级的独立任务，正常瞬时即排空；20ms 足够覆盖
+ *       一次任务切换 + 一轮探测，把「静默丢通知」压成理论不可达。 */
+#ifndef DISPATCH_NOTIFY_RETRY_MS
+#define DISPATCH_NOTIFY_RETRY_MS 20U
+#endif
+
+/* ---- 「通道无协议承载」告警最小间隔（2026-09-18 YN_OL TCP 现场问题修复）----
+ * 语义：某通道有数据到达但 ch_proto_map[ch]=0（没有任何协议绑定它）时，
+ *       按通道限速打印 `[disp] ch=N has NO protocol bound …`。
+ * 依据：这是「TCP 连上、发数据零反应」最容易被漏掉的一种成因——数据已进通道
+ *       与 RB，但因为没有任何协议被探测，连盲区 B 的 probe 诊断都不会触发，
+ *       全链路零日志（2026-09-18 实测：EIDE Debug 排除 YN_OL 的镜像即此形态，
+ *       连上后 4 字节查询被静默吞掉）。1s 间隔足以在刷屏与可见性之间取平衡。
+ * 可用 -DDISPATCH_NOPROTO_DBG_MIN_MS=xxx 覆盖。 */
+#ifndef DISPATCH_NOPROTO_DBG_MIN_MS
+#define DISPATCH_NOPROTO_DBG_MIN_MS 1000U
+#endif
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * frame_dispatch_task：启动期创建一次、永不退出；静态化后不再占 ucHeap
+ * （省 1144B），CCM 占 1124B。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(frame_dispatch, 256);
 
 /* ---- g_ch_queue 静态分配 ---- */
 static StaticQueue_t s_ch_queue_cb;
@@ -73,6 +125,22 @@ _Static_assert(RB_SIZE_RJ45 == 1536U && RB_SIZE_RS485 == 768U && RB_SIZE_RS232 =
 
 dispatch_ctx_t g_dispatch;           /**< 全局调度上下文 */
 osThreadId_t g_dispatch_task_handle; /**< 帧分发任务句柄（外部用于 Suspend/Resume） */
+
+/* ---- 诊断计数访问器（只读；供协议模块的 RTT 汇总行读取）---- */
+uint32_t app_dispatch_qfull_drops(void)
+{
+    return g_dispatch.qfull_drop;
+}
+
+uint32_t app_dispatch_resync_count(void)
+{
+    return g_dispatch.resync_byte;
+}
+
+uint32_t app_dispatch_notify_drops(void)
+{
+    return g_dispatch.notify_drop;
+}
 
 /* ================================================================
  *  工具函数
@@ -199,8 +267,8 @@ void app_dispatch_init(void)
     /* 帧分发任务：遍历 ring buffer，调用各协议的探测函数 */
     const osThreadAttr_t frame_dispatch_task_attr = {
         .name       = "frame_dispatch_task",
-        .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(frame_dispatch, 256),
     };
     g_dispatch_task_handle = osThreadNew(frame_dispatch_task, nullptr, &frame_dispatch_task_attr);
 }
@@ -223,6 +291,46 @@ sw_app_initcall(app_dispatch_init);
  *    - 持锁跨整轮探测+读取，消除 TOCTOU 窗口
  * ================================================================ */
 
+/**
+ * @brief  环形缓冲区头部前缀指纹（诊断/预算进度判据；调用者须已持 rb 锁）。
+ *
+ * 取头部前 min(4, avail) 字节 + 参与字节数打包为 32 位指纹：
+ *   fp = (字节数 << 32) | b0<<24 | b1<<16 | b2<<8 | b3
+ * 用途：判断「缓冲区头部是否被消费/前进」。**注意**：avail 增长（数据变多）
+ * 但头部字节不变时指纹不变——这正是区分「正常攒帧」与「残帧卡头」的关键
+ * （见 frame_dispatch_task 的 WAIT 预算注释）。
+ *
+ * @param  rb     环形缓冲区（持锁调用）。
+ * @param  avail  当前可读字节数。
+ * @return 头部前缀指纹（avail==0 → 0）。
+ */
+static uint32_t _rb_head_fp(const ring_buffer_t *rb, uint16_t avail)
+{
+    uint8_t head[4];
+    const uint16_t n = (avail < (uint16_t)sizeof(head)) ? avail : (uint16_t)sizeof(head);
+    if (n == 0U)
+        return 0U;
+    rb_peek(rb, 0U, head, n, nullptr);
+
+    uint32_t fp = (uint32_t)n;
+    for (uint16_t i = 0U; i < n; i++)
+        fp = (fp << 8) | head[i];
+    return fp;
+}
+
+/**
+ * @brief  环形缓冲区 → 缓冲池槽号（`RB_SLOT_*`；WAIT 预算分槽用；调用者持 rb 锁）。
+ * @note   槽表由 `app_proto_acquire_buf` 填充，而本函数只在 `g_dispatch.proto_rb[]`
+ *         中的 RB 上调用 → 必命中；未命中兜底归槽 0（不越界，理论不可达）。
+ */
+static uint8_t _rb_slot_of(const ring_buffer_t *rb)
+{
+    for (uint8_t s = 0U; s < RB_CNT_MAX; s++)
+        if (g_dispatch.buf_pool[s] == rb)
+            return s;
+    return 0U;
+}
+
 void frame_dispatch_task(void *argument)
 {
     (void)argument;
@@ -231,10 +339,29 @@ void frame_dispatch_task(void *argument)
     uint32_t frame_len = 0; /**< 探测到的完整帧长度 */
     uint8_t aux        = 0; /**< 辅助信息（如命令码） */
 
-    /* WAIT 头阻塞预算状态（跨通知连续计时，本任务单消费者独占） */
-    static bool     s_wait_active = false; /**< 连续 any_wait 预算激活 */
-    static uint32_t s_wait_tick   = 0;     /**< 预算起点 tick */
-    static uint16_t s_wait_avail  = 0;     /**< 预算起点的 avail（检测增长） */
+    /* WAIT 头阻塞预算状态：**按物理 RB 分槽**（RB_CNT_MAX 条；本任务单消费者独占）。
+     * 进度判据 = **头部前缀指纹**（帧头被消费/前进），**不是** avail 增长：
+     * 残帧卡头时上位机每发一帧新数据 avail 都会增长，若按 avail 重置预算，
+     * 强制重同步永不触发 → 该 RB 永久不消费、后续帧全部无声丢弃
+     * （2026-09-17 现场「首次命令无反应、此后不再受控需重启」的根因 B；
+     *  详见 doc/15 §9 与 .analysis 报告）。
+     * **为什么按 RB 分槽**：若只维护一条全局预算状态，多 RB 交替通知时
+     * 「另一条 RB 的到达」会把本 RB 的计时不断重置（状态被抢占）→ 卡头 RB 的
+     * 预算同样永不到期；分槽后各 RB 独立计时、互不干扰。 */
+    static bool     s_wait_active[RB_CNT_MAX];  /**< 各 RB 的 WAIT 预算激活 */
+    static uint32_t s_wait_tick[RB_CNT_MAX];    /**< 各 RB 的预算起点 tick */
+    static uint32_t s_wait_head_fp[RB_CNT_MAX]; /**< 各 RB 预算起点的头部前缀指纹 */
+
+#if APP_DIAG_BANNER
+    /* 盲区 B 限速状态（按 RB 分槽；仅诊断，不参与任何调度决策）：
+     * 缓存「上次打印的 (协议 idx, 判定 sta, 头部前缀指纹, tick)」，同一卡帧
+     * 只打一行；任何字节被消费（解析/重同步/预算到期）即失效，下个卡帧重新打印。 */
+    static uint8_t  s_pdbg_idx[RB_CNT_MAX];
+    static uint8_t  s_pdbg_sta[RB_CNT_MAX];
+    static uint32_t s_pdbg_fp[RB_CNT_MAX];
+    static uint32_t s_pdbg_tick[RB_CNT_MAX];
+    static bool     s_pdbg_valid[RB_CNT_MAX];
+#endif
 
     for (;;) {
         /* 阻塞等待：任一通道收到数据时唤醒 */
@@ -250,6 +377,32 @@ void frame_dispatch_task(void *argument)
 
         /* 根据通道 ID 查表获得该通道承载的协议掩码 */
         proto_mask_t proto = g_dispatch.ch_proto_map[ch->ch_id];
+
+        /* ---- 无协议承载告警（2026-09-18 YN_OL TCP 现场问题根因修复）----
+         * 语义：该通道有数据到达，但**没有任何协议注册并绑定到它**
+         * （ch_proto_map=0：构建期把协议目录排除掉 / 新通道漏 bind / 绑定失败）。
+         * 原实现在这种情况下直接跳过整轮探测：字节永远留在 RB 里被无声吞掉，
+         * 且因为「一个协议都没被探测」，连盲区 B 的 `[disp] probe` 也不会打印
+         * ⇒ 现场表现为「TCP 连上、发数据零反应」，与「服务循环被占死」「probe
+         * 卡头」在 RTT 上完全无法区分（实测：EIDE Debug 排除 YN_OL 的镜像即此形）。
+         * 打印策略：按通道限速（同通道 1s 最多一行），诊断门控与工程其余 RTT
+         * 诊断一致（APP_DIAG_BANNER=0 时整段消除）。 */
+        if (proto == 0U) {
+#if APP_DIAG_BANNER
+            static uint32_t s_noproto_tick[CH_ID_MAX];
+            const uint32_t now_np = osKernelGetTickCount();
+            if ((uint32_t)(now_np - s_noproto_tick[ch->ch_id]) >=
+                pdMS_TO_TICKS(DISPATCH_NOPROTO_DBG_MIN_MS)) {
+                s_noproto_tick[ch->ch_id] = now_np;
+                SEGGER_RTT_printf(
+                    0,
+                    "[disp] ch=%u has NO protocol bound -> rx data swallowed (build/excludeList "
+                    "check!)\n",
+                    (unsigned)ch->ch_id);
+            }
+#endif
+            continue;
+        }
 
         /* 外循环：遍历已注册协议位 */
         uint32_t outer_iter = g_dispatch.registered_mask;
@@ -290,6 +443,11 @@ void frame_dispatch_task(void *argument)
                 bool any_fake    = false; /* 有协议：明确不是我的帧 */
                 bool any_overrun = false; /* 有协议：frame_len 越界不可信 */
                 bool any_parsed  = false; /* 有协议：READY 读走或 SKIP 跳过 */
+#if APP_DIAG_BANNER
+                /* 盲区 B 诊断：记录返回 WAIT / FAKE 的协议 idx（首个，链路序确定性） */
+                uint8_t diag_wait_idx = 0xFFU;
+                uint8_t diag_fake_idx = 0xFFU;
+#endif
 
                 /* 按协议优先级顺序探测已注册协议 */
                 uint32_t inner_iter = g_dispatch.registered_mask;
@@ -319,6 +477,10 @@ void frame_dispatch_task(void *argument)
                          * 内层 while 空转活锁。 */
                         if (avail < frame_len) {
                             any_wait = true;
+#if APP_DIAG_BANNER
+                            if (diag_wait_idx == 0xFFU)
+                                diag_wait_idx = j; /* 诊断：与 probe 返回 WAIT 同判读 */
+#endif
                             break;
                         }
 
@@ -329,7 +491,19 @@ void frame_dispatch_task(void *argument)
                         if (actual == frame_len) {
                             msg->data_len = frame_len;
                             msg->ch       = ch;
-                            osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0);
+                            /* 队列满 → 丢帧（协议任务被卡住/过载的第一现场证据）：
+                             * 计数 +（诊断开启时）告警。此前为完全静默的 osMessageQueuePut。 */
+                            if (osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0) != osOK) {
+                                g_dispatch.qfull_drop++;
+#if APP_DIAG_BANNER
+                                SEGGER_RTT_printf(
+                                    0,
+                                    "[disp] frame queue FULL -> drop: proto_idx=%u len=%u "
+                                    "qfull=%u (protocol task stuck or too slow?)\n",
+                                    (unsigned)j, (unsigned)frame_len,
+                                    (unsigned)g_dispatch.qfull_drop);
+#endif
+                            }
                         } else {
                             /* 异常：读出字节数不匹配，丢弃已读部分 */
                             rb_skip(rb, actual, nullptr);
@@ -348,6 +522,10 @@ void frame_dispatch_task(void *argument)
                         /* 数据未到齐 → 置 any_wait 等新字节（防空转） */
                         if (avail < frame_len) {
                             any_wait = true;
+#if APP_DIAG_BANNER
+                            if (diag_wait_idx == 0xFFU)
+                                diag_wait_idx = j; /* 诊断：与 probe 返回 WAIT 同判读 */
+#endif
                             break;
                         }
                         avail -= rb_skip(rb, frame_len, nullptr);
@@ -357,45 +535,146 @@ void frame_dispatch_task(void *argument)
                     } else if (state == PROTO_PROBE_WAIT) {
                         /* 数据不足，协议等待更多字节 —— 继续探测下一个协议 */
                         any_wait = true;
+#if APP_DIAG_BANNER
+                        if (diag_wait_idx == 0xFFU)
+                            diag_wait_idx = j;
+#endif
 
                     } else if (state == PROTO_PROBE_FAKE) {
                         /* 明确不是本协议 —— 继续探测下一个协议 */
                         any_fake = true;
+#if APP_DIAG_BANNER
+                        if (diag_fake_idx == 0xFFU)
+                            diag_fake_idx = j;
+#endif
                     }
                 }
 
+                /* 本 RB 的 WAIT 预算槽号（按 RB 独立计时，见任务头部状态注释） */
+                const uint8_t wait_slot = _rb_slot_of(rb);
+
+#if APP_DIAG_BANNER
+                /* ---- 盲区 B：probe 决策第一现场（2026-09-17 YN_OL 联调第二轮）----
+                 * 原先 probe 返回 WAIT/FAKE 时完全静默：帧到了板子却「没有反应」时，
+                 * 无法区分「卡在探测（等不齐 / 无协议认领）」与「压根没到通道层」。
+                 * 触发条件（严格限定，不做通用探针日志）：
+                 *   ① 本轮**无任何协议消费**（!any_parsed）；
+                 *   ② 有协议判 WAIT 或 FAKE；
+                 *   ③ RB 头部首字节 = '{'（0x7B，YN_OL / 云南常规等 `{` 帧族现场焦点）。
+                 * 限速：同一 RB 上「(idx, sta, 头部指纹) 三者有变化」才打印，且两条
+                 * 之间至少 PROBE_DBG_MIN_MS；任何字节被消费即失效 → 下个卡帧重新打印。 */
+                if (!any_parsed && (any_wait || any_fake) && avail > 0U) {
+                    uint8_t h0 = 0U;
+                    rb_peek(rb, 0U, &h0, 1U, nullptr);
+                    if (h0 == (uint8_t)'{') {
+                        const uint8_t sta =
+                            any_wait ? (uint8_t)PROTO_PROBE_WAIT : (uint8_t)PROTO_PROBE_FAKE;
+                        const uint8_t idx = any_wait ? diag_wait_idx : diag_fake_idx;
+                        const uint32_t fp = _rb_head_fp(rb, avail);
+                        const uint32_t now_d = osKernelGetTickCount();
+                        const bool changed =
+                            !s_pdbg_valid[wait_slot] || idx != s_pdbg_idx[wait_slot] ||
+                            sta != s_pdbg_sta[wait_slot] || fp != s_pdbg_fp[wait_slot];
+
+                        if (changed &&
+                            (now_d - s_pdbg_tick[wait_slot]) >= pdMS_TO_TICKS(PROBE_DBG_MIN_MS)) {
+                            char head_hex[2U * 8U + 1U];
+                            const uint16_t hn = (avail < 8U) ? avail : 8U;
+                            uint8_t hb[8];
+                            rb_peek(rb, 0U, hb, hn, nullptr);
+                            for (uint16_t k = 0U; k < hn; k++) {
+                                head_hex[k * 2U] = "0123456789abcdef"[hb[k] >> 4];
+                                head_hex[k * 2U + 1U] = "0123456789abcdef"[hb[k] & 0x0FU];
+                            }
+                            head_hex[hn * 2U] = '\0';
+                            SEGGER_RTT_printf(
+                                0,
+                                "[disp] probe idx=%u sta=%s(%u) avail=%u head8=%s -> %s\n",
+                                (unsigned)idx, any_wait ? "WAIT" : "FAKE", (unsigned)sta,
+                                (unsigned)avail, head_hex,
+                                any_wait ? "wait more bytes (frame incomplete)"
+                                         : "no protocol claimed, resync 1B");
+                            s_pdbg_valid[wait_slot] = true;
+                            s_pdbg_idx[wait_slot]   = idx;
+                            s_pdbg_sta[wait_slot]   = sta;
+                            s_pdbg_fp[wait_slot]    = fp;
+                            s_pdbg_tick[wait_slot]  = now_d;
+                        }
+                    }
+                }
+#endif /* APP_DIAG_BANNER */
+
                 /* 无协议成功解析时的决策:
-                 *   any_wait    → 禁 skip，等更多字节（带 500ms 时间预算防
-                 *                  帧头匹配后数据永不到齐的挂死）
+                 *   any_wait    → 禁 skip，等更多字节（带 FRAME_WAIT_BUDGET_MS
+                 *                  时间预算防「帧头匹配后数据永不到齐」的挂死）
                  *   any_overrun → frame_len 越界不可信，skip 1 字节重同步
                  *   any_fake    → 全部不认识，skip 1 字节重同步
                  *   其它        → 空缓冲区异常保护（防死循环）
                  */
                 if (!any_parsed) {
                     if (any_wait) {
-                        /* 时间预算依据：串口 9600 波特率下最大帧 259B 传完约
-                         * 259*10/9600 ≈ 270ms，500ms 预算留足余量，不误伤
-                         * "帧头已匹配、载荷未到齐"的正常等待。 */
-                        uint32_t now = osKernelGetTickCount();
-                        if (!s_wait_active || avail > s_wait_avail) {
-                            /* 首次等待 / 有新字节到达 → 重置预算起点 */
-                            s_wait_active = true;
-                            s_wait_tick   = now;
-                            s_wait_avail  = avail;
-                        } else if ((now - s_wait_tick) > pdMS_TO_TICKS(500U)) {
-                            /* 500ms 无消费且 avail 未增长 → 强制重同步 */
+                        /* 帧头已匹配、数据未到齐 → 等更多字节；带时间预算防
+                         * 「残帧卡头后永不到齐」的挂死（预算语义/取值依据见
+                         * 文件头 FRAME_WAIT_BUDGET_MS 注释）。
+                         *
+                         * **进度判据 = 头部前缀指纹变化（头被消费/前进），
+                         * 绝不能按 avail 增长重置**：残帧卡头时用户每发一帧
+                         * 新数据 avail 都增长，按 avail 重置 = 预算永不到期 =
+                         * 强制重同步永不触发 = 整条 RB 永久不消费（根因 B）。
+                         * 头部指纹不变（哪怕缓冲区更长）＝ 没有进度，预算照走。 */
+                        const uint32_t now = osKernelGetTickCount();
+                        const uint32_t fp  = _rb_head_fp(rb, avail);
+                        if (!s_wait_active[wait_slot] || fp != s_wait_head_fp[wait_slot]) {
+                            /* 首次等待 / 头部已前进 → 重置本 RB 的预算起点 */
+                            s_wait_active[wait_slot]  = true;
+                            s_wait_tick[wait_slot]    = now;
+                            s_wait_head_fp[wait_slot] = fp;
+                        } else if ((now - s_wait_tick[wait_slot]) >
+                                   pdMS_TO_TICKS(FRAME_WAIT_BUDGET_MS)) {
+                            /* 预算到期：头部前缀在预算时间内无任何前进 → 判残帧
+                             * 卡头，强制 skip 1 字节重同步。先留「卡帧第一现场」
+                             * 证据（头部前 8 字节 + avail + 累计次数），再消费。 */
+#if APP_DIAG_BANNER
+                            char head_hex[2U * 8U + 1U];
+                            const uint16_t ev_n =
+                                (avail < 8U) ? avail : 8U;
+                            uint8_t ev[8];
+                            rb_peek(rb, 0U, ev, ev_n, nullptr);
+                            for (uint16_t k = 0U; k < ev_n; k++) {
+                                head_hex[k * 2U] = "0123456789abcdef"[ev[k] >> 4];
+                                head_hex[k * 2U + 1U] = "0123456789abcdef"[ev[k] & 0x0FU];
+                            }
+                            head_hex[ev_n * 2U] = '\0';
+                            SEGGER_RTT_printf(
+                                0,
+                                "[disp] WAIT budget %ums expired -> resync 1B: avail=%u head8=%s "
+                                "resync_total=%u (stuck frame head, see doc/15)\n",
+                                (unsigned)FRAME_WAIT_BUDGET_MS, (unsigned)avail, head_hex,
+                                (unsigned)(g_dispatch.resync_byte + 1U));
+#endif
                             avail -= rb_skip(rb, 1, nullptr);
-                            s_wait_active = false;
+                            g_dispatch.resync_byte++;
+                            s_wait_active[wait_slot] = false;
+#if APP_DIAG_BANNER
+                            s_pdbg_valid[wait_slot] = false; /* 有消费 → 下个卡帧重新打印 */
+#endif
                         }
                         break; /* 等待更多数据到达 */
                     } else if (any_fake || any_overrun) {
-                        s_wait_active = false; /* 有字节被消费，重置预算 */
+                        s_wait_active[wait_slot] = false; /* 有字节被消费，重置预算 */
+#if APP_DIAG_BANNER
+                        s_pdbg_valid[wait_slot] = false; /* 有消费 → 下个卡帧重新打印 */
+#endif
                         avail -= rb_skip(rb, 1, nullptr); /* 重同步 */
+                        g_dispatch.resync_byte++;
                     } else {
                         break; /* 无协议绑定或探测函数全空，防死循环 */
                     }
                 } else {
-                    s_wait_active = false; /* 有帧被消费，重置预算 */
+                    s_wait_active[wait_slot] = false; /* 有帧被消费，重置预算 */
+#if APP_DIAG_BANNER
+                    s_pdbg_valid[wait_slot] = false; /* 有消费 → 下个卡帧重新打印 */
+#endif
                 }
             }
             rb_unlock(rb);
@@ -480,8 +759,27 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
 
     /* 通知帧分发任务：传入通道指针的地址（不是通道结构体的地址）
      * 队列每项大小为 sizeof(channel_t *)，拷贝的是指针值本身。
-     * 帧分发任务通过 osMessageQueueGet(&ch, ...) 读出指针。 */
-    osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, 0);
+     * 帧分发任务通过 osMessageQueueGet(&ch, ...) 读出指针。
+     *
+     * **盲区 C 修复（2026-09-17 YN_OL 联调第二轮）**：原实现 `timeout=0` 且忽略
+     * 返回值——队列满时通知被静默丢弃，数据虽已在 RB 里但没有事件唤醒
+     * frame_dispatch_task，要等下一条通知到达才被顺带处理。现场表现＝
+     * 「发了命令 RTT 无反应，重连/再发一次才打印解析数据」（与现象 ① 吻合）。
+     * 修法：立即投递失败 → 用 DISPATCH_NOTIFY_RETRY_MS（20ms）重试一次
+     * （分发任务是独立任务，取走一项即成功，正常瞬时排空；此窗口不会持任何锁，
+     * 无死锁路径）；仍失败才计数 + 门控告警。通道掩码/过滤语义与 probe 契约不变。 */
+    if (osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, 0) != osOK) {
+        if (osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, pdMS_TO_TICKS(DISPATCH_NOTIFY_RETRY_MS)) !=
+            osOK) {
+            g_dispatch.notify_drop++;
+#if APP_DIAG_BANNER
+            SEGGER_RTT_printf(
+                0,
+                "[disp] notify queue FULL -> drop ch=%u notify_drop=%u (dispatch task stuck?)\n",
+                (unsigned)ch->ch_id, (unsigned)g_dispatch.notify_drop);
+#endif
+        }
+    }
 }
 
 /* ================================================================

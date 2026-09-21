@@ -1,0 +1,20 @@
+=== APP_DIAG=0 (diag OFF, default口径) ===
+exit=0
+.text                164596   134480272
+.rodata              198056   134644872
+.data                  1672   536870912
+.ccmram               37084   268435456
+.bss                 126400   536872584
+._user_heap_stack      2560   536998984
+3
+=== restore default (diag ON) ===
+exit=0
+.text                167060   134480272
+.rodata              200712   134647336
+.data                  1672   536870912
+.ccmram               37084   268435456
+.bss                 126400   536872584
+._user_heap_stack      2560   536998984
+57092a95337eb32d8b49e9583bd366a7  build/Debug/Project_STD.elf
+1caefff99d86051d4aba1f661e2c18ec  build/Debug/Project_STD.hex
+=== done ===

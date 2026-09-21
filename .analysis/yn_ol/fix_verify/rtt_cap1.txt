@@ -1,0 +1,3 @@
+[rtt] connected: True sn=69403514
+[rtt] ch0 pBuffer=0x20014d34 size=1024 WrOff=520 RdOff=528
+[rtt] done, elapsed=40.0s -> rtt_live1.log

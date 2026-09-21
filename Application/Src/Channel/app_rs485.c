@@ -16,6 +16,14 @@
 #include "pl_uart.h"
 #include "dev_rs485.h"
 #include "app_dispatch.h"
+#include "pl_task_guard.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * rs485_task：启动期创建一次、永不退出（仅 osThreadExit 于 rx_queue 创建失败分支）。
+ * 静态化后不再从 ucHeap 支出（省 1144B），CCM 占 1124B（栈 1024 + TCB 100）。
+ * CCM 只被 CPU 访问，任务栈不经 DMA，放置安全。 */
+PL_TASK_STATIC_STORAGE(rs485, 256);
 
 typedef struct {
     channel_t me;
@@ -100,10 +108,11 @@ osThreadId_t app_rs485_start(void)
     self->rx_block_size = RS485_BUF_SIZE;
     self->rx_buf_size   = 2U * RS485_BUF_SIZE; /* 乒乓双块：640→1280B */
 
-    osThreadAttr_t rs485_task_attr = {
+    /* 静态栈 + TCB（CCMRAM）→ 创建不会因堆耗尽失败；判空仅作防御 + RTT 报告 */
+    static const osThreadAttr_t rs485_task_attr = {
         .name       = "rs485_task",
-        .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(rs485, 256),
     };
-    return osThreadNew(rs485_task, self, &rs485_task_attr);
+    return pl_task_create_checked(osThreadNew(rs485_task, self, &rs485_task_attr), "rs485_task");
 }

@@ -1,0 +1,158 @@
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+TCP connection request 57856 -> 10011.
+TCP connection established 57856 -> 10011.
+[tcp_srv] accept 192.168.1.17:57856
+tcp_recved: received 4 bytes, wnd 2144 (0).
+[tcp_srv] recv ch=tcp_server len=4 head=7b 31 00 7d
+tcp_fasttmr: delayed ACK
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_recved: window got too big or tcpwnd_size_t overflow
+tcp_recved: received 1 bytes, wnd 2144 (0).
+[tcp_srv] close  192.168.1.17:57856 reason=-15
+tcp_close: closing in State: CLOSE_WAIT
+TCP connection closed: LAST_ACK 57856 -> 10011.
+tcp_pcb_purge
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb

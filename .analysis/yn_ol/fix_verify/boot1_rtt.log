@@ -1,0 +1,48 @@
+[yn_ol] 0x49 cfg loaded from 33542144: font_type=0 font_size=16
+[fwver] write ok ver=9K222B23E0
+
+[diag] ================ SELF-PROVING BANNER ================
+[diag] fw=9K222B23E0 built=Sep 18 2026 10:33:44 tree=3146c4f0
+[diag] build proto=ALL disp=22_1665 config=Debug toolchain=gcc
+[diag] heap at banner free=29824 min=29824 (ucHeap=36864)
+[diag] display screen=16x80 code=2200001665 scan_lines=1 chans=1
+[diag] display module=16x16 ch/mod=1 mods=1x5 scan_line_px=640 buf=1280
+[diag] driver linked? 1_263=0 22_1703=0 (exactly one expected)
+[diag] font chip=MX25L256 regions=40 adapt=5 ascii_raw=0 gbk190=1 cap=33554432 dip2=0
+[diag] netcfg VALID ip=192.168.114.200 mask=255.255.255.0 gw=192.168.114.1 port=9528 udp_port=20103
+[diag] ports t0 udp10011=10011 tcp_biz=9528 cq_udp=20103 gzol_cached=9528 (expect gzol=9528 = net_cfg.port; rule: 0/invalid->9528; ==10011/20103->skip bind)
+[diag] heap after tcp_server_start free=28048 min=28048
+[diag] heap after tcp_client_start free=26904 min=26904
+tcp_connect to port 9528
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_slowtmr: no active pcbs
+tcp_connect to port 9528
+[tcp_cli] connecting 192.168.0.127:9528 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_slowtmr: no active pcbs
+tcp_connect to port 9528
+[tcp_cli] connecting 192.168.0.127:9528 ...

@@ -15,6 +15,12 @@
 
 #include "app_sc_ol_proto_parse.h"
 #include "app_sc_ol_proto_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * sc_ol_handle_task：启动期创建一次、永不退出；静态化后不再占 ucHeap（省 1144B），
+ * CCM 占 1124B。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(sc_ol_handle, 256);
 
 /* 地区协议通道 RB：与青海/ETC/MTC 等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
@@ -77,8 +83,8 @@ void sc_ol_proto_init(void)
 
     static const osThreadAttr_t s_sc_ol_task_attr = {
         .name       = "sc_ol_handle_task",
-        .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(sc_ol_handle, 256),
     };
     osThreadNew(sc_ol_proto_handle_task, NULL, &s_sc_ol_task_attr);
 }

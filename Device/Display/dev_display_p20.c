@@ -175,7 +175,7 @@ static inline void _p20_scan(dev_display_t *dev, uint8_t line)
 /* ---- set_row: ABCD 行地址编码 (静态扫描无需切换行) ---- */
 static void _p20_set_row(uint8_t row)
 {
-    pl_hub75_set_row(row);
+    pl_hub75_Decoder_set_row(row);
 }
 
 /* ---- ops 虚表 ---- */

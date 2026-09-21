@@ -28,6 +28,7 @@
 
 #include "app_yn_proto_voice.h"
 #include "app_boot.h"
+#include "pl_task_guard.h"
 #include "app_light_sensor.h"
 #include "app_render.h"
 #include "dev_display.h"
@@ -223,7 +224,14 @@ static void _yn_exec_self_check(void)
         .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
     };
-    osThreadNew(_yn_selftest_task, NULL, &s_yn_selftest_attr);
+    /* 判空 + RTT；创建失败必须回退防重入标志——否则「自检」被永久锁死（后续 '2' 全被忽略）。
+     * 本任务**故意保持动态分配**：它在末尾先清 running 再 osThreadExit()，清标志与真正
+     * 退出之间仍可能被下一帧插入，复用同一份静态栈会栈踩踏（见 pl_task_static.h 约束）。 */
+    osThreadId_t tid =
+        pl_task_create_checked(osThreadNew(_yn_selftest_task, NULL, &s_yn_selftest_attr),
+                                "yn_selftest_task");
+    if (tid == nullptr)
+        s_yn_selftest_running = false;
 }
 
 /**

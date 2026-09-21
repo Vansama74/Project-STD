@@ -31,6 +31,29 @@
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
 
+/* ---- LwIP 调试输出档位收紧（2026-09-18 YN_OL TCP 现场问题取证补强）--------
+ * 由来：Core/Inc/main.h（CubeMX 生成区）里 LWIP_DEBUG / SOCKETS_DEBUG / TCP_DEBUG
+ * 均为 LWIP_DBG_ON 且 LWIP_DBG_MIN_LEVEL = LWIP_DBG_LEVEL_ALL ⇒ LwIP 的
+ * tcp_slowtmr / tcp_recved / tcp_fasttmr 等 LEVEL_ALL 级信息行经
+ * printf → _write（SEGGER_RTT_Syscalls_GCC.c）→ RTT 通道 0 输出，
+ * 实测 ~5~17 行/秒（每个活动 pcb 每 500ms 数行）。
+ * 后果（实测确认）：RTT 上行缓冲仅 1KB 且为 NO_BLOCK_SKIP 模式（满则**整条丢**），
+ * 开机横幅 + LwIP 噪声十几秒即把缓冲灌满 ⇒ **此后所有现场诊断
+ * （[err] 堆失败钩子、[disp]、[yn_ol]、[tcp_srv]、[diag] 体检行）全部静默丢失**。
+ * 2026-09-18 之前「死机前后 RTT 无任何输出、写不进任何证据」即由此而来
+ * （需用外部读走缓冲才能看到，见 .analysis/yn_ol/fix_verify/rtt_log.py）。
+ * 处置：只过滤 LEVEL_ALL 常规信息行，**警告/错误（WARNING 及以上）与工程自有
+ * 诊断（直接 SEGGER_RTT_printf，不走 LwIP 调试宏）全部保留**。
+ * 位置：main.h 属 CubeMX 生成文件（改动可能被重新生成覆盖），故覆盖放在本文件
+ * USER CODE 段（CubeMX 保留区）；数值用字面量（此时 debug.h 未必已包含）。
+ * 一键复原：`make DISP=... APP_LWIP_DBG_LEVEL=0x00`（或改下面的默认值）即恢复全量
+ * LwIP 日志（用于对比采样/怀疑某告警被过滤时）。 */
+#ifndef APP_LWIP_DBG_LEVEL
+#define APP_LWIP_DBG_LEVEL 0x01 /* = LWIP_DBG_LEVEL_WARNING（0x00 = LEVEL_ALL 全开） */
+#endif
+#undef LWIP_DBG_MIN_LEVEL
+#define LWIP_DBG_MIN_LEVEL APP_LWIP_DBG_LEVEL
+
 /* USER CODE END 0 */
 
 #ifdef __cplusplus
@@ -125,10 +148,12 @@
 #define MQTT_REQ_MAX_IN_FLIGHT 16
 #define LWIP_SO_RCVTIMEO      1 /* UDP recv_timeout，用于探测通道可用性 */
 
-/* 网络通道资源池（2026-08-21 修复 LDI 搜索广播丢包）：
- * dev 共存构建 baseline 4 netconn 已满（UDP 10011 + UDP 20103 + TCP Server
- * listener + TCP Client），广播临时 netconn 必然 NULL 静默失败；
- * 扩到 8 留余量（新增 UDP 端口协议时仍须随通道数核算，见 doc/06 预算） */
+/* 网络通道资源池（2026-08-21 修复 LDI 搜索广播丢包；2026-09-14 重核）：
+ * dev 共存构建常驻 netconn = UDP 10011 + UDP 20103(CQ) + UDP 9528(GZ_OL 业务口)
+ * + TCP Server listener + TCP Client = 5，叠加 TCP Server 已连接客户端 1 =
+ * 6；广播回退临时 conn 最多 +2（LDI/CQ 各一，常驻 conn 就绪时不占用）→
+ * 峰值 8 恰为池容量。**新增 UDP 端口协议时仍须随通道数核算（doc/06 预算）**，
+ * 届时优先看本行：常驻数不得逼近池容量，否则广播回退静默丢包复发。 */
 #define MEMP_NUM_NETCONN 8
 #define MEMP_NUM_UDP_PCB 8
 /* USER CODE END 1 */

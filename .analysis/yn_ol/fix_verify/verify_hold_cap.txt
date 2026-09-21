@@ -1,0 +1,37 @@
+[rtt] connected: True sn=69403514
+[rtt] auto-discovered control block @ 0x2000f028
+[rtt] ch0 pBuffer=0x2000ec28 size=1024 WrOff=74 RdOff=97
+10:50:50.304 [mcu] t=    0.0s tick=2595779898 task=                     heap free=4294967295 min=536960120 **HardFault** pc=0x00000002 cfsr=0x00000000 bfar=0x1000ac30 r0=0x1000ac30; **malloc FAILED** req=536960120 free=4294967295 min=536960120
+10:51:00.132 [mcu] t=    9.8s tick=4247022772 task=                     heap free=4294967295 min=536960120 ok
+10:51:10.245 [mcu] t=   19.9s tick=1651152602 task=                     heap free=4294967295 min=536960120 ok
+10:51:20.359 [mcu] t=   30.1s tick=3350359472 task=                     heap free=4294967295 min=536960120 ok
+10:51:30.466 [mcu] t=   40.2s tick=753397310 task=                     heap free=4294967295 min=536960120 ok
+10:51:40.580 [mcu] t=   50.3s tick=2452717310 task=                     heap free=4294967295 min=536960120 ok
+10:51:50.694 [mcu] t=   60.4s tick=4151924168 task=                     heap free=4294967295 min=536960120 ok
+10:52:00.804 [mcu] t=   70.5s tick=1555550014 task=                     heap free=4294967295 min=536960120 ok
+10:52:10.916 [mcu] t=   80.6s tick=3254420880 task=                     heap free=4294967295 min=536960120 ok
+10:52:21.028 [mcu] t=   90.7s tick=658269576 task=                     heap free=4294967295 min=536960120 ok
+10:52:31.144 [mcu] t=  100.8s tick=2357841584 task=                     heap free=4294967295 min=536960120 ok
+10:52:41.261 [mcu] t=  111.0s tick=4057610714 task=                     heap free=4294967295 min=536960120 ok
+10:52:51.375 [mcu] t=  121.1s tick=1461879418 task=                     heap free=4294967295 min=536960120 ok
+10:53:01.488 [mcu] t=  131.2s tick=3160916763 task=                     heap free=4294967295 min=536960120 ok
+10:53:11.603 [mcu] t=  141.3s tick=565468122 task=                     heap free=4294967295 min=536960120 ok
+10:53:21.722 [mcu] t=  151.4s tick=2265544122 task=                     heap free=4294967295 min=536960120 ok
+10:53:31.838 [mcu] t=  161.5s tick=3965032122 task=                     heap free=4294967295 min=536960120 ok
+10:53:41.948 [mcu] t=  171.6s tick=1368712826 task=                     heap free=4294967295 min=536960120 ok
+10:53:52.059 [mcu] t=  181.8s tick=3067360830 task=                     heap free=4294967295 min=536960120 ok
+10:54:02.179 [mcu] t=  191.9s tick=472637530 task=                     heap free=4294967295 min=536960120 ok
+10:54:12.292 [mcu] t=  202.0s tick=2171676400 task=                     heap free=4294967295 min=536960120 ok
+10:54:22.408 [mcu] t=  212.1s tick=3871248400 task=                     heap free=4294967295 min=536960120 ok
+10:54:32.524 [mcu] t=  222.2s tick=1275882234 task=                     heap free=4294967295 min=536960120 ok
+10:54:42.622 [mcu] t=  232.3s tick=2972430234 task=                     heap free=4294967295 min=536960120 ok
+10:54:52.720 [mcu] t=  242.4s tick=374010938 task=                     heap free=4294967295 min=536960120 ok
+10:55:02.819 [mcu] t=  252.5s tick=2070642938 task=                     heap free=4294967295 min=536960120 ok
+10:55:12.918 [mcu] t=  262.6s tick=3767442938 task=                     heap free=4294967295 min=536960120 ok
+10:55:23.021 [mcu] t=  272.7s tick=1169863642 task=                     heap free=4294967295 min=536960120 ok
+10:55:33.125 [mcu] t=  282.8s tick=2867419642 task=                     heap free=4294967295 min=536960120 ok
+10:55:43.227 [mcu] t=  292.9s tick=269727216 task=                     heap free=4294967295 min=536960120 ok
+10:55:53.332 [mcu] t=  303.0s tick=1967451208 task=                     heap free=4294967295 min=536960120 ok
+10:56:03.428 [mcu] t=  313.1s tick=3663608346 task=                     heap free=4294967295 min=536960120 ok
+10:56:13.530 [mcu] t=  323.2s tick=1065777050 task=                     heap free=4294967295 min=536960120 ok
+[rtt] done, elapsed=330.0s -> verify_hold_rtt.log

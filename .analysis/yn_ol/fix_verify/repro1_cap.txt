@@ -1,0 +1,39 @@
+[rtt] connected: True sn=69403514
+[rtt] auto-discovered control block @ 0x2000f000
+[rtt] ch0 pBuffer=0x2000ec00 size=1024 WrOff=990 RdOff=1002
+10:36:46.927 [mcu] t=    9.9s tick=160789 task=scan_task            heap free=20856 min=18688 ok
+10:36:57.093 [mcu] t=   20.0s tick=170956 task=IDLE                 heap free=20856 min=18688 ok
+10:37:07.264 [mcu] t=   30.2s tick=181127 task=scan_task            heap free=20656 min=18688 ok
+10:37:17.430 [mcu] t=   40.4s tick=191294 task=IDLE                 heap free=20656 min=18688 ok
+10:37:27.601 [mcu] t=   50.6s tick=201465 task=scan_task            heap free=20656 min=18688 ok
+10:37:37.768 [mcu] t=   60.7s tick=211633 task=IDLE                 heap free=20656 min=18688 ok
+10:37:47.937 [mcu] t=   70.9s tick=221803 task=IDLE                 heap free=20656 min=18688 ok
+10:37:58.107 [mcu] t=   81.1s tick=231973 task=scan_task            heap free=20656 min=18688 ok
+10:38:08.270 [mcu] t=   91.2s tick=242136 task=scan_task            heap free=20656 min=18688 ok
+10:38:18.432 [mcu] t=  101.4s tick=252299 task=scan_task            heap free=20656 min=18688 ok
+10:38:28.601 [mcu] t=  111.6s tick=262468 task=IDLE                 heap free=20656 min=18688 ok
+10:38:38.770 [mcu] t=  121.7s tick=272638 task=scan_task            heap free=20656 min=18688 ok
+10:38:48.941 [mcu] t=  131.9s tick=282809 task=IDLE                 heap free=20656 min=18688 ok
+10:38:59.109 [mcu] t=  142.1s tick=292977 task=scan_task            heap free=20656 min=18688 ok
+10:39:09.274 [mcu] t=  152.2s tick=303143 task=IDLE                 heap free=20656 min=18688 ok
+10:39:19.441 [mcu] t=  162.4s tick=313311 task=IDLE                 heap free=20656 min=18688 ok
+10:39:29.605 [mcu] t=  172.6s tick=323475 task=Tmr Svc              heap free=20656 min=18688 ok
+10:39:39.769 [mcu] t=  182.7s tick=333639 task=IDLE                 heap free=20656 min=18688 ok
+10:39:49.947 [mcu] t=  192.9s tick=343818 task=scan_task            heap free=20656 min=18688 ok
+10:40:00.117 [mcu] t=  203.1s tick=353989 task=IDLE                 heap free=20656 min=18688 ok
+10:40:10.293 [mcu] t=  213.2s tick=364165 task=IDLE                 heap free=20656 min=18688 ok
+10:40:20.465 [mcu] t=  223.4s tick=374337 task=scan_task            heap free=20656 min=18688 ok
+10:40:30.633 [mcu] t=  233.6s tick=384506 task=IDLE                 heap free=20656 min=18688 ok
+10:40:40.795 [mcu] t=  243.7s tick=394669 task=scan_task            heap free=20656 min=18688 ok
+10:40:50.963 [mcu] t=  253.9s tick=404837 task=IDLE                 heap free=20656 min=18688 ok
+10:41:01.123 [mcu] t=  264.1s tick=414998 task=IDLE                 heap free=20656 min=18688 ok
+10:41:11.289 [mcu] t=  274.2s tick=425164 task=scan_task            heap free=20856 min=18688 ok
+10:41:24.659 [mcu] t=  287.6s tick=0 task=                     heap free=0 min=0 heap LOW free=0
+Traceback (most recent call last):
+  File "/home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/fix_verify/rtt_log.py", line 219, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/yystation/Program/3833024/Project-STD-main/.analysis/yn_ol/fix_verify/rtt_log.py", line 187, in main
+    avail = (wroff - rdoff) % size
+            ~~~~~~~~~~~~~~~~^~~~~~
+ZeroDivisionError: division by zero

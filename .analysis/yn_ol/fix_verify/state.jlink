@@ -1,0 +1,18 @@
+si SWD
+speed 4000
+device STM32F407ZG
+connect
+mem32 0x200032cc 1
+mem32 0x200032c8 1
+mem32 0x200032c4 1
+mem32 0x2000e1dc 1
+mem32 0x40028114 1
+mem32 0x40028024 1
+sleep 2000
+mem32 0x2000e1dc 1
+sleep 2000
+mem32 0x2000e1dc 1
+mem32 0x2000e6b4 1
+halt
+regs
+q

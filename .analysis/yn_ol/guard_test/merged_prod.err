@@ -1,0 +1,1 @@
+arm-none-eabi-ld: .analysis/yn_ol/guard_test/yn_ol.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c:68: multiple definition of `g_brace_proto_guard'; .analysis/yn_ol/guard_test/yn_regular.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/ProtocolParser_YunNan/app_yn_proto.c:26: first defined here

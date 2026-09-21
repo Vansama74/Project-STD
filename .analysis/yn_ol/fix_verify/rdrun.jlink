@@ -1,0 +1,7 @@
+si SWD
+speed 4000
+device STM32F407ZG
+connect
+mem32 0x20015134 6
+mem8 0x20014D34 4
+q

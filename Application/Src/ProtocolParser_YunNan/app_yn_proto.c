@@ -18,6 +18,13 @@
 
 #include "app_yn_proto_parse.h"
 #include "app_yn_proto_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * yn_handle_task：启动期创建一次、永不退出（自检任务 yn_selftest_task 会被
+ * 反复创建/退出，**保持动态分配**，见 app_yn_proto_cmd.c）。
+ * 静态化后不再占 ucHeap（省 1144B），CCM 占 1124B。 */
+PL_TASK_STATIC_STORAGE(yn_handle, 256);
 
 /* '{' 帧族互斥守卫：同一构建只允许编入一个 '{' 帧族协议（青海/山东/贵州/四川MTC/云南）。
  * 多个同时编入 → 链接期 multiple definition 强制报错；
@@ -86,8 +93,8 @@ void yn_proto_init(void)
 
     static const osThreadAttr_t s_yn_task_attr = {
         .name       = "yn_handle_task",
-        .stack_size = 256 * 4, /* 帧缓冲为 static，不放大栈 */
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(yn_handle, 256),
     };
     osThreadNew(yn_proto_handle_task, NULL, &s_yn_task_attr);
 }

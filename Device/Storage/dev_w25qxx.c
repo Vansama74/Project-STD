@@ -135,10 +135,26 @@ static void _dma_cb(void *ctx)
 static int32_t _dma_recv(dev_w25qxx_t *self, uint8_t *dst, uint16_t len)
 {
     s_ok = false;
-    if (pl_spi_receive_dma(self->spi, dst, len) != 0)
-        return -1;
-    while (!s_ok)
-        osDelay(1);
+    /* 事件等待（ISR 置位即刻唤醒）：原 osDelay(1) 轮询粒度 1ms——每字形一次
+     * DMA 读（≤128B，SPI ~20µs）被摊成 ~1ms 持锁睡眠。滚动整行 14 字形
+     * ≈14ms、4 行同拍 ≈56ms，step_ms=2 时实际推进速率被拖慢至 ~14ms/px
+     * （协议速度失真 ~7×），且 W25 互斥锁在睡眠期间被持有，连带阻塞其他
+     * 协议渲染。s_evt 由 _read_locked 在注册 DMA 回调前创建、此后恒非 NULL；
+     * 标志残留由启动 DMA 前 Clear 防御；10ms 超时兜底（DMA 异常不永久挂起，
+     * 超时返回 -1 由调用方跳过当次字形，优于原无限轮询）。 */
+    if (s_evt) {
+        osEventFlagsClear(s_evt, 0x01);
+        if (pl_spi_receive_dma(self->spi, dst, len) != 0)
+            return -1;
+        if (osEventFlagsWait(s_evt, 0x01, osFlagsWaitAll, 10) != 0x01)
+            return -1;
+    } else {
+        /* RTOS 未就绪兜底（历史路径，sw_dev 早期单线程上下文） */
+        if (pl_spi_receive_dma(self->spi, dst, len) != 0)
+            return -1;
+        while (!s_ok)
+            osDelay(1);
+    }
     return 0;
 }
 

@@ -17,6 +17,12 @@
 
 #include "app_sc_etc_proto_parse.h"
 #include "app_sc_etc_proto_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * sc_etc_handle_task：启动期创建一次、永不退出（心跳任务已停用，不在此列）。
+ * 静态化后不再占 ucHeap（省 1144B），CCM 占 1124B。 */
+PL_TASK_STATIC_STORAGE(sc_etc_handle, 256);
 
 /* 地区协议通道 RB：与青海/RLS 等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
@@ -158,8 +164,8 @@ void sc_etc_proto_init(void)
 
     static const osThreadAttr_t s_sc_etc_task_attr = {
         .name       = "sc_etc_handle_task",
-        .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(sc_etc_handle, 256),
     };
     osThreadNew(sc_etc_proto_handle_task, NULL, &s_sc_etc_task_attr);
 

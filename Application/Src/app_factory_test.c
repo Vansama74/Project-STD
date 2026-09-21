@@ -21,6 +21,13 @@
 #include "dev_io_ctrl.h"
 #include "stm32f4xx_hal.h"
 #include "app_boot.h"
+#include "pl_task_guard.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * factory_monitor：启动期创建一次、永不退出（TEST 键流程不销毁任务）。
+ * 静态化后不再占 ucHeap（省 1144B），CCM 占 1124B。 */
+PL_TASK_STATIC_STORAGE(factory_monitor, 256);
 
 #define AGING_TEXT   "重庆创迪科技发展有限公司设备老化测试"
 
@@ -314,10 +321,11 @@ static void _factory_test_init(void)
 {
     const osThreadAttr_t attr = {
         .name       = "factory_monitor",
-        .stack_size = 256 * 4, /* 再压一档；原 2KB/4KB 过大，多协议下挤堆 */
         .priority   = osPriorityHigh,
+        PL_TASK_STATIC_ATTR(factory_monitor, 256),
     };
-    g_factory_test = osThreadNew(factory_monitor_task, NULL, &attr);
+    g_factory_test =
+        pl_task_create_checked(osThreadNew(factory_monitor_task, NULL, &attr), "factory_monitor");
 }
 sw_app_initcall(_factory_test_init);
 

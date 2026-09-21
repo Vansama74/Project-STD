@@ -1,0 +1,25 @@
+== 22-1665 宿主验证汇总 ==
+   根目录：/home/yystation/Program/3833024/Project-STD-main
+
+
+-------- 汇总 --------
+  ✔ check_equivalence.py（几何零回归：语义级 1×1 对照 + 机器码锚定删除前归档驱动）：通过 75 / 失败 0
+  ✔ check_host_differential.py（机器级差分：宿主编译产物 1×1 新=旧 / 多口径 = 规格模型）：通过 42 / 失败 0
+  ✔ check_driver.py（结构 + 1×1 几何自检）：通过 54 / 失败 0
+  ✔ check_driver.py --geom 1x1（1×1 基线几何自检 + 「口」52 点）：通过 54 / 失败 0
+  ✔ check_driver.py --geom 2x1（扩屏几何自检）：通过 54 / 失败 0
+  ✔ check_driver.py --geom 2x2（四模块几何自检）：通过 54 / 失败 0
+  ✔ check_eide_command.sh（EIDE 原命令复现：合法口径零告警 / 非法口径可读断言）：通过 12 / 失败 0
+  ✔ check_compile_matrix.sh（编译矩阵：合法编过 / 非法被 _Static_assert 拦下）：通过 17 / 失败 0
+  ✔ check_flash_artifact.sh（烧录物内容身份）：通过 7 / 失败 0
+  ✔ round25_two_modules.py（1×2 面板级取证：链首块归属 / 三种接线模型 / 改动前后逐字节）：通过 17 / 失败 0
+  ✔ round26_two_hubs.py（双 HUB 口现象判定："1\n2" 落点 / 链首块归属 / H1-H2-H3 / 第二组脚未驱动）：通过 27 / 失败 0
+  ✔ round27_wiring_b_and_etc.py（模型 B 取证：ETC 七行现象穷举 / 两组 8 脚驱动 / 现场预测表）：通过 32 / 失败 0
+  ✔ link_variant.sh geom32x8（换口径编译 + 链接）：输出含成功标记
+  ✔ link_variant.sh mod2x1（换口径编译 + 链接）：输出含成功标记
+  ✔ link_variant.sh mod2x2（换口径编译 + 链接）：输出含成功标记
+  ✔ link_variant.sh flip1x2（换口径编译 + 链接）：输出含成功标记
+  ✔ link_variant.sh cols5（换口径编译 + 链接）：输出含成功标记
+
+合计：17 项全绿 / 0 项失败
+⇒ 全部通过

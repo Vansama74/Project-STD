@@ -1,0 +1,10 @@
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on enp193s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+1789695295.168218 IP 192.168.114.17.41200 > 192.168.114.200.9528: Flags [FP.], seq 3208336766, ack 1036600, win 64235, length 0
+1789695295.168318 IP 192.168.114.200.9528 > 192.168.114.17.41200: Flags [.], ack 1, win 2139, length 0
+1789695295.168530 IP 192.168.114.200.9528 > 192.168.114.17.41200: Flags [F.], seq 1, ack 1, win 2139, length 0
+1789695295.168545 IP 192.168.114.17.41200 > 192.168.114.200.9528: Flags [.], ack 2, win 64235, length 0
+
+4 packets captured
+4 packets received by filter
+0 packets dropped by kernel

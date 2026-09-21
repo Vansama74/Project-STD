@@ -1,0 +1,120 @@
+
+=== 修复前 — PROTO=ALL（make 全协议 dev 构建）（任务栈/TCB 全部自 ucHeap） ===
+configTOTAL_HEAP_SIZE=36864B  初始可用=36856B
+  1 pre   app_boot             init_task（512 words）                             2168 Σ=  2168 free=  34688
+  2 eth   sys_arch             lwip_sys_mutex（sys_init）                           88 Σ=  2256 free=  34600
+  3 eth   lwip/mem             mem_mutex（mem_init → sys_mutex_new，!NO_SYS 恒建）     88 Σ=  2344 free=  34512
+  4 eth   sys_arch             tcpip_mbox（TCPIP_MBOX_SIZE=6）                     112 Σ=  2456 free=  34400
+  5 eth   sys_arch             lock_tcpip_core（CORE_LOCKING）                      88 Σ=  2544 free=  34312
+  6 eth   sys_arch             tcpip_thread（TCPIP_THREAD_STACKSIZE=1024）        1144 Σ=  3688 free=  33168
+  7 eth   pl_eth               RxPktSemaphore                                     88 Σ=  3776 free=  33080
+  8 eth   pl_eth               TxPktSemaphore                                     88 Σ=  3864 free=  32992
+  9 eth   pl_eth               ethernetif_input / EthIf（256 words×4）            1144 Σ=  5008 free=  31848
+ 10 eth   pl_net               ethernet_link_thread / EthLink（1KB）              1144 Σ=  6152 free=  30704
+ 11 sw2   dev_key              press_sem ×4（SW1/SW2/SW3/TEST；DIP 无 wait_press）    352 Σ=  6504 free=  30352
+ 12 sw2   dev_display          scan evt flags                                     40 Σ=  6544 free=  30312
+ 13 sw2   dev_display          scan_task（1KB，Realtime）                          1144 Σ=  7688 free=  29168  [CCM]
+ 14 sw2   dev_w25qxx           s_w25_mutex                                        88 Σ=  7776 free=  29080
+ 15 sw3   app_factory_test     factory_monitor（1KB）                             1144 Σ=  8920 free=  27936  [CCM]
+ 16 sw3   app_dispatch         frame_dispatch_task（1KB）                         1144 Σ= 10064 free=  26792  [CCM]
+ 17 sw3   app_light_sensor     light_sensor_task（128 words）                      632 Σ= 10696 free=  26160  [CCM]
+ 18 sw3   app_iap              iap_handle_task（1KB）                             1144 Σ= 11840 free=  25016  [CCM]
+ 19 sw3   app_ldi              ldi_handle_task（1KB）                             1144 Σ= 12984 free=  23872  [CCM]
+ 20 sw3   app_ldi              ldi_timer_task（1KB）                              1144 Σ= 14128 free=  22728  [CCM]
+ 21 sw3   app_ldi              ldi tx_lock（互斥）                                    88 Σ= 14216 free=  22640
+ 22 sw3   app_cq_proto         cq_handle_task（1KB）                              1144 Σ= 15360 free=  21496  [CCM]
+ 23 sw3   app_cq_proto         cq_timer_task（1KB）                               1144 Σ= 16504 free=  20352  [CCM]
+ 24 sw3   app_rls              rls_handle_task（1KB）                             1144 Σ= 17648 free=  19208  [CCM]
+ 25 sw3   app_qh_proto         qh_handle_task（1KB）                              1144 Σ= 18792 free=  18064  [CCM]
+ 26 sw3   app_sc_etc           sc_etc_handle_task（1KB）                          1144 Σ= 19936 free=  16920  [CCM]
+ 27 sw3   app_sc_mtc           sc_mtc_handle_task（1KB）                          1144 Σ= 21080 free=  15776  [CCM]
+ 28 sw3   app_sc_ol            sc_ol_handle_task（1KB）                           1144 Σ= 22224 free=  14632  [CCM]
+ 29 sw3   app_sd_proto         sd_handle_task（1KB）                              1144 Σ= 23368 free=  13488  [CCM]
+ 30 sw3   app_gz_proto         gz_handle_task（1KB）                              1144 Σ= 24512 free=  12344  [CCM]
+ 31 sw3   app_gz_ol_proto      gz_ol_handle_task（1KB）                           1144 Σ= 25656 free=  11200  [CCM]
+ 32 sw3   app_yn_proto         yn_handle_task（1KB）                              1144 Σ= 26800 free=  10056  [CCM]
+ 33 sw3   app_yn_ol_proto      yn_ol_handle_task（1KB）← 2026-09-17 新接入           1144 Σ= 27944 free=   8912  [CCM]
+ 34 sw3   app_anhui_proto      anhui_handle_task（1KB）                           1144 Σ= 29088 free=   7768  [CCM]
+ 35 sw3   ring_buffer          RJ45 RB mutex（IAP/LDI/CQ 首个 acquire）               88 Σ= 29176 free=   7680
+ 36 sw3   ring_buffer          RS485 RB mutex                                     88 Σ= 29264 free=   7592
+ 37 sw3   ring_buffer          RS232 RB mutex                                     88 Σ= 29352 free=   7504
+ 38 sw3   dev_w25qxx           s_evt（首次 _read 懒建）                                 40 Σ= 29392 free=   7464
+ 39 chan  app_boot             half_sec_task（128 words）                          632 Σ= 30024 free=   6832
+ 40 chan  app_tcp_server       tcp_server_task（1KB）                             1144 Σ= 31168 free=   5688
+ 41 chan  app_tcp_client       tcp_client_task（1KB）                             1144 Σ= 32312 free=   4544
+ 42 chan  app_udp              udp_task（1KB，10011）                              1144 Σ= 33456 free=   3400
+ 43 chan  app_udp              udp_cq_task（1KB，CQ 业务口）                          1144 Σ= 34600 free=   2256
+ 44 chan  app_udp              udp_gzol_task（1KB，GZ_OL 业务口）                     1144 Σ= 35744 free=   1112
+ 45 chan  app_rs485            rs485_task（1KB）← 现场失败点                           1144 Σ= 36888 free=    -32  [CCM]  <== pvPortMalloc 返回 NULL
+ 46 chan  app_rs232            rs232_task（1KB）                                  1144 Σ= 38032 free=  -1176  [CCM]  <== pvPortMalloc 返回 NULL
+ 47 run   app_tcp_server       netconn recvmbox + op_completed                   200 Σ= 38232 free=  -1376  <== pvPortMalloc 返回 NULL
+ 48 run   app_tcp_server       acceptmbox（netconn_listen）                        112 Σ= 38344 free=  -1488  <== pvPortMalloc 返回 NULL
+ 49 run   app_tcp_client       client_disconnect_sem                              88 Σ= 38432 free=  -1576  <== pvPortMalloc 返回 NULL
+ 50 run   app_tcp_client       netconn recvmbox + op_completed                   200 Σ= 38632 free=  -1776  <== pvPortMalloc 返回 NULL
+ 51 run   app_udp              udp_disconnect_sem                                 88 Σ= 38720 free=  -1864  <== pvPortMalloc 返回 NULL
+ 52 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 38920 free=  -2064  <== pvPortMalloc 返回 NULL
+ 53 run   app_udp              udp_connect_task（常驻 1KB）                         1144 Σ= 40064 free=  -3208  <== pvPortMalloc 返回 NULL
+ 54 run   app_udp              udp_cq_disconnect_sem                              88 Σ= 40152 free=  -3296  <== pvPortMalloc 返回 NULL
+ 55 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 40352 free=  -3496  <== pvPortMalloc 返回 NULL
+ 56 run   app_udp              udp_cq_connect_task（常驻 1KB）                      1144 Σ= 41496 free=  -4640  <== pvPortMalloc 返回 NULL
+ 57 run   app_udp              udp_gzol_disconnect_sem                            88 Σ= 41584 free=  -4728  <== pvPortMalloc 返回 NULL
+ 58 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 41784 free=  -4928  <== pvPortMalloc 返回 NULL
+ 59 run   app_udp              udp_gzol_connect_task（常驻 1KB）                    1144 Σ= 42928 free=  -6072  <== pvPortMalloc 返回 NULL
+ 60 run   app_scroll           s_scroll_evt + 双互斥（首个滚动帧懒建）                       216 Σ= 43144 free=  -6288  <== pvPortMalloc 返回 NULL
+ 61 run   app_scroll           scroll_task（1KB，首个滚动帧懒建）                         1144 Σ= 44288 free=  -7432  [CCM]  <== pvPortMalloc 返回 NULL
+ 62 run   app_tcp_client       tcp_client_conn_task（连上才建 1KB）                   1144 Σ= 45432 free=  -8576  <== pvPortMalloc 返回 NULL
+ 63 run   app_yn_proto         yn_selftest_task（'2' 命令触发 1KB）                   1144 Σ= 46576 free=  -9720  <== pvPortMalloc 返回 NULL
+ 64 run   app_yn_ol_proto      yn_ol_selftest_task（'2' 命令触发 1KB）                1144 Σ= 47720 free= -10864  <== pvPortMalloc 返回 NULL
+需求合计=47720B  余量=-10864B  ** 赤字 10864B **
+临界点 = 阶段 chan / app_rs485 / rs485_task（1KB）← 现场失败点（需 1144B，此前余 1112B → 申请后赤字 -32B，pvPortMalloc 返回 NULL）
+
+=== 修复后 — PROTO=ALL（make 全协议 dev 构建）（任务栈/TCB 落 .ccmram） ===
+configTOTAL_HEAP_SIZE=36864B  初始可用=36856B
+  1 pre   app_boot             init_task（512 words）                             2168 Σ=  2168 free=  34688
+  2 eth   sys_arch             lwip_sys_mutex（sys_init）                           88 Σ=  2256 free=  34600
+  3 eth   lwip/mem             mem_mutex（mem_init → sys_mutex_new，!NO_SYS 恒建）     88 Σ=  2344 free=  34512
+  4 eth   sys_arch             tcpip_mbox（TCPIP_MBOX_SIZE=6）                     112 Σ=  2456 free=  34400
+  5 eth   sys_arch             lock_tcpip_core（CORE_LOCKING）                      88 Σ=  2544 free=  34312
+  6 eth   sys_arch             tcpip_thread（TCPIP_THREAD_STACKSIZE=1024）        1144 Σ=  3688 free=  33168
+  7 eth   pl_eth               RxPktSemaphore                                     88 Σ=  3776 free=  33080
+  8 eth   pl_eth               TxPktSemaphore                                     88 Σ=  3864 free=  32992
+  9 eth   pl_eth               ethernetif_input / EthIf（256 words×4）            1144 Σ=  5008 free=  31848
+ 10 eth   pl_net               ethernet_link_thread / EthLink（1KB）              1144 Σ=  6152 free=  30704
+ 11 sw2   dev_key              press_sem ×4（SW1/SW2/SW3/TEST；DIP 无 wait_press）    352 Σ=  6504 free=  30352
+ 12 sw2   dev_display          scan evt flags                                     40 Σ=  6544 free=  30312
+ 13 sw2   dev_w25qxx           s_w25_mutex                                        88 Σ=  6632 free=  30224
+ 14 sw3   app_ldi              ldi tx_lock（互斥）                                    88 Σ=  6720 free=  30136
+ 15 sw3   ring_buffer          RJ45 RB mutex（IAP/LDI/CQ 首个 acquire）               88 Σ=  6808 free=  30048
+ 16 sw3   ring_buffer          RS485 RB mutex                                     88 Σ=  6896 free=  29960
+ 17 sw3   ring_buffer          RS232 RB mutex                                     88 Σ=  6984 free=  29872
+ 18 sw3   dev_w25qxx           s_evt（首次 _read 懒建）                                 40 Σ=  7024 free=  29832
+ 19 chan  app_boot             half_sec_task（128 words）                          632 Σ=  7656 free=  29200
+ 20 chan  app_tcp_server       tcp_server_task（1KB）                             1144 Σ=  8800 free=  28056
+ 21 chan  app_tcp_client       tcp_client_task（1KB）                             1144 Σ=  9944 free=  26912
+ 22 chan  app_udp              udp_task（1KB，10011）                              1144 Σ= 11088 free=  25768
+ 23 chan  app_udp              udp_cq_task（1KB，CQ 业务口）                          1144 Σ= 12232 free=  24624
+ 24 chan  app_udp              udp_gzol_task（1KB，GZ_OL 业务口）                     1144 Σ= 13376 free=  23480
+ 25 run   app_tcp_server       netconn recvmbox + op_completed                   200 Σ= 13576 free=  23280
+ 26 run   app_tcp_server       acceptmbox（netconn_listen）                        112 Σ= 13688 free=  23168
+ 27 run   app_tcp_client       client_disconnect_sem                              88 Σ= 13776 free=  23080
+ 28 run   app_tcp_client       netconn recvmbox + op_completed                   200 Σ= 13976 free=  22880
+ 29 run   app_udp              udp_disconnect_sem                                 88 Σ= 14064 free=  22792
+ 30 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 14264 free=  22592
+ 31 run   app_udp              udp_connect_task（常驻 1KB）                         1144 Σ= 15408 free=  21448
+ 32 run   app_udp              udp_cq_disconnect_sem                              88 Σ= 15496 free=  21360
+ 33 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 15696 free=  21160
+ 34 run   app_udp              udp_cq_connect_task（常驻 1KB）                      1144 Σ= 16840 free=  20016
+ 35 run   app_udp              udp_gzol_disconnect_sem                            88 Σ= 16928 free=  19928
+ 36 run   app_udp              netconn recvmbox + op_completed                   200 Σ= 17128 free=  19728
+ 37 run   app_udp              udp_gzol_connect_task（常驻 1KB）                    1144 Σ= 18272 free=  18584
+ 38 run   app_scroll           s_scroll_evt + 双互斥（首个滚动帧懒建）                       216 Σ= 18488 free=  18368
+ 39 run   app_tcp_client       tcp_client_conn_task（连上才建 1KB）                   1144 Σ= 19632 free=  17224
+ 40 run   app_yn_proto         yn_selftest_task（'2' 命令触发 1KB）                   1144 Σ= 20776 free=  16080
+ 41 run   app_yn_ol_proto      yn_ol_selftest_task（'2' 命令触发 1KB）                1144 Σ= 21920 free=  14936
+需求合计=21920B  余量=14936B
+临界点：无（总需求未超堆）
+
+【现场失败点核对】创建 rs485_task 之前：修复前余 1112B（1KB 任务需 1144B → 会失败）；修复后余 23480B（rs485_task 已静态 → 不再申请堆）
+【启动期峰值需求（不含 run 阶段异步）】修复前 38032B → 余 -1176B（赤字 1176B）；修复后 13376B → 余 23480B（口径：≥2500B 即满足「同一启动点空闲堆 ≥2.5KB」目标）
+
+静态 CCMRAM 任务 23 个：释放 ucHeap 25800B，占用 .ccmram 25340B（栈 + 100B StaticTask_t，无堆头）

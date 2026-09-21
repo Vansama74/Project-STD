@@ -1,0 +1,12 @@
+=== build: PROTO=CQ DISP=1_263 ===
+LINK OK (PROTO=CQ DISP=1_263)
+.text                161220   134480272 .rodata              202240   134641496 .ccmram               36076   268435456 .bss                 121336   536871788 
+warnings: 3
+=== build: PROTO=ALL DISP=1_263 ===
+LINK OK (PROTO=ALL DISP=1_263)
+.text                174400   134480272 .rodata              202888   134654672 .ccmram               38332   268435456 .bss                 124812   536872592 
+warnings: 3
+=== build: PROTO=ALL DISP=22_1665 ===
+LINK OK (PROTO=ALL DISP=22_1665)
+.text                174640   134480272 .rodata              203152   134654912 .ccmram               44156   268435456 .bss                 124816   536872592 
+warnings: 3

@@ -1,0 +1,6 @@
+si SWD
+speed 4000
+device STM32F407ZG
+connect
+go
+q

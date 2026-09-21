@@ -1,0 +1,9 @@
+== 无 -DSTD_ALL_PROTO（量产口径）分别编译 ==
+  yn_regular.o: 1 个 g_brace_proto_guard
+  yn_ol.o     : 1 个 g_brace_proto_guard
+== arm-none-eabi-ld -r 合并（期望：multiple definition）==
+arm-none-eabi-ld: .analysis/yn_ol/guard_test/yn_ol.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c:68: multiple definition of `g_brace_proto_guard'; .analysis/yn_ol/guard_test/yn_regular.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/ProtocolParser_YunNan/app_yn_proto.c:26: first defined here
+ld -r exit=1
+GUARD=ENFORCED（量产口径二选一被链接期强制）
+== 加 -DSTD_ALL_PROTO（开发口径）合并（期望：成功，守卫不生成）==
+ld -r exit=0

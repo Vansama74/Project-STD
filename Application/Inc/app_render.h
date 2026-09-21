@@ -131,6 +131,72 @@ bool app_render_chip_select(font_chip_id_t id);
  *  @return 当前配置ID */
 font_chip_id_t app_render_chip_current(void);
 
+/* ---- 字库只读诊断（现场自证用，见 app_diag.h；不改任何渲染行为）---- */
+
+/** @brief 当前激活字库芯片配置的关键参数快照 */
+typedef struct {
+    const char *name;        /* 配置名（"W25Q64" / "MX25L256"） */
+    uint8_t region_count;    /* 区块表条目数 */
+    uint8_t adaptive_count;  /* 自适应字号候选数 */
+    bool ascii_raw_code;     /* ASCII 索引用原始字符码（W25Q64=true） */
+    bool gbk_index_190;      /* GBK 用 190 列序（MX25L256=true） */
+    uint32_t flash_capacity; /* 字库存储容量（字节） */
+} app_render_chip_info_t;
+
+/** @brief 读当前激活配置参数（只读）。@return true=成功填充 */
+bool app_render_chip_info_get(app_render_chip_info_t *out);
+
+/** @brief 单字模实读结果（一次 dev_storage_read 的证据快照） */
+typedef struct {
+    uint32_t addr;      /* Flash 绝对地址（按当前激活配置算得） */
+    uint32_t capacity;  /* 字库存储容量（字节） */
+    bool addr_in_range; /* addr + 字形字节数 ≤ 容量（越界 → 必读取失败） */
+    int32_t ret;        /* dev_storage_read 返回码（<0 = 读取失败） */
+    uint16_t total;     /* 字形打包字节数 */
+    uint16_t nonzero;   /* 读回数据非零字节数（0=全零；=total=全非零，均可疑） */
+    uint8_t head[8];    /* 读回数据前 8 字节 */
+} app_render_glyph_probe_t;
+
+/** @brief 按**当前激活配置**实读单字模（ASCII 1 字节 / GBK 2 字节）
+ *  @return true = 已填充（ret<0 表示读取失败，head/nonzero 为 0）；false = 参数非法 */
+bool app_render_glyph_probe(font_size_t size, font_type_t type, font_enc_t charset,
+                            const uint8_t *ch, app_render_glyph_probe_t *out);
+
+/** @brief 按**指定芯片配置**纯算术计算单字模地址（不读取、不切换全局配置）
+ *  @return Flash 绝对地址；参数非法返回 0 */
+uint32_t app_render_glyph_addr_for(font_chip_id_t chip, font_size_t size, font_type_t type,
+                                   font_enc_t charset, const uint8_t *ch);
+
+/* ---- 单字模裁剪绘制（动态滚动等逐像素渲染场景，app_scroll 消费） ---- */
+
+/** @brief 查询指定字号/编码下单字形像素宽度
+ *  @param  size    字号。
+ *  @param  charset 字库编码（FONT_ENC_ASCII / FONT_ENC_GBK）。
+ *  @return 字形像素宽（ASCII=size/2，GBK=size）。 */
+uint8_t app_render_glyph_width_px(font_size_t size, font_enc_t charset);
+
+/** @brief 单字模绘制（带逐像素裁剪）
+ *
+ *  从当前激活字库芯片读取单个字模位图，逐像素写入 pixel_map；
+ *  每像素同时受「屏幕边界」与「裁剪矩形 (clip_x,clip_y,clip_w,clip_h)」双重限制，
+ *  字形部分越界时平滑裁剪。滚动场景需要**逐像素裁剪矩形**（字形可整体位于矩形外
+ *  往返滑动），故本函数独立于 dev_display_draw_bitmap 的矩形裁剪语义实现
+ *  （后者 2026-09-14 起亦支持「按屏幕交集裁剪」，但无裁剪矩形参数、不处理负坐标）。
+ *
+ * @param  x,y       字形绘制起点（int16 允许屏幕外/负值，逐像素判界）。
+ * @param  clip_x,clip_y,clip_w,clip_h  裁剪矩形（屏幕坐标）。
+ * @param  font_size 字号；font_type 字型；charset 字库编码（UTF8 无效）。
+ * @param  ch        字符指针（ASCII 1 字节 / GBK 2 字节）。
+ * @param  color     绘制颜色。
+ * @note   不提交帧；调用方在整帧渲染完成后自行 dev_display_commit_frame。
+ *         字模经 dev_storage_read 读取（W25Qxx SPI 互斥锁保护）。 */
+void app_render_draw_glyph_clipped(int16_t x, int16_t y,
+                                   uint16_t clip_x, uint16_t clip_y,
+                                   uint16_t clip_w, uint16_t clip_h,
+                                   font_size_t font_size, font_type_t font_type,
+                                   font_enc_t charset, const uint8_t *ch,
+                                   display_color_t color);
+
 /* ---- 持久化显示 ---- */
 
 #define RENDER_PERSIST_MAGIC (0x0d000721U)

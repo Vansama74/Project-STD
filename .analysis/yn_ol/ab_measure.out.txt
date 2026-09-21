@@ -1,0 +1,22 @@
+===== [all_1263] DISP=1_263 PROTO=ALL =====
+build exit=0 warn=3
+WITH(elf=all_1263):    text=170596 rodata=201736 data=1672 ccmram=11164 bss=126436 heap=2564 sram=130672
+e3e1ff1d30bd50d7b308741658f94c6b  build/Debug/Project_STD.elf
+cfa7c959d796b8559570cbf2d1d863cb  build/Debug/Project_STD.hex
+710e00f6262e197fdd7e762efb8fb263  build/Debug/Project_STD.bin
+WITHOUT(no yn_ol): text=167076 rodata=201056 data=1672 ccmram=10012 bss=126400 heap=2560 sram=130632
+===== [cq_1263] DISP=1_263 PROTO=CQ =====
+build exit=0 warn=3
+WITH(elf=cq_1263):    text=157420 rodata=201088 data=872 ccmram=11164 bss=122960 heap=2560 sram=126392
+4a08bd67c29ec1117f9e9c161233a1df  build/Debug/Project_STD.elf
+c06857b4121ca37f58e977782b034c15  build/Debug/Project_STD.hex
+7fa5c96f6e1764f377bd958b2b4e0d39  build/Debug/Project_STD.bin
+WITHOUT(no yn_ol): text=153900 rodata=200400 data=872 ccmram=10012 bss=122924 heap=2564 sram=126360
+===== [all_221665] DISP=22_1665 PROTO=ALL =====
+build exit=0 warn=3
+WITH(elf=all_221665):    text=172460 rodata=202896 data=1672 ccmram=10460 bss=126452 heap=2564 sram=130688
+a5d60986367e0a107783b2c3b1fd1248  build/Debug/Project_STD.elf
+1c5dd6728f4a1b0641832cb270089fb5  build/Debug/Project_STD.hex
+8d30df54a1c229219c35dfbe43a7fe63  build/Debug/Project_STD.bin
+WITHOUT(no yn_ol): text=168940 rodata=202216 data=1672 ccmram=9308 bss=126416 heap=2560 sram=130648
+===== DONE =====

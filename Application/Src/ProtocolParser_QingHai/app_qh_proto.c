@@ -6,6 +6,12 @@
 
 #include "app_qh_proto_parse.h"
 #include "app_qh_proto_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * qh_handle_task：启动期创建一次、永不退出；静态化后不再占 ucHeap（省 1144B），
+ * CCM 占 1124B。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(qh_handle, 256);
 
 /* '{' 帧族互斥守卫：同一构建只允许编入一个 '{' 帧族协议（青海/山东/贵州/四川MTC）。
  * 多个同时编入 → 链接期 multiple definition 强制报错；
@@ -77,8 +83,8 @@ void qh_proto_init(void)
 
     static const osThreadAttr_t s_qh_task_attr = {
         .name       = "qh_handle_task",
-        .stack_size = 256 * 4, /* 帧缓冲为 static；原 2KB 偏大 */
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(qh_handle, 256),
     };
     osThreadNew(qh_proto_handle_task, NULL, &s_qh_task_attr);
 }

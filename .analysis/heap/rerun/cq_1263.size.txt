@@ -1,0 +1,30 @@
+build/Debug/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                158684   134480272
+.rodata              201936   134638960
+.hw_initcall            160   134840896
+.sw_initcall            192   134841056
+.ARM.extab                0   134841248
+.ARM                      8   134841248
+.preinit_array            0   134841256
+.init_array               4   134841256
+.fini_array               4   134841260
+.data                   872   536870912
+.ccmram               36076   268435456
+.bss                 121228   536871784
+._user_heap_stack      2564   536993012
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          642205           0
+.debug_abbrev        107173           0
+.debug_loclists      233110           0
+.debug_aranges        20880           0
+.debug_rnglists       18844           0
+.debug_line          373602           0
+.debug_str            97604           0
+.debug_frame          64136           0
+.debug_line_str         474           0
+Total               2080265
+
+

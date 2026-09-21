@@ -4,6 +4,12 @@
 
 #include "bcc_utils.h"
 #include "app_rls_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * rls_handle_task：启动期创建一次、永不退出；静态化后不再占 ucHeap（省 1144B），
+ * CCM 占 1124B。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(rls_handle, 256);
 
 /* RS485 通道 RB：与青海等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
@@ -36,8 +42,8 @@ osMessageQueueId_t g_rls_msg_queue;
 osThreadId_t g_rls_task_handle;
 const osThreadAttr_t rls_task_attr = {
     .name       = "rls_handle_task",
-    .stack_size = 256 * 4, /* 帧缓冲为 static；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
+    PL_TASK_STATIC_ATTR(rls_handle, 256),
 };
 
 /*--- 帧任务---*/
@@ -50,7 +56,13 @@ void rls_handle_task(void *argument)
     app_proto_set_frame_queue(s_rls_mask, g_rls_msg_queue);
 
     for (;;) {
-        if (osOK != osMessageQueueGet(g_rls_msg_queue, msg, NULL, osWaitForever))
+        /* 100ms 超时：无帧时节拍轮询干接点车道状态（SW1~SW3）；收到帧立即处理 */
+        osStatus_t qst = osMessageQueueGet(g_rls_msg_queue, msg, NULL, 100U);
+        if (qst == osErrorTimeout) {
+            rls_dry_contact_poll();
+            continue;
+        }
+        if (qst != osOK)
             continue;
 
         rls_frame_t *rls_frame = (rls_frame_t *)(msg->data);

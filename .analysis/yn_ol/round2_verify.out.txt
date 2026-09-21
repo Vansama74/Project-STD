@@ -1,0 +1,26 @@
+############ 1/4  APP_DIAG=0（诊断关；用于零开销对照）############
+exit=0 warnings=3
+text=169124 rodata=198672 data=1672  bss=124736 ccmram=38332
+87ea3660007cde2e1fdad7414bcd2736  build/Debug/Project_STD.elf
+bde8ab4b2e01be07c68f18c225f948e8  build/Debug/Project_STD.hex
+b4129a21606dc1526040088f5d31d0a8  build/Debug/Project_STD.bin
+residual diag strings (expect 0): 0
+############ 2/4  PROTO=ALL DISP=1_263（默认口径，诊断开）############
+exit=0 warnings=3
+text=174996 rodata=204848 data=1680  bss=124772 ccmram=38332
+e59ac7f1d19a4e52c2c934f5fd99cdb0  build/Debug/Project_STD.elf
+ce29a39098e484c0009a5175f3e61631  build/Debug/Project_STD.hex
+b2a8244ced2bca6ff7f7460a56c4f577  build/Debug/Project_STD.bin
+############ 3/4  PROTO=ALL DISP=22_1665（工作区 1×5）############
+exit=0 warnings=3
+text=175252 rodata=205104 data=1680  bss=124776 ccmram=44156
+6b0489a67a034cfe9bf0d4b2034d5579  build/Debug/Project_STD.elf
+883e7c24f6f7a3b0445300f1e0744d66  build/Debug/Project_STD.hex
+46df4c8dad71a309c954caab0c6d0739  build/Debug/Project_STD.bin
+############ 4/4  回到默认口径（留默认产物在 build/Debug）############
+exit=0 warnings=3
+text=174996 rodata=204848 data=1680  bss=124772 ccmram=38332
+81dd185822345a848da284f3c2e349dc  build/Debug/Project_STD.elf
+cac029cd6f40d74744ba77d76e82eb11  build/Debug/Project_STD.hex
+68ebbf9de4bde465dfa9416044f72ece  build/Debug/Project_STD.bin
+############ done ############

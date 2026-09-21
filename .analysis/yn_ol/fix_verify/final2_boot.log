@@ -1,0 +1,17 @@
+[yn_ol] 0x49 cfg loaded from 33542144: font_type=0 font_size=16
+[fwver] write ok ver=9K222B23E0
+
+[diag] ================ SELF-PROVING BANNER ================
+[diag] fw=9K222B23E0 built=Sep 18 2026 11:01:28 tree=7df8ac20
+[diag] build proto=ALL disp=22_1665 config=Debug toolchain=gcc
+[diag] reset csr=0x00000003 [iwdg=0 sft=0 por=0 pin=0 bor=0 lpw=0 wwdg=0] bkp0(force)=0 bkp1(iwdg_cnt)=0
+[diag] heap at banner free=29824 min=29824 (ucHeap=36864)
+[diag] display screen=16x80 code=2200001665 scan_lines=1 chans=1
+[diag] display module=16x16 ch/mod=1 mods=1x5 scan_line_px=640 buf=1280
+[diag] driver linked? 1_263=0 22_1703=0 (exactly one expected)
+[diag] font chip=MX25L256 regions=40 adapt=5 ascii_raw=0 gbk190=1 cap=33554432 dip2=0
+[diag] netcfg VALID ip=192.168.114.200 mask=255.255.255.0 gw=192.168.114.1 port=9528 udp_port=20103
+[diag] ports t0 udp10011=10011 tcp_biz=9528 cq_udp=20103 gzol_cached=9528 (expect gzol=9528 = net_cfg.port; rule: 0/invalid->9528; ==10011/20103->skip bind)
+[tcp_cli] connect FAIL err=-5 (retry in 1s)
+[tcp_cli] connecting 192.168.0.127:9528 ...
+[tcp_cli] connecting 192.168.0.127:9528 ...

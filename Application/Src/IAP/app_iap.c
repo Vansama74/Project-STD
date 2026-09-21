@@ -12,6 +12,12 @@
 #include "pl_crc.h"
 #include "app_udp.h"
 #include "app_iap_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * iap_handle_task：启动期创建一次、永不退出；静态化后不再占 ucHeap（省 1144B），
+ * CCM 占 1124B（栈 1024 + TCB 100）。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(iap_handle, 256);
 
 /* RJ45 物理通道 RB：与 LDI/MQTT 等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
@@ -56,8 +62,8 @@ osMessageQueueId_t g_iap_msg_queue;
 osThreadId_t g_iap_task_handle;
 const osThreadAttr_t iap_task_attr = {
     .name       = "iap_handle_task",
-    .stack_size = 256 * 4, /* 帧缓冲为 static；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
+    PL_TASK_STATIC_ATTR(iap_handle, 256),
 };
 
 /* ================================================================

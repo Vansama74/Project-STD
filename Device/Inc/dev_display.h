@@ -61,6 +61,12 @@ struct dev_display {
     const char *module_code; /* 模组编码字符串，由派生模组绑定 */
     volatile uint8_t light_level;
     volatile bool dirty;
+
+    /* ④a 脏矩形（2026-09-08）：dev_display_commit_frame_rect 提交的矩形。
+     * scan_task 消费 frame_ready 时写入本组字段，ops->prepare 读取（签名不变），
+     * prepare 返回后由 scan_task 复位为 invalid。valid=false = 全量重排。 */
+    uint16_t dirty_rect_x, dirty_rect_y, dirty_rect_w, dirty_rect_h;
+    bool dirty_rect_valid;
 };
 
 /* ---- 通用 API ---- */
@@ -88,6 +94,14 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
 /** @brief 叠加绘制位图: (x,y)起点, w宽h高, bitmap每行( (w+7)/8 )字节, bit=1写color, bit=0不改变原像素。
  *  如需不透明绘制(bit=0置黑), 调用方先 dev_display_fill 填充背景色
  *
+ *  越界语义（2026-09-14 修订，与 fill 的截断语义对齐）：
+ *  - 起点在屏幕外（x>=screen_rows 或 y>=screen_cols）→ 整区域丢弃；
+ *  - 部分越出屏幕右/下边界 → **按屏幕交集逐像素裁剪绘制（只画可见部分）**，
+ *    不再整块丢弃（字号大于可用高度时字形露出可见部分；位图为 MSB-first 行打包，
+ *    起点坐标无符号 → 裁剪只发生在右/下边界，位序不会错位）；
+ *  - 完全在屏内 → 与旧实现逐像素等价（快路径，无额外开销）；
+ *  - 空矩形（w=0 或 h=0）→ 不落笔。
+ *
  *  坐标约定同 dev_display_set_pixel */
 void dev_display_draw_bitmap(dev_display_t *dev,
                              uint16_t x, uint16_t y, uint16_t w, uint16_t h,
@@ -105,6 +119,12 @@ dev_display_t *dev_display_1_577_get(void);
 /** @brief 获取 1-263 模组显示实例（P6 32x32，1/8 扫，2 通道） */
 dev_display_t *dev_display_1_263_get(void);
 
+/** @brief 获取 22-1703 模组显示实例（P10 32x16，1/4 扫，2 通道/模块；料号 2200001703） */
+dev_display_t *dev_display_22_1703_get(void);
+
+/** @brief 获取 22-1665 模组显示实例（16x16 红绿双色，静态单扫，MBI5034B 多链；料号 2200001665） */
+dev_display_t *dev_display_22_1665_get(void);
+
 /** @brief 注册活动显示实例（由显示模组的 hw_dev_initcall 调用） */
 void dev_display_register(dev_display_t *dev);
 
@@ -114,8 +134,18 @@ dev_display_t *dev_display_get(void);
 extern volatile uint32_t g_dev_display_commit_count;
 extern volatile uint32_t g_dev_display_scan_count;
 
-/** @brief 将当前逻辑帧提交到扫描帧，供 scan_task 读取 */
+/** @brief 将当前逻辑帧提交到扫描帧，供 scan_task 读取（全屏语义） */
 void dev_display_commit_frame(dev_display_t *dev);
+
+/** @brief 提交帧并携带脏矩形（④a，2026-09-08）：只重排矩形覆盖区域，
+ *  消除滚动/行渲染场景的全屏 prepare 亮度抖。
+ *
+ *  与 commit_frame 同机制（osKernelLock 下记指针+标志），另记录矩形；
+ *  scan_task 消费时经 dev 字段传给 ops->prepare——prepare 签名不变，模组可
+ *  按行子集优化，不支持/矩形无效时全量重排（保守回退，正确性不变）。
+ *  未消费前多次提交自动合并为包围盒（stop_all 连续多槽提交不丢中间清行）。
+ *  矩形钳位到屏幕；空矩形（w/h=0 或整体越界）不提交帧。 */
+void dev_display_commit_frame_rect(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 
 /** 硬件亮度上限：0=关闭，8=OE 100% 常亮（PWM 8 档，最亮） */
 #define DEV_DISPLAY_BRIGHTNESS_MAX 8U

@@ -52,8 +52,10 @@ typedef enum {
     CH_ID_UDP        = 4,
     CH_ID_MQTT       = 5,
     CH_ID_RS232_1    = 6, /**< [仅语音 TX] USART6 — 禁止任何协议 bind_channel */
-    CH_ID_UDP_CQ     = 7, /**< CQ 业务口 UDP（PROTO_CHONGQING 读 Sector1 net_cfg.port 默认 20103；dev 构建固定 20103） */
-    CH_ID_MAX        = 8,
+    CH_ID_UDP_CQ     = 7, /**< CQ 业务口 UDP（PROTO_CHONGQING 读 Sector1 net_cfg.udp_port 默认 20103；dev 构建固定 20103） */
+    CH_ID_UDP_GZOL   = 8, /**< 贵州治超业务口 UDP（读 Sector1 net_cfg.port，与 TCP 业务口同号不同协议栈；
+                               GZ_OL `0x40` 改端口即改此口；空/0 回退 9528，见 app_udp.c） */
+    CH_ID_MAX        = 9,
 } channel_id_t;
 
 /* ---- 通道连接状态 ---- */
@@ -109,10 +111,31 @@ typedef struct {
     osMessageQueueId_t ch_queue;
     proto_mask_t ch_proto_map[CH_ID_MAX];
     channel_t *channels[CH_ID_MAX];
+    /* ---- 诊断计数（只读；不参与任何调度决策）----
+     * qfull_drop  : 协议帧队列满 → osMessageQueuePut 失败而丢帧的次数
+     *               （2026-09-17 YN_OL 联调轮新增：协议处理任务被卡住/过载时，
+     *                现场表现为「发命令没反应」，此前完全静默、无任何可观测性）；
+     * resync_byte : 探测链无消费时按 1 字节重同步（skip 1）的次数
+     *               （含 any_fake / any_overrun / 500ms WAIT 预算到期的强制重同步）。
+     * notify_drop : 通道接收通知（ch_queue）在「立即 + 短重试」后仍投递失败的次数
+     *               （2026-09-17 YN_OL 联调第二轮新增，盲区 C：原 timeout=0 且忽略
+     *                返回值，队列满即静默丢通知——数据已在 RB 但无人唤醒分发任务，
+     *                直到下一条通知到达才被顺带处理，现场表现＝「首次发命令无反应、
+     *                重连/再发一次才执行」）。正常恒 0。 */
+    uint32_t qfull_drop;
+    uint32_t resync_byte;
+    uint32_t notify_drop;
 } dispatch_ctx_t;
 
 extern dispatch_ctx_t g_dispatch;
 extern osThreadId_t g_dispatch_task_handle;
+
+/** @brief 协议帧队列满丢帧累计次数（诊断只读；见 dispatch_ctx_t 注释）。 */
+uint32_t app_dispatch_qfull_drops(void);
+/** @brief 探测链 1 字节重同步累计次数（诊断只读）。 */
+uint32_t app_dispatch_resync_count(void);
+/** @brief 通道通知投递失败（队列满）累计次数（诊断只读；正常恒 0）。 */
+uint32_t app_dispatch_notify_drops(void);
 
 /* ---- 调度 API ---- */
 uint8_t proto_index(uint32_t mask);

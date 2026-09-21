@@ -21,6 +21,7 @@
 | 主体 | 宪法位置 | 现行 |
 |------|----------|------|
 | pixel_map / hub75_buff / g_bsrr / row_dst | CCM | CCM |
+| RTOS 任务栈 + TCB（静态分配，CPU 独占、无 DMA） | CCM（2026-09-17 追加） | CCM（23 个任务 + 空闲/定时器任务，共 27076B，见 [04 §8](./04_current_memory_occupancy.md)） |
 
 ### ③ CCM 预留大屏余量
 
@@ -71,4 +72,29 @@ Makefile（1-260 + RLS/AH 全编）数字不得与之混用。
 - [x] EIDE 大屏链接成功（Phase A 验证口径 1-969；现行 1-577 3×3，CCM 同为 38208）；更新 04  
 - [x] `ucHeap` 不在 `0x1000…`  
 - [ ] ETH/UART/字库冒烟  
-- [ ] `xPortGetMinimumEverFreeHeapSize` 重标定  
+- [x] `xPortGetMinimumEverFreeHeapSize` 可读化（2026-09-17）：`[diag] heap … free/min` 随开机横幅与
+      逐通道探针常驻输出（见 04 §8.5）；**现场重标定**仍待实机执行（把 `min` 与 §8.3 预算表对账）。
+
+---
+
+## §6 修订（2026-09-17）：CCM 允许承载「RTOS 任务栈 / TCB」
+
+**背景**：全协议 dev 构建任务数 30+，启动期 ucHeap 需求 38032B > 可用 36856B
+（赤字 1176B），现场在 `app_rs485_start` 处 `pvPortMalloc` 失败（详见 04 §8）。
+
+**裁定**：把「全生命周期只创建一次」的任务栈 + `StaticTask_t` 静态分配到
+`.ccmram`（`Platform/Inc/pl_task_static.h` → `xTaskCreateStatic`），
+23 个应用任务 + 空闲/定时器任务共 **27076B** 进 CCM，**ucHeap 释放 25800B**。
+
+**与本文既有条款的关系（无冲突）**：
+
+* §1③「**堆**不得长期占 CCM」——本轮**没有**把 ucHeap 迁入 CCM，
+  `configAPPLICATION_ALLOCATED_HEAP` 仍为 0、`ucHeap` 仍在 SRAM（`nm` 实证
+  `0x20015c3c`）；迁移对象是**任务栈/TCB**（CPU 独占数据，非堆）。
+* §3「DMA/ETH 门禁」——任务栈从不交给 DMA，CCM 的非 DMA 可达性对它是无关属性。
+* §1② 的 CCM 判别标准从「显存/BSR」扩展为「**CPU 独占、且非 DMA/ETH 可达需求**」，
+  队列体（CQ/GZ_OL/YN_OL，2026-08-20/09-14/09-17 先例）与本轮任务栈同属此类。
+
+**量化事实**：CCM 全片占用 `ALL/1_263 = 38332B / 65536B`（余 27204B）、
+`CQ/1_263 = 36076B`（余 29460B）、`ALL/22_1665 = 39036B`（余 26500B）；
+SRAM 余量 `ALL = 2136B`（修复前 400B）、`CQ = 6408B`。**新增 CCM 占用前先看余量**。

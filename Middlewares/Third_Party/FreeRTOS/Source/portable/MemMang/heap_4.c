@@ -97,6 +97,16 @@ static const size_t xHeapStructSize	= ( sizeof( BlockLink_t ) + ( ( size_t ) ( p
 /* Create a couple of list links to mark the start and end of the list. */
 static BlockLink_t xStart, *pxEnd = NULL;
 
+#if ( configUSE_MALLOC_FAILED_HOOK == 1 )
+/* 【项目本地诊断补丁 2026-09-17】pvPortMalloc 的失败钩子签名不含请求大小，
+ * 堆耗尽现场无法判断「谁要了多少」。此处把本次失败分配的**实耗口径**字节数
+ * 暴露给 vApplicationMallocFailedHook() 打印：`xWantedSize` 在本函数前段已被
+ * 加上 8B 块头（BlockLink_t）并按 portBYTE_ALIGNMENT（8B）向上对齐，故它是
+ * 「调用方请求 + 8B，再对齐」的值（例：请求 1024 → 1032；请求 100 → 112），
+ * 不是裸请求值。仅在失败路径写一次，不改变任何分配/回收语义。 */
+size_t xLastFailedAllocSize = 0;
+#endif
+
 /* Keeps track of the number of calls to allocate and free memory as well as the
 number of free bytes remaining, but says nothing about fragmentation. */
 static size_t xFreeBytesRemaining = 0U;
@@ -249,6 +259,7 @@ void *pvReturn = NULL;
 		if( pvReturn == NULL )
 		{
 			extern void vApplicationMallocFailedHook( void );
+			xLastFailedAllocSize = xWantedSize; /* 诊断：失败分配实耗口径（请求+8B 块头并对齐，见上方补丁说明） */
 			vApplicationMallocFailedHook();
 		}
 		else

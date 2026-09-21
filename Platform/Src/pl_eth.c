@@ -3,6 +3,7 @@
 #include "pl_eth.h"
 #include <string.h>
 #include "cmsis_os.h"
+#include "SEGGER_RTT.h" /* 线程创建失败报告（Platform 不反向依赖 Application/pl_task_guard.h） */
 
 /* ---- 宏定义 ---- */
 #define TIME_WAITING_FOR_INPUT (portMAX_DELAY)  /**< 等待接收数据的超时时间 */
@@ -185,7 +186,16 @@ static void low_level_init(struct netif *netif)
     attributes.name       = "EthIf";
     attributes.stack_size = INTERFACE_THREAD_STACK_SIZE;
     attributes.priority   = osPriorityRealtime;
-    osThreadNew(ethernetif_input, netif, &attributes);
+    /* 判空 + RTT：EthIf 起不来 = 全部网络协议（LDI/IAP/CQ/GZ_OL/YN_OL）无声失效，
+     * 必须留下「谁、还差多少」的证据（本函数不依赖 Application 层的
+     * pl_task_guard.h——Platform 不得反向依赖 Application，故就地报告）。 */
+    osThreadId_t ethif_tid = osThreadNew(ethernetif_input, netif, &attributes);
+    if (ethif_tid == nullptr) {
+        SEGGER_RTT_printf(0,
+                          "[err] task 'EthIf' create FAILED (heap exhausted): free=%u min=%u\n",
+                          (unsigned)xPortGetFreeHeapSize(),
+                          (unsigned)xPortGetMinimumEverFreeHeapSize());
+    }
 
     /* PHY 已在 pl_eth_mac_hw_init() 初始化，此处仅检测链路状态 */
     {

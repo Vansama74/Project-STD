@@ -1,0 +1,114 @@
+############ cq_1263 ############
+exit=0  errors=0  warnings=3
+--- warning 明细 ---
+      3 warning: unused parameter 'Banks' [-Wunused-parameter]
+--- 段尺寸 ---
+.text                158684   134480272
+.rodata              201936   134638960
+.data                   872   536870912
+.ccmram               36076   268435456
+.bss                 121228   536871784
+._user_heap_stack      2564   536993012
+--- 口径指纹 ---
+CONFIG=Debug
+TOOLCHAIN=gcc
+PROTO=CQ
+DISP=1_263
+--- md5 ---
+cd14a6b549278c282b8e68ae7928a8c4  build/Debug/Project_STD.elf
+
+############ all_221665 ############
+exit=0  errors=0  warnings=3
+--- warning 明细 ---
+      3 warning: unused parameter 'Banks' [-Wunused-parameter]
+--- 段尺寸 ---
+.text                172036   134480272
+.rodata              202592   134652312
+.data                  1672   536870912
+.ccmram               39036   268435456
+.bss                 124704   536872584
+._user_heap_stack      2560   536997288
+--- 口径指纹 ---
+CONFIG=Debug
+TOOLCHAIN=gcc
+PROTO=ALL
+DISP=22_1665
+--- md5 ---
+f7e82c817c16401b21d081ae0fb9b2cd  build/Debug/Project_STD.elf
+
+############ all_1263 ############
+exit=0  errors=0  warnings=3
+--- warning 明细 ---
+      3 warning: unused parameter 'Banks' [-Wunused-parameter]
+--- 段尺寸 ---
+.text                171860   134480272
+.rodata              202592   134652136
+.data                  1672   536870912
+.ccmram               38332   268435456
+.bss                 124704   536872584
+._user_heap_stack      2560   536997288
+--- 口径指纹 ---
+CONFIG=Debug
+TOOLCHAIN=gcc
+PROTO=ALL
+DISP=1_263
+--- md5 ---
+6401c218bc1548f9f1e7278e8c1bb13d  build/Debug/Project_STD.elf
+
+############ 静态栈 / ucHeap 归属（nm，当前 build/Debug/Project_STD.elf）############
+  10000000 00000400 b s_task_scan_stack
+  10000400 00000064 b s_task_scan_tcb
+  10000e28 00000400 b s_task_factory_monitor_stack
+  10001228 00000064 b s_task_factory_monitor_tcb
+  10001290 00000400 b s_timer_task_stack
+  10001690 00000064 b s_timer_task_tcb
+  100016f8 00000200 b s_idle_task_stack
+  100018f8 00000064 b s_idle_task_tcb
+  10001960 00000400 b s_task_frame_dispatch_stack
+  10001d60 00000064 b s_task_frame_dispatch_tcb
+  10001dc8 00000400 b s_task_scroll_stack
+  100021c8 00000064 b s_task_scroll_tcb
+  10002230 00000200 b s_task_light_sensor_stack
+  10002430 00000064 b s_task_light_sensor_tcb
+  10002498 00000400 b s_task_iap_handle_stack
+  10002898 00000064 b s_task_iap_handle_tcb
+  10002900 00000400 b s_task_ldi_timer_stack
+  10002d00 00000064 b s_task_ldi_timer_tcb
+  10002d68 00000400 b s_task_ldi_handle_stack
+  10003168 00000064 b s_task_ldi_handle_tcb
+  10004290 00000400 b s_task_cq_timer_stack
+  10004690 00000064 b s_task_cq_timer_tcb
+  100046f8 00000400 b s_task_cq_handle_stack
+  10004af8 00000064 b s_task_cq_handle_tcb
+  10005388 00000400 b s_task_rls_handle_stack
+  10005788 00000064 b s_task_rls_handle_tcb
+  100057f0 00000400 b s_task_qh_handle_stack
+  10005bf0 00000064 b s_task_qh_handle_tcb
+  10005c58 00000400 b s_task_sc_etc_handle_stack
+  10006058 00000064 b s_task_sc_etc_handle_tcb
+  100060c0 00000400 b s_task_sc_mtc_handle_stack
+  100064c0 00000064 b s_task_sc_mtc_handle_tcb
+  10006528 00000400 b s_task_sc_ol_handle_stack
+  10006928 00000064 b s_task_sc_ol_handle_tcb
+  10006990 00000400 b s_task_sd_handle_stack
+  10006d90 00000064 b s_task_sd_handle_tcb
+  10006df8 00000400 b s_task_gz_handle_stack
+  100071f8 00000064 b s_task_gz_handle_tcb
+  100076d0 00000400 b s_task_gz_ol_handle_stack
+  10007ad0 00000064 b s_task_gz_ol_handle_tcb
+  10007b38 00000400 b s_task_yn_handle_stack
+  10007f38 00000064 b s_task_yn_handle_tcb
+  10008420 00000400 b s_task_yn_ol_handle_stack
+  10008820 00000064 b s_task_yn_ol_handle_tcb
+  10008888 00000400 b s_task_anhui_handle_stack
+  10008c88 00000064 b s_task_anhui_handle_tcb
+  10008cf0 00000400 b s_task_rs232_0_stack
+  100090f0 00000064 b s_task_rs232_0_tcb
+  10009158 00000400 b s_task_rs485_stack
+  10009558 00000064 b s_task_rs485_tcb
+  20015c3c 00009000 b ucHeap
+--- 其中落在 CCMRAM(0x1000xxxx) 的静态栈数量 ---
+25
+--- ucHeap 地址（必须 2000xxxx = SRAM）---
+  20015c3c 00009000 b ucHeap
+############ done ############

@@ -1,0 +1,32 @@
+[fwver] same ver=9K222B23E0, skip erase/write
+
+[diag] ================ SELF-PROVING BANNER ================
+[diag] fw=9K222B23E0 built=Sep 18 2026 10:17:07 tree=no-fingerprint
+[diag] build proto=? disp=? config=? toolchain=?
+[diag] heap at banner free=29952 min=29952 (ucHeap=36864)
+[diag] display screen=16x80 code=2200001665 scan_lines=1 chans=1
+[diag] display module=16x16 ch/mod=1 mods=1x5 scan_line_px=640 buf=1280
+[diag] driver linked? 1_263=0 22_1703=0 (exactly one expected)
+[diag] font chip=MX25L256 regions=40 adapt=5 ascii_raw=0 gbk190=1 cap=33554432 dip2=0
+[diag] netcfg VALID ip=192.168.1.142 mask=255.255.255.0 gw=192.168.1.1 port=10011 udp_port=20103
+[diag] ports t0 udp10011=10011 tcp_biz=10011 cq_udp=20103 gzol_cached=9528 (expect gzol=10011 = net_cfg.port; rule: 0/invalid->9528; ==10011/20103->skip bind)
+[diag] heap after tcp_server_start free=28176 min=28176
+[diag] heap after tcp_client_start free=27032 min=27032
+[diag] heap after udp_start(10011) free=25888 min=25888
+tcp_bind: bind to port 10011
+tcp_close: closing in State: SYN_SENT
+tcp_pcb_purge
+tcp_pcb_purge: data left on ->unacked
+tcp_slowtmr: no active pcbs
+tcp_connect to port 9529
+[tcp_cli] connecting 192.168.2.17:9529 ...
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: processing active pcb
+tcp_slowtmr: polling application
+tcp_slowtmr: processing active pcb

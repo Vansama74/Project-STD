@@ -7,6 +7,13 @@
 #include "cmsis_os2.h"
 #include "initcall.h"
 #include "dev_display.h"
+#include "pl_task_guard.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * light_sensor_task：启动期创建一次、永不退出；静态化后不再占 ucHeap
+ * （省 632B = 栈 512 + TCB 112 块），CCM 占 612B。 */
+PL_TASK_STATIC_STORAGE(light_sensor, 128);
 
 static light_sensor_dev_t s_sensor_dev;
 osThreadId_t g_light_sensor_task_handle;
@@ -32,9 +39,10 @@ void app_light_sensor_init(void)
 
     const osThreadAttr_t attr = {
         .name       = "light_sensor_task",
-        .stack_size = 128 * 4,
         .priority   = osPriorityLow,
+        PL_TASK_STATIC_ATTR(light_sensor, 128),
     };
-    g_light_sensor_task_handle = osThreadNew(app_light_sensor_task, NULL, &attr);
+    g_light_sensor_task_handle =
+        pl_task_create_checked(osThreadNew(app_light_sensor_task, NULL, &attr), "light_sensor_task");
 }
 sw_app_initcall(app_light_sensor_init);

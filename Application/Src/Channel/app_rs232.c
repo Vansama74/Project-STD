@@ -21,6 +21,8 @@
 #include "app_dispatch.h"
 #include "dev_rs232.h"
 #include "pl_uart.h"
+#include "pl_task_guard.h"
+#include "pl_task_static.h"
 
 typedef struct {
   channel_t me;
@@ -42,11 +44,14 @@ static const osMessageQueueAttr_t s_rs232_0_rx_attr = {
     .mq_size = sizeof(s_rs232_0_rx_buf),
 };
 
-/* ---- RS232 task attr ---- */
+/* ---- RS232 task attr（静态存储：栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * rs232_0_task：启动期创建一次、永不退出（仅 rx_queue 创建失败分支退出）。
+ * 静态化后不再从 ucHeap 支出（省 1144B），CCM 占 1124B。 */
+PL_TASK_STATIC_STORAGE(rs232_0, 256);
 static const osThreadAttr_t s_rs232_0_attr = {
     .name = "rs232_0_task",
-    .stack_size = 256 * 4,
     .priority = osPriorityNormal,
+    PL_TASK_STATIC_ATTR(rs232_0, 256),
 };
 
 /* ---- RS232-0 实例（协议通道） ---- */
@@ -112,7 +117,7 @@ osThreadId_t app_rs232_start(void) {
   self->rx_buf = dev_rs232_get_buf(0);
   self->rx_block_size = RS232_BUF_SIZE;
   self->rx_buf_size   = 2U * RS232_BUF_SIZE; /* 乒乓双块：640→1280B */
-  return osThreadNew(rs232_task, self, &s_rs232_0_attr);
+  return pl_task_create_checked(osThreadNew(rs232_task, self, &s_rs232_0_attr), "rs232_0_task");
 }
  
 /**

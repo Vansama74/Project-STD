@@ -14,6 +14,9 @@
 #include "pl_eth.h"
 #include <string.h>
 
+#include "cmsis_os.h"
+#include "SEGGER_RTT.h" /* 线程创建失败报告（Platform 不反向依赖 Application/pl_task_guard.h） */
+
 /* ================================================================
  *  链路状态监听器列表 — 上层注册，链路变化时遍历通知
  * ================================================================ */
@@ -72,7 +75,14 @@ void pl_net_init(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gatew
     attributes.name       = "EthLink";
     attributes.stack_size = INTERFACE_THREAD_STACK_SIZE;
     attributes.priority   = osPriorityBelowNormal;
-    osThreadNew(ethernet_link_thread, &gnetif, &attributes);
+    /* 判空 + RTT：无链路监听 = 断链后各通道永不重建连接（拔插网线即死） */
+    osThreadId_t ethlink_tid = osThreadNew(ethernet_link_thread, &gnetif, &attributes);
+    if (ethlink_tid == nullptr) {
+        SEGGER_RTT_printf(0,
+                          "[err] task 'EthLink' create FAILED (heap exhausted): free=%u min=%u\n",
+                          (unsigned)xPortGetFreeHeapSize(),
+                          (unsigned)xPortGetMinimumEverFreeHeapSize());
+    }
 }
 
 /* ================================================================

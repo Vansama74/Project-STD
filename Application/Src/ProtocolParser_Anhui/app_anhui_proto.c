@@ -19,6 +19,12 @@
 
 #include "app_anhui_proto_parse.h"
 #include "app_anhui_proto_cmd.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * anhui_handle_task：启动期创建一次、永不退出；静态化后不再占 ucHeap（省 1144B），
+ * CCM 占 1124B。任务栈仅被 CPU 访问，不经 DMA。 */
+PL_TASK_STATIC_STORAGE(anhui_handle, 256);
 
 /* 地区协议通道 RB：与青海/RLS/四川三协议/山东/贵州/云南等同槽 weak 合并 */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
@@ -84,8 +90,8 @@ void anhui_proto_init(void)
 
     static const osThreadAttr_t s_anhui_task_attr = {
         .name       = "anhui_handle_task",
-        .stack_size = 256 * 4, /* 帧缓冲为 static，不入栈 */
         .priority   = osPriorityNormal,
+        PL_TASK_STATIC_ATTR(anhui_handle, 256),
     };
     osThreadNew(anhui_proto_handle_task, NULL, &s_anhui_task_attr);
 }

@@ -1,9 +1,10 @@
 /**
- * @file    dev_tcp_client.h
- * @brief   TCP 客户端通道（Device 层）
+ * @file    app_tcp_client.h
+ * @brief   TCP 客户端通道（Application / Channel 层）
  *
  * 连接远程 TCP 服务器，接收数据通过 app_channel_dispatch 写入调度框架。
- * 默认: 192.168.2.17:9529，断线自动重连。
+ * 远端默认未配置（0.0.0.0:0）：任务可空转，未配置不发起 connect。
+ * 由 app_tcp_client_set_remote() 配好后自动开始连接；断线自动重连。
  */
 
 #pragma once
@@ -12,6 +13,7 @@
 
 #include "cmsis_os2.h"
 #include "app_dispatch.h"
+#include "pl_task_guard.h"
 
 /* 复用 app_tcp_server.h 中的 tcp_ch_ops */
 #include "app_tcp_server.h"
@@ -36,7 +38,8 @@ void tcp_client_task(void *argument);
 
 static inline osThreadId_t app_tcp_client_start(void)
 {
-    return osThreadNew(tcp_client_task, NULL, &tcp_client_task_attr);
+    return pl_task_create_checked(osThreadNew(tcp_client_task, NULL, &tcp_client_task_attr),
+                                   "tcp_client_task");
 }
 
 void app_tcp_client_set_remote(const uint8_t ip[4], uint16_t port);

@@ -7,6 +7,13 @@
 #include "app_ldi_device.h"
 #include "crc_utils.h"
 #include "app_ldi_cfg.h"
+#include "pl_task_static.h"
+
+/* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
+ * ldi_handle_task / ldi_timer_task：启动期各创建一次、永不退出。
+ * 两者共从 ucHeap 移出 2×1144B，CCM 占 2×1124B。 */
+PL_TASK_STATIC_STORAGE(ldi_handle, 256);
+PL_TASK_STATIC_STORAGE(ldi_timer, 256);
 #include "app_board_net_cfg.h"
 #include "app_tcp_client.h"
 #include "app_tcp_server.h"
@@ -145,8 +152,10 @@ void ldi_ctx_init(ldi_ctx_t *self)
                 app_flash_ldi_save_config(&self->cfg);
             }
         } else {
-            /* W25 空/无效：host 字段取编译期默认，并把当前 cfg 的网络字段写为 W25
-             * 恢复镜像——维护「擦 Sector1 恢复出厂后仍可还原用户配置」能力。
+            /* W25 空/无效：host 取通道当前远端（2026-09-18 起编译期哨兵
+             * 0.0.0.0:0，未配置不连；本分支不 set_remote），并把当前 cfg 写为
+             * W25 恢复镜像——维护「擦 Sector1 恢复出厂后仍可还原用户配置」。
+             * ⚠ 会把哨兵 host 落入 W25（出厂连上位机是否另给默认 host 待拍板）。
              * W25 为 SPI 外设擦写（4KB 扇区），不暂停 CPU 总线，区别于内部 Flash
              * 擦除（1~2s 停顿），上电执行安全。 */
             memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
@@ -201,8 +210,9 @@ void ldi_ctx_init(ldi_ctx_t *self)
     } else {
         /* ---- 分支 3：Sector1 与 W25 皆空/无效 → 统一出厂默认 ----
          * 默认 IP 取 pl_net 上电值（三固件统一 192.168.114.200/24，doc/07 §11），
-         * 端口取 TCP Server 编译期默认。cfg 默认填充仅保证 LDI 上下文自洽，
-         * netif 应用由后续 app_net_boot_apply 统一执行（2026-08-21 解耦）。 */
+         * 端口取 TCP Server 编译期默认。host 取通道当前远端（哨兵 0.0.0.0:0，
+         * 不 set_remote；出厂连上位机默认 host 待拍板）。cfg 默认填充仅保证
+         * LDI 上下文自洽，netif 应用由后续 app_net_boot_apply 统一执行。 */
         uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
         pl_net_get_ip(ip, mask, gw);
         memcpy(self->cfg.device_ip, ip, sizeof(ip));
@@ -261,15 +271,15 @@ osMessageQueueId_t g_ldi_msg_queue;
 osThreadId_t g_ldi_task_handle;
 const osThreadAttr_t ldi_task_attr = {
     .name       = "ldi_handle_task",
-    .stack_size = 256 * 4, /* 帧缓冲为 static；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
+    PL_TASK_STATIC_ATTR(ldi_handle, 256),
 };
 
 osThreadId_t g_ldi_timer_task_handle;
 const osThreadAttr_t ldi_timer_task_attr = {
     .name       = "ldi_timer_task",
-    .stack_size = 256 * 4, /* 周期上报路径；原 2KB 偏大 */
     .priority   = (osPriority_t)osPriorityNormal,
+    PL_TASK_STATIC_ATTR(ldi_timer, 256),
 };
 
 /* ================================================================

@@ -1,0 +1,578 @@
+/**
+ * @file    dev_display_22_1665.c
+ * @brief   22-1665 模组派生类型 — 16x16 红绿双色、静态扫描、单根 SDI 串行链
+ *
+ * 料号 2200001665，列驱动 MBI5034B（16 通道恒流下沉 + 16 位移位寄存器 + 输出栓锁，
+ * SDO→SDI 级联）。实现 dev_display_ops: prepare (pixel_map→hub75_buff) +
+ * scan (BSRR 查表输出)；链位映射表与 g_bsrr 查表放 CCMRAM，init 期生成，
+ * 扫描热路径只做「查表 + 写引脚 + 时钟」，无运算无分支（探针关闭时）。
+ *
+ * 与并行通道模组（1_263 / 1_969 / 1_577 / 22_1703 / p20）的范式差异：参考模组一个
+ * CLK 并行移出「各通道各 1 位」，故其 hub75_buff 必须按硬件位序打乱重排；本模组只有
+ * 一根 SDI（或 R/G 双链），红、绿两段在链上**串行**（或并行）移出，链上顺序只由发射
+ * 序决定 → hub75_buff 与 pixel_map 逐字节同布局，「链上第 p 位驱动哪个像素的哪一段」
+ * 全部收进 _22_1665_bit[]（= 参考驱动 row_dst[] 的逐链位推广）。
+ *
+ * ---------------------------------------------------------------------------
+ * 链路拓扑（片序 / 段序 / 片内输出落点 / 数据线数 / 扫描体制 / 数据极性）**全为推定**
+ * ——无原理图、无源固件、无实物核对。为把「不确定的硬件」变成「一次上机可判定」，
+ * 本文件把全部推定集中为两处编译期设施（改一处 + `make -j8 DISP=22_1665` 重构建即看屏）：
+ *
+ *   ① 校准开关（§校准开关）：一组彼此正交的开关，按「屏上症状」逐项对照二分标定；
+ *   ② 链序探针（§探针）：默认关；开启后 scan 忽略显示内容，只发探针图案，
+ *      用于 1~2 次上机直接**读出**实物链的位序、片数与片内落点形状。
+ *
+ * 判定流程（成本从低到高，详见 doc/01_显示系统/22-1665模组驱动分析与迁记录.md §13）：
+ *   ① 零改动 · 出厂检测（TEST 键第 2~8 次 = 全屏红/绿/黄/白/蓝/紫/青）：
+ *      全屏纯色是「映射无关」图案——**任何双射映射都不改变全屏纯色的显示结果**，
+ *      故「全屏白不亮满 / 全屏红出现条纹或半屏 / 全屏蓝不黑」三问即可把问题
+ *      钉在「结构（体制/链长/段排布）」还是「顺序（位序/段序/极性）」上。
+ *   ② 零改动 · 出厂检测第 11 次 = 老化循环（单个 16x16 汉字，3s 换字）：
+ *      字形可辨 ⇒ 映射正确、问题在上层排版（屏只有 16x16）；字形规则错乱 ⇒ 按开关表改一处。
+ *   ③ 开探针（CHAIN_PROBE=2 → 1）重构建：读出片内落点形状与整链位序。
+ *   ④ 按读数改校准开关 → 重构建 → 复核。
+ *
+ * 本文件不做驱动内走位自检（与参考驱动一致）：走位自检用出厂检测（TEST 键）或
+ * Application/Src/app_test.c 的 app_test_pixel_scan / app_test_led_mapping。
+ * 本文件**不触碰**任何其它源码（基类/pl_hub75/app_test/app_boot 均零改动）。
+ */
+
+#include "dev_display.h"
+
+#include <string.h>
+#include "initcall.h"
+
+/* ================================================================
+ *  22-1665 模组参数 — 16x16 红绿双色、静态扫描（默认口径）
+ *
+ *  单模块 16x16 像素，静态扫描（无行址线，整屏恒亮），1 根数据线（单根 SDI 串行链）。
+ *  改 MODULE_ROWS 即可在同一根 SDI 上级联（线变长、每线段内片数随动，
+ *  `_Static_assert` 兜底闭合性——MODULE_ROWS=2 → 32x16 / 每线段内 2 片）。
+ *  MODULE_COLS > 1 属**并行通道**模型（基类 TOTAL_CHANNELS / CHANNEL_PIXELS 派生式
+ *  按「每列模块 = 一条独立数据线」定义），与本「单链」模型不自洽 → 编译期拦截。
+ * ================================================================ */
+#define MODULE_CODE "2200001665"
+
+#define _22_1665_MODULE_ROWS         (1U)  /* 每行模块数（水平） */
+#define _22_1665_MODULE_COLS         (1U)  /* 每列模块数（垂直） */
+#define _22_1665_MODULE_PIXEL_ROW    (16U) /* 单模块每行的像素个数 */
+#define _22_1665_MODULE_PIXEL_COL    (16U) /* 单模块每列的像素个数 */
+#define _22_1665_CHANNELS_PER_MODULE (1U)  /* 每模块通道数（单根 SDI） */
+
+/* ---- 派生参数（由模组参数计算，勿手动修改） ---- */
+#define _22_1665_SCREEN_ROWS    (_22_1665_MODULE_ROWS * _22_1665_MODULE_PIXEL_ROW) /* 屏幕每行像素数（宽） */
+#define _22_1665_SCREEN_COLS    (_22_1665_MODULE_COLS * _22_1665_MODULE_PIXEL_COL) /* 屏幕每列像素数（高） */
+#define _22_1665_BUFFER_SIZE    (_22_1665_SCREEN_ROWS * _22_1665_SCREEN_COLS)
+#define _22_1665_TOTAL_CHANNELS (_22_1665_MODULE_COLS * _22_1665_CHANNELS_PER_MODULE)
+/* 注意：除数是 CHANNELS_PER_MODULE（每模块的线数），不是 TOTAL_CHANNELS——
+ * 除错会使每通道像素数错位（1_969 / 1_263 / 22_1703 同式）。 */
+#define _22_1665_CHANNEL_PIXELS (_22_1665_MODULE_PIXEL_ROW * _22_1665_MODULE_PIXEL_COL * _22_1665_MODULE_ROWS / _22_1665_CHANNELS_PER_MODULE)
+
+/* ================================================================
+ *  单链位流参数（本模组特有节，对应 22_1703 的「合并写查表」节）
+ *
+ *  hub75_buff 布局：与 pixel_map **逐字节同布局**（行主序 1B/像素颜色索引，长度 =
+ *  buffer_size）。链上顺序只由 scan 的发射序与 _22_1665_bit[] 决定，故字节布局与
+ *  链路拓扑无关；多相（1/N 扫描）时按**相优先**组织（相 p 占
+ *  [p*scan_line_pixels, (p+1)*scan_line_pixels)），与基类 scan(line) 的取数契约一致。
+ *
+ *  链位 p（chain position）= 数据在移位链上的物理位置，约定：
+ *    p 按「近 MCU 端在前」编号（p=0 = 最后移入的位落点 = 近 MCU 首片的入口级）；
+ *    移位链的物理事实：**最先移入的位最终停在链尾** → 发射序 t 的位落在 p = N-1-t，
+ *    故 scan 按 p 递减遍历映射表。
+ *  一片 = CHIP_BITS 个链位（16 位移位寄存器），片号 chip = p / CHIP_BITS，
+ *  片内级序 s = p % CHIP_BITS（0 = 该片入口级）。
+ * ================================================================ */
+
+/* ---- 芯片与段（硬约束：由模组物理决定）---- */
+#define _22_1665_CHIP_BITS (16U) /* 一片的位宽（16 位移位寄存器 = 16 路恒流输出） */
+#define _22_1665_SEGMENTS  (2U)  /* 每像素占用的链位数（红段 + 绿段；三色改 3，帧长随动） */
+#define _22_1665_SEG_R     (0U)  /* 物理段：红 */
+#define _22_1665_SEG_G     (1U)  /* 物理段：绿 */
+#define _22_1665_SEG_B     (2U)  /* 物理段：蓝（SEGMENTS = 3 时才存在；本模组无此段） */
+
+/* ---- 数据脚（复用 HUB75 排线；CLK=PD1 / LAT=PD3 / OE=PD0 由 pl_hub75.h 固定）----
+ *   单链（默认）：所有段共用 SDI 脚（_SDI_CH / _SDI_SIG，默认 R1(PG9)，见 doc §9 M1-1）
+ *   双链（CHAIN_DUAL=1）：红链 = _SDI_CH/_SDI_SIG，绿链 = _SDI_CH_G/_SDI_SIG_G（默认 G1） */
+#define _22_1665_SDI_CH    (0U) /* 单链/红链：0=排线第 1 组(R1/G1/B1) / 1=第 2 组(R2/G2/B2) */
+#define _22_1665_SDI_SIG   (0U) /* 单链/红链：0=R / 1=G / 2=B —— 默认 R1(PG9) */
+#define _22_1665_SDI_CH_G  (0U) /* 绿链（仅 CHAIN_DUAL=1）：组号 */
+#define _22_1665_SDI_SIG_G (1U) /* 绿链（仅 CHAIN_DUAL=1）：0=R / 1=G / 2=B —— 默认 G1(PG10) */
+
+/* ================================================================
+ *  ★ 校准开关（单一校准点，2026-09-17 收敛：全部推定集中在本节）
+ *
+ *  现场纪律：**一次只改一处** + `make -j8 DISP=22_1665` 重构建 + 观察屏上变化。
+ *  旧口径等价关系（与 doc §3.2 的六开关一一对应，命名归一后语义不变）：
+ *    TRANSPOSE=1   ⇔ CHAIN_BLK_W = 1         COLOR_MAJOR=1 ⇔ CHAIN_SEG_LAYOUT = 1
+ *    SEG_PACK=1    ⇔ CHAIN_SEG_LAYOUT = 2    LINE_REVERSE / G_FIRST / BIT_REVERSE /
+ *    DATA_ACTIVE_HIGH 语义不变
+ *
+ *   开关                    默认     另一取值                    屏上典型症状（对照判读表）
+ *   ──────────────────────  ───────  ──────────────────────────  ──────────────────────────
+ *   SCAN_SEL               1        2 / 4 / 8 / 16              纵向拉伸/挤压 N 倍、只有隔 N 行亮
+ *   CHAIN_DUAL             0        1 = R1+G1 双链              只有红（或只有绿）亮 + 内容挤压 2 倍
+ *   CHAIN_BLK_W            0=自动   2 / 4 / 8                   斜条纹 / 固定步长错行（块错排）
+ *   CHAIN_SEG_LAYOUT       0        1 = 段优先 / 2 = 片内交错   纵向拉伸 2 倍、红绿成块或短周期条纹
+ *   CHAIN_G_FIRST          0        1                           红绿互换
+ *   CHAIN_LINE_REVERSE     0        1                           整屏上下镜像（块序反转）
+ *   CHAIN_BIT_REVERSE      0        1                           块内镜像（BLK_W=16 时 = 行内左右镜像）
+ *   CHAIN_DATA_ACTIVE_HIGH 1        0                           明暗反相（该亮的灭、该灭的亮）
+ *
+ *  整屏 180° 翻转 = LINE_REVERSE + G_FIRST + BIT_REVERSE 三者同改（链首尾方向反了）。
+ *  结构型开关（SCAN_SEL / CHAIN_DUAL / CHAIN_BLK_W / CHAIN_SEG_LAYOUT）之间互斥关系见
+ *  下方各条注释与 `_Static_assert`——口径自相矛盾在**编译期**报错，不留到实机。
+ * ================================================================ */
+
+/** 扫描体制：1 = 静态（默认，整屏恒亮，无行址线）；
+ *  2/4/8/16 = 1/N 扫描：每相点亮 SCREEN_COLS/N 个物理行（行号 interleaved：
+ *  相 p 点亮 y % N == p 的各行），行址由基类 scan_task 在 OE 消隐窗口内写
+ *  A/B/C/D（`pl_hub75_Decoder_set_row`，二进制译码器型）。
+ *  症状：本模组实为 1/N 扫而按静态驱动 → 链上只有后 1/N 数据留存、且只有被选址的
+ *  行亮 → **内容被拉伸/挤压、错行、大面积黑行**；反之（实为静态而按 1/N 驱动）→
+ *  每相只有部分内容、整屏闪烁且内容被"切碎"。 */
+#define _22_1665_SCAN_SEL (1U)
+
+/** 数据线数：0 = 单链（红、绿段在**同一条链**上串行移出，SDI = _SDI_CH/_SDI_SIG）；
+ *  1 = 双链（红段链 → _SDI_CH/_SDI_SIG、绿段链 → _SDI_CH_G/_SDI_SIG_G，两链共用
+ *  CLK/LAT，同一时钟各移入 1 位）。
+ *  症状：实为双链而按单链驱动 → 只有红（R1 有波形、G1 无波形）亮，且数据被"挤"到
+ *  一半链长（内容 2 倍纵向压缩）；实为单链而按双链驱动 → 只有后移入的一半数据可见。 */
+#define _22_1665_CHAIN_DUAL (0U)
+
+/** 段与片的排布（仅单链模式有意义；双链时每链即一段，须为 0）：
+ *    0 = 段随线相邻（默认）：片 2k / 2k+1 = 第 k 行（段内）的红段 / 绿段片
+ *    1 = 段优先：前一半片全为红段、后一半片全为绿段
+ *    2 = 片内 R/G 交错：一片 = CHIP_BITS/SEGMENTS 个像素 × 各段（片内级序交替各段）
+ *  症状：取错 → 纵向拉伸（片号翻倍 = 相邻行被"撑开"）或挤压、红绿各自成块/半屏纯色、
+ *  短周期颜色条纹。 */
+#define _22_1665_CHAIN_SEG_LAYOUT (0U)
+
+/** 片内 16 输出的落点形状（块宽，单位像素；块高 = 每片像素数 / 块宽）：
+ *    0 = 自动（= 每片像素数：一片 = 某段一条线上 16 个连续像素，**现行默认**）
+ *    8 / 4 / 2 = 一片覆盖 8x2 / 4x4 / 2x8 的二维像素块（PCB 为减少跨层把一片的 16 路
+ *                输出扇出成方块，是国产双色屏的常见做法）
+ *    1 = 一片 = 某段一串连续的 16 个**纵向**像素（一列）
+ *  约束：块宽须整除「每片像素数」，块高须整除「相内行数」。
+ *  症状：取错 → **斜条纹 / 固定步长错行**（本项正是这两类症状的首查开关）。 */
+#define _22_1665_CHAIN_BLK_W (0U)
+
+/** 段序反转（0 = 先红段 / 1 = 先绿段）：症状 = 红绿互换（本该红的位置发绿）。 */
+#define _22_1665_CHAIN_G_FIRST (0U)
+
+/** 块序反转（0 = 自然序 / 1 = 逆序）：症状 = 整屏上下镜像（块按行铺开时）。
+ *  仅反转块序，不改块内位序（块内方向由 CHAIN_BIT_REVERSE 定）。 */
+#define _22_1665_CHAIN_LINE_REVERSE (0U)
+
+/** 块内位序反转（0 = 自然序 / 1 = 逆序）：症状 = 块内镜像；
+ *  BLK_W = 自动（16）时等价于「行内左右镜像」。 */
+#define _22_1665_CHAIN_BIT_REVERSE (0U)
+
+/** 数据极性：1（默认）= 链上 1 → SDI 高（MBI 系列恒流下沉口径：数据 1 点亮）；
+ *  0 = 反相（该亮的灭、该灭的亮）。 */
+#define _22_1665_CHAIN_DATA_ACTIVE_HIGH (1U)
+
+/** 蓝分量落位（用户裁决 2026-09-16：物理只有 R/G 两段 → 蓝无段可落，恒不点亮）：
+ *   0 = 丢弃（默认）；1 = 折算到绿段（将来模组改为「蓝＝并入绿」时用）。*/
+#define _22_1665_BLUE_LINK (0U)
+
+/* ================================================================
+ *  ★ 链序探针（默认关；开启后 scan **忽略显示内容**，只发探针图案）
+ *
+ *  用途：把「链上有多少片、每片的 16 个输出落在屏幕哪些 LED 上、整链位序如何」
+ *  变成可读数的事实的唯一手段（无需改 app_test.c / app_boot.c / 烧写器）。
+ *
+ *    CHAIN_PROBE = 0（默认）：正常显示（内容 → 链位映射 → SDI）
+ *                = 1 走点：链位 0..FRAME_BITS-1 逐位点亮，每 HOLD 次 scan 推进一步；
+ *                        亮点轨迹 = 实物链序（建议录像后逐帧比对）。
+ *                = 2 区间全亮：[POS, POS+SPAN) 连续链位全亮（默认 SPAN = 一整片 16 位）
+ *                        → **一眼看出「一片的 16 个输出落在屏幕哪 16 个 LED 上」**
+ *                          （落成一行 / 一列 / 4x4 块 = 直接读出 CHAIN_BLK_W 该取几）；
+ *                        → 改 POS 逐片推进可数片数：链长小于 FRAME_BITS 时高段链位不亮
+ *                          （逐次二分 POS 即可量出真实链长）。
+ *                = 3 半链：链位前一半全亮 → 判链长/边界（链短则只有部分屏幕亮）。
+ *
+ *  另：探针按「扫描行」推进（SEL>1 时每次 scan = 一相），亮起的行 = 当前被选址的行；
+ *  探针同样经过 OE/LAT 窗口，故观感与正常显示一致（不闪烁、无鬼影）。 */
+#define _22_1665_CHAIN_PROBE      (0U)   /* 0=关（默认） / 1=走点 / 2=区间全亮 / 3=半链 */
+#define _22_1665_CHAIN_PROBE_POS  (0U)   /* 模式 2：区间起始链位（0 = 近 MCU 端首片入口级） */
+#define _22_1665_CHAIN_PROBE_SPAN (16U)  /* 模式 2：区间链位数（默认 = 一片 = 16 位） */
+#define _22_1665_CHAIN_PROBE_HOLD (200U) /* 模式 1：每个链位保持的 scan 次数（×500µs） */
+
+/* ---- 位时序裕量（SDI 与 CLK 不在同一 GPIO 端口，数据先于时钟建立的关键余量）----
+ * flush（数据）→ CLK 上升沿之间的空指令数：现场判为「随机散点 / 随时间变化」时，
+ * 把 NOP 增到 8 / 16（帧时长 85~111µs → 120~250µs，TIM3 500µs 周期余量仍 2 倍以上）。*/
+#define _22_1665_BIT_MARGIN() \
+    do {                      \
+        __NOP();              \
+        __NOP();              \
+        __NOP();              \
+        __NOP();              \
+    } while (0)
+
+/* ================================================================
+ *  派生量（由模组参数 + 校准开关计算，勿手动修改）
+ * ================================================================ */
+
+/* ---- 扫描体制 ---- */
+/* 基类 scan_lines / 每扫描线像素数：静态 1 相覆盖整帧；1/N 扫每相点亮 SCREEN_COLS/N 行 */
+#define _22_1665_SCAN_LINES   (_22_1665_SCAN_SEL)                                          /* 静态 → 1 */
+#define _22_1665_PHASE_ROWS   (_22_1665_SCREEN_COLS / _22_1665_SCAN_SEL)                    /* 每相点亮的物理行数 */
+#define _22_1665_SCAN_LINE_PX (_22_1665_SCREEN_ROWS * _22_1665_PHASE_ROWS)                  /* = 基类 scan_line_pixels */
+
+/* ---- 链、片与块 ---- */
+/* 每片覆盖的像素数：双链 → 每片一位一像素；单链片内交错 → 每片 16/段数 像素（含各段） */
+#define _22_1665_PX_PER_CHIP \
+    ((_22_1665_CHAIN_DUAL != 0U) ? _22_1665_CHIP_BITS : ((_22_1665_CHAIN_SEG_LAYOUT == 2U) ? (_22_1665_CHIP_BITS / _22_1665_SEGMENTS) : _22_1665_CHIP_BITS))
+/* 块宽（0 = 自动 = 每片像素数 → 一片 = 一条线上的连续像素，= 现行默认口径） */
+#define _22_1665_BLK_W  ((_22_1665_CHAIN_BLK_W != 0U) ? _22_1665_CHAIN_BLK_W : _22_1665_PX_PER_CHIP)
+#define _22_1665_BLK_H  (_22_1665_PX_PER_CHIP / _22_1665_BLK_W)                             /* 块高（像素） */
+#define _22_1665_BLOCKS_PER_ROW (_22_1665_SCREEN_ROWS / _22_1665_BLK_W)                     /* 相内每行块数 */
+#define _22_1665_BLOCKS_PER_SEG (_22_1665_SCAN_LINE_PX / _22_1665_PX_PER_CHIP)              /* 每相每段（双链：每链）块数 */
+#define _22_1665_CHIPS_PER_CHAIN (_22_1665_BLOCKS_PER_SEG * ((_22_1665_CHAIN_DUAL != 0U || _22_1665_CHAIN_SEG_LAYOUT == 2U) ? 1U : _22_1665_SEGMENTS))
+#define _22_1665_FRAME_BITS (_22_1665_CHIPS_PER_CHAIN * _22_1665_CHIP_BITS)                 /* 每扫描线链位数 = 每扫描线 CLK 数 */
+
+/* ---- 编译期防御（口径自相矛盾即编译报错，不留到实机） ---- */
+_Static_assert(_22_1665_CHANNELS_PER_MODULE == 1U, "本模组按单根 SDI 串行链建模（CHANNELS_PER_MODULE 须为 1）");
+_Static_assert(_22_1665_MODULE_COLS == 1U,
+               "纵向多模块 = 多条并行数据线，与「单根 SDI 串行链」模型不自洽（须先扩为多链模型）");
+_Static_assert(_22_1665_SCAN_SEL == 1U || _22_1665_SCAN_SEL == 2U || _22_1665_SCAN_SEL == 4U || _22_1665_SCAN_SEL == 8U ||
+                   _22_1665_SCAN_SEL == 16U,
+               "SCAN_SEL 只能取 1（静态）/ 2 / 4 / 8 / 16（1/N 扫描）");
+_Static_assert(_22_1665_SCREEN_COLS % _22_1665_SCAN_SEL == 0U, "屏幕行数须为扫描相数整数倍");
+_Static_assert(_22_1665_SCAN_LINE_PX * _22_1665_SCAN_SEL == _22_1665_BUFFER_SIZE,
+               "相数 x 每扫描线像素数须铺满整帧（多相布局不许有空位）");
+_Static_assert(_22_1665_SCAN_LINE_PX == _22_1665_CHANNEL_PIXELS / _22_1665_SCAN_SEL, "每扫描线像素数须 = 单链像素数 / 相数");
+_Static_assert(_22_1665_CHAIN_DUAL == 0U || _22_1665_CHAIN_SEG_LAYOUT == 0U,
+               "双链模式下每链即一段，段排布开关（CHAIN_SEG_LAYOUT）无意义，须为 0");
+_Static_assert(_22_1665_CHAIN_SEG_LAYOUT <= 2U, "段排布只能取 0（段随线相邻）/ 1（段优先）/ 2（片内交错）");
+_Static_assert(_22_1665_CHIP_BITS % _22_1665_SEGMENTS == 0U, "片宽须为段数整数倍（一片须能装下各整份段）");
+_Static_assert(_22_1665_PX_PER_CHIP % _22_1665_BLK_W == 0U, "块宽须整除每片像素数（改 CHAIN_BLK_W / SEG_LAYOUT 后重算）");
+_Static_assert(_22_1665_SCREEN_ROWS % _22_1665_BLK_W == 0U, "块宽须整除相内行宽（须为 SCREEN_ROWS 的约数）");
+_Static_assert(_22_1665_PHASE_ROWS % _22_1665_BLK_H == 0U, "块高须整除相内行数");
+_Static_assert(_22_1665_BLOCKS_PER_ROW * (_22_1665_PHASE_ROWS / _22_1665_BLK_H) == _22_1665_BLOCKS_PER_SEG,
+               "块须恰好铺满相内像素（块数不闭合）");
+_Static_assert(_22_1665_FRAME_BITS ==
+                   ((_22_1665_CHAIN_DUAL != 0U) ? _22_1665_SCAN_LINE_PX : (_22_1665_SEGMENTS * _22_1665_SCAN_LINE_PX)),
+               "每扫描线链位数须 = 相内像素数 x 段数 / 链数");
+_Static_assert(_22_1665_FRAME_BITS % _22_1665_CHIP_BITS == 0U, "整帧链位数须为片宽整数倍（片数须为整数）");
+_Static_assert(_22_1665_BLOCKS_PER_SEG >= 1U, "每段块数须 >= 1（片覆盖数不得大于相内像素数）");
+_Static_assert(_22_1665_BUFFER_SIZE <= 65535U, "链位映射表的像素偏移为 uint16_t（逻辑帧长度不得超 65535）");
+_Static_assert(_22_1665_FRAME_BITS <= 65535U, "scan 的链位下标为 uint16_t（每帧链位数不得超 65535）");
+_Static_assert(_22_1665_SEGMENTS <= 255U, "链位映射表的段号为 uint8_t（段数须 <= 255）");
+_Static_assert(_22_1665_SDI_SIG < 3U && _22_1665_SDI_CH < 2U, "SDI 只能取排线前两组的 R/G/B 之一（ch: 0/1, sig: 0/1/2）");
+_Static_assert(_22_1665_SDI_SIG_G < 3U && _22_1665_SDI_CH_G < 2U, "绿链 SDI 只能取排线前两组的 R/G/B 之一");
+_Static_assert(_22_1665_CHAIN_PROBE <= 3U, "探针模式只能取 0（关）/ 1（走点）/ 2（区间全亮）/ 3（半链）");
+_Static_assert(_22_1665_CHAIN_PROBE != 2U || _22_1665_CHAIN_PROBE_SPAN >= 1U, "探针区间须至少 1 位");
+
+/* ---- BSRR 预计算查表（[物理段][颜色]，与 1_969 / 1_263 的 [通道][颜色] 同构）---- */
+[[gnu::section(".ccmram")]] static pl_hub75_bsrr_t g_bsrr[_22_1665_SEGMENTS][8];
+
+/* ---- 链位映射表（= 参考驱动 row_dst[] 的逐链位推广，init 期生成）---- */
+typedef struct {
+    uint16_t dst; /* 该链位对应像素在（相内）hub75_buff 中的字节偏移 */
+    uint8_t seg;  /* 该链位的物理段（_22_1665_SEG_R / _G / _B；双链模式不使用） */
+} _22_1665_bit_t;
+
+[[gnu::section(".ccmram")]] static _22_1665_bit_t _22_1665_bit[_22_1665_FRAME_BITS];
+
+/* ---- 22-1665 实例 ---- */
+typedef struct {
+    dev_display_t me;
+} dev_display_22_1665_t;
+
+[[gnu::section(".ccmram")]] static uint8_t _22_1665_pixel_map[_22_1665_BUFFER_SIZE];
+[[gnu::section(".ccmram")]] static uint8_t _22_1665_hub75_buff[_22_1665_BUFFER_SIZE];
+
+static dev_display_22_1665_t g_22_1665 = {
+    .me = {
+        .ops                 = nullptr, /* 由 dev_display_22_1665_init 设置 */
+        .module_rows         = _22_1665_MODULE_PIXEL_ROW,
+        .module_cols         = _22_1665_MODULE_PIXEL_COL,
+        .channels_per_module = _22_1665_CHANNELS_PER_MODULE,
+        .modules_per_row     = _22_1665_MODULE_ROWS,
+        .modules_per_col     = _22_1665_MODULE_COLS,
+        .scan_lines          = _22_1665_SCAN_LINES,
+        .screen_rows         = _22_1665_SCREEN_ROWS,
+        .screen_cols         = _22_1665_SCREEN_COLS,
+        .total_channels      = _22_1665_TOTAL_CHANNELS,
+        .channel_pixels      = _22_1665_CHANNEL_PIXELS,
+        .scan_line_pixels    = _22_1665_SCAN_LINE_PX,
+        .buffer_size         = _22_1665_BUFFER_SIZE,
+        .pixel_map           = _22_1665_pixel_map,
+        .hub75_buff          = _22_1665_hub75_buff,
+        .module_code         = MODULE_CODE,
+        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
+    },
+};
+
+dev_display_t *dev_display_22_1665_get(void)
+{
+    return &g_22_1665.me;
+}
+
+/* ================================================================
+ *  prepare: pixel_map → hub75_buff 像素重排
+ *
+ *  本模组 hub75_buff 与 pixel_map **逐字节同布局**（链上顺序只由 scan 的发射序与
+ *  位表决定，见上方布局节），故单相（静态）时重排退化为**恒等拷贝**；多相
+ *  （1/N 扫）时只做「相位重排」——把逻辑行 y 搬到相 p = y % SCAN_SEL 的第
+ *  y / SCAN_SEL 行（interleaved 行组，与 1_263 / 22_1703 同行组口径），使
+ *  scan(line) 读到的 [line*scan_line_pixels, +scan_line_pixels) 恰为该相数据。
+ *  两种情形下**像素落到哪个字节都与链路拓扑开关无关**。
+ *
+ *  唯一附加动作是颜色索引钳位到 0~7：g_bsrr 是 8 项小表，越界索引会读到表外字节
+ *  当 {port, BSRR 值} 用 → 向任意地址写 BSRR（22-1703 分析记录里的同款隐患）。
+ *  写侧色值域本应恒为 0~7，此处按准备期一次性钳位，scan 热路径零开销。
+ * ================================================================ */
+
+static void _22_1665_prepare(dev_display_t *dev)
+{
+    const uint16_t screen_rows = dev->screen_rows; /* 16：行主序步长（= 行宽） */
+    const uint8_t *pixel_map   = dev->pixel_map;
+    uint8_t *hub75_buff        = dev->hub75_buff;
+
+    /* ④a 脏矩形行子集（2026-09-08）：有效脏矩形 → 只重拷矩形覆盖的 y 行范围
+     * （每逻辑行独立落入自己的相内行槽，行子集重排安全）；
+     * 矩形无效 → 全量路径（保守回退，正确性不变）。 */
+    uint16_t row_begin = 0;
+    uint16_t row_end   = dev->screen_cols;
+    if (dev->dirty_rect_valid) {
+        if (dev->dirty_rect_h == 0)
+            return; /* 空矩形：无行变化，无需重排 */
+        row_begin = dev->dirty_rect_y;
+        if (row_begin >= dev->screen_cols)
+            return; /* 矩形整体在屏外（防御，提交侧已钳位） */
+        uint32_t end = (uint32_t)row_begin + dev->dirty_rect_h;
+        row_end      = (end > dev->screen_cols) ? dev->screen_cols : (uint16_t)end;
+    }
+
+    for (uint16_t row = row_begin; row < row_end; row++) {
+        const uint16_t phase = (uint16_t)(row % _22_1665_SCAN_LINES); /* 静态：恒 0 */
+        const uint16_t prow  = (uint16_t)(row / _22_1665_SCAN_LINES);
+        const uint8_t *src   = pixel_map + (uint32_t)row * screen_rows;
+        uint8_t *dst = hub75_buff + (uint32_t)phase * _22_1665_SCAN_LINE_PX + (uint32_t)prow * screen_rows;
+
+        for (uint16_t col = 0; col < screen_rows; col++)
+            dst[col] = (uint8_t)(src[col] & 0x07U);
+    }
+}
+
+/* ================================================================
+ *  scan: 一个扫描行的位流输出 — 逐链位查表 + CLK 脉冲
+ *
+ *  静态扫描（SCAN_SEL = 1）→ line 恒 0，一次 scan 输出整帧帧流（FRAME_BITS 个 CLK，
+ *  每时钟 1 位；单链 512 位 / 双链每条 256 位）；1/N 扫 → 一次 scan 输出一相的位流
+ *  （FRAME_BITS = 512/N），帧末由基类打 LAT、并在 OE 消隐窗口内切换行址。
+ *
+ *  先移入的位停在链尾，故按链位 p 递减遍历映射表：每步取该链位的 {像素偏移, 物理段}，
+ *  查 g_bsrr[段][颜色] 直接 flush SDI 引脚（先置数据、留 `_22_1665_BIT_MARGIN()`
+ *  建立裕量、再打时钟，与参考模组同序）；双链模式同一时钟 flush 红、绿两条数据线。
+ * ================================================================ */
+
+#if _22_1665_CHAIN_PROBE != 0
+/* ---- 探针状态（仅探针开启时编译进来；scan 单线程调用，无并发）---- */
+
+/** @brief 本次 scan 的探针区间起始链位（模式 1 逐位推进；模式 3 恒 0） */
+static inline uint16_t _22_1665_probe_first(void)
+{
+#if _22_1665_CHAIN_PROBE == 1
+    static uint32_t s_frames;
+    return (uint16_t)((s_frames++ / _22_1665_CHAIN_PROBE_HOLD) % _22_1665_FRAME_BITS);
+#elif _22_1665_CHAIN_PROBE == 2
+    return (uint16_t)(_22_1665_CHAIN_PROBE_POS % _22_1665_FRAME_BITS);
+#else
+    return 0U; /* 3 = 半链 */
+#endif
+}
+
+/** @brief 本次 scan 的探针区间长度（链位数；POS 越界时截到帧末） */
+static inline uint16_t _22_1665_probe_span(void)
+{
+#if _22_1665_CHAIN_PROBE == 1
+    return 1U; /* 走点：单个链位 */
+#elif _22_1665_CHAIN_PROBE == 2
+    return (uint16_t)(((uint32_t)_22_1665_CHAIN_PROBE_POS + _22_1665_CHAIN_PROBE_SPAN > _22_1665_FRAME_BITS)
+                          ? (_22_1665_FRAME_BITS - (_22_1665_CHAIN_PROBE_POS % _22_1665_FRAME_BITS))
+                          : _22_1665_CHAIN_PROBE_SPAN);
+#else
+    return (uint16_t)(_22_1665_FRAME_BITS / 2U); /* 半链 */
+#endif
+}
+#endif /* _22_1665_CHAIN_PROBE */
+
+static inline void _22_1665_scan(dev_display_t *dev, uint8_t line)
+{
+    /* 本扫描行在（相内）hub75_buff 中的起点；探针模式不使用内容，仅保持参数语义一致 */
+    const uint8_t *src = dev->hub75_buff + (uint16_t)line * _22_1665_SCAN_LINE_PX;
+
+#if _22_1665_CHAIN_PROBE != 0
+    (void)src; /* 探针：忽略显示内容 */
+    const uint16_t probe_first = _22_1665_probe_first();
+    const uint16_t probe_last  = (uint16_t)(probe_first + _22_1665_probe_span());
+#endif
+
+    for (uint16_t p = _22_1665_FRAME_BITS; p-- > 0;) {
+        uint8_t color;
+
+#if _22_1665_CHAIN_PROBE != 0
+        /* 探针：忽略显示内容，只发探针图案（亮 = COLOR_WHITE 项、灭 = COLOR_BLACK 项，
+         * 复用 g_bsrr 的段/极性口径 → 探针同样受 DATA_ACTIVE_HIGH 与段映射约束） */
+        color = (uint8_t)(((p >= probe_first) && (p < probe_last)) ? COLOR_WHITE : COLOR_BLACK);
+#else
+        color = src[_22_1665_bit[p].dst];
+#endif
+
+#if _22_1665_CHAIN_DUAL != 0U
+        /* 双链：同一时钟各移入 1 位（红链取 color bit0、绿链取 bit1，由 g_bsrr 段表定） */
+        pl_hub75_bsrr_flush(&g_bsrr[_22_1665_SEG_R][color]);
+        pl_hub75_bsrr_flush(&g_bsrr[_22_1665_SEG_G][color]);
+#else
+        pl_hub75_bsrr_flush(&g_bsrr[_22_1665_bit[p].seg][color]);
+#endif
+        _22_1665_BIT_MARGIN();
+        pl_hub75_clock_pulse();
+    }
+}
+
+/* ---- set_row: 静态扫描无行址线（与 p20 静态 1 扫同款，row 恒 0）；
+ *      1/N 扫描时基类传相号 p，A/B/C/D 按二进制译码器型驱动（74HC138 等）。
+ *      若实物为「移位寄存器型行驱动」（A=时钟/B=数据/C=使能），改本函数为
+ *      pl_hub75_ShiftRegister_set_row(row, 1) 一处即可。 ---- */
+static void _22_1665_set_row(uint8_t row)
+{
+    pl_hub75_Decoder_set_row(row);
+}
+
+/* ---- ops 虚表 ---- */
+static const dev_display_ops_t _22_1665_ops = {
+    .prepare = _22_1665_prepare,
+    .scan    = _22_1665_scan,
+    .set_row = _22_1665_set_row,
+};
+
+/* ================================================================
+ *  dev_display_22_1665_init: 预计算链位映射表 / BSRR 查表 + 绑定 ops
+ * ================================================================ */
+
+/** @brief 取 SDI 信号引脚描述（sig: 0=R / 1=G / 2=B；与 22-1703 的 _22_1703_pin 同形） */
+static inline const hub75_pin_t *_22_1665_pin(uint8_t ch, uint8_t sig)
+{
+    switch (sig) {
+        case 0: return &g_hub75_pin_r[ch];
+        case 1: return &g_hub75_pin_g[ch];
+        default: return &g_hub75_pin_b[ch];
+    }
+}
+
+/** @brief 取该物理段的数据脚：单链 → 所有段共用 SDI 脚；双链 → 红/绿各一根 */
+static inline const hub75_pin_t *_22_1665_sdi_pin(uint8_t seg)
+{
+    if (_22_1665_CHAIN_DUAL != 0U)
+        return (seg == _22_1665_SEG_G) ? _22_1665_pin(_22_1665_SDI_CH_G, _22_1665_SDI_SIG_G)
+                                      : _22_1665_pin(_22_1665_SDI_CH, _22_1665_SDI_SIG);
+    return _22_1665_pin(_22_1665_SDI_CH, _22_1665_SDI_SIG);
+}
+
+/** @brief 物理段 seg 在颜色 color 下是否点亮（bit0=R / bit1=G / bit2=B；蓝按 _22_1665_BLUE_LINK） */
+static inline bool _22_1665_seg_on(uint8_t color, uint8_t seg)
+{
+    if (seg == _22_1665_SEG_R)
+        return (color & 0x01U) != 0U;
+    if (seg == _22_1665_SEG_G)
+        return ((color & 0x02U) != 0U) || ((_22_1665_BLUE_LINK != 0U) && ((color & 0x04U) != 0U));
+    return (color & 0x04U) != 0U; /* _22_1665_SEG_B（SEGMENTS = 3 时才存在） */
+}
+
+/**
+ * @brief  生成链位映射表：链位 p → {像素字节偏移 dst, 物理段 seg}。
+ *
+ *  统一模型（三种结构开关在同一套公式里取值，默认口径 = 旧版逐位等价）：
+ *    ① 片 → (段, 块号)：SEG_LAYOUT 0 = 段随线相邻（片 2k/2k+1 = 第 k 行 R/G）、
+ *       1 = 段优先（前一半片全 R）、2 = 片内 R/G 交错（一片 = 一块像素的全部段）；
+ *       双链 = 每链一段，片即块。
+ *    ② 块 → 相内 (块列, 块行)：块号按行主序铺满相内像素（BLOCKS_PER_ROW 个/行）。
+ *    ③ 片内级序 → 块内 (dx, dy)：级序按行主序落在 BLK_W × BLK_H 的块内。
+ *  折返开关：G_FIRST（段序）→ LINE_REVERSE（块序）→ BIT_REVERSE（块内位序）。
+ *
+ *  映射为双射（每个「像素 x 段」恰好占一个链位；每一链位恰好驱动一个 LED），
+ *  由 _Static_assert 的闭合性与现场探针（CHAIN_PROBE=2）共同保证。
+ */
+static void _22_1665_build_bit_table(void)
+{
+    for (uint16_t p = 0; p < _22_1665_FRAME_BITS; p++) {
+        const uint16_t chip = (uint16_t)(p / _22_1665_CHIP_BITS); /* 片号（0 = 近 MCU） */
+        const uint16_t s    = (uint16_t)(p % _22_1665_CHIP_BITS); /* 片内级序（0 = 入口侧） */
+        uint16_t seg, block, level;
+
+        if (_22_1665_CHAIN_DUAL != 0U) {
+            /* 双链：每链一段，一片 = 一个 PX_PER_CHIP 像素的块（段由数据线定，seg 不参与） */
+            seg   = 0U;
+            block = chip;
+            level = s;
+        } else if (_22_1665_CHAIN_SEG_LAYOUT == 2U) {
+            /* 片内 R/G 交错：一片 = 一块像素 × 各段（片内级序 = 像素序 × 段序交替） */
+            seg   = (uint16_t)(s % _22_1665_SEGMENTS);
+            block = chip;
+            level = (uint16_t)(s / _22_1665_SEGMENTS); /* 片内第几个像素 */
+        } else if (_22_1665_CHAIN_SEG_LAYOUT == 1U) {
+            /* 段优先：前 BLOCKS_PER_SEG 片全为红段，其后全为绿段 */
+            seg   = (uint16_t)(chip / _22_1665_BLOCKS_PER_SEG);
+            block = (uint16_t)(chip % _22_1665_BLOCKS_PER_SEG);
+            level = s;
+        } else {
+            /* 段随线相邻（默认）：片 2k / 2k+1 = 第 k 行（块）的 R 段 / G 段片 */
+            seg   = (uint16_t)(chip % _22_1665_SEGMENTS);
+            block = (uint16_t)(chip / _22_1665_SEGMENTS);
+            level = s;
+        }
+
+        if (_22_1665_CHAIN_G_FIRST != 0U)
+            seg = (uint16_t)(_22_1665_SEGMENTS - 1U - seg); /* 段序反转（片内 / 线内一致） */
+        if (_22_1665_CHAIN_LINE_REVERSE != 0U)
+            block = (uint16_t)(_22_1665_BLOCKS_PER_SEG - 1U - block);
+        if (_22_1665_CHAIN_BIT_REVERSE != 0U)
+            level = (uint16_t)(_22_1665_PX_PER_CHIP - 1U - level);
+
+        const uint16_t dx = (uint16_t)(level % _22_1665_BLK_W);           /* 块内列 */
+        const uint16_t dy = (uint16_t)(level / _22_1665_BLK_W);           /* 块内行 */
+        const uint16_t bx = (uint16_t)(block % _22_1665_BLOCKS_PER_ROW);  /* 相内块列 */
+        const uint16_t by = (uint16_t)(block / _22_1665_BLOCKS_PER_ROW);  /* 相内块行 */
+
+        _22_1665_bit[p].dst =
+            (uint16_t)((((uint32_t)by * _22_1665_BLK_H + dy) * _22_1665_SCREEN_ROWS) + ((uint32_t)bx * _22_1665_BLK_W + dx));
+        _22_1665_bit[p].seg = (uint8_t)seg;
+    }
+}
+
+/**
+ * @brief  生成 BSRR 查表：g_bsrr[段][颜色] = 该段数据脚在该颜色下的输出值。
+ *
+ *  段策略（哪一段亮）与数据极性在此固化，避免扫描热路径分支：
+ *    极性 1（默认）→ 段亮 = BSRR 置位（输出高）；极性 0 → 段亮 = BSRR 复位（输出低）。
+ *  单链时红、绿段表写同一根 SDI 脚（同脚不同位），双链时各写各脚。
+ */
+static void _22_1665_build_bsrr_table(void)
+{
+    for (uint8_t seg = 0; seg < _22_1665_SEGMENTS; seg++) {
+        const hub75_pin_t *sdi = _22_1665_sdi_pin(seg);
+        const uint32_t mask    = (uint32_t)sdi->pin;
+        const uint32_t on      = (_22_1665_CHAIN_DATA_ACTIVE_HIGH != 0U) ? mask : (mask << 16U); /* 段亮：链上 1 */
+        const uint32_t off     = (_22_1665_CHAIN_DATA_ACTIVE_HIGH != 0U) ? (mask << 16U) : mask;
+
+        for (uint8_t color = 0; color < 8U; color++) {
+            g_bsrr[seg][color].port = sdi->port;
+            g_bsrr[seg][color].val  = _22_1665_seg_on(color, seg) ? on : off;
+        }
+    }
+}
+
+void dev_display_22_1665_init(void)
+{
+    g_22_1665.me.ops = &_22_1665_ops;
+    dev_display_register(&g_22_1665.me);
+
+    _22_1665_build_bit_table();
+    _22_1665_build_bsrr_table();
+}
+hw_dev_initcall(dev_display_22_1665_init);

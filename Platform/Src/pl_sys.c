@@ -45,3 +45,25 @@ void pl_system_reset(void)
 {
     NVIC_SystemReset();
 }
+
+/* ---- 复位原因解码（RCC->CSR 复位标志；纯读，不清标志）----
+ * 位定义见 RM0090 RCC_CSR：bit25 BORRSTF / bit26 PINRSTF / bit27 PORRSTF /
+ * bit28 SFTRSTF / bit29 IWDGRSTF / bit30 WWDGRSTF / bit31 LPWRRSTF。
+ * **不要**在此清标志（本函数的唯一价值就是保留现场）：现场复位后重启再看一次
+ * 横幅，即可判断上一次复位是看门狗、软件、引脚还是电源引起。 */
+pl_reset_cause_t pl_sys_reset_cause(void)
+{
+    const uint32_t csr = RCC->CSR;
+    /* 位定义用 HAL 的 RCC_FLAG_* + __HAL_RCC_GET_FLAG（CSR 区标志：#define 为 0x70+） */
+    pl_reset_cause_t c = {
+        .raw  = csr,
+        .iwdg = (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != 0U),
+        .wwdg = (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) != 0U),
+        .sft  = (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) != 0U),
+        .por  = (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST) != 0U),
+        .pin  = (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) != 0U),
+        .bor  = (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST) != 0U),
+        .lpw  = (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) != 0U),
+    };
+    return c;
+}

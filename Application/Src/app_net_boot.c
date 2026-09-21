@@ -31,8 +31,10 @@
 #include <stdint.h>
 
 #include "app_board_net_cfg.h"
+#include "app_diag.h"
 #include "app_tcp_server.h"
 #include "pl_net.h"
+#include "SEGGER_RTT.h" /* 诊断（APP_DIAG_BANNER）：记录非法 → accept_write 落默认的现场证据 */
 
 void app_net_boot_apply(void)
 {
@@ -42,6 +44,26 @@ void app_net_boot_apply(void)
                  cfg.port > 0 && cfg.port <= 65535;
 
     if (!valid) {
+        /* 诊断（只读打印）：Sector1 记录在启动时被判非法 → accept_write 会用本构建默认
+         * **整体覆盖** net_cfg（含 port）——这正是「0x40 改的端口看似没生效」的成因之一
+         * （例如上位机 0x40 帧把 IP 字段写成 0.0.0.0：记录 magic/CRC 有效但 IP 全 0 →
+         * 本分支把 IP 与 port 一起改回默认）。打印原因与旧值，供现场区分：
+         *   get 失败（magic/CRC 坏） ↔ 记录可读但 IP/port 非法（哪一项非法一目了然）。 */
+#if APP_DIAG_BANNER
+        {
+            app_board_net_cfg_t raw;
+            if (app_board_net_cfg_get(&raw) == 0)
+                SEGGER_RTT_printf(0,
+                                  "[diag] netcfg INVALID at boot (record ok but net invalid): "
+                                  "ip=%u.%u.%u.%u port=%u udp_port=%u -> accept_write defaults\n",
+                                  raw.ip[0], raw.ip[1], raw.ip[2], raw.ip[3],
+                                  (unsigned)raw.port, (unsigned)raw.udp_port);
+            else
+                SEGGER_RTT_printf(0,
+                                  "[diag] netcfg INVALID at boot (magic/CRC bad) -> accept_write "
+                                  "defaults\n");
+        }
+#endif
         /* accept_write：Sector1 空/损坏/非法 → 写本构建默认记录落盘并应用。
          * 方案 B（2026-08-21）：port（TCP 业务口）两口径默认均 9528；udp_port
          * （CQ UDP 业务口）默认 20103——两字段完整落盘保持记录自洽。 */

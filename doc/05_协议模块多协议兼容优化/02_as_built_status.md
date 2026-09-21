@@ -54,6 +54,8 @@
 | `app_rs232.c` / `app_boot.c` | RS232_1 旁路；无 DMA RX 缓冲 |
 
 通道启动（`app_boot.c`）：TCP Server/Client、UDP、RS485、RS232；不启 RS232_1 协议 RX。
+**TCP Client（2026-09-18）**：任务两口径无条件启动，远端默认 `0.0.0.0:0` **未配置不连**；
+只有 LDI 装载调用 `set_remote` 后才 connect。YN_OL 绑 `CH_ID_TCP_CLIENT` 不配远端。
 
 ### 2.1 协议帧 queue 深度（2026-08-14 修订）
 
@@ -134,6 +136,9 @@
 
 ## 修订
 
+- 2026-09-18：**TCP Client 通道层解耦**——默认远端改为 `0.0.0.0:0`，未配置不 `netconn_new`/不 connect；
+  `app_boot` 仍启动任务；`set_remote` 仍仅 LDI 调用。排除 LDI 不再对 `192.168.2.17:9529` 自动外连。
+  详见 `01` §2.1、`doc/CLAUDE.md` 网络子系统、doc/07 §12。
 - 2026-08-14：首版落地对照。  
 - 2026-08-14：对齐 RB 1536/768/768、queue 深度表、A-2/doc/07、DoD。  
 - 2026-08-14：A-1 与 §2.1 补充 EIDE/Makefile 协议选编差异（EIDE exclude RLS/AH）。

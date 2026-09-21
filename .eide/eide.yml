@@ -14,6 +14,7 @@ virtualFolder:
         - path: Application/Src/app_net_boot.c
         - path: Application/Src/app_default_display.c
         - path: Application/Src/app_render.c
+        - path: Application/Src/app_scroll.c
         - path: Application/Src/app_key.c
         - path: Application/Src/app_light_sensor.c
         - path: Application/Src/app_uart_baud.c
@@ -95,12 +96,25 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c
                 - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c
               folders: []
+            - name: ProtocolParser_GuiZhou_Overload
+              files:
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c
+              folders: []
             - name: ProtocolParser_YunNan
               files:
                 - path: Application/Src/ProtocolParser_YunNan/app_yn_proto.c
                 - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c
                 - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c
                 - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c
+              folders: []
+            - name: ProtocolParser_YunNan_Overload
+              files:
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.c
               folders: []
             - name: ProtocolParser_ChongQing
               files:
@@ -326,6 +340,9 @@ virtualFolder:
             - path: Device/Display/dev_display_1_577.c
             - path: Device/Display/dev_display_1_260.c
             - path: Device/Display/dev_display_1_263.c
+            - path: Device/Display/dev_display_22_1703.c
+            - path: Device/Display/dev_display_22_1665.c
+            - path: Device/Display/dev_display_p20.c
           folders: []
     - name: Platform
       files:
@@ -414,7 +431,9 @@ targets:
         - Application/Inc/ProtocolParser_SiChuang_Overload
         - Application/Inc/ProtocolParser_ShanDong
         - Application/Inc/ProtocolParser_GuiZhou
+        - Application/Inc/ProtocolParser_GuiZhou_Overload
         - Application/Inc/ProtocolParser_YunNan
+        - Application/Inc/ProtocolParser_YunNan_Overload
         - Application/Inc/ProtocolParser_ChongQing
         - Application/Inc/ProtocolParser_Anhui
         - Middlewares/Third_Party/cJSON
@@ -423,16 +442,25 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/protocol/rls
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
-      - <virtual_root>/Application/protocol/ProtocolParser_YunNan
-      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
-      - <virtual_root>/Device/Display/dev_display_1_577.c
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
-      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Device/Display/dev_display_p20.c
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Device/Display/dev_display_1_263.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
+      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ldi
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
+      - <virtual_root>/Device/Display/dev_display_22_1703.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -518,7 +546,7 @@ targets:
           vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 32000
+        speed: 50000
       OpenOCD:
         baseAddr: "0x08000000"
         bin: ""
@@ -542,7 +570,7 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: Custom
+    uploader: JLink
   Release:
     cppPreprocessAttrs:
       defineList:

@@ -50,8 +50,15 @@ tcp_server_task → osSemaphoreNew → pvPortMalloc 失败
 |----|----------|
 | `configTOTAL_HEAP_SIZE` | **36×1024** |
 | `configAPPLICATION_ALLOCATED_HEAP` | **0**（`heap_4` static `ucHeap` → SRAM `.bss`） |
-| CCM | 无 `ucHeap`；仅显存/BSRR |
+| CCM | 无 `ucHeap`；显存/BSRR + **协议队列体（CQ/GZ_OL/YN_OL）+ RTOS 任务栈/TCB（2026-09-17 起，23 任务 25340B + 内核 1736B）** |
 
-待办（非本文件）：`xPortGetMinimumEverFreeHeapSize` 标定、IAP 升级冒烟。
+待办（非本文件）：~~`xPortGetMinimumEverFreeHeapSize` 标定~~ **已完成（2026-09-17，见 06/04 §8：开机横幅与逐通道 `[diag] heap … min=` 探针）**；IAP 升级冒烟仍待验。
+
+> **2026-09-17 复发归档**：多协议任务数增至 30+ 后堆再次击穿（现场停在
+> `vApplicationMallocFailedHook`，调用栈 `pvPortMalloc ← xTaskCreate ← osThreadNew ←
+> app_rs485_start ← init_task`）。根因仍是「用量超限」（启动期 38032B > 可用 36856B，
+> 赤字 1176B），最后一份压迫者 = 新接入的云南治超处理任务；修复 = 任务「栈 + TCB」
+> 静态下沉 CCMRAM（**堆本身仍在 SRAM**，`configAPPLICATION_ALLOCATED_HEAP` 仍为 0）。
+> 完整账本与三口径实测见 [`../06_SRAM内部分数据迁移/04_current_memory_occupancy.md`](../06_SRAM内部分数据迁移/04_current_memory_occupancy.md) §8。
 
 - 05 目录不再把「堆留 CCM」写成结构方案。
