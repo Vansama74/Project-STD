@@ -1,12 +1,9 @@
 /**
  * @file    app_gz_ol_proto_parse.c
- * @brief   贵州治超屏协议 — 帧解析（纯函数）
+ * @brief   贵州治超屏协议 — 帧解析（纯函数；长度/尾字节/取值二次防御）
  *
- * 解析纪律（probe 已判帧结构、此处二次防御）：长度字段须 = 整帧长、尾字节须 0x00；
- * 0x10/0x30/0x50/0x60 **载荷长度不限**（源固件忽略载荷；文档 0x30 帧例自带 17B 参数块），
- * 0x20 须 ≥17B、0x40 须 ≥14B（源固件不检查直接读，防越界）；字号仅 16/24/32，其余整帧
- * 丢弃（源固件读未初始化变量属 UB）；0x40 端口 **BE16**（`27 2C` = 10028）仅此一字段。
- * 详见 doc/14_贵州治超屏协议/README.md §1、§13.5.1
+ * 载荷长度纪律（0x20 ≥17B、0x40 ≥14B、无载荷命令不限）与端口 BE16 见
+ * doc/14_贵州治超屏协议/README.md §1、§13.5.1
  */
 
 #include "app_gz_ol_proto_parse.h"
@@ -26,7 +23,7 @@ static inline uint16_t _gz_ol_le16(const uint8_t *p)
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
-/** @brief 2 字节高字节在前读取——**仅 0x40 端口字段**（2026-09-15 用户裁决）。 */
+/** @brief 2 字节高字节在前读取——**仅 0x40 端口字段**（契约 ①） */
 static inline uint16_t _gz_ol_be16(const uint8_t *p)
 {
     return (uint16_t)(((uint16_t)p[0] << 8) | (uint16_t)p[1]);
@@ -145,8 +142,7 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             memcpy(cmd.p.setip.ip, &cmd.data[0], 4);
             memcpy(cmd.p.setip.mask, &cmd.data[4], 4);
             memcpy(cmd.p.setip.gw, &cmd.data[8], 4);
-            /* 端口字段 **高字节在前**（2026-09-15 用户裁决：有意偏离源固件/协议文档；
-             * 只此一字段，见文件头与 §13.5.1）：`27 2C` → 10028 */
+            /* 端口字段高字节在前（契约 ①；有意偏离源固件/协议文档）：`27 2C` → 10028 */
             cmd.p.setip.port = _gz_ol_be16(&cmd.data[12]);
             cmd.sta          = GZ_OL_PARSE_OK;
             break;
@@ -164,8 +160,8 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             break;
         }
 
-        /* 无载荷命令：**载荷长度不限**（与源固件一致——各 handler 不读载荷）。依据：文档
-         * 0x30 清屏帧例本身带 17B 参数块（长度 0x22=34），严格校验会拒掉上位机真实帧。 */
+        /* 无载荷命令：**载荷长度不限**（源固件各 handler 不读载荷；文档 0x30 帧例自带 17B
+         * 参数块，严格校验会拒掉上位机真实帧） */
         case GZ_OL_PCMD_FAULT_QUERY:
         case GZ_OL_PCMD_CLEAR:
         case GZ_OL_PCMD_SEARCH:

@@ -2,10 +2,9 @@
  * @file    app_mm_proto.c
  * @brief   缅甸 2D 费显协议 — 注册 / 探测 / 帧处理任务
  *
- * **只绑 `CH_ID_RS232`**（不绑 RS485/网口/`CH_ID_RS232_1` 语音口）；9600 靠 DIP1 置 OFF。
- * RS232 槽 `0xFF` 与四川治超重叠：本 probe 严格判据认领 + 非本模块命令须「结束码正签名」才 SKIP，
- * 双向不误吞、不卡链、无需 EIDE 互斥；注册次序与开机默认画面见 §7.1、§14.3。
- * 详见 doc/16_缅甸2D费显协议/README.md §5、§6、§7、§10、§14
+ * 契约一览见 app_mm_proto.h 文件头（本文件实现 ④ 正签名判据、⑥ CCM 放置）；
+ * RS232 槽与四川治超重叠的共存纪律、开机默认画面见
+ * doc/16_缅甸2D费显协议/README.md §5、§6、§7、§14
  */
 
 #include "app_mm_proto.h"
@@ -18,7 +17,8 @@
 #include "dev_display.h" /* dev_display_get / set_pixel / fill / commit_frame */
 #include "pl_task_static.h"
 
-/* 栈 + TCB 落 CCMRAM（启动期创建一次、永不退出，不占 ucHeap；仅 CPU 访问，不经 DMA） */
+/* 处理任务栈 + TCB 静态落 CCMRAM（契约 ⑥；账见
+ * doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8） */
 PL_TASK_STATIC_STORAGE(mm_handle, 256);
 
 /* RS232 槽体与同槽其它协议 weak 合并；本模块不 provide RS485/RJ45（只绑 RS232） */
@@ -27,8 +27,7 @@ RB_PROVIDE_WEAK(rb_provide_rs232, RB_SIZE_RS232);
 static proto_mask_t s_mm_mask; /**< CH_ID_RS232（RS232 槽 RB） */
 static osMessageQueueId_t s_mm_queue;
 
-/* 队列体 + 控制块置 CCMRAM（同 GZ_OL/YN_OL 先例）：PROTO=ALL 口径 SRAM 余量放不下，
- * 且该缓冲 CPU 独占访问、不经 DMA/ETH（账见 doc/16_缅甸2D费显协议/README.md §6）。 */
+/* 静态队列：队列体 + 控制块置 CCMRAM（契约 ⑥）；理由与账见 doc/16_缅甸2D费显协议/README.md §6 */
 [[gnu::section(".ccmram")]] static StaticQueue_t s_mm_queue_cb;
 [[gnu::section(".ccmram")]] static uint8_t s_mm_queue_buf[MM_QUEUE_DEPTH * MM_MSG_SIZE];
 static const osMessageQueueAttr_t s_mm_queue_attr = {
@@ -100,9 +99,9 @@ static void _mm_default_display_init(void)
 
 /**
  * @brief  缅甸 2D 费显协议模块初始化（`sw_app_initcall` 自注册）。
- * @note   次序：acquire RS232 槽 → register → bind → 注册开机默认画面 → `mm_apply_init()`
- *         接管干接点（**建任务前完成**，避免上电沿出现未定义灯态窗口）→ 建静态队列 → 建处理任务；
- *         `CH_ID_RS232_1`（USART6 语音 TX）**禁止绑定**（§7.1）。
+ * @note   次序：acquire RS232 槽 → register → bind → 注册开机默认画面（仅带显示驱动）→
+ *         `mm_apply_init()` 接管干接点（**建任务前完成**，避免上电沿出现未定义灯态窗口）→
+ *         建静态队列 → 建处理任务；`CH_ID_RS232_1`（USART6 语音 TX）**禁止绑定**，见 §7.1。
  */
 void mm_proto_init(void)
 {
@@ -120,7 +119,7 @@ void mm_proto_init(void)
     _mm_default_display_init();
 
     /* 干接点接管（默认红叉）必须在建任务前完成，避免上电沿出现未定义灯态窗口；
-     * PE12/PE11/PE10 的 EXTI 摘除 + 推挽接管见 app_mm_proto_cmd.c 文件头（§4.2）。 */
+     * PE12/PE11/PE10 的 EXTI 摘除与推挽接管见 app_mm_proto_cmd.c（§4.2）。 */
     mm_apply_init();
 
     s_mm_queue = osMessageQueueNew(MM_QUEUE_DEPTH, MM_MSG_SIZE, &s_mm_queue_attr);
@@ -177,8 +176,7 @@ static proto_probe_sta_t mm_probe_frame(const channel_t *ch, const ring_buffer_t
     if (cmd_arg[0] != (uint8_t)MM_CMD_LANE_RED && cmd_arg[0] != (uint8_t)MM_CMD_LANE_LEFT &&
         cmd_arg[0] != (uint8_t)MM_CMD_LANE_RIGHT) {
         /* 非本模块命令字：须「结束码正签名」成立才整帧消费（SKIP），否则 FAKE——
-         * 同槽四川治超 byte[1] = 帧长字段（可为 0xE0）且半帧时返回 WAIT，
-         * 无条件 SKIP 会截断治超帧；缺签名时 FAKE 交外层逐字节重同步（§5④） */
+         * 无条件 SKIP 会截断同槽四川治超的半帧（其 byte[1] 可为 0xE0）；防误吞纪律见 §5④ */
         uint8_t sig[MM_TAIL_SIG_LEN];
         rb_peek(rb, MM_TAIL_SIG_OFFSET, sig, MM_TAIL_SIG_LEN, NULL);
         for (uint32_t i = 0U; i < MM_TAIL_SIG_LEN; i++) {

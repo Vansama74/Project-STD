@@ -1,19 +1,16 @@
 /**
  * @file    app_yn_ol_proto_parse.c
- * @brief   云南治超屏协议帧解析（纯解析：不发包、不渲染、不碰外设）
+ * @brief   云南治超屏协议帧解析（纯函数：不发包、不渲染、不碰外设）
  *
- * 帧 = `{` + 命令字 + 参数长度(1B 二进制) + 参数 + `}`；长度字段必须与实到长度自洽，
- * 无参命令要求长度恰为 0，0x47 要求 ≥14B（多余忽略，防越界读）。
- * '6'/'7'/'9'（文档明示治超屏不开发）与 'B' 由 probe 白名单快拒，此处按不支持丢弃；
- * 颜色/行号接受 ASCII 与二进制两种编码（只放宽、不改语义）。
+ * 长度字段与实到长度必须自洽（无参命令要求恰为 0、0x47 要求 ≥14B）；颜色/行号接受
+ * ASCII 与二进制两种编码（只放宽、不改语义）。
  * 详见 doc/15_云南治超屏协议/README.md §1、§2、§11.1
  */
 
 #include "app_yn_ol_proto_parse.h"
 
-/* 字段编码容错（**只放宽、不改语义**）：现场上位机对 '3'/'4' 的颜色、'3' 的行号可能发
- * ASCII 也可能发二进制原值（两者字节不重叠）→ 两端都接受，越界仍整帧丢弃；口径与已裁决的
- * '8' 亮度超集一致。背景与判据见 doc/15_云南治超屏协议/README.md §11.1 */
+/* 字段编码容错（只放宽、不改语义）：'3'/'4' 的颜色、'3' 的行号 ASCII 与二进制原值两端都接受，
+ * 越界仍整帧丢弃；口径与已裁决的 '8' 亮度超集一致（背景见 doc/15_云南治超屏协议/README.md §11.1） */
 
 /** @brief 颜色字段容错解析：ASCII '0'~'2' 或二进制 0x00~0x02（越界返回 false）。 */
 static bool _yn_ol_parse_color(uint8_t b, uint8_t *out)
@@ -115,8 +112,7 @@ yn_ol_parsed_cmd_t yn_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             cmd.sta = YN_OL_PARSE_OK;
             break;
 
-        case YN_OL_PCMD_ONE_LINE: { /* '3' 单行：颜色 + 行号 + GBK 文本（参数 ≥3B；文本上限不设，
-                                      超宽由渲染层截断；行 5 屏高不足时「执行但不落屏」） */
+        case YN_OL_PCMD_ONE_LINE: { /* '3' 单行：颜色 + 行号 + GBK 文本（≥3B；超宽由渲染层截断） */
             if (declared < (YN_OL_ONE_LINE_PREFIX_LEN + 1U)) {
                 cmd.sta = YN_OL_PARSE_ERR_PARAM;
                 break;
@@ -162,8 +158,7 @@ yn_ol_parsed_cmd_t yn_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             cmd.sta = YN_OL_PARSE_OK;
             break;
 
-        case YN_OL_PCMD_BRIGHTNESS: /* '8' 亮度：0x00/'0' = 自动；'1'~'8' = 手动档（硬件 8 档；
-                                       文档口径 '0'~'5' 的超集，已裁决维持） */
+        case YN_OL_PCMD_BRIGHTNESS: /* '8' 亮度：0x00/'0' = 自动；'1'~'8' = 手动档（超集已裁决） */
             if (declared != 1U) {
                 cmd.sta = YN_OL_PARSE_ERR_PARAM;
                 break;
@@ -215,8 +210,7 @@ yn_ol_parsed_cmd_t yn_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.p.setip.mask[i] = cmd.data[4U + i];
                 cmd.p.setip.gw[i]   = cmd.data[8U + i];
             }
-            /* 端口字段 BE16（已裁决）：文档未写字节序，取同厂 GZ_OL 先例与 LDI/IAP
-             * 既有口径 → 写 9528 发 `25 38`（见 doc/15_云南治超屏协议/README.md §2） */
+            /* 端口字段 BE16（契约 ①；同厂 GZ_OL 先例与 LDI/IAP 同序） */
             cmd.p.setip.port = (uint16_t)(((uint16_t)cmd.data[12] << 8) | (uint16_t)cmd.data[13]);
             cmd.sta          = YN_OL_PARSE_OK;
             break;

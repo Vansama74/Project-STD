@@ -455,7 +455,6 @@ targets:
       - <virtual_root>/Device/Display/dev_display_p20.c
       - <virtual_root>/Device/Display/dev_display_1_263.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
       - <virtual_root>/Device/Display/dev_display_22_1703.c
@@ -467,6 +466,7 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
       - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
       - <virtual_root>/Device/Display/dev_display_22_1665.c
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
     settings:
       debugger: cortex-debug
     toolchain: GCC

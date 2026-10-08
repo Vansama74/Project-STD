@@ -2,11 +2,10 @@
  * @file    app_yn_ol_proto.h
  * @brief   云南治超屏协议（YN_1.3.0，`{` 帧族）公共定义
  *
- * 帧 = `{`(0x7B) + 命令字 + 参数长度(1B **二进制**，= 参数区字节数) + 参数 + `}`(0x7D)，
- * 帧 ≤259B、**无校验**；端口字段（0x47/0x51）**高字节在前 BE16**（已裁决）。
- * 属 `{` 帧族 → 定义 `g_brace_proto_guard`，量产与其它 `{` 族协议**二选一**。
- * 队列体/控制块/任务帧缓冲置 **CCMRAM**（1152B，见 §6）。
- * 详见 doc/15_云南治超屏协议/README.md §1、§2、§4、§6、§7
+ * 契约（改错静默致现场故障）：① 端口字段（0x47/0x51）高字节在前 BE16；
+ * ② 不绑 10011：`{` 与 CQ 同首字节靠掩码隔离；③ `{` 帧族互斥：量产与其它 `{` 族二选一；
+ * ④ 队列/控制块/任务帧缓冲置 CCMRAM（1152B）；⑤ 0x49 记录落 W25Qxx 独立扇区。
+ * 详见 doc/15_云南治超屏协议/README.md §1、§2、§6、§7
  */
 #pragma once
 
@@ -26,11 +25,10 @@
 #define YN_OL_FRAME_OVERHEAD (4U)  /**< 3 字节头 + 1 字节尾 */
 #define YN_OL_FRAME_LEN_MIN (4U)   /**< 空参数最小帧（如 7B 35 00 7D） */
 
-/** 参数区上限（字段为 1B → 最大 255）→ 帧总长上限 259，与云南常规协议同构 */
-#define YN_OL_PAYLOAD_MAX (255U)
+#define YN_OL_PAYLOAD_MAX (255U) /**< 参数区上限（长度字段 1B；帧总长 ≤259） */
 /** 入队/解析上限（= 帧总长上限 259） */
 #define YN_OL_FRAME_LEN_MAX (YN_OL_PAYLOAD_MAX + YN_OL_FRAME_OVERHEAD)
-/** 队列深度 3：`{` 帧族一包多帧粘包惯例（与青海/贵州/云南常规一致） */
+/** 帧队列深度（四 mask 共用；`{` 帧族允许一包多帧粘包） */
 #define YN_OL_QUEUE_DEPTH (3U)
 #define YN_OL_MSG_SIZE (sizeof(frame_msg_t) + YN_OL_FRAME_LEN_MAX)
 
@@ -42,7 +40,7 @@ _Static_assert(YN_OL_FRAME_LEN_MAX <= RB_SIZE_RJ45, "YN_OL frame must fit RJ45 R
 #define YN_OL_ONE_LINE_PREFIX_LEN (2U)  /**< 颜色 + 行号 */
 #define YN_OL_FULL_SCREEN_PREFIX_LEN (3U) /**< 颜色 + X + Y */
 #define YN_OL_SCREEN_PARAM_LEN (2U)     /**< x0 字体 + x1 字宽 */
-#define YN_OL_NET_PAYLOAD_LEN (14U)     /**< ip4 + mask4 + gw4 + port2 */
+#define YN_OL_NET_PAYLOAD_LEN (14U)     /**< ip4 + mask4 + gw4 + port2（BE16） */
 
 /* ---- 命令字 ---- */
 typedef enum {
@@ -76,8 +74,7 @@ typedef enum {
     YN_OL_PARSE_ERR_PARAM, /**< 参数长度或取值非法（整帧丢弃） */
 } yn_ol_parse_sta_t;
 
-/** 执行结果状态码（`yn_ol_execute_cmd` 返回值；供调试器观察，不产生上行报文）。
- *  语义：0 = 已执行（含坐标越界「执行但不落屏」，属正常协议语义）；<0 = 未执行/未生效原因。 */
+/** 执行结果（返回值供调试器观察，不产生上行报文；逐值语义见 doc/15 §3） */
 typedef enum {
     YN_OL_EXEC_OK         = 0,  /**< 已执行（含「执行但不落屏」） */
     YN_OL_EXEC_NO_DISPLAY = -1, /**< 无显示实例（dev_display_get()==NULL） */
@@ -108,7 +105,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
-    uint16_t port; /**< **高字节在前 BE16**（写 9528 发 `25 38`；已裁决，见 doc/15_云南治超屏协议/README.md §2） */
+    uint16_t port; /**< 高字节在前 BE16（契约 ①；写 9528 发 `25 38`，见 §2） */
 } yn_ol_setip_t;
 
 /** 0x49 屏体参数 */
@@ -117,14 +114,11 @@ typedef struct {
     font_size_t font_size; /**< 字宽 0→FONT_16 / 1→FONT_24 / 2→FONT_32 */
 } yn_ol_screen_param_t;
 
-/* 0x49 持久化记录（12B，仿 LDI 记录范式）：magic + version + 字体/字宽 + CRC32（覆盖前 8B）。
- * 落 W25Qxx **独立 4KB 扇区** `capacity - 12288`（不与 LDI `-4096`、app_render `-8192` 共享）；
- * 无自备整扇区镜像（整扇区读-改-写由 dev_w25qxx._write 内部完成）；记录无效/写失败 → 回默认，
- * 不阻塞、不重启。
- * 选址核对、装载/保存失败语义、默认值口径见 doc/15_云南治超屏协议/README.md §7 */
+/* 0x49 持久化记录（12B）：magic + version + 字体/字宽 + CRC32（覆盖前 8B）；独立扇区见契约 ⑤，
+ * 装载/保存失败语义见 doc/15_云南治超屏协议/README.md §7 */
 #define YN_OL_CFG_MAGIC (0x594E4F4CU)   /**< "YNOL"（小端存 'Y''N''O''L'） */
 #define YN_OL_CFG_VERSION (1U)          /**< 记录版本；不匹配即视为无效回默认 */
-#define YN_OL_CFG_SECTOR_OFFSET (12288U) /**< 扇区位置 = capacity - 12288 */
+#define YN_OL_CFG_SECTOR_OFFSET (12288U) /**< 扇区位置 = capacity - 12288（按容量倒推，勿改为绝对地址） */
 
 /** 0x49 屏体参数持久化记录（12B；布局由 _Static_assert 锁定） */
 typedef struct {

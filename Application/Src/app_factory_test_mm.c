@@ -2,10 +2,8 @@
  * @file    app_factory_test_mm.c
  * @brief   出厂检测（缅甸版）：TEST 键切换 0x0A / 0x0B 箭头落点（不做掉电保存）
  *
- * 与标准版 `Application/Src/app_factory_test.c` **二选一编译**：两文件对外符号同名同义
- * （`app_factory_mode_interrupt` / `app_factory_test_active` / `g_factory_test`）⇒ 同编即
- * 链接报 `multiple definition`（天然守卫）。选择入口：Makefile `FACTORY=STD|MM`、
- * EIDE `targets.<目标>.excludeList`；**不引用任何显示 API**（无显示构建安全）。
+ * 与标准版 `app_factory_test.c` **二选一编译**（对外符号同名 ⇒ 同编即 `multiple definition`）；
+ * 选择入口 = Makefile `FACTORY=STD|MM` / EIDE `excludeList`；**不引用显示 API**（无显示构建安全）。
  * 语义与现场测试矩阵见 doc/16_缅甸2D费显协议/README.md §13
  */
 

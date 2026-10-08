@@ -123,14 +123,16 @@
 
 | 文件 | 职责 |
 |---|---|
-| `app_yn_ol_proto.h` | 帧常量、命令枚举、解析结构体、**0x49 持久化记录与 API**、对外 API（协议事实与裁决依据见本文档 §1/§2/§7，源码注释只留契约与指针） |
+| `app_yn_ol_proto.h` | 帧常量、命令枚举、解析结构体、**0x49 持久化记录与 API**、对外 API（协议事实与裁决依据见本文档 §1/§2/§7） |
 | `app_yn_ol_proto_parse.h` / `app_yn_ol_proto_cmd.h` | 薄转发头（对齐四川治超 / 贵州治超风格） |
 | `app_yn_ol_proto.c` | RB 提供（RS485/RS232 weak）+ 注册（**四通道四 mask**）+ `yn_ol_probe_frame` + `yn_ol_proto_handle_task` + **`g_brace_proto_guard` 互斥守卫** + `sw_app_initcall`（内含 `yn_ol_screen_cfg_load()` 上电装载） |
 | `app_yn_ol_proto_parse.c` | `yn_ol_parse_frame()` 纯函数 + `yn_ol_cmd_from_byte()`（probe 白名单与 parse 共用的单一真源） |
-| `app_yn_ol_proto_cmd.c` | 命令执行 + 应答组帧（`channel_send`）+ 屏体参数运行态与 **0x49 落盘/装载** + 自检任务 + RTT 诊断 |
+| `app_yn_ol_proto_cmd.c` | 命令执行 + 应答组帧（`channel_send`）+ 屏体参数运行态与 **0x49 落盘/装载** + 自检任务 |
 
-- 任务：`yn_ol_handle_task`，栈 `256 * 4`（1KB，ucHeap），`osPriorityNormal`，帧缓冲 static（置 CCM）；
-  另有 1 个**惰性创建**任务：`yn_ol_selftest`（'2' 触发，256×4，响应后自退）。
+- 任务：`yn_ol_handle_task`，栈 `256 * 4`（1KB），`osPriorityNormal`；**栈 + TCB 经
+  `PL_TASK_STATIC_STORAGE` 静态落 CCMRAM**（2026-09-17 堆修复轮起、**不占 ucHeap**；账本见
+  `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8）；帧缓冲 static（同落 CCMRAM，见 §6）；
+  另有 1 个**惰性创建**任务：`yn_ol_selftest`（'2' 触发，256×4，**保持动态**，响应后自退）。
 - 队列：`YN_OL_QUEUE_DEPTH = 3`，`YN_OL_PAYLOAD_MAX = 255`（帧 ≤259，与云南常规同构），**四 mask 共用**；
   队列体 + 控制块 + 任务帧缓冲 **置 CCMRAM**（1152B，见 §6）。
 - 绑定：`CH_ID_RS485` + `CH_ID_RS232` + `CH_ID_TCP_SERVER` + `CH_ID_TCP_CLIENT`，每逻辑通道独立 mask、
@@ -144,7 +146,7 @@
 - **默认字号 = 沿用 STD 工程既有默认口径（FONT_16 / FONT_ST）**：与同为 `{` 帧族、协议未限定字号的
   青海（`app_qh_proto_cmd.c`）/贵州（`app_gz_proto_cmd.c`）一致，也与 `app_default_display.c` 的默认
   FONT_16 一致（2026-09-17 裁决 Q9：**不单独修改**）。0x49 可运行时改为 24/32 并持久化。
-- **执行结果观察量**（2026-10-08 注释规范化迁移补充）：`yn_ol_execute_cmd()` 返回 `yn_ol_exec_ret_t`
+- **执行结果观察量**：`yn_ol_execute_cmd()` 返回 `yn_ol_exec_ret_t`
   （0 = 已执行〔含「执行但不落屏」〕；-1 无显示 / -2 参数越界 / -3 解析失败 / -4 未匹配），
   仅作返回值供调试器观察，**不产生上行报文**（协议未定义错误应答 → 失败静默）。
 
@@ -563,7 +565,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 `make clean && make -j8`（`.analysis/yn_ol/round2_makeclean_default.log`，默认口径 elf md5
 `888c3abe14182b7baf2177134ebe85a8`）——本轮操作期间 EIDE 曾于 21:25 覆写 `build/Debug/` 产物，
 之后的 `make -j8` **0 编译 0 链接、静默复用该 EIDE 产物**（口径不同也照样复用），故 `make clean`
-是拿到 make 口径产物的唯一手段，详见 `doc/构建开关总表.md` §4.2 R1 本轮补充观测。）
+是拿到 make 口径产物的唯一手段，复现观测见 `doc/构建开关总表.md` §4.2 R1。）
 
 - 本轮增量拆解：**诊断部分** +1392 text / +1008 rodata / +8 data / +36 bss（`[tcp_srv]`+`[tcp_cli]` 通道日志、
   `[disp] probe` 决策日志、post-boot `notify_drop` 字段）；**通知修复的常开部分** +48 text / +4 bss
@@ -664,11 +666,6 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 ## 13. 修订记录
 
-- 2026-10-08 **注释规范化迁移（本模块为注释工程批 1a；规范 = `doc/18_注释规范.md`）**：源码注释按规范
-  改写——文件头压到 ≤10 行、函数注释模板化、历史/推导外移到本文档。**代码 token 零改动**（去注释后
-  token 流逐字节一致、A/B 段级 md5 + 反汇编逐行一致）。本文档新增落点：§1 `'2'` 行补「被打断退出时
-  不清屏」、§2 新增第 12 行「参数长度与取值校验」、§3 补「执行结果观察量（`yn_ol_exec_ret_t`）」。
-  逐文件改动概览与验证证据见 `.analysis/comment_pass_20261008/batch01a_yn_ol.md`。
 - 2026-09-18 **TCP Client 未配置不连（通道层治理，非协议改动）**：`app_tcp_client` 默认远端改为
   `0.0.0.0:0`，任务仍启动但空转；排除 LDI 后不再对硬编码地址 1Hz SYN/ARP。YN_OL 仍绑
   `CH_ID_TCP_CLIENT`，`0x47` 仍只改设备自身 `net_cfg`。详见 `doc/CLAUDE.md` 网络子系统、

@@ -2,11 +2,11 @@
  * @file    app_gz_ol_proto.h
  * @brief   贵州治超屏协议（"TCLY" 帧族）公共定义
  *
- * 帧 = `54 43 4C 59` + 序号(4) + 长度(2 LE，**整帧长**) + 保留(2) + 命令(4，低字节有效)
- * + 载荷 + `0x00`，帧长 = 17 + 载荷，**无校验**；0x40/0x50/0x70 端口字段 **高字节在前 BE16**
- * （有意偏离源固件/协议文档：10028 发 `27 2C`），其余 16 位字段一律 LE16。
- * 0x40 只写 Sector1 `net_cfg.port`（`udp_port` 保留）；帧头 0x54 全槽唯一 → 无需 EIDE 互斥。
- * 详见 doc/14_贵州治超屏协议/README.md §1、§3、§4、§13
+ * 契约（改错静默致现场故障）：① 0x40/0x50/0x70 端口字段高字节在前 BE16；
+ * ② 帧头 0x54 全槽唯一：无需 EIDE 互斥；③ 写 `port`：TCP 与 GZ_OL 专用口共读；
+ * ④ 队列/控制块/帧缓冲置 CCMRAM（1136B）；⑤ 字面 `\n` 转 0x0A 须按 GBK 结构行走；
+ * ⑥ 9600 8N1：现场 DIP1 必须置 OFF。
+ * 详见 doc/14_贵州治超屏协议/README.md §1、§3、§4、§6、§13
  */
 #pragma once
 
@@ -29,8 +29,7 @@
 
 /** 帧长下界：17 = 16 帧头 + 0 载荷 + 1 尾（0x10/0x30/0x50/0x60 最小帧） */
 #define GZ_OL_FRAME_LEN_MIN (17U)
-/** 入队/解析上限 256B（实测合法最大 158B 的 1.6× 余量）；结构合法但更长的帧由 probe
- *  SKIP 整帧消费（不污染重同步路径）；与三个 RB 槽容量的编译期关系见下方 _Static_assert */
+/** 入队/解析上限 256B（实测合法最大 158B 的 1.6× 余量）；更长结构合法帧由 probe 整帧 SKIP */
 #define GZ_OL_FRAME_LEN_MAX (256U)
 #define GZ_OL_PAYLOAD_MAX (GZ_OL_FRAME_LEN_MAX)                  /**< 单帧载荷上限（同帧长上限） */
 #define GZ_OL_QUEUE_DEPTH (3U)                                   /**< 帧队列深度（四 mask 共用） */
@@ -44,7 +43,7 @@ _Static_assert(GZ_OL_PAYLOAD_MAX <= RB_SIZE_RJ45, "GZ_OL frame must fit RJ45 RB 
 #define GZ_OL_DISPLAY_PREFIX_LEN (17U) /**< X2 Y2 屏宽2 屏高2 字体名4 字号2 颜色3 */
 #define GZ_OL_FONT_NAME_LEN (4U)       /**< 字体名字段固定 4 字节（GBK 两字） */
 
-/** 搜索/修改 IP 应答载荷长度：ip4 + mask4 + gw4 + port2（**高字节在前 BE16**） */
+/** 搜索/修改 IP 应答载荷长度：ip4 + mask4 + gw4 + port2（BE16） */
 #define GZ_OL_NET_PAYLOAD_LEN (14U)
 
 /* ---- 命令字（仅低字节有效）---- */
@@ -79,13 +78,12 @@ typedef struct {
     display_color_t color;  /**< 颜色（RGB→8 色映射，见 doc/14 §1 载荷表颜色行） */
 } gz_ol_display_t;
 
-/** 0x40 修改 IP 参数（端口字段 **高字节在前 BE16**，有意偏离源固件/协议文档） */
+/** 0x40 修改 IP 参数（端口字段 BE16，见契约 ①） */
 typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
-    uint16_t port; /**< 写 Sector1 `net_cfg.port`（GZ_OL 专用 UDP 口 + TCP 业务口，§13）：
-                    *   10028 = `27 2C`；`2C 27` 解析为 11303（与改前互换） */
+    uint16_t port; /**< 写 `net_cfg.port`（契约 ③）；10028 发 `27 2C`（§13） */
 } gz_ol_setip_t;
 
 /** 0x80 全屏纯色参数（RGB 三字节） */

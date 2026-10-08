@@ -1,12 +1,10 @@
 /**
  * @file    app_gz_ol_proto_default.c
- * @brief   贵州治超屏协议上电默认画面（三行绿字）
+ * @brief   贵州治超屏协议上电默认画面（三行绿字，等价复现源固件 PowerOnDisplay()）
  *
- * 等价复现源固件 `PowerOnDisplay()`（9K23881580 `USER/LWIP_APP/UDP_SERVER.C:357-365`）：
- * 行 0「贵州省」、行 1「  高速公路」（2 前导空格）、行 2「     欢迎您!」（5 前导空格）；
- * FONT_16 / FONT_HT（黑体）/ 绿，前导空格与源固件一致（勿删），UTF-8 + FONT_ENC_UTF8。
- * `app_default_display_register` 为**单槽、首个注册生效**——全协议构建与山东等注册者竞争
- * （归属由 initcall 链接序决定），量产单协议构建无竞争。详见 doc/14_贵州治超屏协议/README.md §7
+ * `app_default_display_register` 单槽、首个注册生效：全协议构建与山东等注册者竞争
+ * （归属由 initcall 链接序决定），量产单协议构建无竞争；文案含前导空格（勿删），
+ * 字号/字型见 doc/14_贵州治超屏协议/README.md §7
  */
 
 #include <stdint.h>

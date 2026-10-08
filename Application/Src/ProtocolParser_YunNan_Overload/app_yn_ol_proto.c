@@ -1,12 +1,9 @@
 /**
  * @file    app_yn_ol_proto.c
- * @brief   云南治超屏协议 — 注册 / 探测 / 处理任务
+ * @brief   云南治超屏协议 — 注册 / 探测 / 帧处理任务
  *
- * 绑 RS485 + RS232 + TCP Server + TCP Client 四通道（四 mask 共用一静态队列）；
- * **禁止**绑 `CH_ID_RS232_1`（USART6 语音 TX 专用）。
- * RJ45 槽与 CQ 的 JSON 同首字节 `'{'` → 靠**通道掩码隔离**解决：CQ 不绑 TCP、
- * 本模块**不绑 10011**（原因与反向安全见 §1/§4）；属 `{` 帧族 → 量产互斥。
- * 详见 doc/15_云南治超屏协议/README.md §1、§3、§4
+ * 契约一览见 app_yn_ol_proto.h 文件头（本文件实现 ② 掩码隔离 / ③ 互斥守卫 / ④ CCM 放置）。
+ * 详见 doc/15_云南治超屏协议/README.md §3、§4、§6
  */
 
 #include "app_yn_ol_proto.h"
@@ -21,21 +18,16 @@
 #include "app_yn_ol_proto_parse.h"
 #include "pl_task_static.h"
 
-/* 任务静态存储（栈 + TCB 落 CCMRAM）：处理任务启动期创建一次、永不退出 → 可静态化
- * （自检任务会被反复创建/退出，**保持动态**，见 app_yn_ol_proto_cmd.c）。
- * 放置理由与账本（本任务曾是压垮 36KB ucHeap 的最后一份，A/B 实测）见
- * doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8 */
+/* 处理任务栈 + TCB 静态落 CCMRAM（启动期创建一次、永不退出；账见 doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8）。
+ * 自检任务会被反复创建/退出，保持动态（见 app_yn_ol_proto_cmd.c）。 */
 PL_TASK_STATIC_STORAGE(yn_ol_handle, 256);
 
-/* `{` 帧族互斥守卫：同一构建只允许编入一个 `{` 帧族协议（青海/山东/贵州常规/四川MTC/
- * 云南常规/云南治超）。多编 → 链接期 multiple definition 强制报错；全协议开发构建
- * （STD_ALL_PROTO）跳过守卫，共存由 probe 注册序约束。见 doc/15_云南治超屏协议/README.md §4 */
+/* `{` 帧族互斥守卫（契约 ③）：多编 → 链接期 multiple definition；STD_ALL_PROTO 开发构建豁免 */
 #ifndef STD_ALL_PROTO
 __attribute__((used)) char g_brace_proto_guard;
 #endif
 
-/* 地区协议通道 RB：与同槽协议 weak 合并；RJ45 槽体由 IAP/LDI/CQ 提供，
- * 本模块只 acquire 不 provide（避免第二份 1536B 网口缓冲）。 */
+/* RS485/RS232 槽体与同槽协议 weak 合并；RJ45 槽体由 IAP/LDI/CQ 提供，本模块只 acquire 不 provide */
 RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
 RB_PROVIDE_WEAK(rb_provide_rs232, RB_SIZE_RS232);
 
@@ -45,8 +37,7 @@ static proto_mask_t s_yn_ol_mask_tcp_server; /* CH_ID_TCP_SERVER（RJ45 槽 RB�
 static proto_mask_t s_yn_ol_mask_tcp_client; /* CH_ID_TCP_CLIENT（RJ45 槽 RB） */
 static osMessageQueueId_t s_yn_ol_queue;
 
-/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 **CCMRAM**（1152B，doc/15_云南治超屏协议/README.md §6）——
- * PROTO=ALL 口径 SRAM 余量放不下 ~1.1KB 静态体，且该缓冲 CPU 独占访问、不经 DMA/ETH。 */
+/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 CCMRAM（契约 ④，1152B；理由见 §6） */
 [[gnu::section(".ccmram")]] static StaticQueue_t s_yn_ol_queue_cb;
 [[gnu::section(".ccmram")]] static uint8_t s_yn_ol_queue_buf[YN_OL_QUEUE_DEPTH * YN_OL_MSG_SIZE];
 static const osMessageQueueAttr_t s_yn_ol_queue_attr = {
@@ -87,7 +78,7 @@ void yn_ol_proto_init(void)
 
     /* 网口槽（TCP Server / TCP Client 共享 RJ45 RB）：独立 mask 各挂一次；槽体由
      * IAP/LDI/CQ weak 提供（本模块不 provide），无提供者时静默跳过、串口不受影响。
-     * 不与 CQ 竞争（CQ 不绑 TCP，probe 掩码过滤后不会被调用，见文件头）。 */
+     * 不与 CQ 竞争：CQ 不绑 TCP，probe 掩码过滤后不会被调用（契约 ②）。 */
     ring_buffer_t *rb_rj45 = app_proto_acquire_buf(RB_SLOT_RJ45, RB_SIZE_RJ45);
     if (rb_rj45 != nullptr) {
         s_yn_ol_mask_tcp_server = app_proto_register(yn_ol_probe_frame, rb_rj45);
@@ -149,8 +140,7 @@ static proto_probe_sta_t yn_ol_probe_frame(const channel_t *ch, const ring_buffe
     uint8_t head[YN_OL_HEAD_LEN];
     rb_peek(rb, 0U, head, YN_OL_HEAD_LEN, NULL);
 
-    /* 命令字快筛：本协议不实现的命令字（'6' 固定格式 / '7' 语音 / '9' 音量 / 'B' 等）
-     * 立即 FAKE，交同槽链式探测的其它协议或 1 字节重同步（PURE：不消费、无副作用）。 */
+    /* 命令字白名单快筛：'6'/'7'/'9'/'B' 及未知字节 → FAKE（交链式探测/1 字节重同步，不消费） */
     if (yn_ol_cmd_from_byte(head[YN_OL_CMD_OFFSET]) == YN_OL_PCMD_INVALID)
         return PROTO_PROBE_FAKE;
 

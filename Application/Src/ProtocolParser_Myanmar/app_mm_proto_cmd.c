@@ -2,11 +2,9 @@
  * @file    app_mm_proto_cmd.c
  * @brief   缅甸 2D 费显协议 — 帧解析 + 干接点输出（唯一映射点）
  *
- * 干接点：红灯=S1/PE12、左下=S2/PE11、右下=S3/PE10，推挽**高电平有效（点亮 = 输出高）**；
- * **上电默认红叉 = 红灯点亮**；接管顺序（写灭电平 → 按线摘 EXTI → 切推挽输出 → 点亮红灯）无毛刺、
- * **禁止 `HAL_NVIC_DisableIRQ`**；改脚位/极性/驱动方式只改 `s_mm_lamp_map` + `_mm_drive()`；
- * 副作用（SW1~SW3 输入语义失效 ⇒ `PROTO=ALL` 下 RLS 显示「车道关闭」；量产排除 RLS 即无影响）见 §4.3。
- * 详见 doc/16_缅甸2D费显协议/README.md §3、§4、§6、§13、§14
+ * 契约一览见 app_mm_proto.h 文件头（本文件实现 ① 极性、② 上电红叉、③ 接管顺序）；
+ * 改脚位/极性/驱动方式只改 `s_mm_lamp_map` + `_mm_drive()`；副作用（SW1~SW3 输入语义
+ * 失效 ⇒ RLS 显示「车道关闭」）见 doc/16_缅甸2D费显协议/README.md §4.3
  */
 
 #include "app_mm_proto.h"
@@ -29,7 +27,7 @@ typedef struct {
     bool        active_low; /**< true = 低电平有效（点亮 = 输出低）；false = 高有效（点亮 = 输出高） */
 } mm_lamp_map_t;
 
-/* 现行极性 = **高有效**（active_low=false）：复位后红灯即亮 + PE12 实测 3.3V
+/* 现行极性 = 高有效（active_low=false，契约 ①）：复位后红灯即亮 + PE12 实测 3.3V
  * ⇒ 3.3V = 点亮（2026-09-28 现场实测；推导见 doc/16_缅甸2D费显协议/README.md §4.1）。 */
 static const mm_lamp_map_t s_mm_lamp_map[MM_LAMP_COUNT] = {
     [MM_LAMP_RED]   = {.contact = "S1", .lamp_name = "红灯",       .port = PL_PORT_E, .pin = 12, .active_low = false},

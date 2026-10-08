@@ -2,11 +2,8 @@
  * @file    app_gz_ol_proto_cmd.c
  * @brief   贵州治超屏协议 — 命令执行与应答组帧
  *
- * 显示走 app_render（GBK 直通、先整屏清黑、按屏宽换行、越屏裁剪绘制）；0x20 文本字面
- * `\n`（0x5C 0x6E）在执行层原地转 0x0A（GBK 安全行走）；亮度/调光 = set_brightness +
- * 光敏任务挂起/恢复（0x80 副作用）；网络配置写 Sector1 `net_cfg.port`（`udp_port` 保留）、
- * 端口 **BE16**；「清屏/渲染/提交」持 `app_scroll_render_lock`；应答单播回源。
- * 详见 doc/14_贵州治超屏协议/README.md §1、§3、§8、§10、§11、§13
+ * 契约一览见 app_gz_ol_proto.h 文件头（本文件实现 ③ 端口写入、⑤ GBK 安全行走）；
+ * 渲染/调光/应答行为详见 doc/14_贵州治超屏协议/README.md §1、§3、§8、§13
  */
 
 #include "app_gz_ol_proto_cmd.h"
@@ -68,8 +65,8 @@ static void _gz_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload
  * @brief  读 Sector1 net_cfg 填入 14B 载荷（ip4 + mask4 + gw4 + port2 **BE16**）。
  * @param  out  14B 输出缓冲。
  * @return true = 读到有效配置；false = 记录无效（调用方用全 0 兜底）。
- * @note   port 报 `net_cfg.port`——它同时是 GZ_OL 专用 UDP 业务口与 TCP 业务口的监听号
- *         （与 LDI 12H / IAP 0x01 同源）；`udp_port`（CQ 专有）不参与。详见 §13。
+ * @note   读 `net_cfg.port`——它同时是 GZ_OL 专用 UDP 业务口与 TCP 业务口的监听号
+ *         （契约 ③，与 LDI 12H / IAP 0x01 同源）；`udp_port`（CQ 专有）不参与，详见 §13。
  */
 static bool _gz_ol_net_payload(uint8_t *out)
 {
@@ -99,8 +96,8 @@ static void _gz_ol_clear_screen(dev_display_t *d)
  * @param  text    文本（GBK/ASCII 混合，可原地修改）。
  * @param  len     文本字节数；`out_nl` 输出转换出的换行个数（可为 NULL）。
  * @return 转换后长度（≤ len；输出 ≤ 输入、双指针只落后不超前，无需额外缓冲）。
- * @note   必须按 GBK 结构行走（尾字节可为 0x5C，朴素匹配会毁字）：首字节 0x81~0xFE +
- *         合法尾字节整体拷贝、不参与转义判定；仅 `\n` 转换。裁决与陷阱回归见 §1、§14。
+ * @note   必须按 GBK 结构行走（GBK 尾字节可为 0x5C，朴素匹配会毁字）；仅 `\n` 转换，
+ *         陷阱回归见 §1、§14。
  */
 static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_nl)
 {
@@ -129,9 +126,8 @@ static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_
 /**
  * @brief  执行 0x20：先整屏清黑，再按 (x, y) 渲染（按屏宽自动换行、越屏裁剪绘制）。
  * @param  cmd  解析结果（`p.display` 为显示参数；`text` 可原地转换，见 `_gz_ol_text_unescape_nl`）。
- * @note   字号**不受屏高限制**：行框下缘越屏由 `dev_display_draw_bitmap` 按屏幕交集裁剪绘制
- *         （2026-09-14 裁决，另两层改动见 §12.6）；区域 = 剩余屏幕（w/h 不做字号补偿，
- *         首行不受行终止判定约束）。`x`/`y` ≥ 屏宽/屏高时钳 0（源固件行为）。
+ * @note   字号不受屏高限制（行框下缘越屏由显示层按屏幕交集裁剪绘制；2026-09-14 裁决，
+ *         见 §12.3/§12.6）；`x`/`y` ≥ 屏宽/屏高时钳 0（源固件行为）。
  */
 static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
 {
@@ -146,8 +142,8 @@ static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
     const uint16_t h = (uint16_t)(d->screen_cols - y);
 
 
-    /* 字面 `\n`（0x5C 0x6E）→ 0x0A 原地转换（2026-09-18 裁决）；p->text 为任务帧缓冲
-     * 私有拷贝（可变），转换输出 ≤ 输入、无额外缓冲——四通道一律经此转换。 */
+    /* 字面 `\n`（0x5C 0x6E）→ 0x0A 原地转换（契约 ⑤）；p->text 为任务帧缓冲私有拷贝，
+     * 转换输出 ≤ 输入、无额外缓冲——四通道一律经此转换。 */
     uint16_t text_len = p->text_len;
     if (text_len > 0U)
         text_len = _gz_ol_text_unescape_nl((char *)p->text, text_len, nullptr);
@@ -248,16 +244,14 @@ void gz_ol_resume_auto_dim(void)
  * @brief  执行 0x40：写 Sector1 `net_cfg.port`（`udp_port` 保留）→ 应答 0x50 → 延时软复位。
  * @param  ch   来源通道。
  * @param  cmd  解析结果（`p.setip` 为 14B 网络参数，端口已按 BE16 解析）。
- * @note   `0x50` 应答是**按解析值重建的回显、不是落盘证据**（落盘证据 = 重启后 `0x70`
- *         回读 + 新端口实发，见 §13.4）；`osDelay(100)` 给 9600bps 下的应答留传输时间。
+ * @note   `0x50` 应答是回显、**不是落盘证据**（证据 = 重启后 `0x70` 回读 + 新端口实发，见 §13.4）。
  */
 static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 {
     const gz_ol_setip_t *p = &cmd->p.setip;
 
-    /* 写 net_cfg.port：重启后由 app_net_boot 应用到 TCP 业务口、由 GZ_OL 专用 UDP 实例
-     * （CH_ID_UDP_GZOL）应用到业务口（同号不同协议栈）；udp_port 保留现值（CQ 专有），
-     * 记录无效时按出厂默认 20103 兜底（与 app_net_boot 默认一致）。见 §13。 */
+    /* 写 `net_cfg.port`（契约 ③）：重启后由 app_net_boot 应用到 TCP 业务口、由 GZ_OL 专用
+     * UDP 实例应用到业务口（同号不同协议栈）；`udp_port` 保留现值。见 §13。 */
     app_board_net_cfg_t cur;
     uint32_t udp_port = (app_board_net_cfg_get(&cur) == 0) ? cur.udp_port : 20103U;
 
@@ -266,8 +260,7 @@ static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 
     (void)wr_ret; /* 返回值不影响应答与重启流程（0x50 回显 + 重启为固定语义） */
 
-    /* 应答 0x50 帧（**按解析值重建**本次下发的配置，与源固件一致；端口与请求同序 BE16，
-     * 2026-09-15 用户裁决；**回显不是落盘证据**） */
+    /* 应答 0x50：按解析值重建本次下发配置（与请求同序 BE16）；回显不是落盘证据 */
     uint8_t payload[GZ_OL_NET_PAYLOAD_LEN];
     memcpy(&payload[0], p->ip, 4);
     memcpy(&payload[4], p->mask, 4);
@@ -276,8 +269,7 @@ static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
     payload[13] = (uint8_t)(p->port & 0xFFU);
     _gz_ol_send_frame(ch, GZ_OL_PCMD_SET_IP_ACK, payload, GZ_OL_NET_PAYLOAD_LEN);
 
-    /* 给应答帧留出传输时间（源固件 delay_ms(30)；9600bps 下 31B ≈ 32ms，取 100ms 余量），
-     * 随后软复位使新配置生效（STD 约定改 IP 统一重启生效）。 */
+    /* 9600bps 下 31B ≈ 32ms，取 100ms 余量；随后软复位使新配置生效（STD 约定改 IP 重启生效） */
     osDelay(100);
     NVIC_SystemReset();
 }
@@ -297,8 +289,7 @@ static void _gz_ol_exec_search(channel_t *ch)
 
 /**
  * @brief  执行 0x10 故障查询：应答 2 字节状态 0x0000（先低字节后高字节）。
- * @note   文档「无此故障硬件的位补 0」→ STD 无对应故障采集点，全 0 合规；源固件空实现
- *         不应答会让上位机轮询超时，不复制该缺陷（§2 #2）。
+ * @note   文档「无此故障硬件的位补 0」→ 全 0 合规；源固件不应答导致的轮询超时不复制（§2 #2）。
  */
 static void _gz_ol_exec_fault_query(channel_t *ch)
 {
