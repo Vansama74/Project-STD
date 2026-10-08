@@ -131,7 +131,7 @@ bool app_render_chip_select(font_chip_id_t id);
  *  @return 当前配置ID */
 font_chip_id_t app_render_chip_current(void);
 
-/* ---- 字库只读诊断（现场自证用，见 app_diag.h；不改任何渲染行为）---- */
+/* ---- 字库只读观察（当前无输出消费者；不改任何渲染行为）---- */
 
 /** @brief 当前激活字库芯片配置的关键参数快照 */
 typedef struct {

@@ -7,15 +7,17 @@
 #       8×2（128×32）/ **8×4（128×64，工作区当前宏值）** / 12×1 / 6×2；
 #       46×1（CCM 65024B，整片 64KB 区域内的边界点）；单模块 32×8 变体（同为 256 像素）；
 #       链首口径开关 CHAIN_HEAD_IS_MODULE0=1（单模块与扩屏）
-#   B. **旧非法口径的现行行为（第三十四轮起，实测写死）** —— 编译期防御已按用户裁决全部
-#      删除，故这些口径**不再被拦下**：
+#   B. **旧非法口径的现行行为（第三十四轮删除全部断言 → 2026-10-08 恢复 2 条守卫后重采）**：
+#      2026-10-08 恢复的 2 条编译期守卫 = ① `2×MODULE_COLS ≤ HUB75_CHANNEL_MAX`（通道表
+#      物理上限）、② 本模组数组 ≤ 整片 CCMRAM 64KB；其余旧的几何防御不再存在：
+#       · `bad` 期望（编译期拦下 + 可读断言消息）：
+#         `MODULE_COLS=6`（2×6 = 12 > 10 ⇒ 守卫 ①）、`MODULE_ROWS=47`（CCM 66432B > 64KB ⇒ 守卫 ②）；
 #       · `warn` 期望：COLS=0 / ROWS=0 → 编译通过但有 `-Wtype-limits`（恒假比较）；
-#       · `ok`（零告警）期望：PIXEL_ROW=24 / PIXEL_COL=32 / PIXEL_COL=30 / COLS=6
-#         → **静默错口径 / 越界**（契约改由源码注释 + doc/01 §0.3 承担；
-#         COLS=6 在 -O3 代码生成下另有 UB 告警，见 `check_eide_command.sh`）；
-#   C. **链接期兜底（实测，快）**：本模组数组 > 整片 CCMRAM 区域 64KB 时由链接器报错 ——
-#       47×1（对象零告警，.ccmram 66432B）最小链接 → `region CCMRAM overflowed by 896 bytes`；
-#       1×1 对照 → 零溢出。
+#       · `ok`（零告警）期望：PIXEL_ROW=24 / PIXEL_COL=32 / PIXEL_COL=30
+#         → **静默错口径**（契约仍由源码注释 + doc/01 §0.3 承担）。
+#   C. **链接期兜底**：整片 CCMRAM 是否装得下仍由链接器按实际占用兜底（本模组自身 ≤64KB
+#      已由守卫 ② 编译期拦下）；本节保留「合法几何进真实链接脚本零溢出」两个对照
+#      （1×1 / 8×4）。固件级实测：8×4 ⇒ `PROTO=ALL` 溢出 17700B、`PROTO=CQ` 溢出 15444B。
 #   D. 陷阱回归：几何宏已是兄弟驱动同款**普通 `#define`** ⇒ 命令行 `-D` 只给「重定义告警 +
 #       文件值胜出」（换口径必须走 `macro_override.py` 源码替换）。
 #
@@ -117,15 +119,17 @@ check "单模块 16×32（区域块数 16 ≠ 8）→ 零告警编过（静默�
       "$(src_for pix16x32 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=1 _22_1665_MODULE_PIXEL_COL=32)"
 check "MODULE_PIXEL_COL=30（半屏高 15 非 4 的倍数）→ 零告警编过（静默错口径）" ok \
       "$(src_for pix30 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=1 _22_1665_MODULE_PIXEL_COL=30)"
-check "列数 6（2×6 = 12 通道 > HUB75_CHANNEL_MAX = 10）→ -fsyntax-only 零告警编过" ok \
+check "列数 6（2×6 = 12 通道 > HUB75_CHANNEL_MAX = 10）→ **守卫 ① 编译期拦下**" bad \
       "$(src_for r1c6 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=6)"
-echo "  （COLS=6 在 -O3 代码生成下会报 UB 告警 —— 见 check_eide_command.sh；"
-echo "    运行期后果 = 越界读 _22_1665_lines[5]）"
+check "47×1（CCM 66432B > 64KB）→ **守卫 ② 编译期拦下**（原为链接期 overflow）" bad \
+      "$(src_for r47c1 _22_1665_MODULE_ROWS=47 _22_1665_MODULE_COLS=1)"
+echo "  （以上两条 = 2026-10-08 恢复的编译期守卫；其余非法几何（0 / 24×16 / 16×32 / 30）"
+echo "    仍静默编过，见本节上方用例）"
 
-echo "== C. 链接期兜底（本模组数组 > 整片 CCMRAM 区域 64KB 时由链接器报错）=="
-echo "  注：整片能否装下只能靠链接期 —— 现场当前宏值 8×4（本模组 46080B）+ 其他消费者"
-echo "      35836B = 81916B > 65536B ⇒ PROTO=ALL 整片构建实测溢出 16380B（预存状态）；"
-echo "      本节只验「本模组对象单独进区域」这一物理事实（最小链接：驱动对象 + 桩 + 真链接脚本）。"
+echo "== C. 链接期兜底（整片 CCMRAM 是否装得下仍由链接器兜底）=="
+echo "  注：本模组自身 > 64KB 已由守卫 ② 编译期拦下（见 B 节 47×1）；整片占用 = 本模组 + 其他"
+echo "      消费者 37156B ⇒ 现场宏值 8×4（本模组 46080B）实测：PROTO=ALL 溢出 17700B、"
+echo "      PROTO=CQ 溢出 15444B（预存状态）。本节只验「合法几何进真实链接脚本」这一物理事实。"
 cat > "$TMP/stub.c" <<'EOF'
 /* 最小链接桩：只为把驱动对象放进真实链接脚本的 CCMRAM 区域（验证链接期兜底） */
 #include "dev_display.h"
@@ -167,8 +171,6 @@ link_case() {   # link_case <描述> <期望(overflow|ok)> <tag> [宏名=值 ...
         fi
     fi
 }
-link_case "47×1（CCM 66432B > 64KB）→ 对象零告警，链接期 overflow 896B" overflow \
-      r47c1 _22_1665_MODULE_ROWS=47 _22_1665_MODULE_COLS=1
 link_case "对照 1×1（CCM 1664B）→ 链接零溢出" ok \
       ok1x1 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=1
 link_case "对照 8×4（CCM 46080B，工作区宏值）→ 单独进区域零溢出（整片溢出见上方注）" ok \

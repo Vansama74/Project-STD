@@ -34,6 +34,15 @@
 extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));
 
+/* RTT 调试通道已移除（2026-09-29 代码瘦身轮）：printf 系列不再有落地点，此处提供
+ * 一个显式的「无输出」实现，替代此前由 SEGGER_RTT_Syscalls_GCC.c 的 `_write` 承接、
+ * 或弱符号未定义时被解析为地址 0 的隐患（调用即跳 0）。
+ * printf 在本工程不再用于业务输出（仅 newlib 内部/第三方错误路径可能引用）。 */
+int __io_putchar(int ch)
+{
+    return ch;
+}
+
 char *__env[1] = {0};
 char **environ = __env;
 

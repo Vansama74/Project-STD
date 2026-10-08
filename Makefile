@@ -25,8 +25,10 @@ OBJCOPY = arm-none-eabi-objcopy
 SIZE    = arm-none-eabi-size
 
 # ---- Directories ----
+# BUILD_DIR 可用 `?=` 覆盖（make BUILD_DIR=... 或环境变量）——供宿主脚本把等价口径
+# 的构建产物落到 .analysis/ 下，避免污染 build/（见 .analysis/myanmar/README.md）。
 CONFIG    ?= Debug
-BUILD_DIR  = build/$(CONFIG)
+BUILD_DIR ?= build/$(CONFIG)
 
 # ---- MCU Flags ----
 CPU       = -mcpu=cortex-m4
@@ -56,39 +58,11 @@ ifdef CQ_FAULT_SCREEN
   DEFINES += -DCQ_FAULT_SCREEN=$(CQ_FAULT_SCREEN)
 endif
 
-# ---- 诊断开关（APP_DIAG_BANNER）----
-# 自证版诊断固件（2026-09-14）：RTT 开机横幅 + 延迟体检 + GZ_OL 0x20/0x40 逐帧证据。
-# 默认开（源码 Application/Inc/app_diag.h 内 APP_DIAG_BANNER=1）；
-# 关闭：`make APP_DIAG=0`（或把 app_diag.h 里的 1 改成 0）。
-# 关闭 = 无任何 RTT 诊断输出，固件行为与开启时逐字节一致（诊断全部只读）。
-ifdef APP_DIAG
-  DEFINES += -DAPP_DIAG_BANNER=$(APP_DIAG)
-endif
-
-# ---- LwIP 调试档位（2026-09-18 YN_OL TCP 现场取证）----
-# 默认 0x01（= LWIP_DBG_LEVEL_WARNING）：过滤 LwIP 的 LEVEL_ALL 常规信息行
-# （tcp_slowtmr/tcp_recved 等，实测 5~17 行/秒），避免 RTT 1KB 上行缓冲被噪声
-# 灌满后**所有现场诊断静默丢失**（详见 Platform/Inc/lwipopts.h 覆盖说明）。
-# 诊断 LwIP 本身时可 `make APP_LWIP_DBG_LEVEL=0x00` 恢复全量日志（该值进口径
-# 指纹 stamp → 切口径必然全量重编 + 重链接，不依赖手工删产物）。
-ifdef APP_LWIP_DBG_LEVEL
-  DEFINES += -DAPP_LWIP_DBG_LEVEL=$(APP_LWIP_DBG_LEVEL)
-endif
-
-# ---- 诊断构建指纹（自证「板上固件 = 哪棵树 + 哪套口径」）----
-# 注入方式：仅对 app_boot.o 追加宏（不进 DEFINES / stamp）——不改变增量构建语义；
-# 口径切换（PROTO/DISP/CONFIG/TOOLCHAIN）经 stamp 机制本就全量重编，注入值必然同步刷新。
-# 树哈希变化（任何源文件内容变化）本身就会触发对应 .o 重编 + 重链接，指纹不滞后。
-DIAG_TREE_HASH := $(shell { find Application Device Kernel Platform Core Compiler -type f \( -name '*.c' -o -name '*.h' -o -name '*.ld' \) -print0 | LC_ALL=C sort -z | xargs -0 cat; cat Makefile; } 2>/dev/null | md5sum | cut -c1-8)
-ifeq ($(strip $(DIAG_TREE_HASH)),)
-  DIAG_TREE_HASH := unknown
-endif
-DIAG_DEFS = -DAPP_DIAG_TREE_HASH="\"$(DIAG_TREE_HASH)\"" \
-            -DAPP_DIAG_PROTO="\"$(PROTO)\"" \
-            -DAPP_DIAG_DISP="\"$(DISP)\"" \
-            -DAPP_DIAG_CONFIG="\"$(CONFIG)\"" \
-            -DAPP_DIAG_TOOLCHAIN="\"$(TOOLCHAIN)\""
-$(BUILD_DIR)/Application/Src/app_boot.o: CFLAGS += $(DIAG_DEFS)
+# ---- 诊断开关（2026-09-29 代码瘦身轮移除；同日第二轮修正保留 RTT 底层）----
+# 原 APP_DIAG_BANNER / APP_LWIP_DBG_LEVEL 两个命令行开关随自研诊断设施一并删除（不回退）：
+# 业务代码零 RTT API 调用（grep 证据见 .analysis/cleanup_20260929/round2_report.md），
+# SEGGER RTT 底层（SRC_RTT + pl_rtt.c）**保留/已恢复**，供调试器直接读 RTT 使用；
+# LwIP 调试输出已在 Platform/Inc/lwipopts.h 中整体编出（零输出、零格式化开销）。
 
 # ---- Display module selection ----
 # DISP=1_263（默认，P6 32x32 单模块口径 224x64，现行调试/量产口径）
@@ -109,6 +83,23 @@ else
   SRC_DISPLAY = Device/Display/dev_display_1_263.c
 endif
 
+# ---- Factory test variant selection ----
+# FACTORY=STD（默认，保持改动前行为）：标准出厂检测（SHOW_CODE/七色/老化循环/斜扫）。
+# FACTORY=MM            ：缅甸版出厂检测（TEST 键切换 0x0A/0x0B 箭头落点，无显示依赖）。
+# 两文件提供**同一套对外符号**（app_factory_mode_interrupt / app_factory_test_active /
+# g_factory_test）⇒ 同时编入必然链接报 multiple definition（天然互斥守卫，无需额外宏）；
+# EIDE 侧用 excludeList 表达同一语义（Debug / Myanmar 目标编 MM、标准构建编 STD）。
+# 开关值进 .build_stamp（下方 FACTORY 行）⇒ 切口径必然全量重编 + 重链接。
+FACTORY ?= STD
+ifneq ($(filter $(FACTORY),STD MM),$(FACTORY))
+  $(error FACTORY must be STD or MM, got '$(FACTORY)')
+endif
+ifeq ($(FACTORY),MM)
+  SRC_FACTORY_TEST = Application/Src/app_factory_test_mm.c
+else
+  SRC_FACTORY_TEST = Application/Src/app_factory_test.c
+endif
+
 INC_DIRS = \
 	-I Application/Inc \
 	-I Application/Inc/IAP \
@@ -125,6 +116,7 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_ShanDong \
 	-I Application/Inc/ProtocolParser_ChongQing \
 	-I Application/Inc/ProtocolParser_Anhui \
+	-I Application/Inc/ProtocolParser_Myanmar \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -221,7 +213,7 @@ SRC_HAL = \
 
 # BSP Protocol
 
-# RTT
+# RTT（SEGGER 底层保留：业务代码零 RTT API 调用，调试器仍可直接读 RTT）
 SRC_RTT = \
 	Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT.c \
 	Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT_printf.c \
@@ -378,7 +370,7 @@ SRC_DEVICE = \
 # Application — 兼容协议同时编入（EIDE 目录编入等价；互斥靠排除目录，不用宏）
 SRC_APPLICATION = \
 	Application/Src/app_test.c \
-	Application/Src/app_factory_test.c \
+	$(SRC_FACTORY_TEST) \
 	Application/Src/app_boot.c \
 	Application/Src/app_net_boot.c \
 	Application/Src/app_default_display.c \
@@ -439,6 +431,8 @@ SRC_APPLICATION = \
 	Application/Src/ProtocolParser_Anhui/app_anhui_proto_parse.c \
 	Application/Src/ProtocolParser_Anhui/app_anhui_proto_cmd.c \
 	Application/Src/ProtocolParser_Anhui/app_anhui_proto_voice.c \
+	Application/Src/ProtocolParser_Myanmar/app_mm_proto.c \
+	Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c \
 	Application/Src/app_uart_baud.c \
 	Application/Src/Channel/app_udp.c \
 	Application/Src/Channel/app_tcp_server.c \
@@ -499,6 +493,7 @@ CONFIG=$(CONFIG)
 TOOLCHAIN=$(TOOLCHAIN)
 PROTO=$(PROTO)
 DISP=$(DISP)
+FACTORY=$(FACTORY)
 DEFINES=$(DEFINES)
 CFLAGS=$(CFLAGS)
 LDFLAGS=$(LDFLAGS)

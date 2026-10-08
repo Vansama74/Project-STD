@@ -128,8 +128,21 @@ dev_display_t *dev_display_22_1665_get(void);
 /** @brief 注册活动显示实例（由显示模组的 hw_dev_initcall 调用） */
 void dev_display_register(dev_display_t *dev);
 
-/** @brief 获取当前活动显示实例 */
+/** @brief 获取当前活动显示实例（显示模组驱动未编入的构建恒返回 nullptr） */
 dev_display_t *dev_display_get(void);
+
+/** @brief 「整机无显示驱动」构建的调用侧守卫（纯运行时判空，无编译期开关）
+ *
+ *  显示模组驱动未编入的构建（如 EIDE Myanmar 目标：Device/Display 下无任何
+ *  dev_display_*.c）里 dev_display_get() 恒为 nullptr。凡「必须显示才能完成」的
+ *  入口先经本函数判空：
+ *      if (!dev_display_guard("ldi.e6")) return;   // 无显示 → 安全跳过/降级
+ *  有显示时仅多一次判空（等价于调用方自行 `if (!d) return;`，零行为差异）；
+ *  无显示时限速告警（同一调用点 ≥1s 一行，`what` 为调用点标识），
+ *  避免每帧刷屏灌满 RTT 上行缓冲。
+ *  @param what 调用点标识（静态字符串，如 "splash" / "ldi.e6" / "factory-test"）
+ *  @return true = 有显示可继续；false = 无显示，调用方应立即安全跳过 */
+bool dev_display_guard(const char *what);
 
 extern volatile uint32_t g_dev_display_commit_count;
 extern volatile uint32_t g_dev_display_scan_count;

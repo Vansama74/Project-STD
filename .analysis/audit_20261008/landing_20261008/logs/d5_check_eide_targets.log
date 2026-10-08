@@ -1,0 +1,42 @@
+== EIDE 目标结构不变量 ==
+  候选池 files：249 个源文件；`{` 帧族（源码事实）= ['ProtocolParser_Anhui', 'ProtocolParser_GuiZhou', 'ProtocolParser_GuiZhou_Overload', 'ProtocolParser_QingHai', 'ProtocolParser_ShanDong', 'ProtocolParser_SiChuang_MTC', 'ProtocolParser_YunNan', 'ProtocolParser_YunNan_Overload']
+
+== 目标 Debug ==
+  defines : ['USE_HAL_DRIVER', 'STM32F407xx', 'PROTO_CHONGQING']
+  编入 206 / 排除 43
+  显示模组驱动（1）: ['dev_display_1_969.c']
+  出厂测试（1）: ['app_factory_test.c']
+  `{` 帧族（1）: ['ProtocolParser_SiChuang_MTC']
+  · 地面真相：与 build/Debug/builder.params 逐条一致 ✓（206 个 .c）
+
+== 目标 Myanmar ==
+  defines : ['USE_HAL_DRIVER', 'STM32F407xx']
+  编入 207 / 排除 42
+  显示模组驱动（0）: 无（无显示驱动口径）
+  出厂测试（1）: ['app_factory_test_mm.c']
+  `{` 帧族（1）: ['ProtocolParser_SiChuang_MTC']
+  · 口径记录：无显示驱动（合法；运行时靠 dev_display_guard 兜底）
+  · 地面真相：未找到 /home/yystation/Program/3833024/Project-STD-main/build/Myanmar/builder.params（仅信息）
+
+== 目标 Release（历史残留目标：跳过结构断言） ==
+  defines : ['USE_HAL_DRIVER', 'STM32F407xx']
+  编入 249 / 排除 0
+  显示模组驱动（7）: ['dev_display_1_969.c', 'dev_display_1_577.c', 'dev_display_1_260.c', 'dev_display_1_263.c', 'dev_display_22_1703.c', 'dev_display_22_1665.c', 'dev_display_p20.c']
+  出厂测试（2）: ['app_factory_test.c', 'app_factory_test_mm.c']
+  `{` 帧族（8）: ['ProtocolParser_Anhui', 'ProtocolParser_GuiZhou', 'ProtocolParser_GuiZhou_Overload', 'ProtocolParser_QingHai', 'ProtocolParser_ShanDong', 'ProtocolParser_SiChuang_MTC', 'ProtocolParser_YunNan', 'ProtocolParser_YunNan_Overload']
+  原因：incList 仍含已删除的 Drivers/BSP/* 前缀 ⇒ 该目标不是可用构建入口（doc/CLAUDE.md「EIDE Release」条）；只报告，不参与结构断言。
+
+== CCMRAM 预算（信息性）==
+  固定消费者（静态任务栈/TCB + 内核缓冲 + dev_display 基类 + 对齐）: 13644 B
+  缅甸模块自身（队列 1316 + 任务栈/TCB 1124）                : 2440 B
+  显示驱动                                                   : {'dev_display_1_969.c': 38208, 'dev_display_22_1665.c': 46080, 'dev_display_1_263.c': 2496}
+  整片 CCMRAM                                                : 65536 B
+  · 缅甸目标（当前 = 无显示驱动；实测 16084）: 16084 B / 65536 B → 装得下（余 49452 B）
+  · 缅甸目标 + 1_969（192×96）: 54292 B / 65536 B → 装得下（余 11244 B）
+  · 缅甸目标 + 22_1665 8×4（128×64）: 62164 B / 65536 B → 装得下（余 3372 B）
+  · Debug 目标换 22_1665 8×4〔推算：实测 52972 − 38208 + 46080〕: 60844 B / 65536 B → 装得下（余 4692 B）
+  注：EIDE 子集（协议裁剪）与 make 全协议口径的 CCM 占用不同——make PROTO=ALL/CQ 下 22_1665 8×4 超整片（实测溢出 17700 / 15444 B）。
+
+EIDE 目标结构不变量：通过 14/15，失败 1
+  ✗ [Debug] I6 定义 PROTO_CHONGQING ⇒ CQ 模块编入: got=False want=True
+  ⚠ [Debug] W1 定义 PROTO_CHONGQING 且同编 LDI：默认网络 = CQ 网段 192.168.1.5（C3-C 起 LDI/IAP 上报已同源，无功能矛盾；知悉即可）

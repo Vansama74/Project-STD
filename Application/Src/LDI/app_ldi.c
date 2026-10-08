@@ -73,12 +73,11 @@ ldi_ctx_t g_ldi = {
 /**
  * @brief  LDI 上下文装载：Sector1/W25 自愈 + LDI 设备配置装载。
  *
- * 职责（2026-08-21 解耦修订）：只做配置真源裁定与自愈——
- * 网络字段以 Sector1.net_cfg 为唯一真源、W25 为恢复镜像（三分支判定），
- * 非网络字段（host/lane/cert/modules）与 TCP Client 远端装载，Sector1 空/损坏
- * 时从 W25 回写自愈。**不再应用网络**：pl_net_set_ip /
- * app_tcp_server_set_port 移交中立模块 app_net_boot（app_boot.c init_task
- * 在本函数之后调用 app_net_boot_apply 统一应用 netif 与 TCP Server 口）。
+ * 职责：只做配置真源裁定与自愈——网络字段以 Sector1.net_cfg 为唯一真源、W25 为恢复
+ * 镜像（三分支判定）；非网络字段（host/lane/cert/modules）与 TCP Client 远端装载，
+ * Sector1 空/损坏时从 W25 回写自愈。
+ * **不应用网络**：netif / TCP Server 口移交中立模块 app_net_boot（app_boot.c init_task
+ * 在本函数之后调用 app_net_boot_apply）。三分支与中间态语义见 doc/07 §10/§11。
  */
 void ldi_ctx_init(ldi_ctx_t *self)
 {
@@ -225,6 +224,42 @@ void ldi_ctx_init(ldi_ctx_t *self)
         /* 不写任何 Flash：配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，
          * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径。 */
     }
+}
+
+/**
+ * @brief 以 Sector1 net_cfg（应用后即 netif 实际值）刷新 LDI 运行态网络字段
+ *
+ * 背景（2026-10-08 C3-C 加固）：上电 ldi_ctx_init（sw_board_init 内）早于
+ * app_net_boot_apply，二者对「设备 IP/配置端口」的取值可能不一致——典型 =
+ * PROTO_CHONGQING 与 LDI 混编口径（EIDE Debug 曾如此）：ldi_ctx_init 分支 3 取
+ * pl_net 上电值 192.168.114.200，app_net_boot 随后把 Sector1/netif 改成
+ * 192.168.1.5 ⇒ LDI 通信上报（0x12 搜索应答 / 0xD1 IP 采集应答）与 IAP 0x01
+ * （直接读 Sector1）互相矛盾——现场用 LDI 搜索工具会对不上设备地址。
+ *
+ * 落法 = 单一真源在 Sector1（选项 b）：报告路径先按本函数懒同步 g_ldi.cfg 的
+ * 网络字段，使 LDI 各上报路径与 IAP 0x01 必然同源。记录无效（magic/CRC 错或
+ * IP 全 0 / port 0）时保持现值不动（沿用上电装载结果）。
+ *
+ * 语义：0AH / IAP 4B02 / GZ_OL 0x40 / YN_OL 0x47 写 Sector1 后**重启前**本函数即让
+ * LDI 上报新配置值——与 IAP 0x01「报配置值、重启生效」一致（此前 4B02 改 IP 后
+ * LDI 仍报旧值，同为两源不一致）。
+ *
+ * @return true = 已按 Sector1 刷新；false = 记录无效，保留现值
+ */
+bool ldi_sync_net_from_board_cfg(void)
+{
+    app_board_net_cfg_t cfg;
+    if (app_board_net_cfg_get(&cfg) != 0)
+        return false;
+    if ((cfg.ip[0] | cfg.ip[1] | cfg.ip[2] | cfg.ip[3]) == 0U || cfg.port == 0U ||
+        cfg.port > 65535U)
+        return false;
+
+    memcpy(g_ldi.cfg.device_ip, cfg.ip, sizeof(g_ldi.cfg.device_ip));
+    memcpy(g_ldi.cfg.netmask, cfg.mask, sizeof(g_ldi.cfg.netmask));
+    memcpy(g_ldi.cfg.gateway, cfg.gw, sizeof(g_ldi.cfg.gateway));
+    g_ldi.cfg.device_port = (uint16_t)cfg.port;
+    return true;
 }
 
 /* ---- 协议自注册：仅 RJ45（TCP/UDP 逻辑通道共享同一物理 RB，链式探测）---- */

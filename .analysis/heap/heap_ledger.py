@@ -102,6 +102,8 @@ def seq_all():
     add("sw2", "dev_display", "scan_task（1KB，Realtime）", T_1K, "ccm")
     add("sw2", "dev_w25qxx", "s_w25_mutex", SEM)
 
+    # 注：出厂测试两文件二选一（标准版 app_factory_test.c / 缅甸版 app_factory_test_mm.c，
+    # Makefile FACTORY=STD|MM）——两版均为「栈 1KB + TCB，静态落 CCMRAM」，账目 1:1 相同。
     add("sw3", "app_factory_test", "factory_monitor（1KB）", T_1K, "ccm")
     add("sw3", "app_dispatch", "frame_dispatch_task（1KB）", T_1K, "ccm")
     add("sw3", "app_light_sensor", "light_sensor_task（128 words）", T_512, "ccm")

@@ -882,11 +882,17 @@ check("13.3 执行函数全部返回 yn_ol_exec_ret_t（`return _yn_ol_exec_` �
 check("13.4 `yn_ol_execute_cmd` 返回 int（头文件签名，供任务层打 exec ret）",
       "int yn_ol_execute_cmd(channel_t *ch, const yn_ol_parsed_cmd_t *cmd);"
       in _src(YNOL_DIR.parents[1] / "Inc" / "ProtocolParser_YunNan_Overload" / "app_yn_ol_proto.h"))
-check("13.5 逐帧诊断：`[yn_ol] rx` 前缀 + YN_OL_RTT_DIAG 门控 + 单帧两次打印纪律（rx/exec/drop 三函数）",
-      "[yn_ol] rx" in _guard and "YN_OL_RTT_DIAG" in _guard
-      and all(fn in _guard for fn in ("_yn_ol_diag_frame", "_yn_ol_diag_exec", "_yn_ol_diag_drop")))
-check("13.6 '3' 诊断含屏体几何与落屏判读（screen_w/screen_h/OFF-SCREEN）",
-      "screen_w=%u screen_h=%u rowh=%u" in _guard and "OFF-SCREEN(executed but invisible)" in _guard)
+# 2026-09-29 代码瘦身轮：`[yn_ol]` 逐帧诊断（YN_OL_RTT_DIAG 门控、rx/exec/drop 三函数）随 RTT
+# 设施整体删除 —— 原「诊断存在」断言改为「无残留 + 行为修复仍在」，检查强度不降：
+#   ① 诊断字符串/门控/函数名不得回归；
+#   ② 同轮的三处**行为修复**必须保留（单字节分片不再丢 / WAIT 预算头部指纹 / 编码超集容错）。
+check("13.5 逐帧诊断已随 RTT 瘦身轮删除（无 [yn_ol] 打印 / 无 YN_OL_RTT_DIAG 门控残留）",
+      "[yn_ol] rx" not in _guard and "YN_OL_RTT_DIAG" not in _guard and "SEGGER_RTT" not in _guard
+      and all(fn not in _guard for fn in ("_yn_ol_diag_frame", "_yn_ol_diag_exec", "_yn_ol_diag_drop")))
+check("13.6 行为修复保留：单字节分片入调度（len > 0）+ WAIT 预算头部指纹判据",
+      "len > 0" in (SRC_DIR / "Channel" / "app_tcp_server.c").read_text(encoding="utf-8")
+      and "_rb_head_fp" in (SRC_DIR / "app_dispatch.c").read_text(encoding="utf-8")
+      and "FRAME_WAIT_BUDGET_MS" in (SRC_DIR / "app_dispatch.c").read_text(encoding="utf-8"))
 
 # ================================================================
 #  汇总

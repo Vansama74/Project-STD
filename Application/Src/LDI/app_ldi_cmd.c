@@ -627,6 +627,8 @@ static void cmd_rep_ip(channel_t *ch, void *data)
     rsp->status = 0x00;
     /* D1H DATA = head(20) | ErrorCode(1) | network block(65). */
 
+    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，2026-10-08 C3-C） */
+    (void)ldi_sync_net_from_board_cfg();
     memcpy(net->device_ip, g_ldi.cfg.device_ip, sizeof(net->device_ip));
     net->device_port[0] = (uint8_t)(g_ldi.cfg.device_port >> 8);
     net->device_port[1] = (uint8_t)(g_ldi.cfg.device_port);
@@ -1111,7 +1113,8 @@ static void cmd_rep_func(channel_t *ch, void *data)
  * 广播为主（2026-08-21：搜索应答面向广播工具，广播复用常驻通道 conn 不占
  * netconn 池，是可靠路径），回源单播仅容错、失败静默——回源依赖通道级
  * src 快照，多协议交错（10011 同口承载 LDI/IAP/CQ）下可能发错目标。
- * 不承担业务控制；网络参数取自 g_ldi.cfg（无配置时回退 pl_net 当前值）。
+ * 不承担业务控制；网络参数取自 g_ldi.cfg —— 报告前先由 ldi_sync_net_from_board_cfg()
+ * 按 Sector1 net_cfg（单一真源，与 IAP 0x01 同源）刷新；记录无效时回退 pl_net 当前值。
  */
 static void cmd_search(channel_t *ch, void *data)
 {
@@ -1123,6 +1126,9 @@ static void cmd_search(channel_t *ch, void *data)
     };
 
     uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
+    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，2026-10-08 C3-C）：
+     * 上电 ldi_ctx_init 早于 app_net_boot_apply，混编口径下两者取值可能不同。 */
+    (void)ldi_sync_net_from_board_cfg();
     if (g_ldi.cfg_valid) {
         memcpy(ip, g_ldi.cfg.device_ip, 4);
         memcpy(mask, g_ldi.cfg.netmask, 4);

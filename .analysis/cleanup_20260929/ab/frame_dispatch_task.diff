@@ -1,0 +1,830 @@
+--- /dev/fd/63	2026-09-29 09:28:46.995501673 +0800
++++ /dev/fd/62	2026-09-29 09:28:46.996501760 +0800
+@@ -1,533 +1,298 @@
+  <frame_dispatch_task>:
+    0:	  	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+-   4:	      	sub	sp, #92	@ 0x5c
++   4:	      	sub	sp, #36	@ 0x24
+    6:	      	movs	r3, #0
+-   8:	      	str	r3, [sp, #80]	@ 0x50
+-   a:	  	strb.w	r3, [sp, #79]	@ 0x4f
+-   e:	      	b.n	26 <frame_dispatch_task+0x26>
+-  10:	  	bl	0 <osKernelGetTickCount>
+-  14:	      	ldr	r2, [sp, #84]	@ 0x54
+-  16:	      	ldrb	r1, [r2, #0]
+-  18:	      	ldr	r3, [pc, #660]	@ (2b0 <frame_dispatch_task+0x2b0>)
+-  1a:	  	ldr.w	r3, [r3, r1, lsl #2]
+-  1e:	      	subs	r3, r0, r3
+-  20:	  	cmp.w	r3, #	@ 0x3e8
+-  24:	      	bcs.n	6c <frame_dispatch_task+0x6c>
+-  26:	  	mov.w	r3, #	@ 0xffffffff
+-  2a:	      	movs	r2, #0
+-  2c:	      	add	r1, sp, #84	@ 0x54
+-  2e:	      	ldr	r0, [pc, #644]	@ (2b4 <frame_dispatch_task+0x2b4>)
+-  30:	  	ldr.w	r0, [r0, #400]	@ 0x190
+-  34:	  	bl	0 <osMessageQueueGet>
+-  38:	      	cmp	r0, #0
+-  3a:	      	bne.n	26 <frame_dispatch_task+0x26>
+-  3c:	      	ldr	r4, [sp, #84]	@ 0x54
+-  3e:	      	cmp	r4, #0
+-  40:	      	beq.n	26 <frame_dispatch_task+0x26>
+-  42:	      	ldrb	r5, [r4, #0]
+-  44:	      	mov	r0, r5
+-  46:	  	bl	0 <frame_dispatch_task>
+-  4a:	      	cmp	r4, r0
+-  4c:	      	bne.n	26 <frame_dispatch_task+0x26>
+-  4e:	      	adds	r5, #100	@ 0x64
+-  50:	      	ldr	r3, [pc, #608]	@ (2b4 <frame_dispatch_task+0x2b4>)
+-  52:	  	add.w	r3, r3, r5, lsl #2
+-  56:	  	ldr.w	fp, [r3, #4]
+-  5a:	  	cmp.w	fp, #0
+-  5e:	      	beq.n	10 <frame_dispatch_task+0x10>
+-  60:	      	ldr	r3, [pc, #592]	@ (2b4 <frame_dispatch_task+0x2b4>)
+-  62:	  	ldr.w	sl, [r3]
+-  66:	  	str.w	sl, [sp, #36]	@ 0x24
+-  6a:	      	b.n	aa <frame_dispatch_task+0xaa>
+-  6c:	      	ldr	r3, [pc, #576]	@ (2b0 <frame_dispatch_task+0x2b0>)
+-  6e:	  	str.w	r0, [r3, r1, lsl #2]
+-  72:	      	mov	r2, r1
+-  74:	      	ldr	r1, [pc, #576]	@ (2b8 <frame_dispatch_task+0x2b8>)
+-  76:	      	mov	r0, fp
+-  78:	  	bl	0 <SEGGER_RTT_printf>
+-  7c:	      	b.n	26 <frame_dispatch_task+0x26>
+-  7e:	      	adds	r3, #1
+-  80:	      	uxtb	r3, r3
+-  82:	      	cmp	r3, r0
+-  84:	      	bcs.n	a2 <frame_dispatch_task+0xa2>
+-  86:	      	movs	r2, #1
+-  88:	      	lsls	r2, r3
+-  8a:	  	tst.w	r2, fp
+-  8e:	      	beq.n	7e <frame_dispatch_task+0x7e>
+-  90:	      	ldr	r2, [pc, #544]	@ (2b4 <frame_dispatch_task+0x2b4>)
+-  92:	  	add.w	r2, r2, r3, lsl #2
+-  96:	      	ldr	r2, [r2, #4]
+-  98:	      	cmp	r2, sl
+-  9a:	      	bne.n	7e <frame_dispatch_task+0x7e>
+-  9c:	      	movs	r3, #1
+-  9e:	      	str	r3, [sp, #28]
+-  a0:	      	b.n	a6 <frame_dispatch_task+0xa6>
+-  a2:	      	movs	r3, #0
+-  a4:	      	str	r3, [sp, #28]
+-  a6:	      	ldr	r3, [sp, #28]
+-  a8:	      	cbz	r3, dc <frame_dispatch_task+0xdc>
+-  aa:	      	ldr	r3, [sp, #36]	@ 0x24
+-  ac:	      	cmp	r3, #0
+-  ae:	      	beq.n	26 <frame_dispatch_task+0x26>
+-  b0:	      	ldr	r4, [sp, #36]	@ 0x24
+-  b2:	      	mov	r0, r4
+-  b4:	  	bl	0 <bit_ctz>
+-  b8:	      	subs	r3, r4, #1
+-  ba:	      	ands	r3, r4
+-  bc:	      	str	r3, [sp, #36]	@ 0x24
+-  be:	      	movs	r3, #1
+-  c0:	      	lsls	r3, r0
+-  c2:	      	ldr	r2, [pc, #496]	@ (2b4 <frame_dispatch_task+0x2b4>)
+-  c4:	  	add.w	r2, r2, r0, lsl #2
+-  c8:	  	ldr.w	sl, [r2, #4]
+-  cc:	  	tst.w	fp, r3
+-  d0:	      	beq.n	aa <frame_dispatch_task+0xaa>
+-  d2:	  	cmp.w	sl, #0
+-  d6:	      	beq.n	aa <frame_dispatch_task+0xaa>
+-  d8:	      	movs	r3, #0
+-  da:	      	b.n	82 <frame_dispatch_task+0x82>
+-  dc:	      	mov	r0, sl
+-  de:	  	bl	0 <rb_lock>
+-  e2:	      	movs	r1, #0
+-  e4:	      	mov	r0, sl
+-  e6:	  	bl	0 <rb_avail>
+-  ea:	      	mov	r8, r0
+-  ec:	  	mov.w	r9, #0
+-  f0:	      	b.n	216 <frame_dispatch_task+0x216>
+-  f2:	      	movs	r2, #0
+-  f4:	      	movs	r1, #1
+-  f6:	      	mov	r0, sl
+-  f8:	  	bl	0 <rb_skip>
+-  fc:	      	mov	r0, sl
+-  fe:	  	bl	0 <rb_unlock>
+- 102:	      	b.n	aa <frame_dispatch_task+0xaa>
+- 104:	      	ldr	r2, [sp, #80]	@ 0x50
+- 106:	  	movw	r3, #	@ 0x414
+- 10a:	      	cmp	r2, r3
+- 10c:	  	bhi.w	29c <frame_dispatch_task+0x29c>
+- 110:	      	cmp	r2, r8
+- 112:	      	bhi.n	14c <frame_dispatch_task+0x14c>
+- 114:	      	movs	r3, #0
+- 116:	      	uxth	r2, r2
+- 118:	      	ldr	r1, [pc, #416]	@ (2bc <frame_dispatch_task+0x2bc>)
+- 11a:	      	mov	r0, sl
+- 11c:	  	bl	0 <rb_read>
+- 120:	      	mov	r4, r0
+- 122:	      	movs	r1, #0
+- 124:	      	mov	r0, sl
+- 126:	  	bl	0 <rb_avail>
+- 12a:	      	mov	r8, r0
+- 12c:	      	ldr	r3, [sp, #80]	@ 0x50
+- 12e:	      	cmp	r4, r3
+- 130:	      	beq.n	164 <frame_dispatch_task+0x164>
+- 132:	      	movs	r2, #0
+- 134:	      	mov	r1, r4
+- 136:	      	mov	r0, sl
+- 138:	  	bl	0 <rb_skip>
+- 13c:	      	movs	r1, #0
+- 13e:	      	mov	r0, sl
+- 140:	  	bl	0 <rb_avail>
+- 144:	      	mov	r8, r0
+- 146:	      	ldr	r6, [sp, #28]
+- 148:	      	movs	r5, #1
+- 14a:	      	b.n	200 <frame_dispatch_task+0x200>
+- 14c:	      	ldr	r3, [sp, #20]
+- 14e:	      	cmp	r3, #255	@ 0xff
+- 150:	      	bne.n	15c <frame_dispatch_task+0x15c>
+- 152:	      	str	r5, [sp, #20]
+- 154:	      	ldr	r6, [sp, #28]
+- 156:	      	mov	r5, r6
+- 158:	      	movs	r7, #1
+- 15a:	      	b.n	200 <frame_dispatch_task+0x200>
+- 15c:	      	ldr	r6, [sp, #28]
+- 15e:	      	mov	r5, r6
+- 160:	      	movs	r7, #1
+- 162:	      	b.n	200 <frame_dispatch_task+0x200>
+- 164:	      	ldr	r1, [pc, #344]	@ (2c0 <frame_dispatch_task+0x2c0>)
+- 166:	      	strh	r3, [r1, #4]
+- 168:	      	ldr	r3, [sp, #84]	@ 0x54
+- 16a:	      	str	r3, [r1, #0]
+- 16c:	  	add.w	r3, r5, #64	@ 0x40
+- 170:	      	ldr	r0, [pc, #320]	@ (2b4 <frame_dispatch_task+0x2b4>)
+- 172:	  	add.w	r0, r0, r3, lsl #2
+- 176:	      	movs	r3, #0
+- 178:	      	mov	r2, r3
+- 17a:	      	ldr	r0, [r0, #4]
+- 17c:	  	bl	0 <osMessageQueuePut>
+- 180:	      	cmp	r0, #0
+- 182:	  	beq.w	2a2 <frame_dispatch_task+0x2a2>
+- 186:	      	ldr	r2, [pc, #300]	@ (2b4 <frame_dispatch_task+0x2b4>)
+- 188:	  	ldr.w	r3, [r2, #476]	@ 0x1dc
+- 18c:	      	adds	r3, #1
+- 18e:	  	str.w	r3, [r2, #476]	@ 0x1dc
+- 192:	      	str	r3, [sp, #0]
+- 194:	      	ldr	r3, [sp, #80]	@ 0x50
+- 196:	      	mov	r2, r5
+- 198:	      	ldr	r1, [pc, #296]	@ (2c4 <frame_dispatch_task+0x2c4>)
+- 19a:	      	movs	r0, #0
+- 19c:	  	bl	0 <SEGGER_RTT_printf>
+- 1a0:	      	ldr	r6, [sp, #28]
+- 1a2:	      	movs	r5, #1
+- 1a4:	      	b.n	200 <frame_dispatch_task+0x200>
+- 1a6:	      	ldr	r1, [sp, #80]	@ 0x50
+- 1a8:	  	movw	r3, #	@ 0x414
+- 1ac:	      	cmp	r1, r3
+- 1ae:	      	bhi.n	2a8 <frame_dispatch_task+0x2a8>
+- 1b0:	      	cmp	r1, r8
+- 1b2:	      	bls.n	1cc <frame_dispatch_task+0x1cc>
+- 1b4:	      	ldr	r3, [sp, #20]
+- 1b6:	      	cmp	r3, #255	@ 0xff
+- 1b8:	      	bne.n	1c4 <frame_dispatch_task+0x1c4>
+- 1ba:	      	str	r5, [sp, #20]
+- 1bc:	      	ldr	r6, [sp, #28]
+- 1be:	      	mov	r5, r6
+- 1c0:	      	movs	r7, #1
+- 1c2:	      	b.n	200 <frame_dispatch_task+0x200>
+- 1c4:	      	ldr	r6, [sp, #28]
+- 1c6:	      	mov	r5, r6
+- 1c8:	      	movs	r7, #1
+- 1ca:	      	b.n	200 <frame_dispatch_task+0x200>
+- 1cc:	      	movs	r2, #0
+- 1ce:	      	uxth	r1, r1
+- 1d0:	      	mov	r0, sl
+- 1d2:	  	bl	0 <rb_skip>
+- 1d6:	  	sub.w	r3, r8, r0
+- 1da:	  	uxth.w	r8, r3
+- 1de:	      	ldr	r6, [sp, #28]
+- 1e0:	      	movs	r5, #1
+- 1e2:	      	b.n	200 <frame_dispatch_task+0x200>
+- 1e4:	      	ldr	r3, [sp, #20]
+- 1e6:	      	cmp	r3, #255	@ 0xff
+- 1e8:	      	beq.n	1ee <frame_dispatch_task+0x1ee>
+- 1ea:	      	movs	r7, #1
+- 1ec:	      	b.n	23c <frame_dispatch_task+0x23c>
+- 1ee:	      	str	r5, [sp, #20]
+- 1f0:	      	movs	r7, #1
+- 1f2:	      	b.n	23c <frame_dispatch_task+0x23c>
+- 1f4:	      	str	r5, [sp, #32]
+- 1f6:	      	movs	r3, #1
+- 1f8:	      	str	r3, [sp, #24]
+- 1fa:	      	b.n	23c <frame_dispatch_task+0x23c>
+- 1fc:	      	ldr	r6, [sp, #28]
+- 1fe:	      	mov	r5, r6
+- 200:	      	mov	r0, sl
+- 202:	  	bl	0 <frame_dispatch_task>
+- 206:	      	mov	r4, r0
+- 208:	      	cmp	r5, #0
+- 20a:	      	beq.n	2d0 <frame_dispatch_task+0x2d0>
+- 20c:	      	movs	r3, #0
+- 20e:	      	ldr	r2, [pc, #184]	@ (2c8 <frame_dispatch_task+0x2c8>)
+- 210:	      	strb	r3, [r2, r0]
+- 212:	      	ldr	r2, [pc, #184]	@ (2cc <frame_dispatch_task+0x2cc>)
+- 214:	      	strb	r3, [r2, r0]
+- 216:	  	cmp.w	r8, #0
+- 21a:	  	beq.w	fc <frame_dispatch_task+0xfc>
+- 21e:	  	add.w	r9, r9, #1
+- 222:	  	uxtb.w	r9, r9
+- 226:	  	cmp.w	r9, #64	@ 0x40
+- 22a:	  	bhi.w	f2 <frame_dispatch_task+0xf2>
+- 22e:	      	ldr	r3, [pc, #132]	@ (2b4 <frame_dispatch_task+0x2b4>)
+- 230:	      	ldr	r4, [r3, #0]
+- 232:	      	ldr	r7, [sp, #28]
+- 234:	      	str	r7, [sp, #24]
+- 236:	      	movs	r3, #255	@ 0xff
+- 238:	      	str	r3, [sp, #32]
+- 23a:	      	str	r3, [sp, #20]
+- 23c:	      	cmp	r4, #0
+- 23e:	      	beq.n	1fc <frame_dispatch_task+0x1fc>
+- 240:	      	mov	r0, r4
+- 242:	  	bl	0 <bit_ctz>
+- 246:	      	mov	r5, r0
+- 248:	      	subs	r3, r4, #1
+- 24a:	      	ands	r4, r3
+- 24c:	      	movs	r3, #1
+- 24e:	      	lsls	r3, r0
+- 250:	  	tst.w	fp, r3
+- 254:	      	beq.n	23c <frame_dispatch_task+0x23c>
+- 256:	      	ldr	r3, [pc, #92]	@ (2b4 <frame_dispatch_task+0x2b4>)
+- 258:	  	add.w	r3, r3, r0, lsl #2
+- 25c:	      	ldr	r3, [r3, #4]
+- 25e:	      	cmp	r3, sl
+- 260:	      	bne.n	23c <frame_dispatch_task+0x23c>
+- 262:	  	add.w	r2, r0, #32
+- 266:	      	ldr	r3, [pc, #76]	@ (2b4 <frame_dispatch_task+0x2b4>)
+- 268:	  	add.w	r3, r3, r2, lsl #2
+- 26c:	      	ldr	r6, [r3, #4]
+- 26e:	      	cmp	r6, #0
+- 270:	      	beq.n	23c <frame_dispatch_task+0x23c>
+- 272:	  	add.w	r3, sp, #79	@ 0x4f
+- 276:	      	add	r2, sp, #80	@ 0x50
+- 278:	      	mov	r1, sl
+- 27a:	      	ldr	r0, [sp, #84]	@ 0x54
+- 27c:	      	blx	r6
+- 27e:	      	cmp	r0, #0
+- 280:	  	beq.w	104 <frame_dispatch_task+0x104>
+- 284:	      	cmp	r0, #3
+- 286:	      	beq.n	1a6 <frame_dispatch_task+0x1a6>
+- 288:	      	cmp	r0, #1
+- 28a:	      	beq.n	1e4 <frame_dispatch_task+0x1e4>
+- 28c:	      	cmp	r0, #2
+- 28e:	      	bne.n	23c <frame_dispatch_task+0x23c>
+- 290:	      	ldr	r3, [sp, #32]
+- 292:	      	cmp	r3, #255	@ 0xff
+- 294:	      	beq.n	1f4 <frame_dispatch_task+0x1f4>
+- 296:	      	movs	r3, #1
+- 298:	      	str	r3, [sp, #24]
+- 29a:	      	b.n	23c <frame_dispatch_task+0x23c>
+- 29c:	      	ldr	r5, [sp, #28]
+- 29e:	      	movs	r6, #1
+- 2a0:	      	b.n	200 <frame_dispatch_task+0x200>
+- 2a2:	      	ldr	r6, [sp, #28]
+- 2a4:	      	movs	r5, #1
+- 2a6:	      	b.n	200 <frame_dispatch_task+0x200>
+- 2a8:	      	ldr	r5, [sp, #28]
+- 2aa:	      	movs	r6, #1
+- 2ac:	      	b.n	200 <frame_dispatch_task+0x200>
+- 2ae:	      	nop
++   8:	      	str	r3, [sp, #24]
++   a:	  	strb.w	r3, [sp, #23]
++   e:	  	mov.w	r3, #	@ 0xffffffff
++  12:	      	movs	r2, #0
++  14:	      	add	r1, sp, #28
++  16:	      	ldr	r0, [pc, #676]	@ (2bc <frame_dispatch_task+0x2bc>)
++  18:	  	ldr.w	r0, [r0, #400]	@ 0x190
++  1c:	  	bl	0 <osMessageQueueGet>
++  20:	      	cmp	r0, #0
++  22:	      	bne.n	e <frame_dispatch_task+0xe>
++  24:	      	ldr	r4, [sp, #28]
++  26:	      	cmp	r4, #0
++  28:	      	beq.n	e <frame_dispatch_task+0xe>
++  2a:	      	ldrb	r5, [r4, #0]
++  2c:	      	mov	r0, r5
++  2e:	  	bl	0 <frame_dispatch_task>
++  32:	      	cmp	r4, r0
++  34:	      	bne.n	e <frame_dispatch_task+0xe>
++  36:	      	adds	r5, #100	@ 0x64
++  38:	      	ldr	r3, [pc, #640]	@ (2bc <frame_dispatch_task+0x2bc>)
++  3a:	  	add.w	r3, r3, r5, lsl #2
++  3e:	      	ldr	r6, [r3, #4]
++  40:	      	cmp	r6, #0
++  42:	      	beq.n	e <frame_dispatch_task+0xe>
++  44:	      	ldr	r3, [pc, #628]	@ (2bc <frame_dispatch_task+0x2bc>)
++  46:	  	ldr.w	fp, [r3]
++  4a:	      	mov	sl, fp
++  4c:	      	b.n	78 <frame_dispatch_task+0x78>
++  4e:	      	adds	r3, #1
++  50:	      	uxtb	r3, r3
++  52:	      	cmp	r3, r0
++  54:	      	bcs.n	70 <frame_dispatch_task+0x70>
++  56:	      	movs	r2, #1
++  58:	      	lsls	r2, r3
++  5a:	      	tst	r2, r6
++  5c:	      	beq.n	4e <frame_dispatch_task+0x4e>
++  5e:	      	ldr	r2, [pc, #604]	@ (2bc <frame_dispatch_task+0x2bc>)
++  60:	  	add.w	r2, r2, r3, lsl #2
++  64:	      	ldr	r2, [r2, #4]
++  66:	      	cmp	r2, r7
++  68:	      	bne.n	4e <frame_dispatch_task+0x4e>
++  6a:	      	movs	r3, #1
++  6c:	      	str	r3, [sp, #8]
++  6e:	      	b.n	74 <frame_dispatch_task+0x74>
++  70:	      	movs	r3, #0
++  72:	      	str	r3, [sp, #8]
++  74:	      	ldr	r3, [sp, #8]
++  76:	      	cbz	r3, a4 <frame_dispatch_task+0xa4>
++  78:	  	cmp.w	sl, #0
++  7c:	      	beq.n	e <frame_dispatch_task+0xe>
++  7e:	      	mov	r0, sl
++  80:	  	bl	0 <bit_ctz>
++  84:	  	add.w	r3, sl, #	@ 0xffffffff
++  88:	  	and.w	sl, sl, r3
++  8c:	      	movs	r3, #1
++  8e:	      	lsls	r3, r0
++  90:	      	ldr	r2, [pc, #552]	@ (2bc <frame_dispatch_task+0x2bc>)
++  92:	  	add.w	r2, r2, r0, lsl #2
++  96:	      	ldr	r7, [r2, #4]
++  98:	      	tst	r6, r3
++  9a:	      	beq.n	78 <frame_dispatch_task+0x78>
++  9c:	      	cmp	r7, #0
++  9e:	      	beq.n	78 <frame_dispatch_task+0x78>
++  a0:	      	movs	r3, #0
++  a2:	      	b.n	52 <frame_dispatch_task+0x52>
++  a4:	      	mov	r0, r7
++  a6:	  	bl	0 <rb_lock>
++  aa:	      	movs	r1, #0
++  ac:	      	mov	r0, r7
++  ae:	  	bl	0 <rb_avail>
++  b2:	      	mov	fp, r0
++  b4:	  	mov.w	r8, #0
++  b8:	      	mov	r9, sl
++  ba:	      	b.n	298 <frame_dispatch_task+0x298>
++  bc:	      	mov	sl, r9
++  be:	      	movs	r2, #0
++  c0:	      	movs	r1, #1
++  c2:	      	mov	r0, r7
++  c4:	  	bl	0 <rb_skip>
++  c8:	      	b.n	2d6 <frame_dispatch_task+0x2d6>
++  ca:	      	ldr	r7, [sp, #4]
++  cc:	      	ldr	r2, [sp, #24]
++  ce:	  	movw	r3, #	@ 0x414
++  d2:	      	cmp	r2, r3
++  d4:	  	bhi.w	210 <frame_dispatch_task+0x210>
++  d8:	      	cmp	r2, fp
++  da:	  	bhi.w	216 <frame_dispatch_task+0x216>
++  de:	      	mov	r3, r0
++  e0:	      	uxth	r2, r2
++  e2:	      	ldr	r1, [pc, #476]	@ (2c0 <frame_dispatch_task+0x2c0>)
++  e4:	      	mov	r0, r7
++  e6:	  	bl	0 <rb_read>
++  ea:	      	mov	r4, r0
++  ec:	      	movs	r1, #0
++  ee:	      	mov	r0, r7
++  f0:	  	bl	0 <rb_avail>
++  f4:	      	mov	fp, r0
++  f6:	      	ldr	r3, [sp, #24]
++  f8:	      	cmp	r4, r3
++  fa:	      	beq.n	116 <frame_dispatch_task+0x116>
++  fc:	      	movs	r2, #0
++  fe:	      	mov	r1, r4
++ 100:	      	mov	r0, r7
++ 102:	  	bl	0 <rb_skip>
++ 106:	      	movs	r1, #0
++ 108:	      	mov	r0, r7
++ 10a:	  	bl	0 <rb_avail>
++ 10e:	      	mov	fp, r0
++ 110:	      	ldr	r4, [sp, #8]
++ 112:	      	movs	r5, #1
++ 114:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 116:	      	ldr	r1, [pc, #428]	@ (2c4 <frame_dispatch_task+0x2c4>)
++ 118:	      	strh	r3, [r1, #4]
++ 11a:	      	ldr	r3, [sp, #28]
++ 11c:	      	str	r3, [r1, #0]
++ 11e:	      	adds	r5, #64	@ 0x40
++ 120:	      	ldr	r0, [pc, #408]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 122:	  	add.w	r0, r0, r5, lsl #2
++ 126:	      	movs	r3, #0
++ 128:	      	mov	r2, r3
++ 12a:	      	ldr	r0, [r0, #4]
++ 12c:	  	bl	0 <osMessageQueuePut>
++ 130:	      	cmp	r0, #0
++ 132:	      	beq.n	220 <frame_dispatch_task+0x220>
++ 134:	      	ldr	r2, [pc, #388]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 136:	  	ldr.w	r3, [r2, #476]	@ 0x1dc
++ 13a:	      	adds	r3, #1
++ 13c:	  	str.w	r3, [r2, #476]	@ 0x1dc
++ 140:	      	ldr	r4, [sp, #8]
++ 142:	      	movs	r5, #1
++ 144:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 146:	      	ldr	r7, [sp, #4]
++ 148:	      	ldr	r1, [sp, #24]
++ 14a:	  	movw	r3, #	@ 0x414
++ 14e:	      	cmp	r1, r3
++ 150:	      	bls.n	158 <frame_dispatch_task+0x158>
++ 152:	      	ldr	r5, [sp, #8]
++ 154:	      	movs	r4, #1
++ 156:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 158:	      	cmp	r1, fp
++ 15a:	      	bhi.n	226 <frame_dispatch_task+0x226>
++ 15c:	      	movs	r2, #0
++ 15e:	      	uxth	r1, r1
++ 160:	      	mov	r0, r7
++ 162:	  	bl	0 <rb_skip>
++ 166:	  	sub.w	r3, fp, r0
++ 16a:	  	uxth.w	fp, r3
++ 16e:	      	ldr	r4, [sp, #8]
++ 170:	      	movs	r5, #1
++ 172:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 174:	  	mov.w	sl, #1
++ 178:	      	cbz	r4, 1ce <frame_dispatch_task+0x1ce>
++ 17a:	      	mov	r0, r4
++ 17c:	  	bl	0 <bit_ctz>
++ 180:	      	mov	r5, r0
++ 182:	      	subs	r3, r4, #1
++ 184:	      	ands	r4, r3
++ 186:	      	movs	r3, #1
++ 188:	      	lsls	r3, r0
++ 18a:	      	tst	r6, r3
++ 18c:	      	beq.n	178 <frame_dispatch_task+0x178>
++ 18e:	      	ldr	r3, [pc, #300]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 190:	  	add.w	r3, r3, r0, lsl #2
++ 194:	      	ldr	r3, [r3, #4]
++ 196:	      	ldr	r1, [sp, #4]
++ 198:	      	cmp	r3, r1
++ 19a:	      	bne.n	178 <frame_dispatch_task+0x178>
++ 19c:	  	add.w	r2, r0, #32
++ 1a0:	      	ldr	r3, [pc, #280]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 1a2:	  	add.w	r3, r3, r2, lsl #2
++ 1a6:	      	ldr	r3, [r3, #4]
++ 1a8:	      	mov	r7, r3
++ 1aa:	      	cmp	r3, #0
++ 1ac:	      	beq.n	178 <frame_dispatch_task+0x178>
++ 1ae:	  	add.w	r3, sp, #23
++ 1b2:	      	add	r2, sp, #24
++ 1b4:	      	ldr	r0, [sp, #28]
++ 1b6:	      	blx	r7
++ 1b8:	      	cmp	r0, #0
++ 1ba:	      	beq.n	ca <frame_dispatch_task+0xca>
++ 1bc:	      	cmp	r0, #3
++ 1be:	      	beq.n	146 <frame_dispatch_task+0x146>
++ 1c0:	      	cmp	r0, #1
++ 1c2:	      	beq.n	174 <frame_dispatch_task+0x174>
++ 1c4:	      	cmp	r0, #2
++ 1c6:	      	bne.n	178 <frame_dispatch_task+0x178>
++ 1c8:	      	movs	r3, #1
++ 1ca:	      	str	r3, [sp, #12]
++ 1cc:	      	b.n	178 <frame_dispatch_task+0x178>
++ 1ce:	      	ldr	r7, [sp, #4]
++ 1d0:	      	ldr	r4, [sp, #8]
++ 1d2:	      	mov	r5, r4
++ 1d4:	      	mov	r0, r7
++ 1d6:	  	bl	0 <frame_dispatch_task>
++ 1da:	      	cmp	r5, #0
++ 1dc:	      	bne.n	292 <frame_dispatch_task+0x292>
++ 1de:	  	cmp.w	sl, #0
++ 1e2:	      	bne.n	230 <frame_dispatch_task+0x230>
++ 1e4:	      	ldr	r3, [sp, #12]
++ 1e6:	      	cbnz	r3, 1ec <frame_dispatch_task+0x1ec>
++ 1e8:	      	cmp	r4, #0
++ 1ea:	      	beq.n	2de <frame_dispatch_task+0x2de>
++ 1ec:	      	movs	r2, #0
++ 1ee:	      	ldr	r3, [pc, #216]	@ (2c8 <frame_dispatch_task+0x2c8>)
++ 1f0:	      	strb	r2, [r3, r0]
++ 1f2:	      	movs	r1, #1
++ 1f4:	      	mov	r0, r7
++ 1f6:	  	bl	0 <rb_skip>
++ 1fa:	  	sub.w	r0, fp, r0
++ 1fe:	  	uxth.w	fp, r0
++ 202:	      	ldr	r2, [pc, #184]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 204:	  	ldr.w	r3, [r2, #480]	@ 0x1e0
++ 208:	      	adds	r3, #1
++ 20a:	  	str.w	r3, [r2, #480]	@ 0x1e0
++ 20e:	      	b.n	298 <frame_dispatch_task+0x298>
++ 210:	      	ldr	r5, [sp, #8]
++ 212:	      	movs	r4, #1
++ 214:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 216:	      	ldr	r4, [sp, #8]
++ 218:	      	mov	r5, r4
++ 21a:	  	mov.w	sl, #1
++ 21e:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 220:	      	ldr	r4, [sp, #8]
++ 222:	      	movs	r5, #1
++ 224:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 226:	      	ldr	r4, [sp, #8]
++ 228:	      	mov	r5, r4
++ 22a:	  	mov.w	sl, #1
++ 22e:	      	b.n	1d4 <frame_dispatch_task+0x1d4>
++ 230:	      	mov	sl, r9
++ 232:	      	mov	r4, r0
++ 234:	  	bl	0 <osKernelGetTickCount>
++ 238:	      	mov	r5, r0
++ 23a:	      	mov	r1, fp
++ 23c:	      	mov	r0, r7
++ 23e:	  	bl	0 <frame_dispatch_task>
++ 242:	      	ldr	r2, [pc, #132]	@ (2c8 <frame_dispatch_task+0x2c8>)
++ 244:	      	ldrb	r2, [r2, r4]
++ 246:	      	cbz	r2, 252 <frame_dispatch_task+0x252>
++ 248:	      	ldr	r2, [pc, #128]	@ (2cc <frame_dispatch_task+0x2cc>)
++ 24a:	  	ldr.w	r2, [r2, r4, lsl #2]
++ 24e:	      	cmp	r2, r0
++ 250:	      	beq.n	266 <frame_dispatch_task+0x266>
++ 252:	      	ldr	r2, [pc, #116]	@ (2c8 <frame_dispatch_task+0x2c8>)
++ 254:	      	movs	r1, #1
++ 256:	      	strb	r1, [r2, r4]
++ 258:	      	ldr	r2, [pc, #116]	@ (2d0 <frame_dispatch_task+0x2d0>)
++ 25a:	  	str.w	r5, [r2, r4, lsl #2]
++ 25e:	      	ldr	r2, [pc, #108]	@ (2cc <frame_dispatch_task+0x2cc>)
++ 260:	  	str.w	r0, [r2, r4, lsl #2]
++ 264:	      	b.n	2d6 <frame_dispatch_task+0x2d6>
++ 266:	      	ldr	r3, [pc, #104]	@ (2d0 <frame_dispatch_task+0x2d0>)
++ 268:	  	ldr.w	r3, [r3, r4, lsl #2]
++ 26c:	      	subs	r3, r5, r3
++ 26e:	  	cmp.w	r3, #	@ 0x3e8
++ 272:	      	bls.n	2d6 <frame_dispatch_task+0x2d6>
++ 274:	      	movs	r2, #0
++ 276:	      	movs	r1, #1
++ 278:	      	mov	r0, r7
++ 27a:	  	bl	0 <rb_skip>
++ 27e:	      	ldr	r2, [pc, #60]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 280:	  	ldr.w	r3, [r2, #480]	@ 0x1e0
++ 284:	      	adds	r3, #1
++ 286:	  	str.w	r3, [r2, #480]	@ 0x1e0
++ 28a:	      	ldr	r3, [pc, #60]	@ (2c8 <frame_dispatch_task+0x2c8>)
++ 28c:	      	movs	r2, #0
++ 28e:	      	strb	r2, [r3, r4]
++ 290:	      	b.n	2d6 <frame_dispatch_task+0x2d6>
++ 292:	      	ldr	r3, [pc, #52]	@ (2c8 <frame_dispatch_task+0x2c8>)
++ 294:	      	movs	r2, #0
++ 296:	      	strb	r2, [r3, r0]
++ 298:	  	cmp.w	fp, #0
++ 29c:	      	beq.n	2d4 <frame_dispatch_task+0x2d4>
++ 29e:	  	add.w	r8, r8, #1
++ 2a2:	  	uxtb.w	r8, r8
++ 2a6:	  	cmp.w	r8, #64	@ 0x40
++ 2aa:	  	bhi.w	bc <frame_dispatch_task+0xbc>
++ 2ae:	      	ldr	r3, [pc, #12]	@ (2bc <frame_dispatch_task+0x2bc>)
++ 2b0:	      	ldr	r4, [r3, #0]
++ 2b2:	      	ldr	r3, [sp, #8]
++ 2b4:	      	str	r3, [sp, #12]
++ 2b6:	      	mov	sl, r3
++ 2b8:	      	str	r7, [sp, #4]
++ 2ba:	      	b.n	178 <frame_dispatch_task+0x178>
++ 2bc:	 	.word	0x00000000
++ 2c0:	 	.word	0x00000006
+ 	...
+- 2b8:	 	.word	0x00000054
+- 2bc:	 	.word	0x00000006
+- 2c0:	 	.word	0x00000000
+- 2c4:	 	.word	0x000000a8
+-	...
+- 2d0:	      	cbnz	r7, 2d6 <frame_dispatch_task+0x2d6>
+- 2d2:	      	ldr	r3, [sp, #24]
+- 2d4:	      	cbz	r3, 2dc <frame_dispatch_task+0x2dc>
+- 2d6:	  	cmp.w	r8, #0
+- 2da:	      	bne.n	314 <frame_dispatch_task+0x314>
+- 2dc:	      	cmp	r7, #0
+- 2de:	  	bne.w	434 <frame_dispatch_task+0x434>
+- 2e2:	      	ldr	r3, [sp, #24]
+- 2e4:	      	cbnz	r3, 2ec <frame_dispatch_task+0x2ec>
+- 2e6:	      	cmp	r6, #0
+- 2e8:	  	beq.w	fc <frame_dispatch_task+0xfc>
+- 2ec:	      	movs	r2, #0
+- 2ee:	      	ldr	r3, [pc, #540]	@ (50c <frame_dispatch_task+0x50c>)
+- 2f0:	      	strb	r2, [r3, r4]
+- 2f2:	      	ldr	r3, [pc, #540]	@ (510 <frame_dispatch_task+0x510>)
+- 2f4:	      	strb	r2, [r3, r4]
+- 2f6:	      	movs	r1, #1
+- 2f8:	      	mov	r0, sl
+- 2fa:	  	bl	0 <rb_skip>
+- 2fe:	  	sub.w	r0, r8, r0
+- 302:	  	uxth.w	r8, r0
+- 306:	      	ldr	r2, [pc, #524]	@ (514 <frame_dispatch_task+0x514>)
+- 308:	  	ldr.w	r3, [r2, #480]	@ 0x1e0
+- 30c:	      	adds	r3, #1
+- 30e:	  	str.w	r3, [r2, #480]	@ 0x1e0
+- 312:	      	b.n	216 <frame_dispatch_task+0x216>
+- 314:	      	movs	r1, #0
+- 316:	  	strb.w	r1, [sp, #51]	@ 0x33
+- 31a:	      	str	r1, [sp, #0]
+- 31c:	      	movs	r3, #1
+- 31e:	  	add.w	r2, sp, #51	@ 0x33
+- 322:	      	mov	r0, sl
+- 324:	  	bl	0 <rb_peek>
+- 328:	  	ldrb.w	r3, [sp, #51]	@ 0x33
+- 32c:	      	cmp	r3, #123	@ 0x7b
+- 32e:	      	bne.n	2dc <frame_dispatch_task+0x2dc>
+- 330:	      	cbz	r7, 386 <frame_dispatch_task+0x386>
+- 332:	      	ldr	r3, [sp, #20]
+- 334:	      	str	r3, [sp, #32]
+- 336:	      	movs	r3, #1
+- 338:	      	str	r3, [sp, #20]
+- 33a:	      	mov	r1, r8
+- 33c:	      	mov	r0, sl
+- 33e:	  	bl	0 <frame_dispatch_task>
+- 342:	      	str	r0, [sp, #44]	@ 0x2c
+- 344:	  	bl	0 <osKernelGetTickCount>
+- 348:	      	str	r0, [sp, #40]	@ 0x28
+- 34a:	      	ldr	r3, [pc, #452]	@ (510 <frame_dispatch_task+0x510>)
+- 34c:	      	ldrb	r3, [r3, r4]
+- 34e:	      	cbz	r3, 35a <frame_dispatch_task+0x35a>
+- 350:	      	ldr	r3, [pc, #452]	@ (518 <frame_dispatch_task+0x518>)
+- 352:	      	ldrb	r3, [r3, r4]
+- 354:	      	ldr	r2, [sp, #32]
+- 356:	      	cmp	r3, r2
+- 358:	      	beq.n	38c <frame_dispatch_task+0x38c>
+- 35a:	      	ldr	r3, [pc, #448]	@ (51c <frame_dispatch_task+0x51c>)
+- 35c:	  	ldr.w	r3, [r3, r4, lsl #2]
+- 360:	      	ldr	r2, [sp, #40]	@ 0x28
+- 362:	      	subs	r3, r2, r3
+- 364:	      	cmp	r3, #199	@ 0xc7
+- 366:	      	bls.n	2dc <frame_dispatch_task+0x2dc>
+- 368:	      	mov	r3, r8
+- 36a:	      	cmp	r3, #8
+- 36c:	      	it	cs
+- 36e:	      	movcs	r3, #8
+- 370:	      	uxth	r5, r3
+- 372:	      	movs	r3, #0
+- 374:	      	str	r3, [sp, #0]
+- 376:	      	mov	r3, r5
+- 378:	      	add	r2, sp, #52	@ 0x34
+- 37a:	      	movs	r1, #0
+- 37c:	      	mov	r0, sl
+- 37e:	  	bl	0 <rb_peek>
+- 382:	      	movs	r3, #0
+- 384:	      	b.n	3d8 <frame_dispatch_task+0x3d8>
+- 386:	      	movs	r3, #2
+- 388:	      	str	r3, [sp, #20]
+- 38a:	      	b.n	33a <frame_dispatch_task+0x33a>
+- 38c:	      	ldr	r3, [pc, #400]	@ (520 <frame_dispatch_task+0x520>)
+- 38e:	      	ldrb	r3, [r3, r4]
+- 390:	      	ldr	r2, [sp, #20]
+- 392:	      	cmp	r3, r2
+- 394:	      	bne.n	35a <frame_dispatch_task+0x35a>
+- 396:	      	ldr	r3, [pc, #396]	@ (524 <frame_dispatch_task+0x524>)
+- 398:	  	ldr.w	r3, [r3, r4, lsl #2]
+- 39c:	      	ldr	r2, [sp, #44]	@ 0x2c
+- 39e:	      	cmp	r3, r2
+- 3a0:	      	bne.n	35a <frame_dispatch_task+0x35a>
+- 3a2:	      	b.n	2dc <frame_dispatch_task+0x2dc>
+- 3a4:	  	add.w	r2, r3, #88	@ 0x58
+- 3a8:	      	add	r2, sp
+- 3aa:	  	ldrb.w	r1, [r2, #-36]
+- 3ae:	  	mov.w	ip, r1, lsr #4
+- 3b2:	      	lsls	r2, r3, #1
+- 3b4:	      	ldr	r0, [pc, #368]	@ (528 <frame_dispatch_task+0x528>)
+- 3b6:	  	ldrb.w	lr, [r0, ip]
+- 3ba:	  	add.w	ip, sp, #88	@ 0x58
+- 3be:	  	add.w	ip, ip, r3, lsl #1
+- 3c2:	  	strb.w	lr, [ip, #-28]
+- 3c6:	  	and.w	r1, r1, #15
+- 3ca:	      	ldrb	r1, [r0, r1]
+- 3cc:	      	adds	r2, #89	@ 0x59
+- 3ce:	      	add	r2, sp
+- 3d0:	  	strb.w	r1, [r2, #-28]
+- 3d4:	      	adds	r3, #1
+- 3d6:	      	uxth	r3, r3
+- 3d8:	      	cmp	r3, r5
+- 3da:	      	bcc.n	3a4 <frame_dispatch_task+0x3a4>
+- 3dc:	      	add	r3, sp, #88	@ 0x58
+- 3de:	  	add.w	r5, r3, r5, lsl #1
+- 3e2:	      	movs	r3, #0
+- 3e4:	  	strb.w	r3, [r5, #-28]
+- 3e8:	      	ldr	r2, [sp, #32]
+- 3ea:	      	cbz	r7, 42a <frame_dispatch_task+0x42a>
+- 3ec:	      	ldr	r1, [sp, #20]
+- 3ee:	      	mov	r0, r8
+- 3f0:	      	ldr	r3, [pc, #312]	@ (52c <frame_dispatch_task+0x52c>)
+- 3f2:	      	ldr	r5, [pc, #316]	@ (530 <frame_dispatch_task+0x530>)
+- 3f4:	      	str	r5, [sp, #12]
+- 3f6:	      	add	r5, sp, #60	@ 0x3c
+- 3f8:	      	str	r5, [sp, #8]
+- 3fa:	      	str	r0, [sp, #4]
+- 3fc:	      	str	r1, [sp, #0]
+- 3fe:	      	ldr	r1, [pc, #308]	@ (534 <frame_dispatch_task+0x534>)
+- 400:	      	movs	r0, #0
+- 402:	  	bl	0 <SEGGER_RTT_printf>
+- 406:	      	ldr	r3, [pc, #264]	@ (510 <frame_dispatch_task+0x510>)
+- 408:	      	movs	r2, #1
+- 40a:	      	strb	r2, [r3, r4]
+- 40c:	      	ldr	r3, [pc, #264]	@ (518 <frame_dispatch_task+0x518>)
+- 40e:	      	ldr	r2, [sp, #32]
+- 410:	      	strb	r2, [r3, r4]
+- 412:	      	ldr	r3, [pc, #268]	@ (520 <frame_dispatch_task+0x520>)
+- 414:	      	ldr	r2, [sp, #20]
+- 416:	      	strb	r2, [r3, r4]
+- 418:	      	ldr	r3, [pc, #264]	@ (524 <frame_dispatch_task+0x524>)
+- 41a:	      	ldr	r2, [sp, #44]	@ 0x2c
+- 41c:	  	str.w	r2, [r3, r4, lsl #2]
+- 420:	      	ldr	r3, [pc, #248]	@ (51c <frame_dispatch_task+0x51c>)
+- 422:	      	ldr	r2, [sp, #40]	@ 0x28
+- 424:	  	str.w	r2, [r3, r4, lsl #2]
+- 428:	      	b.n	2dc <frame_dispatch_task+0x2dc>
+- 42a:	      	ldr	r1, [sp, #20]
+- 42c:	      	mov	r0, r8
+- 42e:	      	ldr	r3, [pc, #264]	@ (538 <frame_dispatch_task+0x538>)
+- 430:	      	ldr	r5, [pc, #264]	@ (53c <frame_dispatch_task+0x53c>)
+- 432:	      	b.n	3f4 <frame_dispatch_task+0x3f4>
+- 434:	  	bl	0 <osKernelGetTickCount>
+- 438:	      	mov	r5, r0
+- 43a:	      	mov	r1, r8
+- 43c:	      	mov	r0, sl
+- 43e:	  	bl	0 <frame_dispatch_task>
+- 442:	      	ldr	r2, [pc, #200]	@ (50c <frame_dispatch_task+0x50c>)
+- 444:	      	ldrb	r2, [r2, r4]
+- 446:	      	cbz	r2, 452 <frame_dispatch_task+0x452>
+- 448:	      	ldr	r2, [pc, #244]	@ (540 <frame_dispatch_task+0x540>)
+- 44a:	  	ldr.w	r2, [r2, r4, lsl #2]
+- 44e:	      	cmp	r2, r0
+- 450:	      	beq.n	466 <frame_dispatch_task+0x466>
+- 452:	      	ldr	r2, [pc, #184]	@ (50c <frame_dispatch_task+0x50c>)
+- 454:	      	movs	r1, #1
+- 456:	      	strb	r1, [r2, r4]
+- 458:	      	ldr	r2, [pc, #232]	@ (544 <frame_dispatch_task+0x544>)
+- 45a:	  	str.w	r5, [r2, r4, lsl #2]
+- 45e:	      	ldr	r2, [pc, #224]	@ (540 <frame_dispatch_task+0x540>)
+- 460:	  	str.w	r0, [r2, r4, lsl #2]
+- 464:	      	b.n	fc <frame_dispatch_task+0xfc>
+- 466:	      	ldr	r3, [pc, #220]	@ (544 <frame_dispatch_task+0x544>)
+- 468:	  	ldr.w	r3, [r3, r4, lsl #2]
+- 46c:	      	subs	r3, r5, r3
+- 46e:	  	cmp.w	r3, #	@ 0x3e8
+- 472:	  	bls.w	fc <frame_dispatch_task+0xfc>
+- 476:	      	mov	r3, r8
+- 478:	      	cmp	r3, #8
+- 47a:	      	it	cs
+- 47c:	      	movcs	r3, #8
+- 47e:	      	uxth	r7, r3
+- 480:	      	movs	r5, #0
+- 482:	      	str	r5, [sp, #0]
+- 484:	      	mov	r3, r7
+- 486:	      	add	r2, sp, #52	@ 0x34
+- 488:	      	mov	r1, r5
+- 48a:	      	mov	r0, sl
+- 48c:	  	bl	0 <rb_peek>
+- 490:	      	mov	r3, r5
+- 492:	      	b.n	4c2 <frame_dispatch_task+0x4c2>
+- 494:	  	add.w	r2, r3, #88	@ 0x58
+- 498:	      	add	r2, sp
+- 49a:	  	ldrb.w	r1, [r2, #-36]
+- 49e:	      	lsrs	r5, r1, #4
+- 4a0:	      	lsls	r2, r3, #1
+- 4a2:	      	ldr	r0, [pc, #132]	@ (528 <frame_dispatch_task+0x528>)
+- 4a4:	      	ldrb	r6, [r0, r5]
+- 4a6:	      	add	r5, sp, #88	@ 0x58
+- 4a8:	  	add.w	r5, r5, r3, lsl #1
+- 4ac:	  	strb.w	r6, [r5, #-28]
+- 4b0:	  	and.w	r1, r1, #15
+- 4b4:	      	ldrb	r1, [r0, r1]
+- 4b6:	      	adds	r2, #89	@ 0x59
+- 4b8:	      	add	r2, sp
+- 4ba:	  	strb.w	r1, [r2, #-28]
+- 4be:	      	adds	r3, #1
+- 4c0:	      	uxth	r3, r3
+- 4c2:	      	cmp	r3, r7
+- 4c4:	      	bcc.n	494 <frame_dispatch_task+0x494>
+- 4c6:	      	add	r3, sp, #88	@ 0x58
+- 4c8:	  	add.w	r3, r3, r7, lsl #1
+- 4cc:	      	movs	r5, #0
+- 4ce:	  	strb.w	r5, [r3, #-28]
+- 4d2:	      	ldr	r6, [pc, #64]	@ (514 <frame_dispatch_task+0x514>)
+- 4d4:	  	ldr.w	r3, [r6, #480]	@ 0x1e0
+- 4d8:	      	adds	r3, #1
+- 4da:	      	str	r3, [sp, #4]
+- 4dc:	      	add	r3, sp, #60	@ 0x3c
+- 4de:	      	str	r3, [sp, #0]
+- 4e0:	      	mov	r3, r8
+- 4e2:	  	mov.w	r2, #	@ 0x3e8
+- 4e6:	      	ldr	r1, [pc, #96]	@ (548 <frame_dispatch_task+0x548>)
+- 4e8:	      	mov	r0, r5
+- 4ea:	  	bl	0 <SEGGER_RTT_printf>
+- 4ee:	      	mov	r2, r5
+- 4f0:	      	movs	r1, #1
+- 4f2:	      	mov	r0, sl
+- 4f4:	  	bl	0 <rb_skip>
+- 4f8:	  	ldr.w	r3, [r6, #480]	@ 0x1e0
+- 4fc:	      	adds	r3, #1
+- 4fe:	  	str.w	r3, [r6, #480]	@ 0x1e0
+- 502:	      	ldr	r3, [pc, #8]	@ (50c <frame_dispatch_task+0x50c>)
+- 504:	      	strb	r5, [r3, r4]
+- 506:	      	ldr	r3, [pc, #8]	@ (510 <frame_dispatch_task+0x510>)
+- 508:	      	strb	r5, [r3, r4]
+- 50a:	      	b.n	fc <frame_dispatch_task+0xfc>
+-	...
+- 528:	 	.word	0x000001b4
+- 52c:	 	.word	0x00000000
+- 530:	 	.word	0x00000008
+- 534:	 	.word	0x0000010c
+- 538:	 	.word	0x0000002c
+- 53c:	 	.word	0x00000034
+-	...
+- 548:	 	.word	0x00000144
++ 2d4:	      	mov	sl, r9
++ 2d6:	      	mov	r0, r7
++ 2d8:	  	bl	0 <rb_unlock>
++ 2dc:	      	b.n	78 <frame_dispatch_task+0x78>
++ 2de:	      	mov	sl, r9
++ 2e0:	      	b.n	2d6 <frame_dispatch_task+0x2d6>
++ 2e2:	      	nop

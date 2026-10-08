@@ -58,19 +58,10 @@
 #include "FreeRTOS.h"
 #include "initcall.h"
 
-#include "app_diag.h"   /* APP_DIAG_BANNER（YN_OL_RTT_DIAG 默认跟随） */
 #include "app_dispatch.h"
 #include "app_yn_ol_proto_cmd.h"
 #include "app_yn_ol_proto_parse.h"
-#include "dev_display.h" /* 逐帧诊断打印屏体几何 */
 #include "pl_task_static.h"
-#include "SEGGER_RTT.h" /* 逐帧诊断输出通道（NO_BLOCK_SKIP） */
-
-/* ---- 逐帧 RTT 诊断开关（默认跟随总开关；置 0 则整段代码被宏消除、零开销）----
- * 与 app_yn_ol_proto_cmd.c 顶部同名宏保持同一默认（默认跟随 APP_DIAG_BANNER）。 */
-#ifndef YN_OL_RTT_DIAG
-#define YN_OL_RTT_DIAG (APP_DIAG_BANNER)
-#endif
 
 /* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
  * yn_ol_handle_task：启动期创建一次、永不退出（自检任务 yn_ol_selftest 会被
@@ -236,201 +227,9 @@ static proto_probe_sta_t yn_ol_probe_frame(const channel_t *ch, const ring_buffe
     return PROTO_PROBE_READY;
 }
 
-/* ================================================================
- *  逐帧 RTT 诊断（2026-09-17 YN_OL 联调轮；用户问题③）
- *
- *  现场判读链：帧有没有到（rx 行）→ 解析过没过（sta）→ 执行了没有（exec ret）
- *  → 执行了为什么看不见（'3' 的 y/屏高/OFF-SCREEN 标注）。
- *  打印纪律：单帧最多两次 SEGGER_RTT_printf（1KB 上行缓冲、NO_BLOCK_SKIP）——
- *    第 1 次：rx（通道/长度/原始 hex）+ sta + cmd + 关键字段；
- *    第 2 次：exec 结果（或解析失败的 drop 原因）。
- *  关闭（YN_OL_RTT_DIAG=0）时本段全部宏内消除，零输出零开销。
- * ================================================================ */
-#if YN_OL_RTT_DIAG
-
-/** 原始帧 hex 打印上限（超长帧打前 N 字节 + 总长；控 RTT 体量） */
-#define YN_OL_DIAG_HEX_MAX (32U)
-
-/** @brief 通道 id → 诊断短名。 */
-static const char *_yn_ol_ch_name(uint8_t ch_id)
-{
-    switch (ch_id) {
-        case CH_ID_RS485:      return "RS485";
-        case CH_ID_RS232:      return "RS232";
-        case CH_ID_TCP_SERVER: return "TCP_SRV";
-        case CH_ID_TCP_CLIENT: return "TCP_CLI";
-        default:               return "?";
-    }
-}
-
-/** @brief 解析状态 → 诊断短名。 */
-static const char *_yn_ol_sta_name(yn_ol_parse_sta_t sta)
-{
-    switch (sta) {
-        case YN_OL_PARSE_OK:        return "OK";
-        case YN_OL_PARSE_ERR_FRAME: return "ERR_FRAME";
-        case YN_OL_PARSE_ERR_CMD:   return "ERR_CMD";
-        default:                    return "ERR_PARAM";
-    }
-}
-
 /**
- * @brief  原始帧 hex dump（≤YN_OL_DIAG_HEX_MAX 全打；超长打前 N 字节）。
- * @return true = 已截断（调用方标注 cut）。
- */
-static bool _yn_ol_hex_dump(const uint8_t *d, uint16_t len, char *out, uint16_t out_sz)
-{
-    static const char digs[] = "0123456789abcdef";
-    const uint16_t n = (len > YN_OL_DIAG_HEX_MAX) ? (uint16_t)YN_OL_DIAG_HEX_MAX : len;
-    uint16_t w = 0U;
-    /* 每字节 3 字符（2 hex + 1 空格），缓冲 = N*3 + 1（NUL）；条件用 <= 保证 N 字节全打 */
-    for (uint16_t i = 0U; i < n && (w + 4U) <= out_sz; i++) {
-        out[w++] = digs[d[i] >> 4];
-        out[w++] = digs[d[i] & 0x0FU];
-        out[w++] = ' ';
-    }
-    if (w > 0U)
-        w--; /* 去掉尾空格 */
-    out[w] = '\0';
-    return (len > YN_OL_DIAG_HEX_MAX);
-}
-
-/** @brief 第 1 行：来源通道 + 原始长度 + hex + 解析状态 + 命令字 + 关键字段。 */
-static void _yn_ol_diag_frame(const frame_msg_t *msg, const yn_ol_parsed_cmd_t *cmd)
-{
-    char hex[YN_OL_DIAG_HEX_MAX * 3U + 1U];
-    char field[112];
-    const uint8_t ch_id    = (msg->ch != nullptr) ? msg->ch->ch_id : 0xFFU;
-    const uint16_t raw_len = (uint16_t)msg->data_len;
-    const bool cut         = _yn_ol_hex_dump(msg->data, raw_len, hex, (uint16_t)sizeof(hex));
-    const uint8_t cmd_byte = (raw_len >= 2U) ? msg->data[1] : 0U;
-
-    field[0] = '\0';
-    if (cmd->sta == YN_OL_PARSE_OK) {
-        switch (cmd->cmd) {
-            case YN_OL_PCMD_ONE_LINE:
-                snprintf(field, sizeof(field), " color=%u(%s) row=%u(%s) text_len=%u",
-                         (unsigned)cmd->p.one_line.color, (cmd->data[0] <= 0x02U) ? "bin" : "ascii",
-                         (unsigned)cmd->p.one_line.row, (cmd->data[1] <= 0x05U) ? "bin" : "ascii",
-                         (unsigned)cmd->p.one_line.text_len);
-                break;
-            case YN_OL_PCMD_FULL_SCREEN:
-                snprintf(field, sizeof(field), " color=%u(%s) x=%u y=%u text_len=%u",
-                         (unsigned)cmd->p.full_screen.color,
-                         (cmd->data[0] <= 0x02U) ? "bin" : "ascii",
-                         (unsigned)cmd->p.full_screen.x, (unsigned)cmd->p.full_screen.y,
-                         (unsigned)cmd->p.full_screen.text_len);
-                break;
-            case YN_OL_PCMD_BRIGHTNESS:
-                snprintf(field, sizeof(field), " level=%u(%s)", (unsigned)cmd->p.brightness,
-                         (cmd->p.brightness == 0U) ? "auto" : "manual");
-                break;
-            case YN_OL_PCMD_PERIPHERAL:
-                snprintf(field, sizeof(field), " ctrl=0x%02x", (unsigned)cmd->p.peripheral);
-                break;
-            case YN_OL_PCMD_FILL_ALL:
-                snprintf(field, sizeof(field), " fill_color=%u", (unsigned)cmd->p.fill_color);
-                break;
-            default:
-                break; /* 0x47/0x48/0x49 在 cmd 侧已有专项打印，此处只报 rx+sta+cmd */
-        }
-    }
-
-    SEGGER_RTT_printf(0, "[yn_ol] rx ch=%s(%u) len=%u%s hex=%s%s -> sta=%s cmd=0x%02x%s\n",
-                      _yn_ol_ch_name(ch_id), (unsigned)ch_id, (unsigned)raw_len, cut ? " cut" : "",
-                      hex, cut ? "..." : "", _yn_ol_sta_name(cmd->sta), (unsigned)cmd_byte, field);
-}
-
-/**
- * @brief 第 2 行（解析失败）：拒绝原因 + 判读线索（含原始 hex 已在第 1 行）。
- */
-static void _yn_ol_diag_drop(const uint8_t *raw, uint16_t raw_len, const yn_ol_parsed_cmd_t *cmd)
-{
-    switch (cmd->sta) {
-        case YN_OL_PARSE_ERR_FRAME: {
-            const unsigned first = (raw_len >= 1U) ? raw[0] : 0U;
-            const unsigned tail  = (raw_len >= 1U) ? raw[raw_len - 1U] : 0U;
-            const unsigned decl  = (raw_len >= 3U) ? raw[2] : 0U;
-            SEGGER_RTT_printf(0,
-                              "[yn_ol] drop sta=ERR_FRAME len=%u first=0x%02x tail=0x%02x "
-                              "declared=%u actual=%u (head/tail/length mismatch)\n",
-                              (unsigned)raw_len, first, tail, decl,
-                              (unsigned)((raw_len >= 4U) ? raw_len - 4U : 0U));
-            break;
-        }
-        case YN_OL_PARSE_ERR_CMD:
-            SEGGER_RTT_printf(0,
-                              "[yn_ol] drop sta=ERR_CMD cmd=0x%02x (unsupported / not implemented)\n",
-                              (unsigned)((raw_len >= 2U) ? raw[1] : 0U));
-            break;
-        default: { /* ERR_PARAM：参数长度/取值非法——打印前两个关键字节 */
-            const unsigned b0 = (raw_len >= 4U) ? raw[3] : 0U;
-            const unsigned b1 = (raw_len >= 5U) ? raw[4] : 0U;
-            SEGGER_RTT_printf(0,
-                              "[yn_ol] drop sta=ERR_PARAM cmd=0x%02x declared=%u b0=0x%02x b1=0x%02x "
-                              "(keyfield/length rejected)\n",
-                              (unsigned)((raw_len >= 2U) ? raw[1] : 0U),
-                              (unsigned)((raw_len >= 3U) ? raw[2] : 0U), b0, b1);
-            break;
-        }
-    }
-}
-
-/**
- * @brief 第 2 行（执行结果）：ret + 关键字段；'3' 额外算「行号 × 字高 = y」并给落屏判读。
- */
-static void _yn_ol_diag_exec(const yn_ol_parsed_cmd_t *cmd, int ret)
-{
-    switch (cmd->cmd) {
-        case YN_OL_PCMD_ONE_LINE: {
-            /* 现场最常见误解：「发了单行但屏幕没变化」= 行号越出可视区（执行但不落屏）。
-             * 例：16×32 屏（W16/H32）+ FONT_16 → 只有行 1/2 可视，行 3~5 落在屏外。 */
-            const dev_display_t *d = dev_display_get();
-            const uint16_t rowh  = (uint16_t)yn_ol_current_font_size();
-            const uint16_t y     = (uint16_t)((uint16_t)cmd->p.one_line.row * rowh);
-            const uint16_t scr_h = (d != nullptr) ? d->screen_cols : 0U;
-            const char *vis      = (d == nullptr)  ? "NO-DISPLAY"
-                                   : (y >= scr_h)  ? "OFF-SCREEN(executed but invisible)"
-                                   : ((uint16_t)(y + rowh) > scr_h)
-                                       ? "PARTIAL(bottom clipped, glyphs cut)"
-                                       : "ON-SCREEN";
-            SEGGER_RTT_printf(0,
-                              "[yn_ol] exec cmd=0x33 ret=%d color=%u row=%u text_len=%u y=%u "
-                              "screen_w=%u screen_h=%u rowh=%u -> %s\n",
-                              ret, (unsigned)cmd->p.one_line.color, (unsigned)cmd->p.one_line.row,
-                              (unsigned)cmd->p.one_line.text_len, (unsigned)y,
-                              (unsigned)((d != nullptr) ? d->screen_rows : 0U), (unsigned)scr_h,
-                              (unsigned)rowh, vis);
-            break;
-        }
-        case YN_OL_PCMD_FULL_SCREEN: {
-            const dev_display_t *d = dev_display_get();
-            SEGGER_RTT_printf(0,
-                              "[yn_ol] exec cmd=0x34 ret=%d color=%u x=%u y=%u text_len=%u "
-                              "screen_w=%u screen_h=%u\n",
-                              ret, (unsigned)cmd->p.full_screen.color,
-                              (unsigned)cmd->p.full_screen.x, (unsigned)cmd->p.full_screen.y,
-                              (unsigned)cmd->p.full_screen.text_len,
-                              (unsigned)((d != nullptr) ? d->screen_rows : 0U),
-                              (unsigned)((d != nullptr) ? d->screen_cols : 0U));
-            break;
-        }
-        default:
-            SEGGER_RTT_printf(0, "[yn_ol] exec cmd=0x%02x ret=%d\n", (unsigned)cmd->cmd, ret);
-            break;
-    }
-}
-
-#endif /* YN_OL_RTT_DIAG */
-
-/**
- * @brief  帧处理任务：帧队列 → 解析 → 执行（+ 逐帧 RTT 诊断）。
+ * @brief  帧处理任务：帧队列 → 解析 → 执行。
  * @param  argument  未使用。
- *
- * 诊断（YN_OL_RTT_DIAG，默认跟随 APP_DIAG_BANNER）打印链：
- *   第 1 行 `[yn_ol] rx ch=… len=… hex=… -> sta=… cmd=… <关键字段>`（每帧一次）；
- *   第 2 行 `[yn_ol] exec cmd=… ret=… …`（执行结果）/ `[yn_ol] drop …`（解析失败原因）。
- * 单帧最多两次 SEGGER_RTT_printf（1KB 上行缓冲、NO_BLOCK_SKIP，避免挤掉 [diag]）。
  */
 void yn_ol_proto_handle_task(void *argument)
 {
@@ -444,20 +243,11 @@ void yn_ol_proto_handle_task(void *argument)
 
         const yn_ol_parsed_cmd_t cmd = yn_ol_parse_frame(msg->data, (uint16_t)msg->data_len);
 
-#if YN_OL_RTT_DIAG
-        _yn_ol_diag_frame(msg, &cmd); /* 第 1 行：rx + 原始 hex + 解析状态 + 关键字段 */
-#endif
 
         int exec_ret = (int)YN_OL_EXEC_NOT_RUN;
         if (cmd.sta == YN_OL_PARSE_OK)
             exec_ret = yn_ol_execute_cmd(msg->ch, &cmd);
 
-#if YN_OL_RTT_DIAG
-        if (cmd.sta == YN_OL_PARSE_OK)
-            _yn_ol_diag_exec(&cmd, exec_ret); /* 第 2 行：执行结果（'3' 含落屏判读） */
-        else
-            _yn_ol_diag_drop(msg->data, (uint16_t)msg->data_len, &cmd); /* 第 2 行：拒绝原因 */
-#endif
         (void)exec_ret;
     }
 }

@@ -73,7 +73,7 @@ static inline osThreadId_t app_udp_gzol_start(void)
 
 uint16_t app_udp_gzol_get_port(void);
 
-/* ---- GZ_OL 专用口绑定结果（只读诊断，见 app_diag.h）---- */
+/* ---- GZ_OL 专用口绑定结果（只读观察）---- */
 
 /** @brief GZ_OL 专用 UDP 业务口最近一次绑定结果 */
 typedef enum {
@@ -87,5 +87,5 @@ typedef enum {
 /** @brief 读 GZ_OL 专用口绑定结果（跨任务只读，无需锁） */
 app_udp_gzol_bind_sta_t app_udp_gzol_bind_status(void);
 
-/** @brief 绑定结果字符串（RTT 打印用，静态常量） */
+/** @brief 绑定结果字符串（静态常量） */
 const char *app_udp_gzol_bind_status_str(void);

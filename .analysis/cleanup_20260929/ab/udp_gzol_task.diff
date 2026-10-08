@@ -1,0 +1,247 @@
+--- /dev/fd/63	2026-09-29 09:28:47.170516951 +0800
++++ /dev/fd/62	2026-09-29 09:28:47.170516951 +0800
+@@ -1,146 +1,100 @@
+  <udp_gzol_task>:
+-   0:	      	push	{r4, r5, lr}
+-   2:	      	sub	sp, #12
+-   4:	      	ldr	r3, [pc, #316]	@ (144 <udp_gzol_task+0x144>)
+-   6:	      	ldr	r3, [r3, #0]
+-   8:	      	cbz	r3, 12 <udp_gzol_task+0x12>
+-   a:	      	ldr	r0, [pc, #316]	@ (148 <udp_gzol_task+0x148>)
+-   c:	  	bl	0 <pl_net_register_link_listener>
+-  10:	      	b.n	4e <udp_gzol_task+0x4e>
+-  12:	      	mov	r2, r3
+-  14:	      	mov	r1, r3
+-  16:	      	movs	r0, #1
+-  18:	  	bl	0 <osSemaphoreNew>
+-  1c:	      	ldr	r3, [pc, #292]	@ (144 <udp_gzol_task+0x144>)
+-  1e:	      	str	r0, [r3, #0]
+-  20:	      	b.n	a <udp_gzol_task+0xa>
+-  22:	      	movs	r3, #1
+-  24:	      	b.n	6c <udp_gzol_task+0x6c>
+-  26:	      	movs	r3, #1
+-  28:	      	b.n	6c <udp_gzol_task+0x6c>
+-  2a:	      	movs	r1, #2
+-  2c:	      	ldr	r3, [pc, #284]	@ (14c <udp_gzol_task+0x14c>)
+-  2e:	      	strb	r1, [r3, #0]
+-  30:	      	ldr	r3, [pc, #284]	@ (150 <udp_gzol_task+0x150>)
+-  32:	      	ldrh	r3, [r3, #0]
+-  34:	      	cmp	r2, r3
+-  36:	      	beq.n	46 <udp_gzol_task+0x46>
+-  38:	      	ldr	r3, [pc, #276]	@ (150 <udp_gzol_task+0x150>)
+-  3a:	      	strh	r2, [r3, #0]
+-  3c:	      	cbnz	r4, 76 <udp_gzol_task+0x76>
+-  3e:	      	ldr	r1, [pc, #276]	@ (154 <udp_gzol_task+0x154>)
+-  40:	      	mov	r0, r4
+-  42:	  	bl	0 <SEGGER_RTT_printf>
+-  46:	  	mov.w	r0, #	@ 0x7d0
+-  4a:	  	bl	0 <osDelay>
+-  4e:	  	bl	0 <udp_gzol_task>
+-  52:	      	mov	r4, r0
+-  54:	  	bl	0 <udp_gzol_task>
+-  58:	      	mov	r5, r0
+-  5a:	  	bl	0 <udp_gzol_task>
+-  5e:	      	ldr	r3, [pc, #248]	@ (158 <udp_gzol_task+0x158>)
+-  60:	      	ldrh	r2, [r3, #0]
+-  62:	      	cmp	r2, r5
+-  64:	      	beq.n	26 <udp_gzol_task+0x26>
+-  66:	      	cmp	r2, r0
+-  68:	      	beq.n	22 <udp_gzol_task+0x22>
+-  6a:	      	movs	r3, #0
+-  6c:	      	cmp	r4, #0
+-  6e:	      	beq.n	2a <udp_gzol_task+0x2a>
+-  70:	      	cbz	r3, 84 <udp_gzol_task+0x84>
+-  72:	      	movs	r1, #3
+-  74:	      	b.n	2c <udp_gzol_task+0x2c>
+-  76:	      	str	r0, [sp, #0]
+-  78:	      	mov	r3, r5
+-  7a:	      	ldr	r1, [pc, #224]	@ (15c <udp_gzol_task+0x15c>)
+-  7c:	      	movs	r0, #0
+-  7e:	  	bl	0 <SEGGER_RTT_printf>
+-  82:	      	b.n	46 <udp_gzol_task+0x46>
+-  84:	      	mov	r2, r3
+-  86:	      	mov	r1, r3
+-  88:	      	movs	r0, #32
+-  8a:	  	bl	0 <netconn_new_with_proto_and_callback>
+-  8e:	      	mov	r4, r0
+-  90:	      	cbz	r0, d0 <udp_gzol_task+0xd0>
+-  92:	      	ldr	r2, [r0, #4]
+-  94:	      	ldrb	r3, [r2, #9]
+-  96:	  	orr.w	r3, r3, #32
+-  9a:	      	strb	r3, [r2, #9]
+-  9c:	      	ldr	r3, [pc, #184]	@ (158 <udp_gzol_task+0x158>)
+-  9e:	      	ldrh	r2, [r3, #0]
+-  a0:	      	ldr	r1, [pc, #188]	@ (160 <udp_gzol_task+0x160>)
+-  a2:	  	bl	0 <netconn_bind>
+-  a6:	      	mov	r3, r0
+-  a8:	      	cbz	r0, e8 <udp_gzol_task+0xe8>
+-  aa:	      	ldr	r2, [pc, #160]	@ (14c <udp_gzol_task+0x14c>)
+-  ac:	      	movs	r1, #4
+-  ae:	      	strb	r1, [r2, #0]
+-  b0:	      	ldr	r2, [pc, #176]	@ (164 <udp_gzol_task+0x164>)
+-  b2:	      	strh	r0, [r2, #0]
+-  b4:	      	ldr	r2, [pc, #152]	@ (150 <udp_gzol_task+0x150>)
+-  b6:	      	ldrh	r1, [r2, #0]
+-  b8:	      	ldr	r2, [pc, #156]	@ (158 <udp_gzol_task+0x158>)
+-  ba:	      	ldrh	r2, [r2, #0]
+-  bc:	      	cmp	r1, r2
+-  be:	      	bne.n	136 <udp_gzol_task+0x136>
+-  c0:	      	mov	r0, r4
+-  c2:	  	bl	0 <netconn_delete>
+-  c6:	  	mov.w	r0, #	@ 0x7d0
+-  ca:	  	bl	0 <osDelay>
+-  ce:	      	b.n	4e <udp_gzol_task+0x4e>
+-  d0:	      	ldr	r3, [pc, #120]	@ (14c <udp_gzol_task+0x14c>)
+-  d2:	      	movs	r2, #4
+-  d4:	      	strb	r2, [r3, #0]
+-  d6:	      	ldr	r3, [pc, #140]	@ (164 <udp_gzol_task+0x164>)
+-  d8:	  	movw	r2, #	@ 0xffff
+-  dc:	      	strh	r2, [r3, #0]
+-  de:	  	mov.w	r0, #	@ 0x7d0
+-  e2:	  	bl	0 <osDelay>
+-  e6:	      	b.n	4e <udp_gzol_task+0x4e>
+-  e8:	      	ldr	r3, [pc, #100]	@ (150 <udp_gzol_task+0x150>)
+-  ea:	      	strh	r0, [r3, #0]
+-  ec:	      	ldr	r3, [pc, #92]	@ (14c <udp_gzol_task+0x14c>)
+-  ee:	      	movs	r2, #1
+-  f0:	      	strb	r2, [r3, #0]
+-  f2:	      	ldr	r2, [pc, #116]	@ (168 <udp_gzol_task+0x168>)
+-  f4:	      	ldr	r3, [r2, #0]
+-  f6:	      	adds	r3, #1
+-  f8:	      	str	r3, [r2, #0]
+-  fa:	      	ldr	r3, [pc, #112]	@ (16c <udp_gzol_task+0x16c>)
+-  fc:	      	ldr	r2, [pc, #88]	@ (158 <udp_gzol_task+0x158>)
+-  fe:	      	ldrh	r2, [r2, #0]
+- 100:	      	ldr	r1, [pc, #108]	@ (170 <udp_gzol_task+0x170>)
+- 102:	  	bl	0 <SEGGER_RTT_printf>
+- 106:	      	movs	r1, #0
+- 108:	      	ldr	r3, [pc, #56]	@ (144 <udp_gzol_task+0x144>)
+- 10a:	      	ldr	r0, [r3, #0]
+- 10c:	  	bl	0 <osSemaphoreAcquire>
+- 110:	      	cmp	r0, #0
+- 112:	      	beq.n	106 <udp_gzol_task+0x106>
+- 114:	      	ldr	r2, [pc, #92]	@ (174 <udp_gzol_task+0x174>)
+- 116:	      	mov	r1, r4
+- 118:	      	ldr	r0, [pc, #92]	@ (178 <udp_gzol_task+0x178>)
+- 11a:	  	bl	0 <osThreadNew>
+- 11e:	      	ldr	r1, [pc, #92]	@ (17c <udp_gzol_task+0x17c>)
+- 120:	  	bl	0 <udp_gzol_task>
+- 124:	      	cmp	r0, #0
+- 126:	      	beq.n	c0 <udp_gzol_task+0xc0>
+- 128:	  	mov.w	r1, #	@ 0xffffffff
+- 12c:	      	ldr	r3, [pc, #20]	@ (144 <udp_gzol_task+0x144>)
+- 12e:	      	ldr	r0, [r3, #0]
+- 130:	  	bl	0 <osSemaphoreAcquire>
+- 134:	      	b.n	c0 <udp_gzol_task+0xc0>
+- 136:	      	ldr	r1, [pc, #24]	@ (150 <udp_gzol_task+0x150>)
+- 138:	      	strh	r2, [r1, #0]
+- 13a:	      	ldr	r1, [pc, #68]	@ (180 <udp_gzol_task+0x180>)
+- 13c:	      	movs	r0, #0
+- 13e:	  	bl	0 <SEGGER_RTT_printf>
+- 142:	      	b.n	c0 <udp_gzol_task+0xc0>
++   0:	      	push	{r3, r4, r5, lr}
++   2:	      	ldr	r3, [pc, #232]	@ (ec <udp_gzol_task+0xec>)
++   4:	      	ldr	r3, [r3, #0]
++   6:	      	cbz	r3, 10 <udp_gzol_task+0x10>
++   8:	      	ldr	r0, [pc, #228]	@ (f0 <udp_gzol_task+0xf0>)
++   a:	  	bl	0 <pl_net_register_link_listener>
++   e:	      	b.n	36 <udp_gzol_task+0x36>
++  10:	      	mov	r2, r3
++  12:	      	mov	r1, r3
++  14:	      	movs	r0, #1
++  16:	  	bl	0 <osSemaphoreNew>
++  1a:	      	ldr	r3, [pc, #208]	@ (ec <udp_gzol_task+0xec>)
++  1c:	      	str	r0, [r3, #0]
++  1e:	      	b.n	8 <udp_gzol_task+0x8>
++  20:	      	movs	r3, #1
++  22:	      	b.n	54 <udp_gzol_task+0x54>
++  24:	      	movs	r3, #1
++  26:	      	b.n	54 <udp_gzol_task+0x54>
++  28:	      	movs	r2, #2
++  2a:	      	ldr	r3, [pc, #200]	@ (f4 <udp_gzol_task+0xf4>)
++  2c:	      	strb	r2, [r3, #0]
++  2e:	  	mov.w	r0, #	@ 0x7d0
++  32:	  	bl	0 <osDelay>
++  36:	  	bl	0 <udp_gzol_task>
++  3a:	      	mov	r4, r0
++  3c:	  	bl	0 <udp_gzol_task>
++  40:	      	mov	r5, r0
++  42:	  	bl	0 <udp_gzol_task>
++  46:	      	ldr	r3, [pc, #176]	@ (f8 <udp_gzol_task+0xf8>)
++  48:	      	ldrh	r3, [r3, #0]
++  4a:	      	cmp	r3, r5
++  4c:	      	beq.n	24 <udp_gzol_task+0x24>
++  4e:	      	cmp	r3, r0
++  50:	      	beq.n	20 <udp_gzol_task+0x20>
++  52:	      	movs	r3, #0
++  54:	      	cmp	r4, #0
++  56:	      	beq.n	28 <udp_gzol_task+0x28>
++  58:	      	cbz	r3, 5e <udp_gzol_task+0x5e>
++  5a:	      	movs	r2, #3
++  5c:	      	b.n	2a <udp_gzol_task+0x2a>
++  5e:	      	mov	r2, r3
++  60:	      	mov	r1, r3
++  62:	      	movs	r0, #32
++  64:	  	bl	0 <netconn_new_with_proto_and_callback>
++  68:	      	mov	r4, r0
++  6a:	      	cbz	r0, 9c <udp_gzol_task+0x9c>
++  6c:	      	ldr	r2, [r0, #4]
++  6e:	      	ldrb	r3, [r2, #9]
++  70:	  	orr.w	r3, r3, #32
++  74:	      	strb	r3, [r2, #9]
++  76:	      	ldr	r3, [pc, #128]	@ (f8 <udp_gzol_task+0xf8>)
++  78:	      	ldrh	r2, [r3, #0]
++  7a:	      	ldr	r1, [pc, #128]	@ (fc <udp_gzol_task+0xfc>)
++  7c:	  	bl	0 <netconn_bind>
++  80:	      	cbz	r0, b4 <udp_gzol_task+0xb4>
++  82:	      	ldr	r2, [pc, #112]	@ (f4 <udp_gzol_task+0xf4>)
++  84:	      	movs	r1, #4
++  86:	      	strb	r1, [r2, #0]
++  88:	      	ldr	r2, [pc, #116]	@ (100 <udp_gzol_task+0x100>)
++  8a:	      	strh	r0, [r2, #0]
++  8c:	      	mov	r0, r4
++  8e:	  	bl	0 <netconn_delete>
++  92:	  	mov.w	r0, #	@ 0x7d0
++  96:	  	bl	0 <osDelay>
++  9a:	      	b.n	36 <udp_gzol_task+0x36>
++  9c:	      	ldr	r3, [pc, #84]	@ (f4 <udp_gzol_task+0xf4>)
++  9e:	      	movs	r2, #4
++  a0:	      	strb	r2, [r3, #0]
++  a2:	      	ldr	r3, [pc, #92]	@ (100 <udp_gzol_task+0x100>)
++  a4:	  	movw	r2, #	@ 0xffff
++  a8:	      	strh	r2, [r3, #0]
++  aa:	  	mov.w	r0, #	@ 0x7d0
++  ae:	  	bl	0 <osDelay>
++  b2:	      	b.n	36 <udp_gzol_task+0x36>
++  b4:	      	ldr	r3, [pc, #60]	@ (f4 <udp_gzol_task+0xf4>)
++  b6:	      	movs	r2, #1
++  b8:	      	strb	r2, [r3, #0]
++  ba:	      	ldr	r2, [pc, #72]	@ (104 <udp_gzol_task+0x104>)
++  bc:	      	ldr	r3, [r2, #0]
++  be:	      	adds	r3, #1
++  c0:	      	str	r3, [r2, #0]
++  c2:	      	movs	r1, #0
++  c4:	      	ldr	r3, [pc, #36]	@ (ec <udp_gzol_task+0xec>)
++  c6:	      	ldr	r0, [r3, #0]
++  c8:	  	bl	0 <osSemaphoreAcquire>
++  cc:	      	cmp	r0, #0
++  ce:	      	beq.n	c2 <udp_gzol_task+0xc2>
++  d0:	      	ldr	r2, [pc, #52]	@ (108 <udp_gzol_task+0x108>)
++  d2:	      	mov	r1, r4
++  d4:	      	ldr	r0, [pc, #52]	@ (10c <udp_gzol_task+0x10c>)
++  d6:	  	bl	0 <osThreadNew>
++  da:	      	cmp	r0, #0
++  dc:	      	beq.n	8c <udp_gzol_task+0x8c>
++  de:	  	mov.w	r1, #	@ 0xffffffff
++  e2:	      	ldr	r3, [pc, #8]	@ (ec <udp_gzol_task+0xec>)
++  e4:	      	ldr	r0, [r3, #0]
++  e6:	  	bl	0 <osSemaphoreAcquire>
++  ea:	      	b.n	8c <udp_gzol_task+0x8c>
+ 	...
+- 15c:	 	.word	0x00000040
+-	...
+- 16c:	 	.word	0x00000080
+- 170:	 	.word	0x00000088
+-	...
+- 17c:	 	.word	0x000000c4
+- 180:	 	.word	0x000000dc

@@ -157,6 +157,14 @@ extern ldi_ctx_t g_ldi;
 
 void ldi_ctx_init(ldi_ctx_t *self);
 
+/**
+ * @brief 以 Sector1 net_cfg 为单一真源刷新 LDI 运行态网络字段（IP/掩码/网关/配置端口）
+ *
+ * LDI 各网络上报路径（0x12 搜索应答 / 0xD1 IP 采集应答）入口调用，保证与
+ * IAP 0x01（直接读 Sector1）同源；记录无效时保留现值。见 app_ldi.c 实现注释。
+ */
+bool ldi_sync_net_from_board_cfg(void);
+
 /* ---- API ---- */
 
 extern osMessageQueueId_t g_ldi_msg_queue;

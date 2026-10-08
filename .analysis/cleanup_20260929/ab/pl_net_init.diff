@@ -1,0 +1,97 @@
+--- /dev/fd/63	2026-09-29 09:28:47.201519658 +0800
++++ /dev/fd/62	2026-09-29 09:28:47.201519658 +0800
+@@ -2,13 +2,13 @@
+    0:	      	push	{r4, r5, r6, lr}
+    2:	      	sub	sp, #16
+    4:	      	ldr	r3, [r0, #0]
+-   6:	      	ldr	r6, [pc, #268]	@ (114 <pl_net_init+0x114>)
++   6:	      	ldr	r6, [pc, #240]	@ (f8 <pl_net_init+0xf8>)
+    8:	      	str	r3, [r6, #0]
+    a:	      	ldr	r3, [r1, #0]
+-   c:	      	ldr	r5, [pc, #264]	@ (118 <pl_net_init+0x118>)
++   c:	      	ldr	r5, [pc, #236]	@ (fc <pl_net_init+0xfc>)
+    e:	      	str	r3, [r5, #0]
+   10:	      	ldr	r3, [r2, #0]
+-  12:	      	ldr	r4, [pc, #264]	@ (11c <pl_net_init+0x11c>)
++  12:	      	ldr	r4, [pc, #236]	@ (100 <pl_net_init+0x100>)
+   14:	      	str	r3, [r4, #0]
+   16:	      	movs	r1, #0
+   18:	      	mov	r0, r1
+@@ -28,7 +28,7 @@
+   3e:	  	and.w	r1, r1, #	@ 0xff00
+   42:	      	orrs	r2, r1
+   44:	  	orr.w	r3, r2, r3, lsr #24
+-  48:	      	ldr	r1, [pc, #212]	@ (120 <pl_net_init+0x120>)
++  48:	      	ldr	r1, [pc, #184]	@ (104 <pl_net_init+0x104>)
+   4a:	      	str	r3, [r1, #0]
+   4c:	      	ldrb	r2, [r5, #0]
+   4e:	      	ldrb	r3, [r5, #1]
+@@ -45,7 +45,7 @@
+   6c:	  	and.w	r0, r0, #	@ 0xff00
+   70:	      	orrs	r2, r0
+   72:	  	orr.w	r3, r2, r3, lsr #24
+-  76:	      	ldr	r2, [pc, #172]	@ (124 <pl_net_init+0x124>)
++  76:	      	ldr	r2, [pc, #144]	@ (108 <pl_net_init+0x108>)
+   78:	      	str	r3, [r2, #0]
+   7a:	      	ldrb	r0, [r4, #0]
+   7c:	      	ldrb	r3, [r4, #1]
+@@ -62,12 +62,12 @@
+   9a:	  	and.w	r4, r4, #	@ 0xff00
+   9e:	      	orrs	r0, r4
+   a0:	  	orr.w	r0, r0, r3, lsr #24
+-  a4:	      	ldr	r3, [pc, #128]	@ (128 <pl_net_init+0x128>)
++  a4:	      	ldr	r3, [pc, #100]	@ (10c <pl_net_init+0x10c>)
+   a6:	      	str	r0, [r3, #0]
+-  a8:	      	ldr	r4, [pc, #128]	@ (12c <pl_net_init+0x12c>)
+-  aa:	      	ldr	r0, [pc, #132]	@ (130 <pl_net_init+0x130>)
++  a8:	      	ldr	r4, [pc, #100]	@ (110 <pl_net_init+0x110>)
++  aa:	      	ldr	r0, [pc, #104]	@ (114 <pl_net_init+0x114>)
+   ac:	      	str	r0, [sp, #8]
+-  ae:	      	ldr	r0, [pc, #132]	@ (134 <pl_net_init+0x134>)
++  ae:	      	ldr	r0, [pc, #104]	@ (118 <pl_net_init+0x118>)
+   b0:	      	str	r0, [sp, #4]
+   b2:	      	movs	r6, #0
+   b4:	      	str	r6, [sp, #0]
+@@ -77,15 +77,15 @@
+   be:	  	bl	0 <netif_set_default>
+   c2:	      	mov	r0, r4
+   c4:	  	bl	0 <netif_set_up>
+-  c8:	      	ldr	r1, [pc, #108]	@ (138 <pl_net_init+0x138>)
++  c8:	      	ldr	r1, [pc, #80]	@ (11c <pl_net_init+0x11c>)
+   ca:	      	mov	r0, r4
+   cc:	  	bl	0 <netif_set_link_callback>
+-  d0:	      	ldr	r5, [pc, #104]	@ (13c <pl_net_init+0x13c>)
++  d0:	      	ldr	r5, [pc, #76]	@ (120 <pl_net_init+0x120>)
+   d2:	      	movs	r2, #36	@ 0x24
+   d4:	      	mov	r1, r6
+   d6:	      	mov	r0, r5
+   d8:	  	bl	0 <memset>
+-  dc:	      	ldr	r3, [pc, #96]	@ (140 <pl_net_init+0x140>)
++  dc:	      	ldr	r3, [pc, #68]	@ (124 <pl_net_init+0x124>)
+   de:	      	str	r3, [r5, #0]
+   e0:	  	mov.w	r3, #	@ 0x400
+   e4:	      	str	r3, [r5, #20]
+@@ -93,20 +93,8 @@
+   e8:	      	str	r3, [r5, #24]
+   ea:	      	mov	r2, r5
+   ec:	      	mov	r1, r4
+-  ee:	      	ldr	r0, [pc, #84]	@ (144 <pl_net_init+0x144>)
++  ee:	      	ldr	r0, [pc, #56]	@ (128 <pl_net_init+0x128>)
+   f0:	  	bl	0 <osThreadNew>
+-  f4:	      	cbz	r0, fa <pl_net_init+0xfa>
+-  f6:	      	add	sp, #16
+-  f8:	      	pop	{r4, r5, r6, pc}
+-  fa:	  	bl	0 <xPortGetFreeHeapSize>
+-  fe:	      	mov	r4, r0
+- 100:	  	bl	0 <xPortGetMinimumEverFreeHeapSize>
+- 104:	      	mov	r3, r0
+- 106:	      	mov	r2, r4
+- 108:	      	ldr	r1, [pc, #60]	@ (148 <pl_net_init+0x148>)
+- 10a:	      	mov	r0, r6
+- 10c:	  	bl	0 <SEGGER_RTT_printf>
+- 110:	      	b.n	f6 <pl_net_init+0xf6>
+- 112:	      	nop
++  f4:	      	add	sp, #16
++  f6:	      	pop	{r4, r5, r6, pc}
+ 	...
+- 148:	 	.word	0x00000008

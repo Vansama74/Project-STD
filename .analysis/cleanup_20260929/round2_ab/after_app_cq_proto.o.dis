@@ -1,0 +1,326 @@
+
+/home/yystation/Program/3833024/Project-STD-main/build/Debug/Application/Src/ProtocolParser_ChongQing/app_cq_proto.o:     file format elf32-littlearm
+
+
+Disassembly of section .text.cq_proto_init:
+
+00000000 <cq_proto_init>:
+   0:	b510      	push	{r4, lr}
+   2:	4820      	ldr	r0, [pc, #128]	@ (84 <cq_proto_init+0x84>)
+   4:	f7ff fffe 	bl	0 <cJSON_InitHooks>
+   8:	f44f 61c0 	mov.w	r1, #1536	@ 0x600
+   c:	2000      	movs	r0, #0
+   e:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+  12:	b138      	cbz	r0, 24 <cq_proto_init+0x24>
+  14:	4604      	mov	r4, r0
+  16:	4601      	mov	r1, r0
+  18:	481b      	ldr	r0, [pc, #108]	@ (88 <cq_proto_init+0x88>)
+  1a:	f7ff fffe 	bl	0 <app_proto_register>
+  1e:	4b1b      	ldr	r3, [pc, #108]	@ (8c <cq_proto_init+0x8c>)
+  20:	6018      	str	r0, [r3, #0]
+  22:	b900      	cbnz	r0, 26 <cq_proto_init+0x26>
+  24:	bd10      	pop	{r4, pc}
+  26:	2107      	movs	r1, #7
+  28:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  2c:	4621      	mov	r1, r4
+  2e:	4816      	ldr	r0, [pc, #88]	@ (88 <cq_proto_init+0x88>)
+  30:	f7ff fffe 	bl	0 <app_proto_register>
+  34:	4b16      	ldr	r3, [pc, #88]	@ (90 <cq_proto_init+0x90>)
+  36:	6018      	str	r0, [r3, #0]
+  38:	b9d0      	cbnz	r0, 70 <cq_proto_init+0x70>
+  3a:	4a16      	ldr	r2, [pc, #88]	@ (94 <cq_proto_init+0x94>)
+  3c:	f240 411c 	movw	r1, #1052	@ 0x41c
+  40:	2003      	movs	r0, #3
+  42:	f7ff fffe 	bl	0 <osMessageQueueNew>
+  46:	4601      	mov	r1, r0
+  48:	4b13      	ldr	r3, [pc, #76]	@ (98 <cq_proto_init+0x98>)
+  4a:	6018      	str	r0, [r3, #0]
+  4c:	4b0f      	ldr	r3, [pc, #60]	@ (8c <cq_proto_init+0x8c>)
+  4e:	6818      	ldr	r0, [r3, #0]
+  50:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  54:	4b0e      	ldr	r3, [pc, #56]	@ (90 <cq_proto_init+0x90>)
+  56:	6818      	ldr	r0, [r3, #0]
+  58:	b970      	cbnz	r0, 78 <cq_proto_init+0x78>
+  5a:	4a10      	ldr	r2, [pc, #64]	@ (9c <cq_proto_init+0x9c>)
+  5c:	2100      	movs	r1, #0
+  5e:	4810      	ldr	r0, [pc, #64]	@ (a0 <cq_proto_init+0xa0>)
+  60:	f7ff fffe 	bl	0 <osThreadNew>
+  64:	4a0f      	ldr	r2, [pc, #60]	@ (a4 <cq_proto_init+0xa4>)
+  66:	2100      	movs	r1, #0
+  68:	480f      	ldr	r0, [pc, #60]	@ (a8 <cq_proto_init+0xa8>)
+  6a:	f7ff fffe 	bl	0 <osThreadNew>
+  6e:	e7d9      	b.n	24 <cq_proto_init+0x24>
+  70:	2104      	movs	r1, #4
+  72:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  76:	e7e0      	b.n	3a <cq_proto_init+0x3a>
+  78:	4b07      	ldr	r3, [pc, #28]	@ (98 <cq_proto_init+0x98>)
+  7a:	6819      	ldr	r1, [r3, #0]
+  7c:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  80:	e7eb      	b.n	5a <cq_proto_init+0x5a>
+  82:	bf00      	nop
+	...
+
+Disassembly of section .text.cq_probe_frame:
+
+00000000 <cq_probe_frame>:
+   0:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+   4:	b095      	sub	sp, #84	@ 0x54
+   6:	460c      	mov	r4, r1
+   8:	468a      	mov	sl, r1
+   a:	4693      	mov	fp, r2
+   c:	2100      	movs	r1, #0
+   e:	4620      	mov	r0, r4
+  10:	f7ff fffe 	bl	0 <rb_avail>
+  14:	2800      	cmp	r0, #0
+  16:	f000 8082 	beq.w	11e <cq_probe_frame+0x11e>
+  1a:	4680      	mov	r8, r0
+  1c:	2100      	movs	r1, #0
+  1e:	9100      	str	r1, [sp, #0]
+  20:	2301      	movs	r3, #1
+  22:	f10d 024f 	add.w	r2, sp, #79	@ 0x4f
+  26:	4620      	mov	r0, r4
+  28:	f7ff fffe 	bl	0 <rb_peek>
+  2c:	f89d 304f 	ldrb.w	r3, [sp, #79]	@ 0x4f
+  30:	2b7b      	cmp	r3, #123	@ 0x7b
+  32:	d036      	beq.n	a2 <cq_probe_frame+0xa2>
+  34:	2bff      	cmp	r3, #255	@ 0xff
+  36:	d053      	beq.n	e0 <cq_probe_frame+0xe0>
+  38:	2002      	movs	r0, #2
+  3a:	e071      	b.n	120 <cq_probe_frame+0x120>
+  3c:	2a22      	cmp	r2, #34	@ 0x22
+  3e:	d018      	beq.n	72 <cq_probe_frame+0x72>
+  40:	2a7b      	cmp	r2, #123	@ 0x7b
+  42:	d011      	beq.n	68 <cq_probe_frame+0x68>
+  44:	2a7d      	cmp	r2, #125	@ 0x7d
+  46:	d115      	bne.n	74 <cq_probe_frame+0x74>
+  48:	2f00      	cmp	r7, #0
+  4a:	d043      	beq.n	d4 <cq_probe_frame+0xd4>
+  4c:	3f01      	subs	r7, #1
+  4e:	d111      	bne.n	74 <cq_probe_frame+0x74>
+  50:	464a      	mov	r2, r9
+  52:	441a      	add	r2, r3
+  54:	4613      	mov	r3, r2
+  56:	3301      	adds	r3, #1
+  58:	f8cb 3000 	str.w	r3, [fp]
+  5c:	f240 4214 	movw	r2, #1044	@ 0x414
+  60:	4293      	cmp	r3, r2
+  62:	d939      	bls.n	d8 <cq_probe_frame+0xd8>
+  64:	2002      	movs	r0, #2
+  66:	e05b      	b.n	120 <cq_probe_frame+0x120>
+  68:	3701      	adds	r7, #1
+  6a:	2f10      	cmp	r7, #16
+  6c:	d902      	bls.n	74 <cq_probe_frame+0x74>
+  6e:	2002      	movs	r0, #2
+  70:	e056      	b.n	120 <cq_probe_frame+0x120>
+  72:	2501      	movs	r5, #1
+  74:	3401      	adds	r4, #1
+  76:	f240 4214 	movw	r2, #1044	@ 0x414
+  7a:	4294      	cmp	r4, r2
+  7c:	d82e      	bhi.n	dc <cq_probe_frame+0xdc>
+  7e:	3301      	adds	r3, #1
+  80:	429e      	cmp	r6, r3
+  82:	d90a      	bls.n	9a <cq_probe_frame+0x9a>
+  84:	f103 0250 	add.w	r2, r3, #80	@ 0x50
+  88:	446a      	add	r2, sp
+  8a:	f812 2c44 	ldrb.w	r2, [r2, #-68]
+  8e:	2d00      	cmp	r5, #0
+  90:	d0d4      	beq.n	3c <cq_probe_frame+0x3c>
+  92:	2a22      	cmp	r2, #34	@ 0x22
+  94:	d1ee      	bne.n	74 <cq_probe_frame+0x74>
+  96:	2500      	movs	r5, #0
+  98:	e7ec      	b.n	74 <cq_probe_frame+0x74>
+  9a:	464b      	mov	r3, r9
+  9c:	4433      	add	r3, r6
+  9e:	4699      	mov	r9, r3
+  a0:	e003      	b.n	aa <cq_probe_frame+0xaa>
+  a2:	2500      	movs	r5, #0
+  a4:	462c      	mov	r4, r5
+  a6:	462f      	mov	r7, r5
+  a8:	46a9      	mov	r9, r5
+  aa:	45c1      	cmp	r9, r8
+  ac:	d210      	bcs.n	d0 <cq_probe_frame+0xd0>
+  ae:	4643      	mov	r3, r8
+  b0:	464a      	mov	r2, r9
+  b2:	1a9e      	subs	r6, r3, r2
+  b4:	2e40      	cmp	r6, #64	@ 0x40
+  b6:	d900      	bls.n	ba <cq_probe_frame+0xba>
+  b8:	2640      	movs	r6, #64	@ 0x40
+  ba:	2300      	movs	r3, #0
+  bc:	9300      	str	r3, [sp, #0]
+  be:	b2b3      	uxth	r3, r6
+  c0:	aa03      	add	r2, sp, #12
+  c2:	fa1f f189 	uxth.w	r1, r9
+  c6:	4650      	mov	r0, sl
+  c8:	f7ff fffe 	bl	0 <rb_peek>
+  cc:	2300      	movs	r3, #0
+  ce:	e7d7      	b.n	80 <cq_probe_frame+0x80>
+  d0:	2001      	movs	r0, #1
+  d2:	e025      	b.n	120 <cq_probe_frame+0x120>
+  d4:	2002      	movs	r0, #2
+  d6:	e023      	b.n	120 <cq_probe_frame+0x120>
+  d8:	2000      	movs	r0, #0
+  da:	e021      	b.n	120 <cq_probe_frame+0x120>
+  dc:	2002      	movs	r0, #2
+  de:	e01f      	b.n	120 <cq_probe_frame+0x120>
+  e0:	4643      	mov	r3, r8
+  e2:	2b0b      	cmp	r3, #11
+  e4:	d801      	bhi.n	ea <cq_probe_frame+0xea>
+  e6:	2001      	movs	r0, #1
+  e8:	e01a      	b.n	120 <cq_probe_frame+0x120>
+  ea:	ac03      	add	r4, sp, #12
+  ec:	2100      	movs	r1, #0
+  ee:	9100      	str	r1, [sp, #0]
+  f0:	230c      	movs	r3, #12
+  f2:	4622      	mov	r2, r4
+  f4:	4650      	mov	r0, sl
+  f6:	f7ff fffe 	bl	0 <rb_peek>
+  fa:	220c      	movs	r2, #12
+  fc:	490a      	ldr	r1, [pc, #40]	@ (128 <cq_probe_frame+0x128>)
+  fe:	4620      	mov	r0, r4
+ 100:	f7ff fffe 	bl	0 <memcmp>
+ 104:	b128      	cbz	r0, 112 <cq_probe_frame+0x112>
+ 106:	220c      	movs	r2, #12
+ 108:	4908      	ldr	r1, [pc, #32]	@ (12c <cq_probe_frame+0x12c>)
+ 10a:	4620      	mov	r0, r4
+ 10c:	f7ff fffe 	bl	0 <memcmp>
+ 110:	b918      	cbnz	r0, 11a <cq_probe_frame+0x11a>
+ 112:	230c      	movs	r3, #12
+ 114:	f8cb 3000 	str.w	r3, [fp]
+ 118:	e002      	b.n	120 <cq_probe_frame+0x120>
+ 11a:	2002      	movs	r0, #2
+ 11c:	e000      	b.n	120 <cq_probe_frame+0x120>
+ 11e:	2002      	movs	r0, #2
+ 120:	b015      	add	sp, #84	@ 0x54
+ 122:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
+ 126:	bf00      	nop
+	...
+
+Disassembly of section .text.cq_proto_timer_task:
+
+00000000 <cq_proto_timer_task>:
+   0:	b508      	push	{r3, lr}
+   2:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
+   6:	f7ff fffe 	bl	0 <osDelay>
+   a:	4b09      	ldr	r3, [pc, #36]	@ (30 <cq_proto_timer_task+0x30>)
+   c:	681b      	ldr	r3, [r3, #0]
+   e:	2b00      	cmp	r3, #0
+  10:	ddf7      	ble.n	2 <cq_proto_timer_task+0x2>
+  12:	f7ff fffe 	bl	0 <vPortEnterCritical>
+  16:	4c06      	ldr	r4, [pc, #24]	@ (30 <cq_proto_timer_task+0x30>)
+  18:	6823      	ldr	r3, [r4, #0]
+  1a:	3b01      	subs	r3, #1
+  1c:	6023      	str	r3, [r4, #0]
+  1e:	f7ff fffe 	bl	0 <vPortExitCritical>
+  22:	6823      	ldr	r3, [r4, #0]
+  24:	2b00      	cmp	r3, #0
+  26:	d1ec      	bne.n	2 <cq_proto_timer_task+0x2>
+  28:	4618      	mov	r0, r3
+  2a:	f7ff fffe 	bl	0 <dev_io_flash_light>
+  2e:	e7e8      	b.n	2 <cq_proto_timer_task+0x2>
+  30:	00000000 	.word	0x00000000
+
+Disassembly of section .text.rb_provide_rj45:
+
+00000000 <rb_provide_rj45>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rj45+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.cq_proto_sync_reset:
+
+00000000 <cq_proto_sync_reset>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <vPortEnterCritical>
+   6:	4b03      	ldr	r3, [pc, #12]	@ (14 <cq_proto_sync_reset+0x14>)
+   8:	2200      	movs	r2, #0
+   a:	601a      	str	r2, [r3, #0]
+   c:	f7ff fffe 	bl	0 <vPortExitCritical>
+  10:	bd08      	pop	{r3, pc}
+  12:	bf00      	nop
+  14:	00000000 	.word	0x00000000
+
+Disassembly of section .text.cq_proto_handle_task:
+
+00000000 <cq_proto_handle_task>:
+   0:	b500      	push	{lr}
+   2:	b09b      	sub	sp, #108	@ 0x6c
+   4:	e018      	b.n	38 <cq_proto_handle_task+0x38>
+   6:	2b01      	cmp	r3, #1
+   8:	d016      	beq.n	38 <cq_proto_handle_task+0x38>
+   a:	4b1f      	ldr	r3, [pc, #124]	@ (88 <cq_proto_handle_task+0x88>)
+   c:	781b      	ldrb	r3, [r3, #0]
+   e:	b913      	cbnz	r3, 16 <cq_proto_handle_task+0x16>
+  10:	f7ff fffe 	bl	0 <cq_proto_handle_task>
+  14:	e010      	b.n	38 <cq_proto_handle_task+0x38>
+  16:	f7ff fffe 	bl	0 <app_default_display_show>
+  1a:	4b1b      	ldr	r3, [pc, #108]	@ (88 <cq_proto_handle_task+0x88>)
+  1c:	2200      	movs	r2, #0
+  1e:	701a      	strb	r2, [r3, #0]
+  20:	e7f6      	b.n	10 <cq_proto_handle_task+0x10>
+  22:	4669      	mov	r1, sp
+  24:	4b19      	ldr	r3, [pc, #100]	@ (8c <cq_proto_handle_task+0x8c>)
+  26:	6818      	ldr	r0, [r3, #0]
+  28:	f7ff fffe 	bl	0 <cq_execute_cmd>
+  2c:	f89d 3001 	ldrb.w	r3, [sp, #1]
+  30:	3b0c      	subs	r3, #12
+  32:	b2db      	uxtb	r3, r3
+  34:	2b01      	cmp	r3, #1
+  36:	d823      	bhi.n	80 <cq_proto_handle_task+0x80>
+  38:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
+  3c:	2200      	movs	r2, #0
+  3e:	4913      	ldr	r1, [pc, #76]	@ (8c <cq_proto_handle_task+0x8c>)
+  40:	4813      	ldr	r0, [pc, #76]	@ (90 <cq_proto_handle_task+0x90>)
+  42:	6800      	ldr	r0, [r0, #0]
+  44:	f7ff fffe 	bl	0 <osMessageQueueGet>
+  48:	2800      	cmp	r0, #0
+  4a:	d1f5      	bne.n	38 <cq_proto_handle_task+0x38>
+  4c:	490f      	ldr	r1, [pc, #60]	@ (8c <cq_proto_handle_task+0x8c>)
+  4e:	888a      	ldrh	r2, [r1, #4]
+  50:	3106      	adds	r1, #6
+  52:	4668      	mov	r0, sp
+  54:	f7ff fffe 	bl	0 <cq_parse_frame>
+  58:	f89d 3000 	ldrb.w	r3, [sp]
+  5c:	2b00      	cmp	r3, #0
+  5e:	d1d2      	bne.n	6 <cq_proto_handle_task+0x6>
+  60:	f89d 3001 	ldrb.w	r3, [sp, #1]
+  64:	3b0c      	subs	r3, #12
+  66:	b2db      	uxtb	r3, r3
+  68:	2b01      	cmp	r3, #1
+  6a:	d9da      	bls.n	22 <cq_proto_handle_task+0x22>
+  6c:	4b06      	ldr	r3, [pc, #24]	@ (88 <cq_proto_handle_task+0x88>)
+  6e:	781b      	ldrb	r3, [r3, #0]
+  70:	2b00      	cmp	r3, #0
+  72:	d0d6      	beq.n	22 <cq_proto_handle_task+0x22>
+  74:	f7ff fffe 	bl	0 <app_default_display_show>
+  78:	4b03      	ldr	r3, [pc, #12]	@ (88 <cq_proto_handle_task+0x88>)
+  7a:	2200      	movs	r2, #0
+  7c:	701a      	strb	r2, [r3, #0]
+  7e:	e7d0      	b.n	22 <cq_proto_handle_task+0x22>
+  80:	f7ff fffe 	bl	0 <cq_proto_handle_task>
+  84:	e7d8      	b.n	38 <cq_proto_handle_task+0x38>
+  86:	bf00      	nop
+	...
+
+Disassembly of section .text.cq_proto_warn_set:
+
+00000000 <cq_proto_warn_set>:
+   0:	b510      	push	{r4, lr}
+   2:	4604      	mov	r4, r0
+   4:	f7ff fffe 	bl	0 <vPortEnterCritical>
+   8:	4b09      	ldr	r3, [pc, #36]	@ (30 <cq_proto_warn_set+0x30>)
+   a:	601c      	str	r4, [r3, #0]
+   c:	f7ff fffe 	bl	0 <vPortExitCritical>
+  10:	2c00      	cmp	r4, #0
+  12:	dc04      	bgt.n	1e <cq_proto_warn_set+0x1e>
+  14:	b93c      	cbnz	r4, 26 <cq_proto_warn_set+0x26>
+  16:	4620      	mov	r0, r4
+  18:	f7ff fffe 	bl	0 <dev_io_flash_light>
+  1c:	e002      	b.n	24 <cq_proto_warn_set+0x24>
+  1e:	2001      	movs	r0, #1
+  20:	f7ff fffe 	bl	0 <dev_io_flash_light>
+  24:	bd10      	pop	{r4, pc}
+  26:	2001      	movs	r0, #1
+  28:	f7ff fffe 	bl	0 <dev_io_flash_light>
+  2c:	e7fa      	b.n	24 <cq_proto_warn_set+0x24>
+  2e:	bf00      	nop
+  30:	00000000 	.word	0x00000000

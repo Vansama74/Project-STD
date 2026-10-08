@@ -1,0 +1,200 @@
+
+.analysis/myanmar/ab_baseline/ah_mqtt.o:     file format elf32-littlearm
+
+
+Disassembly of section .text.ReportTask:
+
+00000000 <ReportTask>:
+   0:	b500      	push	{lr}
+   2:	b085      	sub	sp, #20
+   4:	4b13      	ldr	r3, [pc, #76]	@ (54 <ReportTask+0x54>)
+   6:	f103 020c 	add.w	r2, r3, #12
+   a:	9202      	str	r2, [sp, #8]
+   c:	f103 020a 	add.w	r2, r3, #10
+  10:	9201      	str	r2, [sp, #4]
+  12:	f103 0208 	add.w	r2, r3, #8
+  16:	9200      	str	r2, [sp, #0]
+  18:	4a0f      	ldr	r2, [pc, #60]	@ (58 <ReportTask+0x58>)
+  1a:	2140      	movs	r1, #64	@ 0x40
+  1c:	480f      	ldr	r0, [pc, #60]	@ (5c <ReportTask+0x5c>)
+  1e:	f7ff fffe 	bl	0 <snprintf>
+  22:	e009      	b.n	38 <ReportTask+0x38>
+  24:	2331      	movs	r3, #49	@ 0x31
+  26:	490e      	ldr	r1, [pc, #56]	@ (60 <ReportTask+0x60>)
+  28:	754b      	strb	r3, [r1, #21]
+  2a:	480c      	ldr	r0, [pc, #48]	@ (5c <ReportTask+0x5c>)
+  2c:	f7ff fffe 	bl	0 <mqtt_send_data>
+  30:	f242 7010 	movw	r0, #10000	@ 0x2710
+  34:	f7ff fffe 	bl	0 <osDelay>
+  38:	4c09      	ldr	r4, [pc, #36]	@ (60 <ReportTask+0x60>)
+  3a:	4d0a      	ldr	r5, [pc, #40]	@ (64 <ReportTask+0x64>)
+  3c:	cd0f      	ldmia	r5!, {r0, r1, r2, r3}
+  3e:	c40f      	stmia	r4!, {r0, r1, r2, r3}
+  40:	682b      	ldr	r3, [r5, #0]
+  42:	6023      	str	r3, [r4, #0]
+  44:	f7ff fffe 	bl	0 <dev_display_get>
+  48:	f890 3024 	ldrb.w	r3, [r0, #36]	@ 0x24
+  4c:	2b00      	cmp	r3, #0
+  4e:	d1e9      	bne.n	24 <ReportTask+0x24>
+  50:	2330      	movs	r3, #48	@ 0x30
+  52:	e7e8      	b.n	26 <ReportTask+0x26>
+	...
+
+Disassembly of section .text.SignUpTask:
+
+00000000 <SignUpTask>:
+   0:	b580      	push	{r7, lr}
+   2:	b084      	sub	sp, #16
+   4:	4b16      	ldr	r3, [pc, #88]	@ (60 <SignUpTask+0x60>)
+   6:	4f17      	ldr	r7, [pc, #92]	@ (64 <SignUpTask+0x64>)
+   8:	f103 020c 	add.w	r2, r3, #12
+   c:	9202      	str	r2, [sp, #8]
+   e:	f103 020a 	add.w	r2, r3, #10
+  12:	9201      	str	r2, [sp, #4]
+  14:	f103 0208 	add.w	r2, r3, #8
+  18:	9200      	str	r2, [sp, #0]
+  1a:	4a13      	ldr	r2, [pc, #76]	@ (68 <SignUpTask+0x68>)
+  1c:	2140      	movs	r1, #64	@ 0x40
+  1e:	4638      	mov	r0, r7
+  20:	f7ff fffe 	bl	0 <snprintf>
+  24:	4e11      	ldr	r6, [pc, #68]	@ (6c <SignUpTask+0x6c>)
+  26:	4634      	mov	r4, r6
+  28:	4d11      	ldr	r5, [pc, #68]	@ (70 <SignUpTask+0x70>)
+  2a:	cd0f      	ldmia	r5!, {r0, r1, r2, r3}
+  2c:	c40f      	stmia	r4!, {r0, r1, r2, r3}
+  2e:	682b      	ldr	r3, [r5, #0]
+  30:	6023      	str	r3, [r4, #0]
+  32:	4631      	mov	r1, r6
+  34:	4638      	mov	r0, r7
+  36:	f7ff fffe 	bl	0 <mqtt_send_data>
+  3a:	2330      	movs	r3, #48	@ 0x30
+  3c:	7533      	strb	r3, [r6, #20]
+  3e:	480d      	ldr	r0, [pc, #52]	@ (74 <SignUpTask+0x74>)
+  40:	f7ff fffe 	bl	0 <osDelay>
+  44:	4d09      	ldr	r5, [pc, #36]	@ (6c <SignUpTask+0x6c>)
+  46:	46ac      	mov	ip, r5
+  48:	4c09      	ldr	r4, [pc, #36]	@ (70 <SignUpTask+0x70>)
+  4a:	cc0f      	ldmia	r4!, {r0, r1, r2, r3}
+  4c:	e8ac 000f 	stmia.w	ip!, {r0, r1, r2, r3}
+  50:	6823      	ldr	r3, [r4, #0]
+  52:	f8cc 3000 	str.w	r3, [ip]
+  56:	4629      	mov	r1, r5
+  58:	4802      	ldr	r0, [pc, #8]	@ (64 <SignUpTask+0x64>)
+  5a:	f7ff fffe 	bl	0 <mqtt_send_data>
+  5e:	e7ee      	b.n	3e <SignUpTask+0x3e>
+	...
+  74:	000493e0 	.word	0x000493e0
+
+Disassembly of section .text.handle_topic:
+
+00000000 <handle_topic>:
+   0:	b510      	push	{r4, lr}
+   2:	4604      	mov	r4, r0
+   4:	490d      	ldr	r1, [pc, #52]	@ (3c <handle_topic+0x3c>)
+   6:	f7ff fffe 	bl	0 <strstr>
+   a:	b108      	cbz	r0, 10 <handle_topic+0x10>
+   c:	2001      	movs	r0, #1
+   e:	bd10      	pop	{r4, pc}
+  10:	490b      	ldr	r1, [pc, #44]	@ (40 <handle_topic+0x40>)
+  12:	4620      	mov	r0, r4
+  14:	f7ff fffe 	bl	0 <strstr>
+  18:	b960      	cbnz	r0, 34 <handle_topic+0x34>
+  1a:	490a      	ldr	r1, [pc, #40]	@ (44 <handle_topic+0x44>)
+  1c:	4620      	mov	r0, r4
+  1e:	f7ff fffe 	bl	0 <strstr>
+  22:	b948      	cbnz	r0, 38 <handle_topic+0x38>
+  24:	4908      	ldr	r1, [pc, #32]	@ (48 <handle_topic+0x48>)
+  26:	4620      	mov	r0, r4
+  28:	f7ff fffe 	bl	0 <strstr>
+  2c:	2800      	cmp	r0, #0
+  2e:	d0ee      	beq.n	e <handle_topic+0xe>
+  30:	2004      	movs	r0, #4
+  32:	e7ec      	b.n	e <handle_topic+0xe>
+  34:	2002      	movs	r0, #2
+  36:	e7ea      	b.n	e <handle_topic+0xe>
+  38:	2003      	movs	r0, #3
+  3a:	e7e8      	b.n	e <handle_topic+0xe>
+  3c:	00000000 	.word	0x00000000
+  40:	00000010 	.word	0x00000010
+  44:	00000024 	.word	0x00000024
+  48:	00000034 	.word	0x00000034
+
+Disassembly of section .text.rb_provide_rj45:
+
+00000000 <rb_provide_rj45>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rj45+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ah_mqtt_handle_task:
+
+00000000 <ah_mqtt_handle_task>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4a1d      	ldr	r2, [pc, #116]	@ (78 <ah_mqtt_handle_task+0x78>)
+   4:	f240 211d 	movw	r1, #541	@ 0x21d
+   8:	2003      	movs	r0, #3
+   a:	f7ff fffe 	bl	0 <osMessageQueueNew>
+   e:	4601      	mov	r1, r0
+  10:	4b1a      	ldr	r3, [pc, #104]	@ (7c <ah_mqtt_handle_task+0x7c>)
+  12:	6018      	str	r0, [r3, #0]
+  14:	2000      	movs	r0, #0
+  16:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  1a:	e002      	b.n	22 <ah_mqtt_handle_task+0x22>
+  1c:	2064      	movs	r0, #100	@ 0x64
+  1e:	f7ff fffe 	bl	0 <osDelay>
+  22:	4b17      	ldr	r3, [pc, #92]	@ (80 <ah_mqtt_handle_task+0x80>)
+  24:	7a1b      	ldrb	r3, [r3, #8]
+  26:	2b03      	cmp	r3, #3
+  28:	d1f8      	bne.n	1c <ah_mqtt_handle_task+0x1c>
+  2a:	4a16      	ldr	r2, [pc, #88]	@ (84 <ah_mqtt_handle_task+0x84>)
+  2c:	2100      	movs	r1, #0
+  2e:	4816      	ldr	r0, [pc, #88]	@ (88 <ah_mqtt_handle_task+0x88>)
+  30:	f7ff fffe 	bl	0 <osThreadNew>
+  34:	4b15      	ldr	r3, [pc, #84]	@ (8c <ah_mqtt_handle_task+0x8c>)
+  36:	6018      	str	r0, [r3, #0]
+  38:	4a15      	ldr	r2, [pc, #84]	@ (90 <ah_mqtt_handle_task+0x90>)
+  3a:	2100      	movs	r1, #0
+  3c:	4815      	ldr	r0, [pc, #84]	@ (94 <ah_mqtt_handle_task+0x94>)
+  3e:	f7ff fffe 	bl	0 <osThreadNew>
+  42:	4b15      	ldr	r3, [pc, #84]	@ (98 <ah_mqtt_handle_task+0x98>)
+  44:	6018      	str	r0, [r3, #0]
+  46:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
+  4a:	2200      	movs	r2, #0
+  4c:	4913      	ldr	r1, [pc, #76]	@ (9c <ah_mqtt_handle_task+0x9c>)
+  4e:	480b      	ldr	r0, [pc, #44]	@ (7c <ah_mqtt_handle_task+0x7c>)
+  50:	6800      	ldr	r0, [r0, #0]
+  52:	f7ff fffe 	bl	0 <osMessageQueueGet>
+  56:	2800      	cmp	r0, #0
+  58:	d1f5      	bne.n	46 <ah_mqtt_handle_task+0x46>
+  5a:	4c10      	ldr	r4, [pc, #64]	@ (9c <ah_mqtt_handle_task+0x9c>)
+  5c:	f854 5b06 	ldr.w	r5, [r4], #6
+  60:	f205 4094 	addw	r0, r5, #1172	@ 0x494
+  64:	f7ff fffe 	bl	0 <ah_mqtt_handle_task>
+  68:	4b0d      	ldr	r3, [pc, #52]	@ (a0 <ah_mqtt_handle_task+0xa0>)
+  6a:	f853 3020 	ldr.w	r3, [r3, r0, lsl #2]
+  6e:	4621      	mov	r1, r4
+  70:	4628      	mov	r0, r5
+  72:	4798      	blx	r3
+  74:	e7e7      	b.n	46 <ah_mqtt_handle_task+0x46>
+  76:	bf00      	nop
+	...
+
+Disassembly of section .text.ah_mqtt_probe_frame:
+
+00000000 <ah_mqtt_probe_frame>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	4606      	mov	r6, r0
+   4:	4608      	mov	r0, r1
+   6:	4615      	mov	r5, r2
+   8:	461c      	mov	r4, r3
+   a:	2100      	movs	r1, #0
+   c:	f7ff fffe 	bl	0 <rb_avail>
+  10:	b138      	cbz	r0, 22 <ah_mqtt_probe_frame+0x22>
+  12:	6028      	str	r0, [r5, #0]
+  14:	f206 4094 	addw	r0, r6, #1172	@ 0x494
+  18:	f7ff fffe 	bl	0 <ah_mqtt_probe_frame>
+  1c:	7020      	strb	r0, [r4, #0]
+  1e:	2000      	movs	r0, #0
+  20:	bd70      	pop	{r4, r5, r6, pc}
+  22:	2002      	movs	r0, #2
+  24:	e7fc      	b.n	20 <ah_mqtt_probe_frame+0x20>

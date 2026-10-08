@@ -1,0 +1,794 @@
+
+
+
+Disassembly of section .text.ldi_cmd_allowed:
+
+00000000 <ldi_cmd_allowed>:
+   0:	f1a1 030a 	sub.w	r3, r1, #10
+   4:	b2db      	uxtb	r3, r3
+   6:	2b01      	cmp	r3, #1
+   8:	d91c      	bls.n	44 <ldi_cmd_allowed+0x44>
+   a:	290d      	cmp	r1, #13
+   c:	d01c      	beq.n	48 <ldi_cmd_allowed+0x48>
+   e:	291d      	cmp	r1, #29
+  10:	d01c      	beq.n	4c <ldi_cmd_allowed+0x4c>
+  12:	291e      	cmp	r1, #30
+  14:	d01c      	beq.n	50 <ldi_cmd_allowed+0x50>
+  16:	2921      	cmp	r1, #33	@ 0x21
+  18:	d01c      	beq.n	54 <ldi_cmd_allowed+0x54>
+  1a:	2801      	cmp	r0, #1
+  1c:	d007      	beq.n	2e <ldi_cmd_allowed+0x2e>
+  1e:	2802      	cmp	r0, #2
+  20:	d01a      	beq.n	58 <ldi_cmd_allowed+0x58>
+  22:	b9d8      	cbnz	r0, 5c <ldi_cmd_allowed+0x5c>
+  24:	29e0      	cmp	r1, #224	@ 0xe0
+  26:	bf14      	ite	ne
+  28:	2000      	movne	r0, #0
+  2a:	2001      	moveq	r0, #1
+  2c:	4770      	bx	lr
+  2e:	29e0      	cmp	r1, #224	@ 0xe0
+  30:	d006      	beq.n	40 <ldi_cmd_allowed+0x40>
+  32:	291a      	cmp	r1, #26
+  34:	d002      	beq.n	3c <ldi_cmd_allowed+0x3c>
+  36:	2100      	movs	r1, #0
+  38:	4608      	mov	r0, r1
+  3a:	4770      	bx	lr
+  3c:	2101      	movs	r1, #1
+  3e:	e7fb      	b.n	38 <ldi_cmd_allowed+0x38>
+  40:	2101      	movs	r1, #1
+  42:	e7f9      	b.n	38 <ldi_cmd_allowed+0x38>
+  44:	2001      	movs	r0, #1
+  46:	4770      	bx	lr
+  48:	2001      	movs	r0, #1
+  4a:	4770      	bx	lr
+  4c:	2001      	movs	r0, #1
+  4e:	4770      	bx	lr
+  50:	2001      	movs	r0, #1
+  52:	4770      	bx	lr
+  54:	2001      	movs	r0, #1
+  56:	4770      	bx	lr
+  58:	2001      	movs	r0, #1
+  5a:	4770      	bx	lr
+  5c:	2000      	movs	r0, #0
+  5e:	4770      	bx	lr
+
+Disassembly of section .text.ldi_handle_task:
+
+00000000 <ldi_handle_task>:
+   0:	b510      	push	{r4, lr}
+   2:	4a25      	ldr	r2, [pc, #148]	@ (98 <ldi_handle_task+0x98>)
+   4:	f44f 7102 	mov.w	r1, #520	@ 0x208
+   8:	2004      	movs	r0, #4
+   a:	f7ff fffe 	bl	0 <osMessageQueueNew>
+   e:	4601      	mov	r1, r0
+  10:	4b22      	ldr	r3, [pc, #136]	@ (9c <ldi_handle_task+0x9c>)
+  12:	6018      	str	r0, [r3, #0]
+  14:	4b22      	ldr	r3, [pc, #136]	@ (a0 <ldi_handle_task+0xa0>)
+  16:	6818      	ldr	r0, [r3, #0]
+  18:	b950      	cbnz	r0, 30 <ldi_handle_task+0x30>
+  1a:	4b22      	ldr	r3, [pc, #136]	@ (a4 <ldi_handle_task+0xa4>)
+  1c:	6818      	ldr	r0, [r3, #0]
+  1e:	b950      	cbnz	r0, 36 <ldi_handle_task+0x36>
+  20:	4b21      	ldr	r3, [pc, #132]	@ (a8 <ldi_handle_task+0xa8>)
+  22:	6818      	ldr	r0, [r3, #0]
+  24:	b1f8      	cbz	r0, 66 <ldi_handle_task+0x66>
+  26:	4b1d      	ldr	r3, [pc, #116]	@ (9c <ldi_handle_task+0x9c>)
+  28:	6819      	ldr	r1, [r3, #0]
+  2a:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  2e:	e01a      	b.n	66 <ldi_handle_task+0x66>
+  30:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  34:	e7f1      	b.n	1a <ldi_handle_task+0x1a>
+  36:	4b19      	ldr	r3, [pc, #100]	@ (9c <ldi_handle_task+0x9c>)
+  38:	6819      	ldr	r1, [r3, #0]
+  3a:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  3e:	e7ef      	b.n	20 <ldi_handle_task+0x20>
+  40:	3301      	adds	r3, #1
+  42:	b2db      	uxtb	r3, r3
+  44:	2b0b      	cmp	r3, #11
+  46:	d805      	bhi.n	54 <ldi_handle_task+0x54>
+  48:	4a18      	ldr	r2, [pc, #96]	@ (ac <ldi_handle_task+0xac>)
+  4a:	5cd2      	ldrb	r2, [r2, r3]
+  4c:	4294      	cmp	r4, r2
+  4e:	d1f7      	bne.n	40 <ldi_handle_task+0x40>
+  50:	4619      	mov	r1, r3
+  52:	e7f5      	b.n	40 <ldi_handle_task+0x40>
+  54:	290b      	cmp	r1, #11
+  56:	d806      	bhi.n	66 <ldi_handle_task+0x66>
+  58:	4b15      	ldr	r3, [pc, #84]	@ (b0 <ldi_handle_task+0xb0>)
+  5a:	f853 3021 	ldr.w	r3, [r3, r1, lsl #2]
+  5e:	4915      	ldr	r1, [pc, #84]	@ (b4 <ldi_handle_task+0xb4>)
+  60:	f851 0c0e 	ldr.w	r0, [r1, #-14]
+  64:	4798      	blx	r3
+  66:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
+  6a:	2200      	movs	r2, #0
+  6c:	4912      	ldr	r1, [pc, #72]	@ (b8 <ldi_handle_task+0xb8>)
+  6e:	480b      	ldr	r0, [pc, #44]	@ (9c <ldi_handle_task+0x9c>)
+  70:	6800      	ldr	r0, [r0, #0]
+  72:	f7ff fffe 	bl	0 <osMessageQueueGet>
+  76:	2800      	cmp	r0, #0
+  78:	d1f5      	bne.n	66 <ldi_handle_task+0x66>
+  7a:	4a0f      	ldr	r2, [pc, #60]	@ (b8 <ldi_handle_task+0xb8>)
+  7c:	7a51      	ldrb	r1, [r2, #9]
+  7e:	4b0f      	ldr	r3, [pc, #60]	@ (bc <ldi_handle_task+0xbc>)
+  80:	7059      	strb	r1, [r3, #1]
+  82:	7b94      	ldrb	r4, [r2, #14]
+  84:	4621      	mov	r1, r4
+  86:	7818      	ldrb	r0, [r3, #0]
+  88:	f7ff fffe 	bl	0 <ldi_handle_task>
+  8c:	2800      	cmp	r0, #0
+  8e:	d0ea      	beq.n	66 <ldi_handle_task+0x66>
+  90:	2300      	movs	r3, #0
+  92:	21ff      	movs	r1, #255	@ 0xff
+  94:	e7d6      	b.n	44 <ldi_handle_task+0x44>
+  96:	bf00      	nop
+	...
+  b4:	0000000e 	.word	0x0000000e
+	...
+
+Disassembly of section .text.ldi_probe_frame:
+
+00000000 <ldi_probe_frame>:
+   0:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+   4:	b085      	sub	sp, #20
+   6:	460f      	mov	r7, r1
+   8:	4691      	mov	r9, r2
+   a:	469a      	mov	sl, r3
+   c:	2100      	movs	r1, #0
+   e:	4638      	mov	r0, r7
+  10:	f7ff fffe 	bl	0 <rb_avail>
+  14:	2800      	cmp	r0, #0
+  16:	f000 809b 	beq.w	150 <ldi_probe_frame+0x150>
+  1a:	4604      	mov	r4, r0
+  1c:	2100      	movs	r1, #0
+  1e:	9100      	str	r1, [sp, #0]
+  20:	2301      	movs	r3, #1
+  22:	f10d 020f 	add.w	r2, sp, #15
+  26:	4638      	mov	r0, r7
+  28:	f7ff fffe 	bl	0 <rb_peek>
+  2c:	f89d 300f 	ldrb.w	r3, [sp, #15]
+  30:	2bff      	cmp	r3, #255	@ 0xff
+  32:	f040 8093 	bne.w	15c <ldi_probe_frame+0x15c>
+  36:	2c07      	cmp	r4, #7
+  38:	d802      	bhi.n	40 <ldi_probe_frame+0x40>
+  3a:	2301      	movs	r3, #1
+  3c:	4698      	mov	r8, r3
+  3e:	e089      	b.n	154 <ldi_probe_frame+0x154>
+  40:	f44f 7200 	mov.w	r2, #512	@ 0x200
+  44:	2100      	movs	r1, #0
+  46:	4851      	ldr	r0, [pc, #324]	@ (18c <ldi_probe_frame+0x18c>)
+  48:	f7ff fffe 	bl	0 <memset>
+  4c:	4623      	mov	r3, r4
+  4e:	f5b4 7f00 	cmp.w	r4, #512	@ 0x200
+  52:	bf28      	it	cs
+  54:	f44f 7300 	movcs.w	r3, #512	@ 0x200
+  58:	2100      	movs	r1, #0
+  5a:	9100      	str	r1, [sp, #0]
+  5c:	b29b      	uxth	r3, r3
+  5e:	4a4b      	ldr	r2, [pc, #300]	@ (18c <ldi_probe_frame+0x18c>)
+  60:	4638      	mov	r0, r7
+  62:	f7ff fffe 	bl	0 <rb_peek>
+  66:	4e49      	ldr	r6, [pc, #292]	@ (18c <ldi_probe_frame+0x18c>)
+  68:	7873      	ldrb	r3, [r6, #1]
+  6a:	2bff      	cmp	r3, #255	@ 0xff
+  6c:	d179      	bne.n	162 <ldi_probe_frame+0x162>
+  6e:	78b3      	ldrb	r3, [r6, #2]
+  70:	4698      	mov	r8, r3
+  72:	2b00      	cmp	r3, #0
+  74:	d178      	bne.n	168 <ldi_probe_frame+0x168>
+  76:	7931      	ldrb	r1, [r6, #4]
+  78:	7973      	ldrb	r3, [r6, #5]
+  7a:	041b      	lsls	r3, r3, #16
+  7c:	ea43 6301 	orr.w	r3, r3, r1, lsl #24
+  80:	79b1      	ldrb	r1, [r6, #6]
+  82:	ea43 2301 	orr.w	r3, r3, r1, lsl #8
+  86:	79f2      	ldrb	r2, [r6, #7]
+  88:	ea43 0502 	orr.w	r5, r3, r2
+  8c:	2d02      	cmp	r5, #2
+  8e:	d06e      	beq.n	16e <ldi_probe_frame+0x16e>
+  90:	1e6b      	subs	r3, r5, #1
+  92:	f5b3 7ffb 	cmp.w	r3, #502	@ 0x1f6
+  96:	d26d      	bcs.n	174 <ldi_probe_frame+0x174>
+  98:	f105 030a 	add.w	r3, r5, #10
+  9c:	469b      	mov	fp, r3
+  9e:	429c      	cmp	r4, r3
+  a0:	d36b      	bcc.n	17a <ldi_probe_frame+0x17a>
+  a2:	f5b3 7f00 	cmp.w	r3, #512	@ 0x200
+  a6:	d86b      	bhi.n	180 <ldi_probe_frame+0x180>
+  a8:	2100      	movs	r1, #0
+  aa:	9100      	str	r1, [sp, #0]
+  ac:	b29b      	uxth	r3, r3
+  ae:	4632      	mov	r2, r6
+  b0:	4638      	mov	r0, r7
+  b2:	f7ff fffe 	bl	0 <rb_peek>
+  b6:	1973      	adds	r3, r6, r5
+  b8:	7a1a      	ldrb	r2, [r3, #8]
+  ba:	1c6b      	adds	r3, r5, #1
+  bc:	4433      	add	r3, r6
+  be:	7a1b      	ldrb	r3, [r3, #8]
+  c0:	ea43 2402 	orr.w	r4, r3, r2, lsl #8
+  c4:	1da9      	adds	r1, r5, #6
+  c6:	1cb0      	adds	r0, r6, #2
+  c8:	f7ff fffe 	bl	0 <crc16_xmodem>
+  cc:	4284      	cmp	r4, r0
+  ce:	d15a      	bne.n	186 <ldi_probe_frame+0x186>
+  d0:	7a32      	ldrb	r2, [r6, #8]
+  d2:	4614      	mov	r4, r2
+  d4:	f1a2 030a 	sub.w	r3, r2, #10
+  d8:	b2db      	uxtb	r3, r3
+  da:	2b01      	cmp	r3, #1
+  dc:	d923      	bls.n	126 <ldi_probe_frame+0x126>
+  de:	2a0d      	cmp	r2, #13
+  e0:	d021      	beq.n	126 <ldi_probe_frame+0x126>
+  e2:	2a1d      	cmp	r2, #29
+  e4:	d01f      	beq.n	126 <ldi_probe_frame+0x126>
+  e6:	2a1e      	cmp	r2, #30
+  e8:	d01d      	beq.n	126 <ldi_probe_frame+0x126>
+  ea:	2a21      	cmp	r2, #33	@ 0x21
+  ec:	d01b      	beq.n	126 <ldi_probe_frame+0x126>
+  ee:	2a1b      	cmp	r2, #27
+  f0:	d021      	beq.n	136 <ldi_probe_frame+0x136>
+  f2:	2ab1      	cmp	r2, #177	@ 0xb1
+  f4:	d01c      	beq.n	130 <ldi_probe_frame+0x130>
+  f6:	230a      	movs	r3, #10
+  f8:	2105      	movs	r1, #5
+  fa:	4a25      	ldr	r2, [pc, #148]	@ (190 <ldi_probe_frame+0x190>)
+  fc:	f892 20aa 	ldrb.w	r2, [r2, #170]	@ 0xaa
+ 100:	b18a      	cbz	r2, 126 <ldi_probe_frame+0x126>
+ 102:	461e      	mov	r6, r3
+ 104:	3308      	adds	r3, #8
+ 106:	42ab      	cmp	r3, r5
+ 108:	d818      	bhi.n	13c <ldi_probe_frame+0x13c>
+ 10a:	2205      	movs	r2, #5
+ 10c:	4b21      	ldr	r3, [pc, #132]	@ (194 <ldi_probe_frame+0x194>)
+ 10e:	4419      	add	r1, r3
+ 110:	4821      	ldr	r0, [pc, #132]	@ (198 <ldi_probe_frame+0x198>)
+ 112:	f7ff fffe 	bl	0 <memcmp>
+ 116:	b9b0      	cbnz	r0, 146 <ldi_probe_frame+0x146>
+ 118:	2208      	movs	r2, #8
+ 11a:	491e      	ldr	r1, [pc, #120]	@ (194 <ldi_probe_frame+0x194>)
+ 11c:	4431      	add	r1, r6
+ 11e:	481f      	ldr	r0, [pc, #124]	@ (19c <ldi_probe_frame+0x19c>)
+ 120:	f7ff fffe 	bl	0 <memcmp>
+ 124:	b978      	cbnz	r0, 146 <ldi_probe_frame+0x146>
+ 126:	f88a 4000 	strb.w	r4, [sl]
+ 12a:	f8c9 b000 	str.w	fp, [r9]
+ 12e:	e011      	b.n	154 <ldi_probe_frame+0x154>
+ 130:	230e      	movs	r3, #14
+ 132:	2109      	movs	r1, #9
+ 134:	e7e1      	b.n	fa <ldi_probe_frame+0xfa>
+ 136:	230e      	movs	r3, #14
+ 138:	2109      	movs	r1, #9
+ 13a:	e7de      	b.n	fa <ldi_probe_frame+0xfa>
+ 13c:	f8c9 b000 	str.w	fp, [r9]
+ 140:	2303      	movs	r3, #3
+ 142:	4698      	mov	r8, r3
+ 144:	e006      	b.n	154 <ldi_probe_frame+0x154>
+ 146:	f8c9 b000 	str.w	fp, [r9]
+ 14a:	2303      	movs	r3, #3
+ 14c:	4698      	mov	r8, r3
+ 14e:	e001      	b.n	154 <ldi_probe_frame+0x154>
+ 150:	2302      	movs	r3, #2
+ 152:	4698      	mov	r8, r3
+ 154:	4640      	mov	r0, r8
+ 156:	b005      	add	sp, #20
+ 158:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
+ 15c:	2302      	movs	r3, #2
+ 15e:	4698      	mov	r8, r3
+ 160:	e7f8      	b.n	154 <ldi_probe_frame+0x154>
+ 162:	2302      	movs	r3, #2
+ 164:	4698      	mov	r8, r3
+ 166:	e7f5      	b.n	154 <ldi_probe_frame+0x154>
+ 168:	2302      	movs	r3, #2
+ 16a:	4698      	mov	r8, r3
+ 16c:	e7f2      	b.n	154 <ldi_probe_frame+0x154>
+ 16e:	2302      	movs	r3, #2
+ 170:	4698      	mov	r8, r3
+ 172:	e7ef      	b.n	154 <ldi_probe_frame+0x154>
+ 174:	2302      	movs	r3, #2
+ 176:	4698      	mov	r8, r3
+ 178:	e7ec      	b.n	154 <ldi_probe_frame+0x154>
+ 17a:	2301      	movs	r3, #1
+ 17c:	4698      	mov	r8, r3
+ 17e:	e7e9      	b.n	154 <ldi_probe_frame+0x154>
+ 180:	2302      	movs	r3, #2
+ 182:	4698      	mov	r8, r3
+ 184:	e7e6      	b.n	154 <ldi_probe_frame+0x154>
+ 186:	2302      	movs	r3, #2
+ 188:	4698      	mov	r8, r3
+ 18a:	e7e3      	b.n	154 <ldi_probe_frame+0x154>
+	...
+ 194:	00000008 	.word	0x00000008
+ 198:	00000018 	.word	0x00000018
+ 19c:	0000001d 	.word	0x0000001d
+
+Disassembly of section .text.ldi_timer_task:
+
+00000000 <ldi_timer_task>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	e002      	b.n	a <ldi_timer_task+0xa>
+   4:	4b1e      	ldr	r3, [pc, #120]	@ (80 <ldi_timer_task+0x80>)
+   6:	2200      	movs	r2, #0
+   8:	701a      	strb	r2, [r3, #0]
+   a:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
+   e:	f7ff fffe 	bl	0 <osDelay>
+  12:	f7ff fffe 	bl	0 <vms_timer_poll>
+  16:	f7ff fffe 	bl	0 <ldi_device_timer_poll>
+  1a:	2003      	movs	r0, #3
+  1c:	f7ff fffe 	bl	0 <app_channel_get>
+  20:	2800      	cmp	r0, #0
+  22:	d0ef      	beq.n	4 <ldi_timer_task+0x4>
+  24:	4604      	mov	r4, r0
+  26:	7843      	ldrb	r3, [r0, #1]
+  28:	2b01      	cmp	r3, #1
+  2a:	d1eb      	bne.n	4 <ldi_timer_task+0x4>
+  2c:	f7ff fffe 	bl	0 <osKernelGetTickCount>
+  30:	4605      	mov	r5, r0
+  32:	4b13      	ldr	r3, [pc, #76]	@ (80 <ldi_timer_task+0x80>)
+  34:	781b      	ldrb	r3, [r3, #0]
+  36:	b93b      	cbnz	r3, 48 <ldi_timer_task+0x48>
+  38:	4b11      	ldr	r3, [pc, #68]	@ (80 <ldi_timer_task+0x80>)
+  3a:	f8d3 30ac 	ldr.w	r3, [r3, #172]	@ 0xac
+  3e:	1ac3      	subs	r3, r0, r3
+  40:	f640 32b7 	movw	r2, #2999	@ 0xbb7
+  44:	4293      	cmp	r3, r2
+  46:	d814      	bhi.n	72 <ldi_timer_task+0x72>
+  48:	4b0d      	ldr	r3, [pc, #52]	@ (80 <ldi_timer_task+0x80>)
+  4a:	781b      	ldrb	r3, [r3, #0]
+  4c:	3b01      	subs	r3, #1
+  4e:	b2db      	uxtb	r3, r3
+  50:	2b01      	cmp	r3, #1
+  52:	d8da      	bhi.n	a <ldi_timer_task+0xa>
+  54:	4b0a      	ldr	r3, [pc, #40]	@ (80 <ldi_timer_task+0x80>)
+  56:	f8d3 30b0 	ldr.w	r3, [r3, #176]	@ 0xb0
+  5a:	1aeb      	subs	r3, r5, r3
+  5c:	f241 3287 	movw	r2, #4999	@ 0x1387
+  60:	4293      	cmp	r3, r2
+  62:	d9d2      	bls.n	a <ldi_timer_task+0xa>
+  64:	4620      	mov	r0, r4
+  66:	f7ff fffe 	bl	0 <ldi_send_sta_rpt>
+  6a:	4b05      	ldr	r3, [pc, #20]	@ (80 <ldi_timer_task+0x80>)
+  6c:	f8c3 50b0 	str.w	r5, [r3, #176]	@ 0xb0
+  70:	e7cb      	b.n	a <ldi_timer_task+0xa>
+  72:	4620      	mov	r0, r4
+  74:	f7ff fffe 	bl	0 <ldi_send_cert_req>
+  78:	4b01      	ldr	r3, [pc, #4]	@ (80 <ldi_timer_task+0x80>)
+  7a:	f8c3 50ac 	str.w	r5, [r3, #172]	@ 0xac
+  7e:	e7e3      	b.n	48 <ldi_timer_task+0x48>
+  80:	00000000 	.word	0x00000000
+
+Disassembly of section .text.rb_provide_rj45:
+
+00000000 <rb_provide_rj45>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rj45+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_ctx_init:
+
+00000000 <ldi_ctx_init>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b0b9      	sub	sp, #228	@ 0xe4
+   4:	4604      	mov	r4, r0
+   6:	ad0e      	add	r5, sp, #56	@ 0x38
+   8:	22a6      	movs	r2, #166	@ 0xa6
+   a:	2100      	movs	r1, #0
+   c:	4628      	mov	r0, r5
+   e:	f7ff fffe 	bl	0 <memset>
+  12:	4628      	mov	r0, r5
+  14:	f7ff fffe 	bl	0 <app_flash_ldi_load_config>
+  18:	4605      	mov	r5, r0
+  1a:	b120      	cbz	r0, 26 <ldi_ctx_init+0x26>
+  1c:	f89d 3059 	ldrb.w	r3, [sp, #89]	@ 0x59
+  20:	2b0b      	cmp	r3, #11
+  22:	d900      	bls.n	26 <ldi_ctx_init+0x26>
+  24:	2500      	movs	r5, #0
+  26:	a809      	add	r0, sp, #36	@ 0x24
+  28:	2300      	movs	r3, #0
+  2a:	9309      	str	r3, [sp, #36]	@ 0x24
+  2c:	6043      	str	r3, [r0, #4]
+  2e:	6083      	str	r3, [r0, #8]
+  30:	60c3      	str	r3, [r0, #12]
+  32:	6103      	str	r3, [r0, #16]
+  34:	f7ff fffe 	bl	0 <app_board_net_cfg_get>
+  38:	bb90      	cbnz	r0, a0 <ldi_ctx_init+0xa0>
+  3a:	f89d 2024 	ldrb.w	r2, [sp, #36]	@ 0x24
+  3e:	f89d 0025 	ldrb.w	r0, [sp, #37]	@ 0x25
+  42:	f89d 3026 	ldrb.w	r3, [sp, #38]	@ 0x26
+  46:	f89d 1027 	ldrb.w	r1, [sp, #39]	@ 0x27
+  4a:	4302      	orrs	r2, r0
+  4c:	4313      	orrs	r3, r2
+  4e:	4319      	orrs	r1, r3
+  50:	d026      	beq.n	a0 <ldi_ctx_init+0xa0>
+  52:	9b0c      	ldr	r3, [sp, #48]	@ 0x30
+  54:	b323      	cbz	r3, a0 <ldi_ctx_init+0xa0>
+  56:	f5b3 3f80 	cmp.w	r3, #65536	@ 0x10000
+  5a:	d221      	bcs.n	a0 <ldi_ctx_init+0xa0>
+  5c:	9b09      	ldr	r3, [sp, #36]	@ 0x24
+  5e:	6063      	str	r3, [r4, #4]
+  60:	9b0a      	ldr	r3, [sp, #40]	@ 0x28
+  62:	6123      	str	r3, [r4, #16]
+  64:	9b0b      	ldr	r3, [sp, #44]	@ 0x2c
+  66:	6163      	str	r3, [r4, #20]
+  68:	f8bd 3030 	ldrh.w	r3, [sp, #48]	@ 0x30
+  6c:	8123      	strh	r3, [r4, #8]
+  6e:	2d00      	cmp	r5, #0
+  70:	f000 8085 	beq.w	17e <ldi_ctx_init+0x17e>
+  74:	f8dd 303e 	ldr.w	r3, [sp, #62]	@ 0x3e
+  78:	f8c4 300a 	str.w	r3, [r4, #10]
+  7c:	f8bd 1042 	ldrh.w	r1, [sp, #66]	@ 0x42
+  80:	81e1      	strh	r1, [r4, #14]
+  82:	9813      	ldr	r0, [sp, #76]	@ 0x4c
+  84:	61a0      	str	r0, [r4, #24]
+  86:	f89d 3050 	ldrb.w	r3, [sp, #80]	@ 0x50
+  8a:	7723      	strb	r3, [r4, #28]
+  8c:	f8dd 2051 	ldr.w	r2, [sp, #81]	@ 0x51
+  90:	f8dd 3055 	ldr.w	r3, [sp, #85]	@ 0x55
+  94:	f8c4 201d 	str.w	r2, [r4, #29]
+  98:	f8c4 3021 	str.w	r3, [r4, #33]	@ 0x21
+  9c:	2000      	movs	r0, #0
+  9e:	e02f      	b.n	100 <ldi_ctx_init+0x100>
+  a0:	2d00      	cmp	r5, #0
+  a2:	f000 80bb 	beq.w	21c <ldi_ctx_init+0x21c>
+  a6:	9b0e      	ldr	r3, [sp, #56]	@ 0x38
+  a8:	6063      	str	r3, [r4, #4]
+  aa:	f8bd 303c 	ldrh.w	r3, [sp, #60]	@ 0x3c
+  ae:	8123      	strh	r3, [r4, #8]
+  b0:	9b11      	ldr	r3, [sp, #68]	@ 0x44
+  b2:	6123      	str	r3, [r4, #16]
+  b4:	9b12      	ldr	r3, [sp, #72]	@ 0x48
+  b6:	6163      	str	r3, [r4, #20]
+  b8:	f8dd 303e 	ldr.w	r3, [sp, #62]	@ 0x3e
+  bc:	f8c4 300a 	str.w	r3, [r4, #10]
+  c0:	f8bd 1042 	ldrh.w	r1, [sp, #66]	@ 0x42
+  c4:	81e1      	strh	r1, [r4, #14]
+  c6:	9813      	ldr	r0, [sp, #76]	@ 0x4c
+  c8:	61a0      	str	r0, [r4, #24]
+  ca:	f89d 3050 	ldrb.w	r3, [sp, #80]	@ 0x50
+  ce:	7723      	strb	r3, [r4, #28]
+  d0:	f8dd 2051 	ldr.w	r2, [sp, #81]	@ 0x51
+  d4:	f8dd 3055 	ldr.w	r3, [sp, #85]	@ 0x55
+  d8:	f8c4 201d 	str.w	r2, [r4, #29]
+  dc:	f8c4 3021 	str.w	r3, [r4, #33]	@ 0x21
+  e0:	2000      	movs	r0, #0
+  e2:	e066      	b.n	1b2 <ldi_ctx_init+0x1b2>
+  e4:	eb03 0343 	add.w	r3, r3, r3, lsl #1
+  e8:	eb05 0383 	add.w	r3, r5, r3, lsl #2
+  ec:	f813 2c85 	ldrb.w	r2, [r3, #-133]
+  f0:	eb00 0340 	add.w	r3, r0, r0, lsl #1
+  f4:	eb04 0383 	add.w	r3, r4, r3, lsl #2
+  f8:	f883 2027 	strb.w	r2, [r3, #39]	@ 0x27
+  fc:	3001      	adds	r0, #1
+  fe:	b2c0      	uxtb	r0, r0
+ 100:	f894 3025 	ldrb.w	r3, [r4, #37]	@ 0x25
+ 104:	4283      	cmp	r3, r0
+ 106:	d916      	bls.n	136 <ldi_ctx_init+0x136>
+ 108:	2300      	movs	r3, #0
+ 10a:	f89d 2059 	ldrb.w	r2, [sp, #89]	@ 0x59
+ 10e:	429a      	cmp	r2, r3
+ 110:	d9f4      	bls.n	fc <ldi_ctx_init+0xfc>
+ 112:	eb03 0243 	add.w	r2, r3, r3, lsl #1
+ 116:	ad38      	add	r5, sp, #224	@ 0xe0
+ 118:	eb05 0282 	add.w	r2, r5, r2, lsl #2
+ 11c:	f812 cc86 	ldrb.w	ip, [r2, #-134]
+ 120:	eb00 0240 	add.w	r2, r0, r0, lsl #1
+ 124:	eb04 0282 	add.w	r2, r4, r2, lsl #2
+ 128:	f892 2026 	ldrb.w	r2, [r2, #38]	@ 0x26
+ 12c:	4594      	cmp	ip, r2
+ 12e:	d0d9      	beq.n	e4 <ldi_ctx_init+0xe4>
+ 130:	3301      	adds	r3, #1
+ 132:	b2db      	uxtb	r3, r3
+ 134:	e7e9      	b.n	10a <ldi_ctx_init+0x10a>
+ 136:	f104 000a 	add.w	r0, r4, #10
+ 13a:	f7ff fffe 	bl	0 <app_tcp_client_set_remote>
+ 13e:	2204      	movs	r2, #4
+ 140:	a90e      	add	r1, sp, #56	@ 0x38
+ 142:	18a0      	adds	r0, r4, r2
+ 144:	f7ff fffe 	bl	0 <memcmp>
+ 148:	b990      	cbnz	r0, 170 <ldi_ctx_init+0x170>
+ 14a:	2204      	movs	r2, #4
+ 14c:	a911      	add	r1, sp, #68	@ 0x44
+ 14e:	f104 0010 	add.w	r0, r4, #16
+ 152:	f7ff fffe 	bl	0 <memcmp>
+ 156:	b958      	cbnz	r0, 170 <ldi_ctx_init+0x170>
+ 158:	2204      	movs	r2, #4
+ 15a:	a912      	add	r1, sp, #72	@ 0x48
+ 15c:	f104 0014 	add.w	r0, r4, #20
+ 160:	f7ff fffe 	bl	0 <memcmp>
+ 164:	b920      	cbnz	r0, 170 <ldi_ctx_init+0x170>
+ 166:	8922      	ldrh	r2, [r4, #8]
+ 168:	f8bd 303c 	ldrh.w	r3, [sp, #60]	@ 0x3c
+ 16c:	429a      	cmp	r2, r3
+ 16e:	d002      	beq.n	176 <ldi_ctx_init+0x176>
+ 170:	1d20      	adds	r0, r4, #4
+ 172:	f7ff fffe 	bl	0 <app_flash_ldi_save_config>
+ 176:	2301      	movs	r3, #1
+ 178:	f884 30aa 	strb.w	r3, [r4, #170]	@ 0xaa
+ 17c:	e049      	b.n	212 <ldi_ctx_init+0x212>
+ 17e:	f7ff fffe 	bl	0 <app_tcp_client_get_host_ip>
+ 182:	6803      	ldr	r3, [r0, #0]
+ 184:	f8c4 300a 	str.w	r3, [r4, #10]
+ 188:	f7ff fffe 	bl	0 <app_tcp_client_get_host_port>
+ 18c:	81e0      	strh	r0, [r4, #14]
+ 18e:	1d20      	adds	r0, r4, #4
+ 190:	f7ff fffe 	bl	0 <app_flash_ldi_save_config>
+ 194:	e7ef      	b.n	176 <ldi_ctx_init+0x176>
+ 196:	eb03 0343 	add.w	r3, r3, r3, lsl #1
+ 19a:	eb05 0383 	add.w	r3, r5, r3, lsl #2
+ 19e:	f813 2c85 	ldrb.w	r2, [r3, #-133]
+ 1a2:	eb00 0340 	add.w	r3, r0, r0, lsl #1
+ 1a6:	eb04 0383 	add.w	r3, r4, r3, lsl #2
+ 1aa:	f883 2027 	strb.w	r2, [r3, #39]	@ 0x27
+ 1ae:	3001      	adds	r0, #1
+ 1b0:	b2c0      	uxtb	r0, r0
+ 1b2:	f894 3025 	ldrb.w	r3, [r4, #37]	@ 0x25
+ 1b6:	4283      	cmp	r3, r0
+ 1b8:	d916      	bls.n	1e8 <ldi_ctx_init+0x1e8>
+ 1ba:	2300      	movs	r3, #0
+ 1bc:	f89d 2059 	ldrb.w	r2, [sp, #89]	@ 0x59
+ 1c0:	429a      	cmp	r2, r3
+ 1c2:	d9f4      	bls.n	1ae <ldi_ctx_init+0x1ae>
+ 1c4:	eb03 0243 	add.w	r2, r3, r3, lsl #1
+ 1c8:	ad38      	add	r5, sp, #224	@ 0xe0
+ 1ca:	eb05 0282 	add.w	r2, r5, r2, lsl #2
+ 1ce:	f812 cc86 	ldrb.w	ip, [r2, #-134]
+ 1d2:	eb00 0240 	add.w	r2, r0, r0, lsl #1
+ 1d6:	eb04 0282 	add.w	r2, r4, r2, lsl #2
+ 1da:	f892 2026 	ldrb.w	r2, [r2, #38]	@ 0x26
+ 1de:	4594      	cmp	ip, r2
+ 1e0:	d0d9      	beq.n	196 <ldi_ctx_init+0x196>
+ 1e2:	3301      	adds	r3, #1
+ 1e4:	b2db      	uxtb	r3, r3
+ 1e6:	e7e9      	b.n	1bc <ldi_ctx_init+0x1bc>
+ 1e8:	f104 000a 	add.w	r0, r4, #10
+ 1ec:	f7ff fffe 	bl	0 <app_tcp_client_set_remote>
+ 1f0:	2301      	movs	r3, #1
+ 1f2:	f884 30aa 	strb.w	r3, [r4, #170]	@ 0xaa
+ 1f6:	a804      	add	r0, sp, #16
+ 1f8:	f7ff fffe 	bl	0 <app_board_net_cfg_get>
+ 1fc:	b958      	cbnz	r0, 216 <ldi_ctx_init+0x216>
+ 1fe:	9b08      	ldr	r3, [sp, #32]
+ 200:	9300      	str	r3, [sp, #0]
+ 202:	8923      	ldrh	r3, [r4, #8]
+ 204:	f104 0214 	add.w	r2, r4, #20
+ 208:	f104 0110 	add.w	r1, r4, #16
+ 20c:	1d20      	adds	r0, r4, #4
+ 20e:	f7ff fffe 	bl	0 <app_board_net_cfg_update>
+ 212:	b039      	add	sp, #228	@ 0xe4
+ 214:	bd30      	pop	{r4, r5, pc}
+ 216:	f644 6387 	movw	r3, #20103	@ 0x4e87
+ 21a:	e7f1      	b.n	200 <ldi_ctx_init+0x200>
+ 21c:	2300      	movs	r3, #0
+ 21e:	9302      	str	r3, [sp, #8]
+ 220:	9303      	str	r3, [sp, #12]
+ 222:	9304      	str	r3, [sp, #16]
+ 224:	aa04      	add	r2, sp, #16
+ 226:	a903      	add	r1, sp, #12
+ 228:	a802      	add	r0, sp, #8
+ 22a:	f7ff fffe 	bl	0 <pl_net_get_ip>
+ 22e:	9b02      	ldr	r3, [sp, #8]
+ 230:	6063      	str	r3, [r4, #4]
+ 232:	9b03      	ldr	r3, [sp, #12]
+ 234:	6123      	str	r3, [r4, #16]
+ 236:	9b04      	ldr	r3, [sp, #16]
+ 238:	6163      	str	r3, [r4, #20]
+ 23a:	f7ff fffe 	bl	0 <app_tcp_server_get_port>
+ 23e:	8120      	strh	r0, [r4, #8]
+ 240:	f7ff fffe 	bl	0 <app_tcp_client_get_host_ip>
+ 244:	6803      	ldr	r3, [r0, #0]
+ 246:	f8c4 300a 	str.w	r3, [r4, #10]
+ 24a:	f7ff fffe 	bl	0 <app_tcp_client_get_host_port>
+ 24e:	81e0      	strh	r0, [r4, #14]
+ 250:	2301      	movs	r3, #1
+ 252:	f884 30aa 	strb.w	r3, [r4, #170]	@ 0xaa
+ 256:	e7dc      	b.n	212 <ldi_ctx_init+0x212>
+
+Disassembly of section .text.ldi_module_init:
+
+00000000 <ldi_module_init>:
+   0:	b510      	push	{r4, lr}
+   2:	b084      	sub	sp, #16
+   4:	f44f 61c0 	mov.w	r1, #1536	@ 0x600
+   8:	2000      	movs	r0, #0
+   a:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+   e:	2800      	cmp	r0, #0
+  10:	d043      	beq.n	9a <ldi_module_init+0x9a>
+  12:	4604      	mov	r4, r0
+  14:	4601      	mov	r1, r0
+  16:	4828      	ldr	r0, [pc, #160]	@ (b8 <ldi_module_init+0xb8>)
+  18:	f7ff fffe 	bl	0 <app_proto_register>
+  1c:	4b27      	ldr	r3, [pc, #156]	@ (bc <ldi_module_init+0xbc>)
+  1e:	6018      	str	r0, [r3, #0]
+  20:	2800      	cmp	r0, #0
+  22:	d13c      	bne.n	9e <ldi_module_init+0x9e>
+  24:	4621      	mov	r1, r4
+  26:	4824      	ldr	r0, [pc, #144]	@ (b8 <ldi_module_init+0xb8>)
+  28:	f7ff fffe 	bl	0 <app_proto_register>
+  2c:	4b24      	ldr	r3, [pc, #144]	@ (c0 <ldi_module_init+0xc0>)
+  2e:	6018      	str	r0, [r3, #0]
+  30:	2800      	cmp	r0, #0
+  32:	d138      	bne.n	a6 <ldi_module_init+0xa6>
+  34:	4621      	mov	r1, r4
+  36:	4820      	ldr	r0, [pc, #128]	@ (b8 <ldi_module_init+0xb8>)
+  38:	f7ff fffe 	bl	0 <app_proto_register>
+  3c:	4b21      	ldr	r3, [pc, #132]	@ (c4 <ldi_module_init+0xc4>)
+  3e:	6018      	str	r0, [r3, #0]
+  40:	2800      	cmp	r0, #0
+  42:	d134      	bne.n	ae <ldi_module_init+0xae>
+  44:	4b1d      	ldr	r3, [pc, #116]	@ (bc <ldi_module_init+0xbc>)
+  46:	681b      	ldr	r3, [r3, #0]
+  48:	b92b      	cbnz	r3, 56 <ldi_module_init+0x56>
+  4a:	4b1d      	ldr	r3, [pc, #116]	@ (c0 <ldi_module_init+0xc0>)
+  4c:	681b      	ldr	r3, [r3, #0]
+  4e:	b913      	cbnz	r3, 56 <ldi_module_init+0x56>
+  50:	4b1c      	ldr	r3, [pc, #112]	@ (c4 <ldi_module_init+0xc4>)
+  52:	681b      	ldr	r3, [r3, #0]
+  54:	b30b      	cbz	r3, 9a <ldi_module_init+0x9a>
+  56:	481c      	ldr	r0, [pc, #112]	@ (c8 <ldi_module_init+0xc8>)
+  58:	f7ff fffe 	bl	0 <ldi_module_init>
+  5c:	f7ff fffe 	bl	0 <ldi_device_init>
+  60:	4668      	mov	r0, sp
+  62:	2400      	movs	r4, #0
+  64:	9400      	str	r4, [sp, #0]
+  66:	9401      	str	r4, [sp, #4]
+  68:	9402      	str	r4, [sp, #8]
+  6a:	9403      	str	r4, [sp, #12]
+  6c:	4b17      	ldr	r3, [pc, #92]	@ (cc <ldi_module_init+0xcc>)
+  6e:	9300      	str	r3, [sp, #0]
+  70:	2302      	movs	r3, #2
+  72:	9301      	str	r3, [sp, #4]
+  74:	f7ff fffe 	bl	0 <osMutexNew>
+  78:	4b13      	ldr	r3, [pc, #76]	@ (c8 <ldi_module_init+0xc8>)
+  7a:	f8c3 00b4 	str.w	r0, [r3, #180]	@ 0xb4
+  7e:	4a14      	ldr	r2, [pc, #80]	@ (d0 <ldi_module_init+0xd0>)
+  80:	4621      	mov	r1, r4
+  82:	4814      	ldr	r0, [pc, #80]	@ (d4 <ldi_module_init+0xd4>)
+  84:	f7ff fffe 	bl	0 <osThreadNew>
+  88:	4b13      	ldr	r3, [pc, #76]	@ (d8 <ldi_module_init+0xd8>)
+  8a:	6018      	str	r0, [r3, #0]
+  8c:	4a13      	ldr	r2, [pc, #76]	@ (dc <ldi_module_init+0xdc>)
+  8e:	4621      	mov	r1, r4
+  90:	4813      	ldr	r0, [pc, #76]	@ (e0 <ldi_module_init+0xe0>)
+  92:	f7ff fffe 	bl	0 <osThreadNew>
+  96:	4b13      	ldr	r3, [pc, #76]	@ (e4 <ldi_module_init+0xe4>)
+  98:	6018      	str	r0, [r3, #0]
+  9a:	b004      	add	sp, #16
+  9c:	bd10      	pop	{r4, pc}
+  9e:	2102      	movs	r1, #2
+  a0:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  a4:	e7be      	b.n	24 <ldi_module_init+0x24>
+  a6:	2103      	movs	r1, #3
+  a8:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  ac:	e7c2      	b.n	34 <ldi_module_init+0x34>
+  ae:	2104      	movs	r1, #4
+  b0:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  b4:	e7c6      	b.n	44 <ldi_module_init+0x44>
+  b6:	bf00      	nop
+	...
+
+Disassembly of section .text.ldi_build_rsp_head:
+
+00000000 <ldi_build_rsp_head>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4604      	mov	r4, r0
+   4:	460d      	mov	r5, r1
+   6:	f7ff fffe 	bl	0 <pl_rtc_get_handle>
+   a:	f7ff fffe 	bl	0 <pl_rtc_get_timestamp>
+   e:	7025      	strb	r5, [r4, #0]
+  10:	0e03      	lsrs	r3, r0, #24
+  12:	7063      	strb	r3, [r4, #1]
+  14:	f3c0 4307 	ubfx	r3, r0, #16, #8
+  18:	70a3      	strb	r3, [r4, #2]
+  1a:	f3c0 2307 	ubfx	r3, r0, #8, #8
+  1e:	70e3      	strb	r3, [r4, #3]
+  20:	7120      	strb	r0, [r4, #4]
+  22:	4b08      	ldr	r3, [pc, #32]	@ (44 <ldi_build_rsp_head+0x44>)
+  24:	6998      	ldr	r0, [r3, #24]
+  26:	f8c4 0005 	str.w	r0, [r4, #5]
+  2a:	7f1a      	ldrb	r2, [r3, #28]
+  2c:	7262      	strb	r2, [r4, #9]
+  2e:	f8d3 201d 	ldr.w	r2, [r3, #29]
+  32:	f8d3 3021 	ldr.w	r3, [r3, #33]	@ 0x21
+  36:	f8c4 200a 	str.w	r2, [r4, #10]
+  3a:	f8c4 300e 	str.w	r3, [r4, #14]
+  3e:	2300      	movs	r3, #0
+  40:	8263      	strh	r3, [r4, #18]
+  42:	bd38      	pop	{r3, r4, r5, pc}
+  44:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_build_ctrl_rsp_head:
+
+00000000 <ldi_build_ctrl_rsp_head>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4604      	mov	r4, r0
+   4:	460d      	mov	r5, r1
+   6:	f7ff fffe 	bl	0 <pl_rtc_get_handle>
+   a:	f7ff fffe 	bl	0 <pl_rtc_get_timestamp>
+   e:	0ec2      	lsrs	r2, r0, #27
+  10:	0143      	lsls	r3, r0, #5
+  12:	1a1b      	subs	r3, r3, r0
+  14:	f162 0200 	sbc.w	r2, r2, #0
+  18:	0092      	lsls	r2, r2, #2
+  1a:	ea42 7293 	orr.w	r2, r2, r3, lsr #30
+  1e:	009b      	lsls	r3, r3, #2
+  20:	181b      	adds	r3, r3, r0
+  22:	f142 0200 	adc.w	r2, r2, #0
+  26:	00d2      	lsls	r2, r2, #3
+  28:	ea42 7253 	orr.w	r2, r2, r3, lsr #29
+  2c:	00d9      	lsls	r1, r3, #3
+  2e:	7025      	strb	r5, [r4, #0]
+  30:	0e10      	lsrs	r0, r2, #24
+  32:	7060      	strb	r0, [r4, #1]
+  34:	70a0      	strb	r0, [r4, #2]
+  36:	f3c2 2007 	ubfx	r0, r2, #8, #8
+  3a:	70e0      	strb	r0, [r4, #3]
+  3c:	7122      	strb	r2, [r4, #4]
+  3e:	f3c3 5247 	ubfx	r2, r3, #21, #8
+  42:	7162      	strb	r2, [r4, #5]
+  44:	f3c3 3247 	ubfx	r2, r3, #13, #8
+  48:	71a2      	strb	r2, [r4, #6]
+  4a:	f3c3 1347 	ubfx	r3, r3, #5, #8
+  4e:	71e3      	strb	r3, [r4, #7]
+  50:	7221      	strb	r1, [r4, #8]
+  52:	4b08      	ldr	r3, [pc, #32]	@ (74 <ldi_build_ctrl_rsp_head+0x74>)
+  54:	6998      	ldr	r0, [r3, #24]
+  56:	f8c4 0009 	str.w	r0, [r4, #9]
+  5a:	7f1a      	ldrb	r2, [r3, #28]
+  5c:	7362      	strb	r2, [r4, #13]
+  5e:	f8d3 201d 	ldr.w	r2, [r3, #29]
+  62:	f8d3 3021 	ldr.w	r3, [r3, #33]	@ 0x21
+  66:	f8c4 200e 	str.w	r2, [r4, #14]
+  6a:	f8c4 3012 	str.w	r3, [r4, #18]
+  6e:	2300      	movs	r3, #0
+  70:	82e3      	strh	r3, [r4, #22]
+  72:	bd38      	pop	{r3, r4, r5, pc}
+  74:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_get_device_index:
+
+00000000 <ldi_get_device_index>:
+   0:	2300      	movs	r3, #0
+   2:	e001      	b.n	8 <ldi_get_device_index+0x8>
+   4:	3301      	adds	r3, #1
+   6:	b2db      	uxtb	r3, r3
+   8:	4a0a      	ldr	r2, [pc, #40]	@ (34 <ldi_get_device_index+0x34>)
+   a:	f892 2025 	ldrb.w	r2, [r2, #37]	@ 0x25
+   e:	429a      	cmp	r2, r3
+  10:	d90e      	bls.n	30 <ldi_get_device_index+0x30>
+  12:	eb03 0143 	add.w	r1, r3, r3, lsl #1
+  16:	4a07      	ldr	r2, [pc, #28]	@ (34 <ldi_get_device_index+0x34>)
+  18:	eb02 0281 	add.w	r2, r2, r1, lsl #2
+  1c:	f892 2026 	ldrb.w	r2, [r2, #38]	@ 0x26
+  20:	4282      	cmp	r2, r0
+  22:	d1ef      	bne.n	4 <ldi_get_device_index+0x4>
+  24:	4a03      	ldr	r2, [pc, #12]	@ (34 <ldi_get_device_index+0x34>)
+  26:	eb02 0381 	add.w	r3, r2, r1, lsl #2
+  2a:	f893 0027 	ldrb.w	r0, [r3, #39]	@ 0x27
+  2e:	4770      	bx	lr
+  30:	20ff      	movs	r0, #255	@ 0xff
+  32:	4770      	bx	lr
+  34:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_set_device_index:
+
+00000000 <ldi_set_device_index>:
+   0:	2300      	movs	r3, #0
+   2:	e001      	b.n	8 <ldi_set_device_index+0x8>
+   4:	3301      	adds	r3, #1
+   6:	b2db      	uxtb	r3, r3
+   8:	4a0a      	ldr	r2, [pc, #40]	@ (34 <ldi_set_device_index+0x34>)
+   a:	f892 2025 	ldrb.w	r2, [r2, #37]	@ 0x25
+   e:	429a      	cmp	r2, r3
+  10:	d90e      	bls.n	30 <ldi_set_device_index+0x30>
+  12:	eb03 0c43 	add.w	ip, r3, r3, lsl #1
+  16:	4a07      	ldr	r2, [pc, #28]	@ (34 <ldi_set_device_index+0x34>)
+  18:	eb02 028c 	add.w	r2, r2, ip, lsl #2
+  1c:	f892 2026 	ldrb.w	r2, [r2, #38]	@ 0x26
+  20:	4282      	cmp	r2, r0
+  22:	d1ef      	bne.n	4 <ldi_set_device_index+0x4>
+  24:	4a03      	ldr	r2, [pc, #12]	@ (34 <ldi_set_device_index+0x34>)
+  26:	eb02 028c 	add.w	r2, r2, ip, lsl #2
+  2a:	f882 1027 	strb.w	r1, [r2, #39]	@ 0x27
+  2e:	e7e9      	b.n	4 <ldi_set_device_index+0x4>
+  30:	4770      	bx	lr
+  32:	bf00      	nop
+  34:	00000000 	.word	0x00000000

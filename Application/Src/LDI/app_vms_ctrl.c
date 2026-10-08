@@ -77,6 +77,11 @@ static const display_color_t s_clear_color_map[] = {
 
 static void vms_display_ctrl(ldi_ctrl_vms_t *ctx, const uint16_t text_len)
 {
+    /* 无显示驱动构建：VMS 情报板无屏可渲染 → 安全跳过（限速告警一行）。
+     * 有显示时仅多一次判空，后续路径与改动前逐条一致。 */
+    if (!dev_display_guard("ldi.vms"))
+        return;
+
     display_color_t color     = MAP(s_color_map, ctx->font_color, COLOR_BLACK);
     align_t         h_align   = MAP(s_align_map, ctx->format, ALIGN_CENTER);
     font_size_t     font_size = MAP(s_font_size_map, ctx->font_size, FONT_16);

@@ -10,9 +10,13 @@
 #   · `check_flash_artifact.sh` 需要 build/Debug 里是**当前源码树的 make 构建**、且含 22_1665
 #     驱动（EIDE 构建覆写、或最近一次 make 不是 22_1665 口径时该项会失败 —— 先
 #     `make PROTO=CQ DISP=22_1665 -j8`）。**注意**：`PROTO=ALL` + 工作区当前宏值 8×4
-#     （本模组 46080B）+ 其他消费者 35836B = 81916B > 64KB ⇒ **ALL/22_1665 链接期必然溢出**
-#     （预存状态，与断言/注释删除无关）——故本脚本在**没有**合格产物时把该项记为
+#     （本模组 46080B）+ 其他消费者 37156B = 83116B > 64KB ⇒ **ALL/22_1665 链接期必然溢出**
+#     （2026-10-08 实测 17700B；CQ 15444B；预存状态）——故本脚本在**没有**合格产物时把该项记为
 #     「跳过（前置不满足）」并打印原因，不静默算通过、也不算失败；
+#     **日常构建以 EIDE 为主**（现行 Debug 选择 + 8×4 实测 `.ccmram 60844B` 链接通过）。
+#   · 2026-10-08：驱动恢复 2 条编译期守卫（通道上限 / 本模组 ≤ 64KB）——
+#     `check_driver.py` / `check_eide_command.sh` / `check_compile_matrix.sh` 的期望值已同步
+#     （COLS=6 与 ROWS=47 由「静默编过 / 链接期报错」改回「编译期断言拦下」）。
 #   · `link_variant.sh` 需要一份**最新**的构建日志（`build_round*.log`，由 `make DISP=22_1665`
 #      或 `make PROTO=CQ DISP=22_1665` 生成；它从最新日志里抓驱动编译/链接命令）。
 #
@@ -157,7 +161,7 @@ if [ "$art_ok" -eq 1 ]; then
         "结果：[0-9]+ 通过 / [0-9]+ 失败" bash "$HERE/check_flash_artifact.sh"
 else
     _skip "check_flash_artifact.sh（烧录物内容身份）" \
-          "build/Debug/Project_STD.hex 不是「当前树（tree=$ART_TREE）+ 22_1665」的 make 产物 —— 当前宏值 8×4（本模组 46080B）下**任何 make 口径都装不下**：PROTO=ALL 溢出 16380B、PROTO=CQ 溢出 14124B（均为预存状态，与断言/注释删除无关；只有 EIDE Debug 子集能装：57484B）。要恢复查此项：把几何减到 8×2（ALL 口径 58876B，实测链接通过）或改用 EIDE 构建并接受它无 tree= 指纹"
+          "build/Debug/Project_STD.hex 不是「当前树（tree=$ART_TREE）+ 22_1665」的 make 产物 —— 当前宏值 8×4（本模组 46080B，2026-10-08 用户确认几何）下**任何 make 口径都装不下**：PROTO=ALL 溢出 17700B、PROTO=CQ 溢出 15444B（2026-10-08 实测，预存状态；日常构建走 EIDE —— 现行 Debug 选择 + 8×4 实测 .ccmram 60844B 链接通过）。要恢复查此项：把几何减到 8×2（ALL 口径 58876B，实测链接通过）或改用 EIDE 构建并接受它无 tree= 指纹"
 fi
 
 run_count "round25_two_modules.py（1×2 面板级取证：链首块归属 / 三种接线模型 / 改动前后逐字节）" \

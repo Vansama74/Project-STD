@@ -1,0 +1,376 @@
+
+
+
+Disassembly of section .text.pl_hub75_set_rgb:
+
+00000000 <pl_hub75_set_rgb>:
+   0:	2809      	cmp	r0, #9
+   2:	d82f      	bhi.n	64 <pl_hub75_set_rgb+0x64>
+   4:	b530      	push	{r4, r5, lr}
+   6:	f8df c068 	ldr.w	ip, [pc, #104]	@ 70 <pl_hub75_set_rgb+0x70>
+   a:	f85c 4030 	ldr.w	r4, [ip, r0, lsl #3]
+   e:	4a16      	ldr	r2, [pc, #88]	@ (68 <pl_hub75_set_rgb+0x68>)
+  10:	f852 3030 	ldr.w	r3, [r2, r0, lsl #3]
+  14:	461d      	mov	r5, r3
+  16:	4b15      	ldr	r3, [pc, #84]	@ (6c <pl_hub75_set_rgb+0x6c>)
+  18:	f853 e030 	ldr.w	lr, [r3, r0, lsl #3]
+  1c:	eb0c 0cc0 	add.w	ip, ip, r0, lsl #3
+  20:	f8bc c004 	ldrh.w	ip, [ip, #4]
+  24:	eb02 02c0 	add.w	r2, r2, r0, lsl #3
+  28:	8892      	ldrh	r2, [r2, #4]
+  2a:	eb03 03c0 	add.w	r3, r3, r0, lsl #3
+  2e:	889b      	ldrh	r3, [r3, #4]
+  30:	f011 0f01 	tst.w	r1, #1
+  34:	d00b      	beq.n	4e <pl_hub75_set_rgb+0x4e>
+  36:	f8c4 c018 	str.w	ip, [r4, #24]
+  3a:	f011 0f02 	tst.w	r1, #2
+  3e:	d00a      	beq.n	56 <pl_hub75_set_rgb+0x56>
+  40:	61aa      	str	r2, [r5, #24]
+  42:	f011 0f04 	tst.w	r1, #4
+  46:	d009      	beq.n	5c <pl_hub75_set_rgb+0x5c>
+  48:	f8ce 3018 	str.w	r3, [lr, #24]
+  4c:	bd30      	pop	{r4, r5, pc}
+  4e:	ea4f 400c 	mov.w	r0, ip, lsl #16
+  52:	61a0      	str	r0, [r4, #24]
+  54:	e7f1      	b.n	3a <pl_hub75_set_rgb+0x3a>
+  56:	0412      	lsls	r2, r2, #16
+  58:	61aa      	str	r2, [r5, #24]
+  5a:	e7f2      	b.n	42 <pl_hub75_set_rgb+0x42>
+  5c:	041b      	lsls	r3, r3, #16
+  5e:	f8ce 3018 	str.w	r3, [lr, #24]
+  62:	e7f3      	b.n	4c <pl_hub75_set_rgb+0x4c>
+  64:	4770      	bx	lr
+  66:	bf00      	nop
+	...
+
+Disassembly of section .text.pl_hub75_Decoder_set_row:
+
+00000000 <pl_hub75_Decoder_set_row>:
+   0:	f000 0201 	and.w	r2, r0, #1
+   4:	4b07      	ldr	r3, [pc, #28]	@ (24 <pl_hub75_Decoder_set_row+0x24>)
+   6:	f8c3 2290 	str.w	r2, [r3, #656]	@ 0x290
+   a:	f3c0 0240 	ubfx	r2, r0, #1, #1
+   e:	f8c3 2294 	str.w	r2, [r3, #660]	@ 0x294
+  12:	f3c0 0280 	ubfx	r2, r0, #2, #1
+  16:	f8c3 2298 	str.w	r2, [r3, #664]	@ 0x298
+  1a:	f3c0 00c0 	ubfx	r0, r0, #3, #1
+  1e:	f8c3 029c 	str.w	r0, [r3, #668]	@ 0x29c
+  22:	4770      	bx	lr
+  24:	42418000 	.word	0x42418000
+
+Disassembly of section .text._22_1703_scan:
+
+00000000 <_22_1703_scan>:
+   0:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+   4:	b083      	sub	sp, #12
+   6:	69c4      	ldr	r4, [r0, #28]
+   8:	ebc1 01c1 	rsb	r1, r1, r1, lsl #3
+   c:	eb04 1481 	add.w	r4, r4, r1, lsl #6
+  10:	4b3c      	ldr	r3, [pc, #240]	@ (104 <_22_1703_scan+0x104>)
+  12:	781b      	ldrb	r3, [r3, #0]
+  14:	b163      	cbz	r3, 30 <_22_1703_scan+0x30>
+  16:	4b3c      	ldr	r3, [pc, #240]	@ (108 <_22_1703_scan+0x108>)
+  18:	f8d3 b000 	ldr.w	fp, [r3]
+  1c:	f8d3 a010 	ldr.w	sl, [r3, #16]
+  20:	f8d3 9020 	ldr.w	r9, [r3, #32]
+  24:	6b1a      	ldr	r2, [r3, #48]	@ 0x30
+  26:	9200      	str	r2, [sp, #0]
+  28:	6c1b      	ldr	r3, [r3, #64]	@ 0x40
+  2a:	9301      	str	r3, [sp, #4]
+  2c:	2300      	movs	r3, #0
+  2e:	e062      	b.n	f6 <_22_1703_scan+0xf6>
+  30:	461e      	mov	r6, r3
+  32:	e016      	b.n	62 <_22_1703_scan+0x62>
+  34:	ebc5 03c5 	rsb	r3, r5, r5, lsl #3
+  38:	021b      	lsls	r3, r3, #8
+  3a:	5ce1      	ldrb	r1, [r4, r3]
+  3c:	4628      	mov	r0, r5
+  3e:	f7ff fffe 	bl	0 <_22_1703_scan>
+  42:	3501      	adds	r5, #1
+  44:	b2ed      	uxtb	r5, r5
+  46:	2d07      	cmp	r5, #7
+  48:	d9f4      	bls.n	34 <_22_1703_scan+0x34>
+  4a:	4b30      	ldr	r3, [pc, #192]	@ (10c <_22_1703_scan+0x10c>)
+  4c:	2201      	movs	r2, #1
+  4e:	f8c3 2284 	str.w	r2, [r3, #644]	@ 0x284
+  52:	bf00      	nop
+  54:	bf00      	nop
+  56:	2200      	movs	r2, #0
+  58:	f8c3 2284 	str.w	r2, [r3, #644]	@ 0x284
+  5c:	3601      	adds	r6, #1
+  5e:	b2b6      	uxth	r6, r6
+  60:	3401      	adds	r4, #1
+  62:	f5b6 7fe0 	cmp.w	r6, #448	@ 0x1c0
+  66:	d249      	bcs.n	fc <_22_1703_scan+0xfc>
+  68:	2500      	movs	r5, #0
+  6a:	e7ec      	b.n	46 <_22_1703_scan+0x46>
+  6c:	18e6      	adds	r6, r4, r3
+  6e:	5ce5      	ldrb	r5, [r4, r3]
+  70:	f896 1700 	ldrb.w	r1, [r6, #1792]	@ 0x700
+  74:	f896 2e00 	ldrb.w	r2, [r6, #3584]	@ 0xe00
+  78:	f506 5080 	add.w	r0, r6, #4096	@ 0x1000
+  7c:	f890 e500 	ldrb.w	lr, [r0, #1280]	@ 0x500
+  80:	f890 cc00 	ldrb.w	ip, [r0, #3072]	@ 0xc00
+  84:	f506 5000 	add.w	r0, r6, #8192	@ 0x2000
+  88:	f890 7300 	ldrb.w	r7, [r0, #768]	@ 0x300
+  8c:	f890 0a00 	ldrb.w	r0, [r0, #2560]	@ 0xa00
+  90:	f506 5640 	add.w	r6, r6, #12288	@ 0x3000
+  94:	f896 6100 	ldrb.w	r6, [r6, #256]	@ 0x100
+  98:	ea45 05c1 	orr.w	r5, r5, r1, lsl #3
+  9c:	f8df 8080 	ldr.w	r8, [pc, #128]	@ 120 <_22_1703_scan+0x120>
+  a0:	f858 5025 	ldr.w	r5, [r8, r5, lsl #2]
+  a4:	f8cb 5018 	str.w	r5, [fp, #24]
+  a8:	ea41 01c2 	orr.w	r1, r1, r2, lsl #3
+  ac:	4d18      	ldr	r5, [pc, #96]	@ (110 <_22_1703_scan+0x110>)
+  ae:	f855 1021 	ldr.w	r1, [r5, r1, lsl #2]
+  b2:	f8ca 1018 	str.w	r1, [sl, #24]
+  b6:	ea42 02ce 	orr.w	r2, r2, lr, lsl #3
+  ba:	ea42 128c 	orr.w	r2, r2, ip, lsl #6
+  be:	4915      	ldr	r1, [pc, #84]	@ (114 <_22_1703_scan+0x114>)
+  c0:	f851 2022 	ldr.w	r2, [r1, r2, lsl #2]
+  c4:	f8c9 2018 	str.w	r2, [r9, #24]
+  c8:	4a13      	ldr	r2, [pc, #76]	@ (118 <_22_1703_scan+0x118>)
+  ca:	f852 2027 	ldr.w	r2, [r2, r7, lsl #2]
+  ce:	9900      	ldr	r1, [sp, #0]
+  d0:	618a      	str	r2, [r1, #24]
+  d2:	ea40 00c6 	orr.w	r0, r0, r6, lsl #3
+  d6:	4a11      	ldr	r2, [pc, #68]	@ (11c <_22_1703_scan+0x11c>)
+  d8:	f852 2020 	ldr.w	r2, [r2, r0, lsl #2]
+  dc:	9901      	ldr	r1, [sp, #4]
+  de:	618a      	str	r2, [r1, #24]
+  e0:	4a0a      	ldr	r2, [pc, #40]	@ (10c <_22_1703_scan+0x10c>)
+  e2:	2101      	movs	r1, #1
+  e4:	f8c2 1284 	str.w	r1, [r2, #644]	@ 0x284
+  e8:	bf00      	nop
+  ea:	bf00      	nop
+  ec:	2100      	movs	r1, #0
+  ee:	f8c2 1284 	str.w	r1, [r2, #644]	@ 0x284
+  f2:	3301      	adds	r3, #1
+  f4:	b29b      	uxth	r3, r3
+  f6:	f5b3 7fe0 	cmp.w	r3, #448	@ 0x1c0
+  fa:	d3b7      	bcc.n	6c <_22_1703_scan+0x6c>
+  fc:	b003      	add	sp, #12
+  fe:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
+ 102:	bf00      	nop
+	...
+ 10c:	42418000 	.word	0x42418000
+ 110:	000079a0 	.word	0x000079a0
+ 114:	000071a0 	.word	0x000071a0
+ 118:	00007180 	.word	0x00007180
+ 11c:	00007080 	.word	0x00007080
+ 120:	00007aa0 	.word	0x00007aa0
+
+Disassembly of section .text._22_1703_set_row:
+
+00000000 <_22_1703_set_row>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <_22_1703_set_row>
+   6:	bd08      	pop	{r3, pc}
+
+Disassembly of section .text._22_1703_build_merge_tables:
+
+00000000 <_22_1703_build_merge_tables>:
+   0:	b5f0      	push	{r4, r5, r6, r7, lr}
+   2:	2400      	movs	r4, #0
+   4:	2501      	movs	r5, #1
+   6:	e06f      	b.n	e8 <_22_1703_build_merge_tables+0xe8>
+   8:	4a41      	ldr	r2, [pc, #260]	@ (110 <_22_1703_build_merge_tables+0x110>)
+   a:	eb02 03c3 	add.w	r3, r2, r3, lsl #3
+   e:	681f      	ldr	r7, [r3, #0]
+  10:	010b      	lsls	r3, r1, #4
+  12:	4a40      	ldr	r2, [pc, #256]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  14:	50d7      	str	r7, [r2, r3]
+  16:	2301      	movs	r3, #1
+  18:	e00c      	b.n	34 <_22_1703_build_merge_tables+0x34>
+  1a:	4a3f      	ldr	r2, [pc, #252]	@ (118 <_22_1703_build_merge_tables+0x118>)
+  1c:	eb02 03c3 	add.w	r3, r2, r3, lsl #3
+  20:	e7f5      	b.n	e <_22_1703_build_merge_tables+0xe>
+  22:	483b      	ldr	r0, [pc, #236]	@ (110 <_22_1703_build_merge_tables+0x110>)
+  24:	eb00 02c2 	add.w	r2, r0, r2, lsl #3
+  28:	6812      	ldr	r2, [r2, #0]
+  2a:	4297      	cmp	r7, r2
+  2c:	d000      	beq.n	30 <_22_1703_build_merge_tables+0x30>
+  2e:	2500      	movs	r5, #0
+  30:	3301      	adds	r3, #1
+  32:	b2db      	uxtb	r3, r3
+  34:	4a37      	ldr	r2, [pc, #220]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  36:	eb02 1201 	add.w	r2, r2, r1, lsl #4
+  3a:	7a12      	ldrb	r2, [r2, #8]
+  3c:	429a      	cmp	r2, r3
+  3e:	d910      	bls.n	62 <_22_1703_build_merge_tables+0x62>
+  40:	eb03 0243 	add.w	r2, r3, r3, lsl #1
+  44:	18b0      	adds	r0, r6, r2
+  46:	5cb2      	ldrb	r2, [r6, r2]
+  48:	7840      	ldrb	r0, [r0, #1]
+  4a:	2800      	cmp	r0, #0
+  4c:	d0e9      	beq.n	22 <_22_1703_build_merge_tables+0x22>
+  4e:	2801      	cmp	r0, #1
+  50:	d003      	beq.n	5a <_22_1703_build_merge_tables+0x5a>
+  52:	4832      	ldr	r0, [pc, #200]	@ (11c <_22_1703_build_merge_tables+0x11c>)
+  54:	eb00 02c2 	add.w	r2, r0, r2, lsl #3
+  58:	e7e6      	b.n	28 <_22_1703_build_merge_tables+0x28>
+  5a:	482f      	ldr	r0, [pc, #188]	@ (118 <_22_1703_build_merge_tables+0x118>)
+  5c:	eb00 02c2 	add.w	r2, r0, r2, lsl #3
+  60:	e7e2      	b.n	28 <_22_1703_build_merge_tables+0x28>
+  62:	4b2c      	ldr	r3, [pc, #176]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  64:	eb03 1301 	add.w	r3, r3, r1, lsl #4
+  68:	7a5b      	ldrb	r3, [r3, #9]
+  6a:	f04f 0e01 	mov.w	lr, #1
+  6e:	fa0e fe03 	lsl.w	lr, lr, r3
+  72:	f04f 0c00 	mov.w	ip, #0
+  76:	e030      	b.n	da <_22_1703_build_merge_tables+0xda>
+  78:	4e25      	ldr	r6, [pc, #148]	@ (110 <_22_1703_build_merge_tables+0x110>)
+  7a:	eb06 02c2 	add.w	r2, r6, r2, lsl #3
+  7e:	8896      	ldrh	r6, [r2, #4]
+  80:	78ba      	ldrb	r2, [r7, #2]
+  82:	fa2c f202 	lsr.w	r2, ip, r2
+  86:	f012 0f01 	tst.w	r2, #1
+  8a:	d100      	bne.n	8e <_22_1703_build_merge_tables+0x8e>
+  8c:	0436      	lsls	r6, r6, #16
+  8e:	4330      	orrs	r0, r6
+  90:	3301      	adds	r3, #1
+  92:	b2db      	uxtb	r3, r3
+  94:	4a1f      	ldr	r2, [pc, #124]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  96:	eb02 1201 	add.w	r2, r2, r1, lsl #4
+  9a:	7a12      	ldrb	r2, [r2, #8]
+  9c:	429a      	cmp	r2, r3
+  9e:	d914      	bls.n	ca <_22_1703_build_merge_tables+0xca>
+  a0:	4a1c      	ldr	r2, [pc, #112]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  a2:	eb02 1201 	add.w	r2, r2, r1, lsl #4
+  a6:	6856      	ldr	r6, [r2, #4]
+  a8:	eb03 0243 	add.w	r2, r3, r3, lsl #1
+  ac:	18b7      	adds	r7, r6, r2
+  ae:	5cb2      	ldrb	r2, [r6, r2]
+  b0:	787e      	ldrb	r6, [r7, #1]
+  b2:	2e00      	cmp	r6, #0
+  b4:	d0e0      	beq.n	78 <_22_1703_build_merge_tables+0x78>
+  b6:	2e01      	cmp	r6, #1
+  b8:	d003      	beq.n	c2 <_22_1703_build_merge_tables+0xc2>
+  ba:	4e18      	ldr	r6, [pc, #96]	@ (11c <_22_1703_build_merge_tables+0x11c>)
+  bc:	eb06 02c2 	add.w	r2, r6, r2, lsl #3
+  c0:	e7dd      	b.n	7e <_22_1703_build_merge_tables+0x7e>
+  c2:	4e15      	ldr	r6, [pc, #84]	@ (118 <_22_1703_build_merge_tables+0x118>)
+  c4:	eb06 02c2 	add.w	r2, r6, r2, lsl #3
+  c8:	e7d9      	b.n	7e <_22_1703_build_merge_tables+0x7e>
+  ca:	4b12      	ldr	r3, [pc, #72]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  cc:	eb03 1301 	add.w	r3, r3, r1, lsl #4
+  d0:	68db      	ldr	r3, [r3, #12]
+  d2:	f843 002c 	str.w	r0, [r3, ip, lsl #2]
+  d6:	f10c 0c01 	add.w	ip, ip, #1
+  da:	45f4      	cmp	ip, lr
+  dc:	d202      	bcs.n	e4 <_22_1703_build_merge_tables+0xe4>
+  de:	2300      	movs	r3, #0
+  e0:	4618      	mov	r0, r3
+  e2:	e7d7      	b.n	94 <_22_1703_build_merge_tables+0x94>
+  e4:	3401      	adds	r4, #1
+  e6:	b2e4      	uxtb	r4, r4
+  e8:	2c04      	cmp	r4, #4
+  ea:	d80e      	bhi.n	10a <_22_1703_build_merge_tables+0x10a>
+  ec:	4621      	mov	r1, r4
+  ee:	4b09      	ldr	r3, [pc, #36]	@ (114 <_22_1703_build_merge_tables+0x114>)
+  f0:	eb03 1304 	add.w	r3, r3, r4, lsl #4
+  f4:	685e      	ldr	r6, [r3, #4]
+  f6:	7833      	ldrb	r3, [r6, #0]
+  f8:	7872      	ldrb	r2, [r6, #1]
+  fa:	2a00      	cmp	r2, #0
+  fc:	d084      	beq.n	8 <_22_1703_build_merge_tables+0x8>
+  fe:	2a01      	cmp	r2, #1
+ 100:	d08b      	beq.n	1a <_22_1703_build_merge_tables+0x1a>
+ 102:	4a06      	ldr	r2, [pc, #24]	@ (11c <_22_1703_build_merge_tables+0x11c>)
+ 104:	eb02 03c3 	add.w	r3, r2, r3, lsl #3
+ 108:	e781      	b.n	e <_22_1703_build_merge_tables+0xe>
+ 10a:	4b05      	ldr	r3, [pc, #20]	@ (120 <_22_1703_build_merge_tables+0x120>)
+ 10c:	701d      	strb	r5, [r3, #0]
+ 10e:	bdf0      	pop	{r4, r5, r6, r7, pc}
+	...
+
+Disassembly of section .text.dev_display_22_1703_init:
+
+00000000 <dev_display_22_1703_init>:
+   0:	b508      	push	{r3, lr}
+   2:	4811      	ldr	r0, [pc, #68]	@ (48 <dev_display_22_1703_init+0x48>)
+   4:	4b11      	ldr	r3, [pc, #68]	@ (4c <dev_display_22_1703_init+0x4c>)
+   6:	6003      	str	r3, [r0, #0]
+   8:	f7ff fffe 	bl	0 <dev_display_register>
+   c:	2200      	movs	r2, #0
+   e:	e015      	b.n	3c <dev_display_22_1703_init+0x3c>
+  10:	08d3      	lsrs	r3, r2, #3
+  12:	f002 0103 	and.w	r1, r2, #3
+  16:	f3c2 0080 	ubfx	r0, r2, #2, #1
+  1a:	ebc3 03c3 	rsb	r3, r3, r3, lsl #3
+  1e:	021b      	lsls	r3, r3, #8
+  20:	b29b      	uxth	r3, r3
+  22:	ebc1 01c1 	rsb	r1, r1, r1, lsl #3
+  26:	0189      	lsls	r1, r1, #6
+  28:	b289      	uxth	r1, r1
+  2a:	440b      	add	r3, r1
+  2c:	b29b      	uxth	r3, r3
+  2e:	eb03 03c0 	add.w	r3, r3, r0, lsl #3
+  32:	4907      	ldr	r1, [pc, #28]	@ (50 <dev_display_22_1703_init+0x50>)
+  34:	f821 3012 	strh.w	r3, [r1, r2, lsl #1]
+  38:	3201      	adds	r2, #1
+  3a:	b292      	uxth	r2, r2
+  3c:	2a3f      	cmp	r2, #63	@ 0x3f
+  3e:	d9e7      	bls.n	10 <dev_display_22_1703_init+0x10>
+  40:	f7ff fffe 	bl	0 <dev_display_22_1703_init>
+  44:	bd08      	pop	{r3, pc}
+  46:	bf00      	nop
+	...
+
+Disassembly of section .text._22_1703_prepare:
+
+00000000 <_22_1703_prepare>:
+   0:	e92d 47f0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, lr}
+   4:	4603      	mov	r3, r0
+   6:	8947      	ldrh	r7, [r0, #10]
+   8:	8986      	ldrh	r6, [r0, #12]
+   a:	6980      	ldr	r0, [r0, #24]
+   c:	f8d3 c01c 	ldr.w	ip, [r3, #28]
+  10:	f893 202e 	ldrb.w	r2, [r3, #46]	@ 0x2e
+  14:	b14a      	cbz	r2, 2a <_22_1703_prepare+0x2a>
+  16:	8d9a      	ldrh	r2, [r3, #44]	@ 0x2c
+  18:	b352      	cbz	r2, 70 <_22_1703_prepare+0x70>
+  1a:	8d1d      	ldrh	r5, [r3, #40]	@ 0x28
+  1c:	42ae      	cmp	r6, r5
+  1e:	d927      	bls.n	70 <_22_1703_prepare+0x70>
+  20:	18ab      	adds	r3, r5, r2
+  22:	429e      	cmp	r6, r3
+  24:	d31b      	bcc.n	5e <_22_1703_prepare+0x5e>
+  26:	b29e      	uxth	r6, r3
+  28:	e019      	b.n	5e <_22_1703_prepare+0x5e>
+  2a:	4615      	mov	r5, r2
+  2c:	e017      	b.n	5e <_22_1703_prepare+0x5e>
+  2e:	011a      	lsls	r2, r3, #4
+  30:	b292      	uxth	r2, r2
+  32:	4472      	add	r2, lr
+  34:	eb0c 0802 	add.w	r8, ip, r2
+  38:	00d9      	lsls	r1, r3, #3
+  3a:	b289      	uxth	r1, r1
+  3c:	4421      	add	r1, r4
+  3e:	eb00 0a01 	add.w	sl, r0, r1
+  42:	f850 9001 	ldr.w	r9, [r0, r1]
+  46:	f8da 1004 	ldr.w	r1, [sl, #4]
+  4a:	f84c 9002 	str.w	r9, [ip, r2]
+  4e:	f8c8 1004 	str.w	r1, [r8, #4]
+  52:	3301      	adds	r3, #1
+  54:	b29b      	uxth	r3, r3
+  56:	2b1b      	cmp	r3, #27
+  58:	d9e9      	bls.n	2e <_22_1703_prepare+0x2e>
+  5a:	3501      	adds	r5, #1
+  5c:	b2ad      	uxth	r5, r5
+  5e:	42ae      	cmp	r6, r5
+  60:	d906      	bls.n	70 <_22_1703_prepare+0x70>
+  62:	fb05 f407 	mul.w	r4, r5, r7
+  66:	4b03      	ldr	r3, [pc, #12]	@ (74 <_22_1703_prepare+0x74>)
+  68:	f833 e015 	ldrh.w	lr, [r3, r5, lsl #1]
+  6c:	2300      	movs	r3, #0
+  6e:	e7f2      	b.n	56 <_22_1703_prepare+0x56>
+  70:	e8bd 87f0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, pc}
+  74:	00000000 	.word	0x00000000
+
+Disassembly of section .text.dev_display_22_1703_get:
+
+00000000 <dev_display_22_1703_get>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <dev_display_22_1703_get+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000

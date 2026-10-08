@@ -153,7 +153,10 @@ void ReportTask(void *argument)
 
     for (;;) {
         memcpy(&(report.notify), &xNotifyID, sizeof(report.notify));
-        report.run_sta = dev_display_get()->light_level ? '1' : '0'; // 根据当前亮度判断是否开显示屏
+        /* 无显示驱动构建：无显示对象 → run_sta 报 '0'（与「屏未开」同义）；
+         * 有显示时与改动前逐条一致（light_level 非 0 → '1'）。 */
+        const dev_display_t *disp = dev_display_get();
+        report.run_sta = (disp != nullptr && disp->light_level != 0U) ? '1' : '0'; // 根据当前亮度判断是否开显示屏
         mqtt_send_data(topic, (char *)&report);
         osDelay(10 * 1000); // 10秒签到1次
     }

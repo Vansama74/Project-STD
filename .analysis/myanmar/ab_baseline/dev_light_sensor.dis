@@ -1,0 +1,107 @@
+
+build/Debug/Device/IO/dev_light_sensor.o:     file format elf32-littlearm
+
+
+Disassembly of section .text.dev_light_sensor_init:
+
+00000000 <dev_light_sensor_init>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4604      	mov	r4, r0
+   4:	460d      	mov	r5, r1
+   6:	f7ff fffe 	bl	0 <pl_adc_get_handle>
+   a:	6020      	str	r0, [r4, #0]
+   c:	6065      	str	r5, [r4, #4]
+   e:	2301      	movs	r3, #1
+  10:	7223      	strb	r3, [r4, #8]
+  12:	2308      	movs	r3, #8
+  14:	7263      	strb	r3, [r4, #9]
+  16:	bd38      	pop	{r3, r4, r5, pc}
+
+Disassembly of section .text.dev_light_sensor_set_range:
+
+00000000 <dev_light_sensor_set_range>:
+   0:	460b      	mov	r3, r1
+   2:	b119      	cbz	r1, c <dev_light_sensor_set_range+0xc>
+   4:	2908      	cmp	r1, #8
+   6:	d902      	bls.n	e <dev_light_sensor_set_range+0xe>
+   8:	2308      	movs	r3, #8
+   a:	e000      	b.n	e <dev_light_sensor_set_range+0xe>
+   c:	2301      	movs	r3, #1
+   e:	b11a      	cbz	r2, 18 <dev_light_sensor_set_range+0x18>
+  10:	2a08      	cmp	r2, #8
+  12:	d902      	bls.n	1a <dev_light_sensor_set_range+0x1a>
+  14:	2208      	movs	r2, #8
+  16:	e000      	b.n	1a <dev_light_sensor_set_range+0x1a>
+  18:	2201      	movs	r2, #1
+  1a:	4293      	cmp	r3, r2
+  1c:	d900      	bls.n	20 <dev_light_sensor_set_range+0x20>
+  1e:	4613      	mov	r3, r2
+  20:	7203      	strb	r3, [r0, #8]
+  22:	7242      	strb	r2, [r0, #9]
+  24:	4770      	bx	lr
+
+Disassembly of section .text.dev_light_sensor_read:
+
+00000000 <dev_light_sensor_read>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b082      	sub	sp, #8
+   4:	4606      	mov	r6, r0
+   6:	2400      	movs	r4, #0
+   8:	4625      	mov	r5, r4
+   a:	e000      	b.n	e <dev_light_sensor_read+0xe>
+   c:	3401      	adds	r4, #1
+   e:	2c07      	cmp	r4, #7
+  10:	d809      	bhi.n	26 <dev_light_sensor_read+0x26>
+  12:	2264      	movs	r2, #100	@ 0x64
+  14:	a901      	add	r1, sp, #4
+  16:	6830      	ldr	r0, [r6, #0]
+  18:	f7ff fffe 	bl	0 <pl_adc_read>
+  1c:	2800      	cmp	r0, #0
+  1e:	d1f5      	bne.n	c <dev_light_sensor_read+0xc>
+  20:	9b01      	ldr	r3, [sp, #4]
+  22:	441d      	add	r5, r3
+  24:	e7f2      	b.n	c <dev_light_sensor_read+0xc>
+  26:	08ed      	lsrs	r5, r5, #3
+  28:	f5b5 6f7a 	cmp.w	r5, #4000	@ 0xfa0
+  2c:	d901      	bls.n	32 <dev_light_sensor_read+0x32>
+  2e:	f44f 657a 	mov.w	r5, #4000	@ 0xfa0
+  32:	4b0c      	ldr	r3, [pc, #48]	@ (64 <dev_light_sensor_read+0x64>)
+  34:	fba3 3505 	umull	r3, r5, r3, r5
+  38:	f3c5 1547 	ubfx	r5, r5, #5, #8
+  3c:	f1c5 0308 	rsb	r3, r5, #8
+  40:	b2db      	uxtb	r3, r3
+  42:	2d08      	cmp	r5, #8
+  44:	d002      	beq.n	4c <dev_light_sensor_read+0x4c>
+  46:	d902      	bls.n	4e <dev_light_sensor_read+0x4e>
+  48:	2308      	movs	r3, #8
+  4a:	e000      	b.n	4e <dev_light_sensor_read+0x4e>
+  4c:	2301      	movs	r3, #1
+  4e:	7a32      	ldrb	r2, [r6, #8]
+  50:	429a      	cmp	r2, r3
+  52:	d800      	bhi.n	56 <dev_light_sensor_read+0x56>
+  54:	461a      	mov	r2, r3
+  56:	7a70      	ldrb	r0, [r6, #9]
+  58:	4290      	cmp	r0, r2
+  5a:	d300      	bcc.n	5e <dev_light_sensor_read+0x5e>
+  5c:	4610      	mov	r0, r2
+  5e:	b002      	add	sp, #8
+  60:	bd70      	pop	{r4, r5, r6, pc}
+  62:	bf00      	nop
+  64:	10624dd3 	.word	0x10624dd3
+
+Disassembly of section .text.dev_light_sensor_auto_adjust:
+
+00000000 <dev_light_sensor_auto_adjust>:
+   0:	b510      	push	{r4, lr}
+   2:	4604      	mov	r4, r0
+   4:	f7ff fffe 	bl	0 <dev_light_sensor_auto_adjust>
+   8:	4b04      	ldr	r3, [pc, #16]	@ (1c <dev_light_sensor_auto_adjust+0x1c>)
+   a:	781b      	ldrb	r3, [r3, #0]
+   c:	4283      	cmp	r3, r0
+   e:	d002      	beq.n	16 <dev_light_sensor_auto_adjust+0x16>
+  10:	6863      	ldr	r3, [r4, #4]
+  12:	f883 0024 	strb.w	r0, [r3, #36]	@ 0x24
+  16:	4b01      	ldr	r3, [pc, #4]	@ (1c <dev_light_sensor_auto_adjust+0x1c>)
+  18:	7018      	strb	r0, [r3, #0]
+  1a:	bd10      	pop	{r4, pc}
+  1c:	00000000 	.word	0x00000000

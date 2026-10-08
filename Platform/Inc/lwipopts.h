@@ -31,28 +31,17 @@
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
 
-/* ---- LwIP 调试输出档位收紧（2026-09-18 YN_OL TCP 现场问题取证补强）--------
- * 由来：Core/Inc/main.h（CubeMX 生成区）里 LWIP_DEBUG / SOCKETS_DEBUG / TCP_DEBUG
- * 均为 LWIP_DBG_ON 且 LWIP_DBG_MIN_LEVEL = LWIP_DBG_LEVEL_ALL ⇒ LwIP 的
- * tcp_slowtmr / tcp_recved / tcp_fasttmr 等 LEVEL_ALL 级信息行经
- * printf → _write（SEGGER_RTT_Syscalls_GCC.c）→ RTT 通道 0 输出，
- * 实测 ~5~17 行/秒（每个活动 pcb 每 500ms 数行）。
- * 后果（实测确认）：RTT 上行缓冲仅 1KB 且为 NO_BLOCK_SKIP 模式（满则**整条丢**），
- * 开机横幅 + LwIP 噪声十几秒即把缓冲灌满 ⇒ **此后所有现场诊断
- * （[err] 堆失败钩子、[disp]、[yn_ol]、[tcp_srv]、[diag] 体检行）全部静默丢失**。
- * 2026-09-18 之前「死机前后 RTT 无任何输出、写不进任何证据」即由此而来
- * （需用外部读走缓冲才能看到，见 .analysis/yn_ol/fix_verify/rtt_log.py）。
- * 处置：只过滤 LEVEL_ALL 常规信息行，**警告/错误（WARNING 及以上）与工程自有
- * 诊断（直接 SEGGER_RTT_printf，不走 LwIP 调试宏）全部保留**。
- * 位置：main.h 属 CubeMX 生成文件（改动可能被重新生成覆盖），故覆盖放在本文件
- * USER CODE 段（CubeMX 保留区）；数值用字面量（此时 debug.h 未必已包含）。
- * 一键复原：`make DISP=... APP_LWIP_DBG_LEVEL=0x00`（或改下面的默认值）即恢复全量
- * LwIP 日志（用于对比采样/怀疑某告警被过滤时）。 */
-#ifndef APP_LWIP_DBG_LEVEL
-#define APP_LWIP_DBG_LEVEL 0x01 /* = LWIP_DBG_LEVEL_WARNING（0x00 = LEVEL_ALL 全开） */
-#endif
-#undef LWIP_DBG_MIN_LEVEL
-#define LWIP_DBG_MIN_LEVEL APP_LWIP_DBG_LEVEL
+/* ---- LwIP 调试输出整体关闭（2026-09-29 代码瘦身轮）------------------------
+ * Core/Inc/main.h（CubeMX 生成区，不改动）定义 LWIP_DEBUG/SOCKETS_DEBUG/TCP_DEBUG
+ * = LWIP_DBG_ON。此处只覆盖 LwIP 官方开关 **LWIP_DBG_TYPES_ON = 0**：
+ *   · LWIP_DEBUGF 的第一个条件成为编译期常量假 ⇒ 打印分支与全部调试格式串被优化掉
+ *     （零输出、零运行期格式化开销、字符串不落 Flash）；
+ *   · 调用点与 `#ifdef LWIP_DEBUG` 门控结构保持原样 ⇒ 第三方代码零改动、
+ *     不产生 unused-function / unused-parameter 告警。
+ * 原输出经 printf → _write 落到 SEGGER RTT（RTT 设施已随本轮移除）。
+ * 恢复 LwIP 日志：把下行改回 `LWIP_DBG_ON`（建议仅调试期临时开启）。 */
+#undef LWIP_DBG_TYPES_ON
+#define LWIP_DBG_TYPES_ON 0
 
 /* USER CODE END 0 */
 

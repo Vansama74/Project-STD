@@ -1,0 +1,5 @@
+### 负向 B：MODULE_ROWS=48/COLS=1（仅 CCM 守卫触发；通道守卫通过）
+/tmp/landing_build/d1_neg/rows48.c:174:1: error: static assertion failed: "22_1665: arrays exceed CCMRAM region (64KB; reduce MODULE_ROWS/MODULE_COLS)"
+  174 | _Static_assert(_22_1665_CCM_BYTES <= 64U * 1024U,
+      | ^~~~~~~~~~~~~~
+gcc_exit=1

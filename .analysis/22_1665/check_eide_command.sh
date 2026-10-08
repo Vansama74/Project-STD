@@ -14,14 +14,19 @@
 # `_22_1665_CHAIN_HEAD_IS_MODULE0` 有效；本节末尾另有 **-O3 零回归 A/B**
 # （改动前基准 `.analysis/22_1665/archive/round30/dev_display_22_1665_pre_round30.c` vs 现行）。
 #
-# **第三十四轮**：17 条 `_Static_assert` 全部按用户裁决删除（含「≤ 整片 CCMRAM 区域 64KB」
-# 物理守卫）⇒ 原「非法口径须编译失败 + 可读断言消息」的用例全部改写为**实测的新期望**：
+# **第三十四轮**：17 条 `_Static_assert` 按用户裁决删除（含「≤ 整片 CCMRAM 区域 64KB」
+# 物理守卫）⇒ 原「非法口径须编译失败 + 可读断言消息」用例改写为**实测的新期望**：
 #   · `warn_case`（编过但必须出现指定告警）：`MODULE_ROWS=0` → `-Wdiv-by-zero`（落点表除以
-#     0 模块/行）；`MODULE_COLS=6` → `-O3` 下 `-Waggressive-loop-optimizations`（UB：越界读
-#     `_22_1665_lines[5]` —— 第 5 行不存在，表只预声明 `HUB75_CHANNEL_MAX/2 = 5` 行）；
+#     0 模块/行）；
 #   · `ok_case`（**零告警编过 = 静默错口径**）：`MODULE_COLS=0`（-O3 -Wall 下静默；
-#     `-Wextra` 才会报恒假比较）、单模块 24×16 / 16×32 / 30、`MODULE_ROWS=47`（CCM 66432B，
-#     越区域只能由**链接期**兜底 —— 见 `check_compile_matrix.sh` C 节）。
+#     `-Wextra` 才会报恒假比较）、单模块 24×16 / 16×32 / 30。
+#
+# **2026-10-08（本轮）**：按用户裁决**恢复 2 条编译期守卫** ⇒ 上条中两个用例回到
+# `bad_case`（编译期拦下 + 可读断言消息）：
+#   · `MODULE_COLS=6` → 守卫 ①「2 × MODULE_COLS ≤ HUB75_CHANNEL_MAX = 10」（原为 -O3 UB 告警）；
+#   · `MODULE_ROWS=47`（CCM 66432B）→ 守卫 ②「本模组数组 ≤ 整片 CCMRAM 区域 64KB」
+#     （原为「对象零告警编过 + 链接期 overflow」）。
+#   其余非法几何（0 / 24×16 / 16×32 / 30）仍静默编过；整片（多消费者）占用仍由链接期兜底。
 #
 # 用法：bash .analysis/22_1665/check_eide_command.sh
 # 退出码 = 失败项数（0 = 全绿）。
@@ -98,7 +103,7 @@ warn_case() {  # warn_case <描述> <期望命中的告警片段> <源码> [-D..
     fi
 }
 
-bad_case() {  # bad_case <描述> <期望命中的断言消息片段> <源码> [-D...]（第三十四轮起仅留作历史入口）
+bad_case() {  # bad_case <描述> <期望命中的断言消息片段> <源码> [-D...]（2026-10-08 恢复守卫后复用）
     local desc="$1" needle="$2" src="$3"; shift 3
     local out rc
     n=$((n + 1))
@@ -117,7 +122,7 @@ echo "  命令来源：EIDE 构建日志（terminals/6.txt，2026-09-17 17:07:52
 echo "  第二十九轮：接线/蓝分量/极性三开关已删除（HUB_WIRING / BLUE_AS_LIT / DATA_ACTIVE_HIGH）——"
 echo "  对应口径用例一并退休（历史口径锚定 archive/finalize 归档驱动）"
 echo "  第三十轮：几何宏改普通 #define → 几何用例改「宏名=值」源码替换"
-echo "  第三十四轮：编译期防御全部删除 → 原「非法口径」用例改写为实测期望（warn / 静默编过）"
+echo "  2026-10-08：恢复 2 条编译期守卫（通道上限 / 本模组 ≤ 64KB）→ 对应用例回到 bad_case"
 echo "== 合法口径（须零报错零告警编过）=="
 ok_case "工作区当前宏值 8×4 = 128×64（本模组 46080B；每列一口独立数据线）" \
         "$(src_for cur)"
@@ -139,11 +144,13 @@ ok_case "链首口径开关 -D_22_1665_CHAIN_HEAD_IS_MODULE0=1（多模块现场
 ok_case "现场 A/B 组合 CHAIN_HEAD_IS_MODULE0=1 + 1×2 → 16×32" \
         "$(src_for c2 _22_1665_MODULE_COLS=2)" -D_22_1665_CHAIN_HEAD_IS_MODULE0=1
 
-echo "== 旧非法口径的现行行为（无编译期防御：编过但有告警 / 静默编过；第三十四轮实测）=="
+echo "== 旧非法口径的现行行为（2026-10-08 恢复 2 条守卫后重采）=="
 warn_case "MODULE_ROWS=0 → 编过，但落点表除以 0 模块/行（-Wdiv-by-zero）" \
           "division by zero" "$(src_for rows0 _22_1665_MODULE_ROWS=0)"
-warn_case "MODULE_COLS=6 → 编过，但 -O3 判定「越界读 _22_1665_lines」为 UB（-Waggressive-loop-optimizations）" \
-          "undefined behavior" "$(src_for cols6 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=6)"
+bad_case "MODULE_COLS=6 → **守卫 ①（通道表上限）编译期拦下**（2×6 = 12 > HUB75_CHANNEL_MAX = 10）" \
+         "per-column wiring needs 2 channels" "$(src_for cols6 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=6)"
+bad_case "MODULE_ROWS=47（CCM 66432B）→ **守卫 ②（本模组 ≤ 64KB）编译期拦下**" \
+         "exceed CCMRAM region" "$(src_for r47 _22_1665_MODULE_ROWS=47 _22_1665_MODULE_COLS=1)"
 ok_case "MODULE_COLS=0 → -O3 -Wall 下**零告警**编过（静默；仅 -Wextra 会报恒假比较）" \
         "$(src_for cols0 _22_1665_MODULE_COLS=0)"
 ok_case "单模块 24×16 → 零告警编过（块栅格 12 ≠ 8：静默错口径）" \
@@ -152,8 +159,6 @@ ok_case "单模块 16×32 → 零告警编过（静默错口径）" \
         "$(src_for pix1632 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=1 _22_1665_MODULE_PIXEL_COL=32)"
 ok_case "MODULE_PIXEL_COL=30 → 零告警编过（半屏高 15 非 4 的倍数：静默错口径）" \
         "$(src_for pix30 _22_1665_MODULE_ROWS=1 _22_1665_MODULE_COLS=1 _22_1665_MODULE_PIXEL_COL=30)"
-ok_case "MODULE_ROWS=47（CCM 66432B）→ 对象零告警编过；越区域由**链接期**兜底（check_compile_matrix.sh C 节）" \
-        "$(src_for r47 _22_1665_MODULE_ROWS=47 _22_1665_MODULE_COLS=1)"
 
 echo "== 零回归 A/B（第三十轮：文件头瘦身 + 几何宏改普通 #define；同一 EIDE -O3 命令）=="
 echo "  改动前基准 = $PRE_SRC_REL"

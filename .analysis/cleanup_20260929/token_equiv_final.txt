@@ -1,0 +1,642 @@
+
+== Application/Inc/AH_MQTT/ah_mqtt_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 147 → after 147 tokens）
+
+== Application/Inc/AH_MQTT/ah_mqtt.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 391 → after 391 tokens）
+
+== Application/Inc/app_boot.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 13 → after 13 tokens）
+
+== Application/Inc/app_default_display.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 32 → after 32 tokens）
+
+== Application/Inc/app_diag.h: DELETED（整文件删除，已声明）
+
+== Application/Inc/app_dispatch.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 497 → after 497 tokens）
+
+== Application/Inc/app_factory_test.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 22 → after 22 tokens）
+
+== Application/Inc/app_key.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 20 → after 20 tokens）
+
+== Application/Inc/application.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/app_light_sensor.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 37 → after 37 tokens）
+
+== Application/Inc/app_net_boot.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 14 → after 14 tokens）
+
+== Application/Inc/app_render.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 505 → after 505 tokens）
+
+== Application/Inc/app_scroll.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 129 → after 129 tokens）
+
+== Application/Inc/app_test.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 97 → after 97 tokens）
+
+== Application/Inc/app_uart_baud.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 37 → after 37 tokens）
+
+== Application/Inc/Channel/app_mqtt.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 206 → after 206 tokens）
+
+== Application/Inc/Channel/app_rs232.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 18 → after 18 tokens）
+
+== Application/Inc/Channel/app_rs485.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 12 → after 12 tokens）
+
+== Application/Inc/Channel/app_tcp_client.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 137 → after 137 tokens）
+
+== Application/Inc/Channel/app_tcp_server.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 96 → after 96 tokens）
+
+== Application/Inc/Channel/app_udp.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 245 → after 245 tokens）
+
+== Application/Inc/Config/app_board_net_cfg.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 341 → after 341 tokens）
+
+== Application/Inc/IAP/app_iap_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 151 → after 151 tokens）
+
+== Application/Inc/IAP/app_iap.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 137 → after 137 tokens）
+
+== Application/Inc/LDI/app_ldi_cfg.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 183 → after 183 tokens）
+
+== Application/Inc/LDI/app_ldi_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 557 → after 557 tokens）
+
+== Application/Inc/LDI/app_ldi_device.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 155 → after 155 tokens）
+
+== Application/Inc/LDI/app_ldi.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 521 → after 521 tokens）
+
+== Application/Inc/LDI/app_vms_ctrl.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 27 → after 27 tokens）
+
+== Application/Inc/ProtocolParser_Anhui/app_anhui_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_Anhui/app_anhui_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 308 → after 308 tokens）
+
+== Application/Inc/ProtocolParser_Anhui/app_anhui_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 20 → after 20 tokens）
+
+== Application/Inc/ProtocolParser_Anhui/app_anhui_proto_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 25 → after 25 tokens）
+
+== Application/Inc/ProtocolParser_ChongQing/app_cq_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 37 → after 37 tokens）
+
+== Application/Inc/ProtocolParser_ChongQing/app_cq_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 228 → after 228 tokens）
+
+== Application/Inc/ProtocolParser_ChongQing/app_cq_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 113 → after 113 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou/app_gz_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 19 → after 19 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou/app_gz_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 248 → after 248 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou/app_gz_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 30 → after 30 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou/app_gz_proto_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 24 → after 24 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 390 → after 390 tokens）
+
+== Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 271 → after 271 tokens）
+
+== Application/Inc/ProtocolParser_QingHai/app_qh_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_QingHai/app_qh_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 257 → after 257 tokens）
+
+== Application/Inc/ProtocolParser_QingHai/app_qh_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_QingHai/app_qh_proto_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 24 → after 24 tokens）
+
+== Application/Inc/ProtocolParser_ShanDong/app_sd_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_ShanDong/app_sd_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 202 → after 202 tokens）
+
+== Application/Inc/ProtocolParser_ShanDong/app_sd_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 178 → after 178 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 245 → after 245 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 17 → after 17 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 223 → after 223 tokens）
+
+== Application/Inc/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_YunNan/app_yn_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 19 → after 19 tokens）
+
+== Application/Inc/ProtocolParser_YunNan/app_yn_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 237 → after 237 tokens）
+
+== Application/Inc/ProtocolParser_YunNan/app_yn_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 30 → after 30 tokens）
+
+== Application/Inc/ProtocolParser_YunNan/app_yn_proto_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 24 → after 24 tokens）
+
+== Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 578 → after 578 tokens）
+
+== Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/protocol_select.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6 → after 6 tokens）
+
+== Application/Inc/RLS/app_rls_cmd.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 62 → after 62 tokens）
+
+== Application/Inc/RLS/app_rls.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 75 → after 75 tokens）
+
+== Application/Src/AH_MQTT/ah_mqtt.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1038 → after 1038 tokens）
+
+== Application/Src/AH_MQTT/ah_mqtt_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 772 → after 772 tokens）
+
+== Application/Src/app_boot.c: OK(仅删除)  删除 token 1136 个 / 删除块 16 处（before 1963 → after 827 tokens）
+   - before:L15-L16  # include "app_diag.h" # include "app_dispatch.h"
+   - before:L30-L31  "dev_key.h" # include
+   - before:L36-L37  # include "pl_sys.h" # include "SEGGER_RTT.h"
+   - before:L78-L83  SEGGER_RTT_printf ( 0 , "[err] init_task create FAILED (heap exhausted): free=%u min=%u " "ucHeap=%u -> halt\n" , ( unsigned ) xPortGetFreeHeapSize ( ) , ( unsigned ) xPortGetMinimumEverFreeHeapSize ( ) , ( unsigned ) co …
+   - before:L141-L304  # if APP_DIAG_BANNER static void app_diag_heap ( const char * tag ) { SEGGER_RTT_printf ( 0 , "[diag] heap %s free=%u min=%u\n" , ( tag ! = nullptr ) ? tag : "?" , ( unsigned ) xPortGetFreeHeapSize ( ) , ( unsigned ) xPo …
+   - before:L324-L327  # if APP_DIAG_BANNER app_diag_boot_banner ( ) ; # endif
+   - before:L342-L342  app_diag_heap ( "after tcp_server_start" ) ;
+   - before:L345-L346  ) ; app_diag_heap ( "after tcp_client_start"
+   - before:L349-L349  app_diag_heap ( "after udp_start(10011)" ) ;
+   - before:L351-L352  ) ; app_diag_heap ( "after udp_cq_start"
+   - before:L356-L356  app_diag_heap ( "after udp_gzol_start" ) ;
+   - before:L357-L358  ) ; app_diag_heap ( "after rs485_start <= 现场历史失败点(rs485_task)"
+   - before:L361-L361  app_diag_heap ( "after rs232_start <= 现场历史失败点(rs232_task)" ) ;
+   - before:L365-L372  app_diag_heap ( "after channels(all)" ) ; # if APP_DIAG_BANNER osDelay ( 2500 ) ; app_diag_boot_late ( ) ; # endif
+   - before:L445-L445  extern size_t xLastFailedAllocSize ;
+   - before:L451-L456  SEGGER_RTT_printf ( 0 , "[err] pvPortMalloc FAILED: request=%u free=%u min=%u ucHeap=%u\n" "[err] -> halt (keep stack for debugger); IWDG(256x4096/32kHz~33s) resets " "if unattended\n" , ( unsigned ) xLastFailedAllocSize …
+
+== Application/Src/app_default_display.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 253 → after 253 tokens）
+
+== Application/Src/app_dispatch.c: OK(仅删除)  删除 token 823 个 / 删除块 17 处（before 2947 → after 2124 tokens）
+   - before:L20-L33  include "app_diag.h" # include "SEGGER_RTT.h" #
+   - before:L43-L51  PROBE_DBG_MIN_MS # define PROBE_DBG_MIN_MS 200 U # endif # ifndef
+   - before:L52-L64  U # endif # ifndef DISPATCH_NOPROTO_DBG_MIN_MS # define DISPATCH_NOPROTO_DBG_MIN_MS 1000
+   - before:L355-L364  # if APP_DIAG_BANNER static uint8_t s_pdbg_idx [ RB_CNT_MAX ] ; static uint8_t s_pdbg_sta [ RB_CNT_MAX ] ; static uint32_t s_pdbg_fp [ RB_CNT_MAX ] ; static uint32_t s_pdbg_tick [ RB_CNT_MAX ] ; static bool s_pdbg_valid  …
+   - before:L391-L403  # if APP_DIAG_BANNER static uint32_t s_noproto_tick [ CH_ID_MAX ] ; const uint32_t now_np = osKernelGetTickCount ( ) ; if ( ( uint32_t ) ( now_np - s_noproto_tick [ ch - > ch_id ] ) > = pdMS_TO_TICKS ( DISPATCH_NOPROTO_D …
+   - before:L446-L450  # if APP_DIAG_BANNER uint8_t diag_wait_idx = 0 xFFU ; uint8_t diag_fake_idx = 0 xFFU ; # endif
+   - before:L480-L483  # if APP_DIAG_BANNER if ( diag_wait_idx = = 0 xFFU ) diag_wait_idx = j ; # endif
+   - before:L498-L505  # if APP_DIAG_BANNER SEGGER_RTT_printf ( 0 , "[disp] frame queue FULL -> drop: proto_idx=%u len=%u " "qfull=%u (protocol task stuck or too slow?)\n" , ( unsigned ) j , ( unsigned ) frame_len , ( unsigned ) g_dispatch . q …
+   - before:L525-L528  # if APP_DIAG_BANNER if ( diag_wait_idx = = 0 xFFU ) diag_wait_idx = j ; # endif
+   - before:L538-L541  # if APP_DIAG_BANNER if ( diag_wait_idx = = 0 xFFU ) diag_wait_idx = j ; # endif
+   - before:L546-L549  # if APP_DIAG_BANNER if ( diag_fake_idx = = 0 xFFU ) diag_fake_idx = j ; # endif
+   - before:L556-L605  # if APP_DIAG_BANNER if ( ! any_parsed & & ( any_wait | | any_fake ) & & avail > 0 U ) { uint8_t h0 = 0 U ; rb_peek ( rb , 0 U , & h0 , 1 U , nullptr ) ; if ( h0 = = ( uint8_t ) '{' ) { const uint8_t sta = any_wait ? ( u …
+   - before:L637-L654  # if APP_DIAG_BANNER char head_hex [ 2 U * 8 U + 1 U ] ; const uint16_t ev_n = ( avail < 8 U ) ? avail : 8 U ; uint8_t ev [ 8 ] ; rb_peek ( rb , 0 U , ev , ev_n , nullptr ) ; for ( uint16_t k = 0 U ; k < ev_n ; k + + ) { …
+   - before:L658-L660  # if APP_DIAG_BANNER s_pdbg_valid [ wait_slot ] = false ; # endif
+   - before:L665-L667  # if APP_DIAG_BANNER s_pdbg_valid [ wait_slot ] = false ; # endif
+   - before:L675-L677  # if APP_DIAG_BANNER s_pdbg_valid [ wait_slot ] = false ; # endif
+   - before:L775-L780  # if APP_DIAG_BANNER SEGGER_RTT_printf ( 0 , "[disp] notify queue FULL -> drop ch=%u notify_drop=%u (dispatch task stuck?)\n" , ( unsigned ) ch - > ch_id , ( unsigned ) g_dispatch . notify_drop ) ; # endif
+
+== Application/Src/app_factory_test.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1624 → after 1624 tokens）
+
+== Application/Src/app_factory_test_mm.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 143 → after 143 tokens）
+
+== Application/Src/app_key.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 75 → after 75 tokens）
+
+== Application/Src/app_light_sensor.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 158 → after 158 tokens）
+
+== Application/Src/app_net_boot.c: OK(仅删除)  删除 token 86 个 / 删除块 3 处（before 376 → after 290 tokens）
+   - before:L34-L35  "app_diag.h" # include
+   - before:L37-L37  # include "SEGGER_RTT.h"
+   - before:L52-L66  # if APP_DIAG_BANNER { app_board_net_cfg_t raw ; if ( app_board_net_cfg_get ( & raw ) = = 0 ) SEGGER_RTT_printf ( 0 , "[diag] netcfg INVALID at boot (record ok but net invalid): " "ip=%u.%u.%u.%u port=%u udp_port=%u -> a …
+
+== Application/Src/app_render.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 5444 → after 5444 tokens）
+
+== Application/Src/app_scroll.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 2394 → after 2394 tokens）
+
+== Application/Src/app_test.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 887 → after 887 tokens）
+
+== Application/Src/app_uart_baud.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 154 → after 154 tokens）
+
+== Application/Src/Channel/app_mqtt.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1180 → after 1180 tokens）
+
+== Application/Src/Channel/app_rs232.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 562 → after 562 tokens）
+
+== Application/Src/Channel/app_rs485.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 551 → after 551 tokens）
+
+== Application/Src/Channel/app_tcp_client.c: OK(仅删除)  删除 token 404 个 / 删除块 9 处（before 1309 → after 905 tokens）
+   - before:L7-L7  # include "app_diag.h"
+   - before:L10-L60  # include "SEGGER_RTT.h" # ifndef TCP_CLI_RTT_DIAG # define TCP_CLI_RTT_DIAG ( APP_DIAG_BANNER ) # endif # if TCP_CLI_RTT_DIAG # define TCP_CLI_LOG_HEX_MAX ( 16 U ) static err_t s_tcp_cli_last_err = ( err_t ) 0 x7F ; sta …
+   - before:L151-L156  # if TCP_CLI_RTT_DIAG if ( ! s_tcp_cli_idle_logged ) { SEGGER_RTT_printf ( 0 , "[tcp_cli] idle (remote unset)\n" ) ; s_tcp_cli_idle_logged = true ; } # endif
+   - before:L160-L162  # if TCP_CLI_RTT_DIAG s_tcp_cli_idle_logged = false ; # endif
+   - before:L177-L181  # if TCP_CLI_RTT_DIAG SEGGER_RTT_printf ( 0 , "[tcp_cli] connecting %u.%u.%u.%u:%u ...\n" , g_tcp_client . host_ip [ 0 ] , g_tcp_client . host_ip [ 1 ] , g_tcp_client . host_ip [ 2 ] , g_tcp_client . host_ip [ 3 ] , ( un …
+   - before:L203-L209  # if TCP_CLI_RTT_DIAG s_tcp_cli_last_err = ( err_t ) 0 x7F ; SEGGER_RTT_printf ( 0 , "[tcp_cli] connected %u.%u.%u.%u:%u\n" , g_tcp_client . host_ip [ 0 ] , g_tcp_client . host_ip [ 1 ] , g_tcp_client . host_ip [ 2 ] , g …
+   - before:L240-L245  # if TCP_CLI_RTT_DIAG if ( err ! = s_tcp_cli_last_err ) { SEGGER_RTT_printf ( 0 , "[tcp_cli] connect FAIL err=%d (retry in 1s)\n" , ( int ) err ) ; s_tcp_cli_last_err = err ; } # endif
+   - before:L270-L272  # if TCP_CLI_RTT_DIAG _tcp_cli_log_recv ( ( const uint8_t * ) data , len ) ; # endif
+   - before:L278-L280  # if TCP_CLI_RTT_DIAG SEGGER_RTT_printf ( 0 , "[tcp_cli] close reason=%d (reconnect in 1s)\n" , ( int ) err ) ; # endif
+
+== Application/Src/Channel/app_tcp_server.c: OK(仅删除)  删除 token 571 个 / 删除块 12 处（before 1189 → after 618 tokens）
+   - before:L16-L17  "app_diag.h" # include
+   - before:L19-L21  include "SEGGER_RTT.h" #
+   - before:L35-L79  # ifndef TCP_SRV_RTT_DIAG # define TCP_SRV_RTT_DIAG ( APP_DIAG_BANNER ) # endif # if TCP_SRV_RTT_DIAG # define TCP_SRV_LOG_HEX_MAX ( 16 U ) static void _tcp_srv_peer ( struct netconn * conn , uint8_t ip [ 4 ] , uint16_t  …
+   - before:L124-L127  ; static bool s_netconn_pool_warned
+   - before:L181-L185  if ( ! s_netconn_pool_warned ) { s_netconn_pool_warned = true ; SEGGER_RTT_printf ( 0 , "[tcp_srv] netconn_new NULL (netconn pool exhausted; retry 500ms)\n" ) ; }
+   - before:L189-L189  s_netconn_pool_warned = false ;
+   - before:L193-L196  # if TCP_SRV_RTT_DIAG SEGGER_RTT_printf ( 0 , "[tcp_srv] bind FAIL port=%u err=%d (retry in 500ms)\n" , ( unsigned ) g_port , ( int ) err ) ; # endif
+   - before:L202-L204  # if TCP_SRV_RTT_DIAG SEGGER_RTT_printf ( 0 , "[tcp_srv] listen port=%u (accept loop)\n" , ( unsigned ) g_port ) ; # endif
+   - before:L211-L214  # if TCP_SRV_RTT_DIAG SEGGER_RTT_printf ( 0 , "[tcp_srv] accept FAIL err=%d (rebuild listener in 500ms)\n" , ( int ) err ) ; # endif
+   - before:L228-L236  # if TCP_SRV_RTT_DIAG { uint8_t ip [ 4 ] ; uint16_t port = 0 U ; _tcp_srv_peer ( newconn , ip , & port ) ; SEGGER_RTT_printf ( 0 , "[tcp_srv] accept %u.%u.%u.%u:%u\n" , ip [ 0 ] , ip [ 1 ] , ip [ 2 ] , ip [ 3 ] , ( unsig …
+   - before:L255-L257  # if TCP_SRV_RTT_DIAG _tcp_srv_log_recv ( ( const uint8_t * ) data , len ) ; # endif
+   - before:L265-L273  # if TCP_SRV_RTT_DIAG { uint8_t ip [ 4 ] ; uint16_t port = 0 U ; _tcp_srv_peer ( newconn , ip , & port ) ; SEGGER_RTT_printf ( 0 , "[tcp_srv] close  %u.%u.%u.%u:%u reason=%d\n" , ip [ 0 ] , ip [ 1 ] , ip [ 2 ] , ip [ 3 ] …
+
+== Application/Src/Channel/app_udp.c: OK(仅删除)  删除 token 120 个 / 删除块 7 处（before 3094 → after 2974 tokens）
+   - before:L18-L18  # include "app_diag.h"
+   - before:L23-L23  # include "SEGGER_RTT.h"
+   - before:L512-L514  uint16_t s_udp_gzol_warned_port ; static
+   - before:L581-L591  if ( s_udp_gzol_warned_port ! = g_udp_gzol_port ) { s_udp_gzol_warned_port = g_udp_gzol_port ; if ( ! cfg_ok ) SEGGER_RTT_printf ( 0 , "[gz_ol] net_cfg.port invalid -> UDP service port fallback %u\n" , ( unsigned ) g_udp …
+   - before:L608-L608  s_udp_gzol_warned_port = 0 ;
+   - before:L611-L615  # if APP_DIAG_BANNER SEGGER_RTT_printf ( 0 , "[diag] gzol UDP service bound OK port=%u (net_cfg.port %s)\n" , ( unsigned ) g_udp_gzol_port , cfg_ok ? "valid" : "fallback" ) ; # endif
+   - before:L631-L635  if ( s_udp_gzol_warned_port ! = g_udp_gzol_port ) { s_udp_gzol_warned_port = g_udp_gzol_port ; SEGGER_RTT_printf ( 0 , "[gz_ol] UDP service port %u bind failed (err=%d)\n" , ( unsigned ) g_udp_gzol_port , ( int ) err ) ; …
+
+== Application/Src/Config/app_board_net_cfg.c: OK(仅删除)  删除 token 98 个 / 删除块 8 处（before 972 → after 874 tokens）
+   - before:L21-L21  # include "SEGGER_RTT.h"
+   - before:L200-L200  SEGGER_RTT_printf ( 0 , "[fwver] reject: bad version arg (len=%d)\n" , version ? ( int ) strlen ( version ) : - 1 ) ;
+   - before:L214-L214  SEGGER_RTT_printf ( 0 , "[fwver] refuse: upgrade mid-state upd_sta=%lu\n" , ( unsigned long ) info . update_sta ) ;
+   - before:L226-L227  ; SEGGER_RTT_printf ( 0 , "[fwver] sector empty/damaged -> full init, write ver=%s\n" , version )
+   - before:L237-L237  SEGGER_RTT_printf ( 0 , "[fwver] same ver=%s, skip erase/write\n" , version ) ;
+   - before:L245-L246  { SEGGER_RTT_printf ( 0 , "[fwver] erase sector1 failed ret=%ld\n" , ( long ) ret ) ;
+   - before:L248-L248  }
+   - before:L249-L253  ) ; if ( ret < 0 ) SEGGER_RTT_printf ( 0 , "[fwver] write sector1 failed ret=%ld\n" , ( long ) ret ) ; else SEGGER_RTT_printf ( 0 , "[fwver] write ok ver=%s\n" , version
+
+== Application/Src/IAP/app_iap.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 731 → after 731 tokens）
+
+== Application/Src/IAP/app_iap_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1351 → after 1351 tokens）
+
+== Application/Src/LDI/app_ldi.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 3222 → after 3222 tokens）
+
+== Application/Src/LDI/app_ldi_cfg.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 431 → after 431 tokens）
+
+== Application/Src/LDI/app_ldi_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 6245 → after 6245 tokens）
+
+== Application/Src/LDI/app_ldi_device.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1721 → after 1721 tokens）
+
+== Application/Src/LDI/app_vms_ctrl.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 830 → after 830 tokens）
+
+== Application/Src/ProtocolParser_Anhui/app_anhui_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 630 → after 630 tokens）
+
+== Application/Src/ProtocolParser_Anhui/app_anhui_proto_cmd.c: OK(仅删除)  删除 token 174 个 / 删除块 4 处（before 1086 → after 912 tokens）
+   - before:L15-L15  # include "app_diag.h"
+   - before:L22-L22  # include "SEGGER_RTT.h"
+   - before:L75-L77  # ifndef ANHUI_RTT_DIAG # define ANHUI_RTT_DIAG ( APP_DIAG_BANNER ) # endif
+   - before:L97-L109  # if ANHUI_RTT_DIAG SEGGER_RTT_printf ( 0 , "[anhui] 0x85 b0=%02x b1=%02x -> x=%u y=%u len=%u " "t=%02x %02x %02x %02x\n" , ( unsigned ) p - > x , ( unsigned ) p - > y , ( unsigned ) p - > x , ( unsigned ) p - > y , ( un …
+
+== Application/Src/ProtocolParser_Anhui/app_anhui_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1057 → after 1057 tokens）
+
+== Application/Src/ProtocolParser_Anhui/app_anhui_proto_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1916 → after 1916 tokens）
+
+== Application/Src/ProtocolParser_ChongQing/app_cq_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1257 → after 1257 tokens）
+
+== Application/Src/ProtocolParser_ChongQing/app_cq_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 3565 → after 3565 tokens）
+
+== Application/Src/ProtocolParser_ChongQing/app_cq_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1836 → after 1836 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 689 → after 689 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 2624 → after 2624 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1286 → after 1286 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 295 → after 295 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 805 → after 805 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c: FAIL(存在新增/改写)  删除 token 1719 个 / 删除块 9 处（before 3328 → after 1608 tokens）
+   !! replace before[2012:2014] = '& nl_count'
+   - before:L23-L24  "app_diag.h" # include
+   - before:L29-L29  # include "SEGGER_RTT.h"
+   - before:L120-L225  # ifndef GZ_OL_RTT_DIAG # define GZ_OL_RTT_DIAG ( APP_DIAG_BANNER ) # endif # if GZ_OL_RTT_DIAG static uint32_t _gz_ol_diag_nonblack ( const dev_display_t * d , uint8_t * out_first_color ) { uint32_t n = 0 ; uint8_t firs …
+   - before:L306-L343  # if GZ_OL_RTT_DIAG { char dump [ 3 U * 16 U + 1 U ] ; _gz_ol_diag_dump16 ( cmd - > data , cmd - > data_len , dump ) ; const uint16_t gw = ( uint16_t ) p - > font_size ; const uint32_t vis_h = ( ( uint32_t ) y + p - > fo …
+   - before:L348-L349  ; uint16_t nl_count = 0 U
+   - before:L353-L360  # if GZ_OL_RTT_DIAG if ( nl_count > 0 U ) { SEGGER_RTT_printf ( 0 , "[gz_ol] 0x20 nl-unescape: literal \\n x %u -> 0x0A, text_len %u -> %u" " (GBK-safe walk)\n" , ( unsigned ) nl_count , ( unsigned ) p - > text_len , ( u …
+   - before:L388-L400  # if GZ_OL_RTT_DIAG { uint8_t first_color = 0 ; const uint32_t nz = _gz_ol_diag_nonblack ( d , & first_color ) ; SEGGER_RTT_printf ( 0 , "[gz_ol] 0x20 post-render: nonblack=%u first_color=%u commits=%u\n" , ( unsigned )  …
+   - before:L490-L516  # if GZ_OL_RTT_DIAG { char dump [ 3 U * 16 U + 1 U ] ; _gz_ol_diag_dump16 ( cmd - > data , cmd - > data_len , dump ) ; SEGGER_RTT_printf ( 0 , "[gz_ol] 0x40 plen=%u payload[0..15]=%s\n" , ( unsigned ) cmd - > data_len ,  …
+   - before:L520-L538  # if GZ_OL_RTT_DIAG { app_board_net_cfg_t after ; const bool after_ok = ( app_board_net_cfg_get ( & after ) = = 0 ) ; SEGGER_RTT_printf ( 0 , "[gz_ol] 0x40 write ret=%d (%s) readback=%s ip=%u.%u.%u.%u port=%u " "udp_port …
+
+== Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 308 → after 308 tokens）
+
+== Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1041 → after 1041 tokens）
+
+== Application/Src/ProtocolParser_Myanmar/app_mm_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 930 → after 930 tokens）
+
+== Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c: OK(仅删除)  删除 token 301 个 / 删除块 7 处（before 916 → after 615 tokens）
+   - before:L74-L75  "app_diag.h" # include
+   - before:L76-L85  # include "SEGGER_RTT.h" # ifndef MM_RTT_DIAG # define MM_RTT_DIAG ( APP_DIAG_BANNER ) # endif
+   - before:L121-L129  # if MM_RTT_DIAG static bool s_mm_init_logged ; static const char * const s_mm_port_name [ PL_PORT_MAX ] = { [ PL_PORT_A ] = "PA" , [ PL_PORT_B ] = "PB" , [ PL_PORT_C ] = "PC" , [ PL_PORT_D ] = "PD" , [ PL_PORT_E ] = "PE …
+   - before:L160-L160  const bool changed = ( s_mm_lamp_state [ lamp ] ! = on ) ;
+   - before:L164-L175  # if MM_RTT_DIAG SEGGER_RTT_printf ( 0 , "[mm] %s (%s) <- %s => %s%d %s (%s)%s\n" , m - > contact , m - > lamp_name , on ? "ON(开灯)" : "OFF(关灯)" , s_mm_port_name [ m - > port ] , ( int ) m - > pin , ( on ! = m - > active_ …
+   - before:L214-L222  # if MM_RTT_DIAG if ( ! s_mm_init_logged ) { s_mm_init_logged = true ; SEGGER_RTT_printf ( 0 , "[mm] dry contacts taken over: S1=PE12 / S2=PE11 / S3=PE10 " "(push-pull, active-high; boot default = S1 red X ON, arrows OFF …
+   - before:L262-L273  # if MM_RTT_DIAG const mm_lamp_map_t * m_0a = & s_mm_lamp_map [ s_mm_arrow_swapped ? MM_LAMP_RIGHT : MM_LAMP_LEFT ] ; const mm_lamp_map_t * m_0b = & s_mm_lamp_map [ s_mm_arrow_swapped ? MM_LAMP_LEFT : MM_LAMP_RIGHT ] ; S …
+
+== Application/Src/ProtocolParser_QingHai/app_qh_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 661 → after 661 tokens）
+
+== Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1548 → after 1548 tokens）
+
+== Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 946 → after 946 tokens）
+
+== Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 243 → after 243 tokens）
+
+== Application/Src/ProtocolParser_ShanDong/app_sd_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 669 → after 669 tokens）
+
+== Application/Src/ProtocolParser_ShanDong/app_sd_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 858 → after 858 tokens）
+
+== Application/Src/ProtocolParser_ShanDong/app_sd_proto_default.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 202 → after 202 tokens）
+
+== Application/Src/ProtocolParser_ShanDong/app_sd_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 670 → after 670 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 990 → after 990 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1046 → after 1046 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 609 → after 609 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 757 → after 757 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 2620 → after 2620 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1557 → after 1557 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 136 → after 136 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 605 → after 605 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1162 → after 1162 tokens）
+
+== Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 667 → after 667 tokens）
+
+== Application/Src/ProtocolParser_YunNan/app_yn_proto.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 689 → after 689 tokens）
+
+== Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1962 → after 1962 tokens）
+
+== Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1245 → after 1245 tokens）
+
+== Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 349 → after 349 tokens）
+
+== Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c: OK(仅删除)  删除 token 1417 个 / 删除块 6 处（before 2187 → after 770 tokens）
+   - before:L61-L62  "app_diag.h" # include
+   - before:L65-L66  "dev_display.h" # include
+   - before:L67-L73  # include "SEGGER_RTT.h" # ifndef YN_OL_RTT_DIAG # define YN_OL_RTT_DIAG ( APP_DIAG_BANNER ) # endif
+   - before:L249-L424  # if YN_OL_RTT_DIAG # define YN_OL_DIAG_HEX_MAX ( 32 U ) static const char * _yn_ol_ch_name ( uint8_t ch_id ) { switch ( ch_id ) { case CH_ID_RS485 : return "RS485" ; case CH_ID_RS232 : return "RS232" ; case CH_ID_TCP_SE …
+   - before:L447-L449  # if YN_OL_RTT_DIAG _yn_ol_diag_frame ( msg , & cmd ) ; # endif
+   - before:L455-L460  # if YN_OL_RTT_DIAG if ( cmd . sta = = YN_OL_PARSE_OK ) _yn_ol_diag_exec ( & cmd , exec_ret ) ; else _yn_ol_diag_drop ( msg - > data , ( uint16_t ) msg - > data_len , & cmd ) ; # endif
+   [已声明改写] 文件头注释重写
+
+== Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.c: 已声明改写  删除 token 383 个 / 删除块 9 处（before 3109 → after 2725 tokens）
+   !! replace before[2578:2582] = 'const bool saved ='
+   - before:L41-L42  "app_diag.h" # include
+   - before:L50-L50  # include "SEGGER_RTT.h"
+   - before:L71-L73  # ifndef YN_OL_RTT_DIAG # define YN_OL_RTT_DIAG ( APP_DIAG_BANNER ) # endif
+   - before:L180-L187  # if YN_OL_RTT_DIAG SEGGER_RTT_printf ( 0 , "[yn_ol] 0x49 cfg INVALID at boot (magic=%08x ver=%u type=%u size=%u " "crc=%08x) -> defaults FONT_16/FONT_ST\n" , ( unsigned ) s_yn_ol_cfg_rec . magic , ( unsigned ) s_yn_ol_c …
+   - before:L194-L197  # if YN_OL_RTT_DIAG SEGGER_RTT_printf ( 0 , "[yn_ol] 0x49 cfg loaded from %u: font_type=%d font_size=%d\n" , ( unsigned ) addr , ( int ) s_yn_ol_font_type , ( int ) s_yn_ol_font_size ) ; # endif
+   - before:L547-L554  # if YN_OL_RTT_DIAG SEGGER_RTT_printf ( 0 , "[yn_ol] 0x47 port field payload[12..13]=%02x %02x -> %u (BE16); " "ip=%u.%u.%u.%u mask=%u.%u.%u.%u gw=%u.%u.%u.%u keep_udp_port=%u\n" , ( unsigned ) cmd - > data [ 12 ] , ( un …
+   - before:L558-L566  # if YN_OL_RTT_DIAG { app_board_net_cfg_t after ; const bool ok = ( app_board_net_cfg_get ( & after ) = = 0 ) ; SEGGER_RTT_printf ( 0 , "[yn_ol] 0x47 write ret=%d readback=%s port=%u -> reboot in 100ms\n" , ( int ) wr_re …
+   - before:L594-L598  # if YN_OL_RTT_DIAG SEGGER_RTT_printf ( 0 , "[yn_ol] 0x48 -> 0x51 payload port=%u (BE16 bytes %02x %02x)\n" , ( unsigned ) ( ( ( uint16_t ) payload [ 12 ] < < 8 ) | payload [ 13 ] ) , ( unsigned ) payload [ 12 ] , ( unsi …
+   - before:L618-L623  # if YN_OL_RTT_DIAG SEGGER_RTT_printf ( 0 , "[yn_ol] 0x49 font_type=%d font_size=%d (persist %s)\n" , ( int ) p - > font_type , ( int ) p - > font_size , saved ? "ok" : "FAILED (runtime only)" ) ; # else ( void ) saved ; …
+
+== Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1450 → after 1450 tokens）
+
+== Application/Src/RLS/app_rls.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 801 → after 801 tokens）
+
+== Application/Src/RLS/app_rls_cmd.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 828 → after 828 tokens）
+
+== Compiler/startup.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 375 → after 375 tokens）
+
+== Compiler/startup.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1532 → after 1532 tokens）
+
+== Core/Inc/adc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 35 → after 35 tokens）
+
+== Core/Inc/crc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 35 → after 35 tokens）
+
+== Core/Inc/dma.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 31 → after 31 tokens）
+
+== Core/Inc/FreeRTOSConfig.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 410 → after 410 tokens）
+
+== Core/Inc/gpio.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 31 → after 31 tokens）
+
+== Core/Inc/iwdg.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 35 → after 35 tokens）
+
+== Core/Inc/main.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 637 → after 637 tokens）
+
+== Core/Inc/rtc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 51 → after 51 tokens）
+
+== Core/Inc/spi.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 35 → after 35 tokens）
+
+== Core/Inc/stm32f4xx_hal_conf.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1185 → after 1185 tokens）
+
+== Core/Inc/stm32f4xx_it.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 166 → after 166 tokens）
+
+== Core/Inc/tim.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 55 → after 55 tokens）
+
+== Core/Inc/usart.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 70 → after 70 tokens）
+
+== Core/Src/adc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 282 → after 282 tokens）
+
+== Core/Src/crc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 86 → after 86 tokens）
+
+== Core/Src/dma.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 88 → after 88 tokens）
+
+== Core/Src/gpio.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 678 → after 678 tokens）
+
+== Core/Src/iwdg.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 52 → after 52 tokens）
+
+== Core/Src/main.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 76 → after 76 tokens）
+
+== Core/Src/rtc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 567 → after 567 tokens）
+
+== Core/Src/spi.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 487 → after 487 tokens）
+
+== Core/Src/stm32f4xx_hal_msp.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 27 → after 27 tokens）
+
+== Core/Src/stm32f4xx_hal_timebase_tim.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 265 → after 265 tokens）
+
+== Core/Src/stm32f4xx_it.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 186 → after 186 tokens）
+   [已声明改写] 新增无输出 `__io_putchar`（替代已移除的 SEGGER `_write` 落地点）
+
+== Core/Src/syscalls.c: 已声明改写  删除 token 0 个 / 删除块 0 处（before 809 → after 820 tokens）
+   !! insert before[89:89] = ''
+
+== Core/Src/sysmem.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 147 → after 147 tokens）
+
+== Core/Src/system_stm32f4xx.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 3000 → after 3000 tokens）
+
+== Core/Src/tim.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 625 → after 625 tokens）
+
+== Core/Src/usart.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 956 → after 956 tokens）
+
+== Device/Comm/dev_rs232.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 34 → after 34 tokens）
+
+== Device/Comm/dev_rs232_voice.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 295 → after 295 tokens）
+
+== Device/Comm/dev_rs485.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 77 → after 77 tokens）
+
+== Device/Display/dev_display_1_260.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 828 → after 828 tokens）
+
+== Device/Display/dev_display_1_263.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1103 → after 1103 tokens）
+
+== Device/Display/dev_display_1_577.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1082 → after 1082 tokens）
+
+== Device/Display/dev_display_1_969.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1122 → after 1122 tokens）
+
+== Device/Display/dev_display_22_1665.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 2118 → after 2118 tokens）
+
+== Device/Display/dev_display_22_1703.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1848 → after 1848 tokens）
+   [已声明改写] dev_display_guard：删除限速告警块，判断式等价简化为 return (ptr != nullptr)
+
+== Device/Display/dev_display.c: 已声明改写  删除 token 81 个 / 删除块 3 处（before 1615 → after 1539 tokens）
+   !! replace before[127:128] = 'if'
+   - before:L19-L19  # include "SEGGER_RTT.h"
+   - before:L53-L53  # define DEV_DISPLAY_GUARD_WARN_MS ( 1000 U )
+   - before:L58-L69  return true ; static uint32_t s_warn_tick ; static const char * s_warn_what ; const uint32_t now = osKernelGetTickCount ( ) ; if ( s_warn_what ! = what | | ( uint32_t ) ( now - s_warn_tick ) > = DEV_DISPLAY_GUARD_WARN_MS …
+
+== Device/Display/dev_display_p20.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 982 → after 982 tokens）
+
+== Device/Inc/dev_display.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 384 → after 384 tokens）
+
+== Device/Inc/dev_dp83848.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1750 → after 1750 tokens）
+
+== Device/Inc/dev_eth.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 22 → after 22 tokens）
+
+== Device/Inc/dev_flash_int.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 29 → after 29 tokens）
+
+== Device/Inc/dev_io_ctrl.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 30 → after 30 tokens）
+
+== Device/Inc/dev_key.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 229 → after 229 tokens）
+
+== Device/Inc/dev_light_sensor.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 83 → after 83 tokens）
+
+== Device/Inc/dev_rs232.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 25 → after 25 tokens）
+
+== Device/Inc/dev_rs232_voice.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 36 → after 36 tokens）
+
+== Device/Inc/dev_rs485.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 30 → after 30 tokens）
+
+== Device/Inc/dev_storage.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 394 → after 394 tokens）
+
+== Device/Inc/dev_w25qxx.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 13 → after 13 tokens）
+
+== Device/IO/dev_io_ctrl.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 80 → after 80 tokens）
+
+== Device/IO/dev_key.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 681 → after 681 tokens）
+
+== Device/IO/dev_light_sensor.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 338 → after 338 tokens）
+
+== Device/Network/dev_dp83848.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1546 → after 1546 tokens）
+
+== Device/Network/dev_eth.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 271 → after 271 tokens）
+
+== Device/Storage/dev_flash_int.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 325 → after 325 tokens）
+
+== Device/Storage/dev_w25qxx.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 2047 → after 2047 tokens）
+
+== Kernel/Inc/bcc_utils.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 27 → after 27 tokens）
+
+== Kernel/Inc/bit_utils.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 17 → after 17 tokens）
+
+== Kernel/Inc/container_of.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 43 → after 43 tokens）
+
+== Kernel/Inc/crc_utils.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 53 → after 53 tokens）
+
+== Kernel/Inc/initcall.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 286 → after 286 tokens）
+
+== Kernel/Inc/ring_buffer.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 448 → after 448 tokens）
+
+== Kernel/Inc/text_cvt.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 198 → after 198 tokens）
+
+== Kernel/Src/bcc_utils.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 47 → after 47 tokens）
+
+== Kernel/Src/bit_utils.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 105 → after 105 tokens）
+
+== Kernel/Src/crc_utils.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 284 → after 284 tokens）
+
+== Kernel/Src/initcall.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 63 → after 63 tokens）
+
+== Kernel/Src/ring_buffer.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1459 → after 1459 tokens）
+
+== Kernel/Src/text_cvt.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 264253 → after 264253 tokens）
+   [已声明改写] APP_LWIP_DBG_LEVEL 覆盖块 → LWIP_DBG_TYPES_ON 0（LwIP 调试整体编出）
+
+== Platform/Inc/lwipopts.h: 已声明改写  删除 token 10 个 / 删除块 1 处（before 212 → after 202 tokens）
+   !! replace before[10:12] = 'ifndef APP_LWIP_DBG_LEVEL'
+   !! replace before[14:15] = 'APP_LWIP_DBG_LEVEL'
+   - before:L52-L55  x01 # endif # undef LWIP_DBG_MIN_LEVEL # define LWIP_DBG_MIN_LEVEL APP_LWIP_DBG_LEVEL
+
+== Platform/Inc/pl_adc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 41 → after 41 tokens）
+
+== Platform/Inc/platform.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 36 → after 36 tokens）
+
+== Platform/Inc/pl_crc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 49 → after 49 tokens）
+
+== Platform/Inc/pl_dma.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 9 → after 9 tokens）
+
+== Platform/Inc/pl_dwt.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 29 → after 29 tokens）
+
+== Platform/Inc/pl_eth.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 144 → after 144 tokens）
+
+== Platform/Inc/pl_exti.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 45 → after 45 tokens）
+
+== Platform/Inc/pl_flash.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 96 → after 96 tokens）
+
+== Platform/Inc/pl_gpio.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 85 → after 85 tokens）
+
+== Platform/Inc/pl_hub75.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 726 → after 726 tokens）
+
+== Platform/Inc/pl_iwdg.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 27 → after 27 tokens）
+
+== Platform/Inc/pl_net_adapt.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 42 → after 42 tokens）
+
+== Platform/Inc/pl_net.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 104 → after 104 tokens）
+
+== Platform/Inc/pl_rtc.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 67 → after 67 tokens）
+
+== Platform/Inc/pl_spi.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 141 → after 141 tokens）
+
+== Platform/Inc/pl_sys.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 65 → after 65 tokens）
+   [已声明改写] 判空助手：删除 RTT 打印分支（函数体简化为 return tid）
+
+== Platform/Inc/pl_task_guard.h: 已声明改写  删除 token 36 个 / 删除块 5 处（before 74 → after 35 tokens）
+   !! replace before[31:35] = 'tid = = nullptr'
+   - before:L36-L36  # include "SEGGER_RTT.h"
+   - before:L45-L45  if
+   - before:L45-L47  { SEGGER_RTT_printf ( 0 , "[err] task '%s' create FAILED (heap exhausted): free=%u min=%u\n" , (
+   - before:L47-L48  ! = nullptr ) ? tag : "?" , ( unsigned ) xPortGetFreeHeapSize ( ) , ( unsigned ) xPortGetMinimumEverFreeHeapSize ( ) )
+   - before:L49-L49  }
+
+== Platform/Inc/pl_task_static.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 133 → after 133 tokens）
+
+== Platform/Inc/pl_tim.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 99 → after 99 tokens）
+
+== Platform/Inc/pl_uart.h: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 163 → after 163 tokens）
+
+== Platform/Src/pl_adc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 134 → after 134 tokens）
+
+== Platform/Src/pl_crc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 166 → after 166 tokens）
+
+== Platform/Src/pl_dma.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 59 → after 59 tokens）
+
+== Platform/Src/pl_dwt.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 62 → after 62 tokens）
+
+== Platform/Src/pl_eth.c: OK(仅删除)  删除 token 24 个 / 删除块 2 处（before 2416 → after 2392 tokens）
+   - before:L6-L6  # include "SEGGER_RTT.h"
+   - before:L194-L197  SEGGER_RTT_printf ( 0 , "[err] task 'EthIf' create FAILED (heap exhausted): free=%u min=%u\n" , ( unsigned ) xPortGetFreeHeapSize ( ) , ( unsigned ) xPortGetMinimumEverFreeHeapSize ( ) ) ;
+
+== Platform/Src/pl_exti.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 250 → after 250 tokens）
+
+== Platform/Src/pl_flash.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 196 → after 196 tokens）
+
+== Platform/Src/pl_gpio.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 462 → after 462 tokens）
+
+== Platform/Src/pl_hub75.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 250 → after 250 tokens）
+
+== Platform/Src/pl_iwdg.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 56 → after 56 tokens）
+
+== Platform/Src/pl_net.c: OK(仅删除)  删除 token 24 个 / 删除块 2 处（before 680 → after 656 tokens）
+   - before:L18-L18  # include "SEGGER_RTT.h"
+   - before:L81-L84  SEGGER_RTT_printf ( 0 , "[err] task 'EthLink' create FAILED (heap exhausted): free=%u min=%u\n" , ( unsigned ) xPortGetFreeHeapSize ( ) , ( unsigned ) xPortGetMinimumEverFreeHeapSize ( ) ) ;
+
+== Platform/Src/pl_rtc.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 141 → after 141 tokens）
+
+== Platform/Src/pl_rtt.c: DELETED（整文件删除，已声明）
+
+== Platform/Src/pl_spi.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 564 → after 564 tokens）
+
+== Platform/Src/pl_sys.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 318 → after 318 tokens）
+
+== Platform/Src/pl_tim.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 333 → after 333 tokens）
+
+== Platform/Src/pl_uart.c: OK(仅删除)  删除 token 0 个 / 删除块 0 处（before 1247 → after 1247 tokens）

@@ -48,17 +48,21 @@ static void cmd_display(channel_t *ch, char *buff)
 
     /* AH 平台文本为 UTF-8：直接以 FONT_ENC_UTF8 交给 app_render
      * （渲染引擎内部自行 UTF8ToGBK 取字模）。勿在此预转 GBK——
-     * GBK 字节再被 FONT_ENC_UTF8 路径二次解析会双重转换乱码。 */
-    app_render(&(render_cfg_t){
-        .type = RENDER_TEXT,
-        .x = 0, .y = 0,
-        .w = dev_display_get()->screen_rows, .h = dev_display_get()->screen_cols,
-        .color    = disp_color[(uint8_t)(para->color) - 0x30],
-        .text      = para->text, .len = (uint16_t)(length - sizeof(cmd_display_t)),
-        .font_size = disp_size[(uint8_t)(para->size) - 0x30],
-        .font_type = FONT_ST,
-        .text_enc  = FONT_ENC_UTF8,
-    });
+     * GBK 字节再被 FONT_ENC_UTF8 路径二次解析会双重转换乱码。
+     * 无显示驱动构建：无屏可渲染 → 只跳过渲染，NotifyID 更新与应答照常。 */
+    dev_display_t *dsp = dev_display_get();
+    if (dsp != nullptr) {
+        app_render(&(render_cfg_t){
+            .type = RENDER_TEXT,
+            .x = 0, .y = 0,
+            .w = dsp->screen_rows, .h = dsp->screen_cols,
+            .color    = disp_color[(uint8_t)(para->color) - 0x30],
+            .text      = para->text, .len = (uint16_t)(length - sizeof(cmd_display_t)),
+            .font_size = disp_size[(uint8_t)(para->size) - 0x30],
+            .font_type = FONT_ST,
+            .text_enc  = FONT_ENC_UTF8,
+        });
+    }
 
     // 更新本地的notify id
     memcpy(&xNotifyID, &(para->nid), sizeof(xNotifyID));

@@ -521,8 +521,38 @@ Bootloader/Recovery 同步升级后按 72B 布局读写，与主固件自愈后�
 
 ---
 
+
+## §16 LDI 网络上报的单一真源（2026-10-08，已落地）
+
+**背景（审计 C3）**：上电顺序 = `sw_board_init()`（含 `ldi_module_init` → `ldi_ctx_init`）→
+`app_net_boot_apply()`。二者对「设备 IP / 配置端口」的取值可能不同：典型 = `PROTO_CHONGQING`
+与 LDI 混编口径（EIDE Debug 曾如此）——`ldi_ctx_init` 分支 3 取 `pl_net` 上电值
+`192.168.114.200`，`app_net_boot` 随后把 Sector1/netif 改成 `192.168.1.5` ⇒ **LDI 12H 搜索应答 /
+1DH → D1H IP 采集应答**（读 `g_ldi.cfg` 缓存）与 **IAP 0x01 上报**（直接读 Sector1）互相矛盾，
+现场用 LDI 搜索工具会对不上设备地址。
+
+**落法（选项 b：Sector1 = 单一真源）**：新增 `ldi_sync_net_from_board_cfg()`
+（`Application/Src/LDI/app_ldi.c`，原型在 `app_ldi.h`）——按 `app_board_net_cfg_get()` 读 Sector1
+net_cfg（记录有效且 IP 非 0、port 1~65535）刷新 `g_ldi.cfg` 的 `device_ip / netmask / gateway /
+device_port`；记录无效时**保留现值**不动。**调用点 = LDI 两条网络上报路径的入口**：
+`cmd_search`（12H 搜索应答）与 `cmd_rep_ip`（D1H IP 采集应答）。
+
+**理由（选 b 而非 a）**：① IAP 0x01 的真源就是 Sector1，LDI 读同一记录即**按构造同源**，
+不需要「app_net_boot 反向调用 LDI」——后者会让中立模块 `app_net_boot` 依赖 LDI（无 LDI 的构建
+〔如 `PROTO=CQ` 口径 / 无网络协议构建〕无此符号，须再引入弱符号钩子）；
+② 顺带修复另一处不一致：IAP 4B02 改 IP 后 LDI 旧缓存仍报旧值（改前未同步）；本方案下两者
+报告的都是「配置值、重启生效」，与 §12「生效语义」一致。
+
+**未触及**：`app_net_boot` / `app_board_net_cfg` / IAP 侧零改动；`g_ldi.cfg` 的装载分支、
+W25 自愈、`set_remote` 语义不变；host 字段（不在 Sector1）不参与同步。
+
+**实测（2026-10-08）**：`PROTO=ALL` 口径驱动对象增量 `.text +88`（同步函数）+ `.text +8`
+（两个调用点各 +4）；四口径与改前基线相比仅 `.text` 变化（ALL +192 / CQ +96，含通道门控增量），
+`.rodata/.data/.ccmram/.bss/heap_stack` 全部 ±0；三口径零新增告警。
+
 ## 修订
 
+- 2026-10-08：新增 **§16 LDI 网络上报的单一真源**——`ldi_sync_net_from_board_cfg()` 在 12H/D1H 应答入口按 Sector1 net_cfg 刷新 `g_ldi.cfg`；消除「LDI 与 IAP 0x01 双上报源不一致」（审计 C3-C）。
 - 2026-09-18：**TCP Client 通道层与 LDI 解耦**——`g_tcp_client` 编译期默认改为
   `0.0.0.0:0`（不再硬编码 `192.168.2.17:9529`）；未配置不 connect。`app_boot` 仍启动
   Client 任务。LDI 仍是唯一 `set_remote` 调用方：W25 有效 host 才注入；W25 空继承

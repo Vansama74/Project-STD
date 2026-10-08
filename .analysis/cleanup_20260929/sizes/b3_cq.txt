@@ -1,0 +1,43 @@
+== tag: b3_cq ==
+== cmd: make PROTO=CQ -j8 ==
+== date: 2026-09-29T09:20:06+08:00 ==
+make_rc=0
+warning_lines=3
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1027:74: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:1063:75: warning: unused parameter 'Banks' [-Wunused-parameter]
+  W: Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c:948:60: warning: unused parameter 'Banks' [-Wunused-parameter]
+elf=/home/yystation/Program/3833024/Project-STD-main/build/Debug/Project_STD.elf
+elf_md5=f6f78d3a805911ed6c063c96a8f9a6f6
+/home/yystation/Program/3833024/Project-STD-main/build/Debug/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                154044   134480272
+.rodata              195072   134634320
+.hw_initcall            152   134829392
+.sw_initcall            200   134829544
+.ARM.extab                0   134829744
+.ARM                      8   134829744
+.preinit_array            0   134829752
+.init_array               4   134829752
+.fini_array               4   134829756
+.data                   852   536870912
+.ccmram               37396   268435456
+.bss                 120084   536871764
+._user_heap_stack      2560   536991848
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          630181           0
+.debug_abbrev        107049           0
+.debug_loclists      224927           0
+.debug_aranges        20568           0
+.debug_rnglists       18237           0
+.debug_line          363437           0
+.debug_str            96321           0
+.debug_frame          62564           0
+.debug_line_str         474           0
+Total               2034643
+
+
+==== Build complete ====
+   text	   data	    bss	    dec	    hex	filename
+ 349876	    852	 160040	 510768	  7cb30	build/Debug/Project_STD.elf

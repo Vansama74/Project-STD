@@ -1,0 +1,100 @@
+--- /dev/fd/63	2026-09-29 09:28:47.041505689 +0800
++++ /dev/fd/62	2026-09-29 09:28:47.041505689 +0800
+@@ -1,68 +1,39 @@
+  <init_task>:
+-   0:	      	push	{r4, r5, lr}
+-   2:	      	sub	sp, #44	@ 0x2c
++   0:	      	push	{r4, lr}
++   2:	      	sub	sp, #40	@ 0x28
+    4:	  	bl	0 <dev_eth_start>
+    8:	  	bl	0 <sw_board_init>
+    c:	  	bl	0 <pl_iwdg_get_handle>
+   10:	  	bl	0 <pl_iwdg_refresh>
+-  14:	      	ldr	r0, [pc, #156]	@ (b4 <init_task+0xb4>)
++  14:	      	ldr	r0, [pc, #88]	@ (70 <init_task+0x70>)
+   16:	  	bl	0 <app_board_net_cfg_fw_version_update>
+   1a:	  	bl	0 <app_net_boot_apply>
+   1e:	  	bl	0 <init_task>
+-  22:	  	bl	0 <init_task>
+-  26:	      	add	r5, sp, #4
+-  28:	      	movs	r2, #36	@ 0x24
+-  2a:	      	movs	r1, #0
+-  2c:	      	mov	r0, r5
+-  2e:	  	bl	0 <memset>
+-  32:	      	ldr	r4, [pc, #132]	@ (b8 <init_task+0xb8>)
+-  34:	      	str	r4, [sp, #4]
+-  36:	  	mov.w	r3, #512	@ 0x200
+-  3a:	      	str	r3, [sp, #24]
+-  3c:	      	movs	r3, #8
+-  3e:	      	str	r3, [sp, #28]
+-  40:	      	mov	r2, r5
+-  42:	      	movs	r1, #0
+-  44:	      	ldr	r0, [pc, #116]	@ (bc <init_task+0xbc>)
+-  46:	  	bl	0 <osThreadNew>
+-  4a:	      	mov	r1, r4
+-  4c:	  	bl	0 <init_task>
+-  50:	  	bl	0 <init_task>
+-  54:	      	ldr	r0, [pc, #104]	@ (c0 <init_task+0xc0>)
++  22:	      	add	r4, sp, #4
++  24:	      	movs	r2, #36	@ 0x24
++  26:	      	movs	r1, #0
++  28:	      	mov	r0, r4
++  2a:	  	bl	0 <memset>
++  2e:	      	ldr	r3, [pc, #68]	@ (74 <init_task+0x74>)
++  30:	      	str	r3, [sp, #4]
++  32:	  	mov.w	r3, #512	@ 0x200
++  36:	      	str	r3, [sp, #24]
++  38:	      	movs	r3, #8
++  3a:	      	str	r3, [sp, #28]
++  3c:	      	mov	r2, r4
++  3e:	      	movs	r1, #0
++  40:	      	ldr	r0, [pc, #52]	@ (78 <init_task+0x78>)
++  42:	  	bl	0 <osThreadNew>
++  46:	  	bl	0 <init_task>
++  4a:	  	bl	0 <init_task>
++  4e:	  	bl	0 <init_task>
++  52:	  	bl	0 <init_task>
+   56:	  	bl	0 <init_task>
+-  5a:	  	bl	0 <init_task>
+-  5e:	      	ldr	r0, [pc, #100]	@ (c4 <init_task+0xc4>)
+-  60:	  	bl	0 <init_task>
+-  64:	  	bl	0 <init_task>
+-  68:	      	ldr	r0, [pc, #92]	@ (c8 <init_task+0xc8>)
+-  6a:	  	bl	0 <init_task>
+-  6e:	  	bl	0 <init_task>
+-  72:	      	ldr	r0, [pc, #88]	@ (cc <init_task+0xcc>)
+-  74:	  	bl	0 <init_task>
+-  78:	  	bl	0 <init_task>
+-  7c:	      	ldr	r0, [pc, #80]	@ (d0 <init_task+0xd0>)
+-  7e:	  	bl	0 <init_task>
+-  82:	  	bl	0 <app_rs485_start>
+-  86:	      	ldr	r0, [pc, #76]	@ (d4 <init_task+0xd4>)
+-  88:	  	bl	0 <init_task>
+-  8c:	  	bl	0 <app_rs232_start>
+-  90:	      	ldr	r0, [pc, #68]	@ (d8 <init_task+0xd8>)
+-  92:	  	bl	0 <init_task>
+-  96:	  	bl	0 <app_rs232_1_start>
+-  9a:	      	ldr	r0, [pc, #64]	@ (dc <init_task+0xdc>)
+-  9c:	  	bl	0 <init_task>
+-  a0:	  	movw	r0, #	@ 0x9c4
+-  a4:	  	bl	0 <osDelay>
+-  a8:	  	bl	0 <init_task>
+-  ac:	  	bl	0 <app_default_display>
+-  b0:	  	bl	0 <osThreadExit>
+-  b4:	 	.word	0x0000004c
++  5a:	  	bl	0 <app_rs485_start>
++  5e:	  	bl	0 <app_rs232_start>
++  62:	  	bl	0 <app_rs232_1_start>
++  66:	  	bl	0 <app_default_display>
++  6a:	  	bl	0 <osThreadExit>
++  6e:	      	nop
++  70:	 	.word	0x00000008
+ 	...
+-  c0:	 	.word	0x00000010
+-  c4:	 	.word	0x00000028
+-  c8:	 	.word	0x00000040
+-  cc:	 	.word	0x00000058
+-  d0:	 	.word	0x0000006c
+-  d4:	 	.word	0x00000084
+-  d8:	 	.word	0x000000bc
+-  dc:	 	.word	0x000000f4

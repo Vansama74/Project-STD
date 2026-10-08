@@ -12,14 +12,12 @@
 
 #include <stdint.h>
 
-#include "app_diag.h"
 #include "app_render.h"
 #include "app_scroll.h"
 #include "app_light_sensor.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
 #include "app_anhui_proto_voice.h"
-#include "SEGGER_RTT.h"    /* 联调诊断（ANHUI_RTT_DIAG）；置 0 时该头无引用 */
 
 /* 协议文档未定义显示颜色 → 默认红色（费额显示器常规红）；待上位机联调确认 */
 #define ANHUI_DEFAULT_COLOR COLOR_RED
@@ -62,20 +60,6 @@ static void _anhui_exec_pixel(const anhui_point_t *p, display_color_t color)
     app_scroll_render_unlock();
 }
 
-/* ---- 联调诊断（0x85 帧级证据，2026-09-15）----
- * 每帧打印：数据区前两字节原始序（b0=X / b1=Y，直用像素）+ 解析结果 x/y
- *  + 文本前 4 字节 hex——现场一眼确认「上位机到底发的什么坐标」。
- * 实测证据（2026-09-15 RTT 采集）：上位机「第一/二/三/四行」四帧逐字节完全
- * 相同——b0=00 b1=00、文本仅 1 字节 0x31('1')：行号信息不在数据区坐标字节里，
- * 四帧都渲染在 (0,0) 是该帧语义下的正确行为（doc/13 §1.2）。
- * 后续联调判据：上位机若真发 (0,16)，屏幕必须从 y=16 起显示、诊断行 b1=10
- * 即实证。
- * **一键关闭**：ANHUI_RTT_DIAG 置 0（默认跟随总开关 APP_DIAG_BANNER，见
- * app_diag.h；也可单独覆盖 0/1）。关闭后本块消失，协议行为不变（只读打印）。 */
-#ifndef ANHUI_RTT_DIAG
-#define ANHUI_RTT_DIAG (APP_DIAG_BANNER)
-#endif
-
 /**
  * @brief  执行静态显示（0x85）。
  * @param  p  静态显示参数（X/Y + GBK 文本；x=data[0]、y=data[1] 均为直接像素
@@ -94,19 +78,6 @@ static void _anhui_exec_pixel(const anhui_point_t *p, display_color_t color)
  */
 static void _anhui_exec_static_text(const anhui_static_text_t *p)
 {
-#if ANHUI_RTT_DIAG
-    /* 帧级证据（见上方诊断块说明）：b0/b1 = 数据区前两字节原始序
-     * （x=b0、y=b1 直用像素，无换算） */
-    SEGGER_RTT_printf(0,
-                      "[anhui] 0x85 b0=%02x b1=%02x -> x=%u y=%u len=%u "
-                      "t=%02x %02x %02x %02x\n",
-                      (unsigned)p->x, (unsigned)p->y,
-                      (unsigned)p->x, (unsigned)p->y, (unsigned)p->text_len,
-                      (unsigned)((p->text_len > 0U) ? p->text[0] : 0U),
-                      (unsigned)((p->text_len > 1U) ? p->text[1] : 0U),
-                      (unsigned)((p->text_len > 2U) ? p->text[2] : 0U),
-                      (unsigned)((p->text_len > 3U) ? p->text[3] : 0U));
-#endif
 
     app_scroll_render_lock();
     app_scroll_stop_all_nolock(); /* 静态显示终止全部动态显示（用户裁决 2026-09-07，越界帧同样终止） */

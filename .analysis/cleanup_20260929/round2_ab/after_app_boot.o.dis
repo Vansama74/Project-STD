@@ -1,0 +1,307 @@
+
+/home/yystation/Program/3833024/Project-STD-main/build/Debug/Application/Src/app_boot.o:     file format elf32-littlearm
+
+
+Disassembly of section .text.app_tcp_server_start:
+
+00000000 <app_tcp_server_start>:
+   0:	b508      	push	{r3, lr}
+   2:	4a03      	ldr	r2, [pc, #12]	@ (10 <app_tcp_server_start+0x10>)
+   4:	2100      	movs	r1, #0
+   6:	4803      	ldr	r0, [pc, #12]	@ (14 <app_tcp_server_start+0x14>)
+   8:	f7ff fffe 	bl	0 <osThreadNew>
+   c:	bd08      	pop	{r3, pc}
+   e:	bf00      	nop
+	...
+
+Disassembly of section .text.app_tcp_client_start:
+
+00000000 <app_tcp_client_start>:
+   0:	b508      	push	{r3, lr}
+   2:	4a03      	ldr	r2, [pc, #12]	@ (10 <app_tcp_client_start+0x10>)
+   4:	2100      	movs	r1, #0
+   6:	4803      	ldr	r0, [pc, #12]	@ (14 <app_tcp_client_start+0x14>)
+   8:	f7ff fffe 	bl	0 <osThreadNew>
+   c:	bd08      	pop	{r3, pc}
+   e:	bf00      	nop
+	...
+
+Disassembly of section .text.app_udp_start:
+
+00000000 <app_udp_start>:
+   0:	b508      	push	{r3, lr}
+   2:	4a03      	ldr	r2, [pc, #12]	@ (10 <app_udp_start+0x10>)
+   4:	2100      	movs	r1, #0
+   6:	4803      	ldr	r0, [pc, #12]	@ (14 <app_udp_start+0x14>)
+   8:	f7ff fffe 	bl	0 <osThreadNew>
+   c:	bd08      	pop	{r3, pc}
+   e:	bf00      	nop
+	...
+
+Disassembly of section .text.app_udp_cq_start:
+
+00000000 <app_udp_cq_start>:
+   0:	b508      	push	{r3, lr}
+   2:	4a03      	ldr	r2, [pc, #12]	@ (10 <app_udp_cq_start+0x10>)
+   4:	2100      	movs	r1, #0
+   6:	4803      	ldr	r0, [pc, #12]	@ (14 <app_udp_cq_start+0x14>)
+   8:	f7ff fffe 	bl	0 <osThreadNew>
+   c:	bd08      	pop	{r3, pc}
+   e:	bf00      	nop
+	...
+
+Disassembly of section .text.app_udp_gzol_start:
+
+00000000 <app_udp_gzol_start>:
+   0:	b508      	push	{r3, lr}
+   2:	4a03      	ldr	r2, [pc, #12]	@ (10 <app_udp_gzol_start+0x10>)
+   4:	2100      	movs	r1, #0
+   6:	4803      	ldr	r0, [pc, #12]	@ (14 <app_udp_gzol_start+0x14>)
+   8:	f7ff fffe 	bl	0 <osThreadNew>
+   c:	bd08      	pop	{r3, pc}
+   e:	bf00      	nop
+	...
+
+Disassembly of section .text.half_sec_task:
+
+00000000 <half_sec_task>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	2400      	movs	r4, #0
+   4:	4625      	mov	r5, r4
+   6:	e00b      	b.n	20 <half_sec_task+0x20>
+   8:	3501      	adds	r5, #1
+   a:	f084 0401 	eor.w	r4, r4, #1
+   e:	4622      	mov	r2, r4
+  10:	2109      	movs	r1, #9
+  12:	2003      	movs	r0, #3
+  14:	f7ff fffe 	bl	0 <pl_gpio_write>
+  18:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
+  1c:	f7ff fffe 	bl	0 <osDelay>
+  20:	f7ff fffe 	bl	0 <pl_iwdg_get_handle>
+  24:	f7ff fffe 	bl	0 <pl_iwdg_refresh>
+  28:	2d3b      	cmp	r5, #59	@ 0x3b
+  2a:	d9ed      	bls.n	8 <half_sec_task+0x8>
+  2c:	f7ff fffe 	bl	0 <pl_rtc_get_handle>
+  30:	2200      	movs	r2, #0
+  32:	2101      	movs	r1, #1
+  34:	f7ff fffe 	bl	0 <pl_rtc_bkup_write>
+  38:	e7e7      	b.n	a <half_sec_task+0xa>
+
+Disassembly of section .text.app_splash_display:
+
+00000000 <app_splash_display>:
+   0:	b5f0      	push	{r4, r5, r6, r7, lr}
+   2:	b0b3      	sub	sp, #204	@ 0xcc
+   4:	4832      	ldr	r0, [pc, #200]	@ (d0 <app_splash_display+0xd0>)
+   6:	f7ff fffe 	bl	0 <dev_display_guard>
+   a:	b908      	cbnz	r0, 10 <app_splash_display+0x10>
+   c:	b033      	add	sp, #204	@ 0xcc
+   e:	bdf0      	pop	{r4, r5, r6, r7, pc}
+  10:	f7ff fffe 	bl	0 <dev_display_get>
+  14:	4604      	mov	r4, r0
+  16:	ad22      	add	r5, sp, #136	@ 0x88
+  18:	4b2e      	ldr	r3, [pc, #184]	@ (d4 <app_splash_display+0xd4>)
+  1a:	4a2f      	ldr	r2, [pc, #188]	@ (d8 <app_splash_display+0xd8>)
+  1c:	2120      	movs	r1, #32
+  1e:	4628      	mov	r0, r5
+  20:	f7ff fffe 	bl	0 <snprintf>
+  24:	ae1a      	add	r6, sp, #104	@ 0x68
+  26:	6a23      	ldr	r3, [r4, #32]
+  28:	4a2c      	ldr	r2, [pc, #176]	@ (dc <app_splash_display+0xdc>)
+  2a:	2120      	movs	r1, #32
+  2c:	4630      	mov	r0, r6
+  2e:	f7ff fffe 	bl	0 <snprintf>
+  32:	9600      	str	r6, [sp, #0]
+  34:	462b      	mov	r3, r5
+  36:	4a2a      	ldr	r2, [pc, #168]	@ (e0 <app_splash_display+0xe0>)
+  38:	2160      	movs	r1, #96	@ 0x60
+  3a:	a802      	add	r0, sp, #8
+  3c:	f7ff fffe 	bl	0 <snprintf>
+  40:	8963      	ldrh	r3, [r4, #10]
+  42:	2500      	movs	r5, #0
+  44:	9501      	str	r5, [sp, #4]
+  46:	89a2      	ldrh	r2, [r4, #12]
+  48:	9200      	str	r2, [sp, #0]
+  4a:	462a      	mov	r2, r5
+  4c:	4629      	mov	r1, r5
+  4e:	4620      	mov	r0, r4
+  50:	f7ff fffe 	bl	0 <dev_display_fill>
+  54:	f884 5025 	strb.w	r5, [r4, #37]	@ 0x25
+  58:	f04f 0600 	mov.w	r6, #0
+  5c:	f8ad 50ac 	strh.w	r5, [sp, #172]	@ 0xac
+  60:	f8ad 50ae 	strh.w	r5, [sp, #174]	@ 0xae
+  64:	8963      	ldrh	r3, [r4, #10]
+  66:	f8ad 30b0 	strh.w	r3, [sp, #176]	@ 0xb0
+  6a:	89a3      	ldrh	r3, [r4, #12]
+  6c:	f8ad 30b2 	strh.w	r3, [sp, #178]	@ 0xb2
+  70:	f04f 0702 	mov.w	r7, #2
+  74:	f88d 70b4 	strb.w	r7, [sp, #180]	@ 0xb4
+  78:	f88d 60b5 	strb.w	r6, [sp, #181]	@ 0xb5
+  7c:	ab02      	add	r3, sp, #8
+  7e:	932e      	str	r3, [sp, #184]	@ 0xb8
+  80:	4618      	mov	r0, r3
+  82:	f7ff fffe 	bl	0 <strlen>
+  86:	f8ad 00bc 	strh.w	r0, [sp, #188]	@ 0xbc
+  8a:	f88d 60be 	strb.w	r6, [sp, #190]	@ 0xbe
+  8e:	f88d 60bf 	strb.w	r6, [sp, #191]	@ 0xbf
+  92:	4b14      	ldr	r3, [pc, #80]	@ (e4 <app_splash_display+0xe4>)
+  94:	681b      	ldr	r3, [r3, #0]
+  96:	f8ad 30a8 	strh.w	r3, [sp, #168]	@ 0xa8
+  9a:	0c1b      	lsrs	r3, r3, #16
+  9c:	f88d 30aa 	strb.w	r3, [sp, #170]	@ 0xaa
+  a0:	ab2a      	add	r3, sp, #168	@ 0xa8
+  a2:	9330      	str	r3, [sp, #192]	@ 0xc0
+  a4:	f88d 70c4 	strb.w	r7, [sp, #196]	@ 0xc4
+  a8:	a82b      	add	r0, sp, #172	@ 0xac
+  aa:	f7ff fffe 	bl	0 <app_render>
+  ae:	f241 3088 	movw	r0, #5000	@ 0x1388
+  b2:	f7ff fffe 	bl	0 <osDelay>
+  b6:	8963      	ldrh	r3, [r4, #10]
+  b8:	9501      	str	r5, [sp, #4]
+  ba:	89a2      	ldrh	r2, [r4, #12]
+  bc:	9200      	str	r2, [sp, #0]
+  be:	462a      	mov	r2, r5
+  c0:	4629      	mov	r1, r5
+  c2:	4620      	mov	r0, r4
+  c4:	f7ff fffe 	bl	0 <dev_display_fill>
+  c8:	f884 6025 	strb.w	r6, [r4, #37]	@ 0x25
+  cc:	e79e      	b.n	c <app_splash_display+0xc>
+  ce:	bf00      	nop
+  d0:	00000000 	.word	0x00000000
+  d4:	00000008 	.word	0x00000008
+  d8:	00000014 	.word	0x00000014
+  dc:	0000001c 	.word	0x0000001c
+  e0:	00000024 	.word	0x00000024
+  e4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.init_task:
+
+00000000 <init_task>:
+   0:	b510      	push	{r4, lr}
+   2:	b08a      	sub	sp, #40	@ 0x28
+   4:	f7ff fffe 	bl	0 <dev_eth_start>
+   8:	f7ff fffe 	bl	0 <sw_board_init>
+   c:	f7ff fffe 	bl	0 <pl_iwdg_get_handle>
+  10:	f7ff fffe 	bl	0 <pl_iwdg_refresh>
+  14:	4816      	ldr	r0, [pc, #88]	@ (70 <init_task+0x70>)
+  16:	f7ff fffe 	bl	0 <app_board_net_cfg_fw_version_update>
+  1a:	f7ff fffe 	bl	0 <app_net_boot_apply>
+  1e:	f7ff fffe 	bl	0 <init_task>
+  22:	ac01      	add	r4, sp, #4
+  24:	2224      	movs	r2, #36	@ 0x24
+  26:	2100      	movs	r1, #0
+  28:	4620      	mov	r0, r4
+  2a:	f7ff fffe 	bl	0 <memset>
+  2e:	4b11      	ldr	r3, [pc, #68]	@ (74 <init_task+0x74>)
+  30:	9301      	str	r3, [sp, #4]
+  32:	f44f 7300 	mov.w	r3, #512	@ 0x200
+  36:	9306      	str	r3, [sp, #24]
+  38:	2308      	movs	r3, #8
+  3a:	9307      	str	r3, [sp, #28]
+  3c:	4622      	mov	r2, r4
+  3e:	2100      	movs	r1, #0
+  40:	480d      	ldr	r0, [pc, #52]	@ (78 <init_task+0x78>)
+  42:	f7ff fffe 	bl	0 <osThreadNew>
+  46:	f7ff fffe 	bl	0 <init_task>
+  4a:	f7ff fffe 	bl	0 <init_task>
+  4e:	f7ff fffe 	bl	0 <init_task>
+  52:	f7ff fffe 	bl	0 <init_task>
+  56:	f7ff fffe 	bl	0 <init_task>
+  5a:	f7ff fffe 	bl	0 <app_rs485_start>
+  5e:	f7ff fffe 	bl	0 <app_rs232_start>
+  62:	f7ff fffe 	bl	0 <app_rs232_1_start>
+  66:	f7ff fffe 	bl	0 <app_default_display>
+  6a:	f7ff fffe 	bl	0 <osThreadExit>
+  6e:	bf00      	nop
+  70:	00000008 	.word	0x00000008
+	...
+
+Disassembly of section .text.app_boot:
+
+00000000 <app_boot>:
+   0:	b510      	push	{r4, lr}
+   2:	b08a      	sub	sp, #40	@ 0x28
+   4:	ac01      	add	r4, sp, #4
+   6:	2224      	movs	r2, #36	@ 0x24
+   8:	2100      	movs	r1, #0
+   a:	4620      	mov	r0, r4
+   c:	f7ff fffe 	bl	0 <memset>
+  10:	4b0d      	ldr	r3, [pc, #52]	@ (48 <app_boot+0x48>)
+  12:	9301      	str	r3, [sp, #4]
+  14:	f44f 6300 	mov.w	r3, #2048	@ 0x800
+  18:	9306      	str	r3, [sp, #24]
+  1a:	2328      	movs	r3, #40	@ 0x28
+  1c:	9307      	str	r3, [sp, #28]
+  1e:	f7ff fffe 	bl	0 <osKernelInitialize>
+  22:	4622      	mov	r2, r4
+  24:	2100      	movs	r1, #0
+  26:	4809      	ldr	r0, [pc, #36]	@ (4c <app_boot+0x4c>)
+  28:	f7ff fffe 	bl	0 <osThreadNew>
+  2c:	b118      	cbz	r0, 36 <app_boot+0x36>
+  2e:	f7ff fffe 	bl	0 <osKernelStart>
+  32:	b00a      	add	sp, #40	@ 0x28
+  34:	bd10      	pop	{r4, pc}
+  36:	f04f 0350 	mov.w	r3, #80	@ 0x50
+  3a:	f383 8811 	msr	BASEPRI, r3
+  3e:	f3bf 8f6f 	isb	sy
+  42:	f3bf 8f4f 	dsb	sy
+  46:	e7fe      	b.n	46 <app_boot+0x46>
+	...
+
+Disassembly of section .text.vApplicationGetIdleTaskMemory:
+
+00000000 <vApplicationGetIdleTaskMemory>:
+   0:	4b03      	ldr	r3, [pc, #12]	@ (10 <vApplicationGetIdleTaskMemory+0x10>)
+   2:	6003      	str	r3, [r0, #0]
+   4:	4b03      	ldr	r3, [pc, #12]	@ (14 <vApplicationGetIdleTaskMemory+0x14>)
+   6:	600b      	str	r3, [r1, #0]
+   8:	2380      	movs	r3, #128	@ 0x80
+   a:	6013      	str	r3, [r2, #0]
+   c:	4770      	bx	lr
+   e:	bf00      	nop
+  10:	00000668 	.word	0x00000668
+  14:	00000468 	.word	0x00000468
+
+Disassembly of section .text.vApplicationGetTimerTaskMemory:
+
+00000000 <vApplicationGetTimerTaskMemory>:
+   0:	4b03      	ldr	r3, [pc, #12]	@ (10 <vApplicationGetTimerTaskMemory+0x10>)
+   2:	6003      	str	r3, [r0, #0]
+   4:	4b03      	ldr	r3, [pc, #12]	@ (14 <vApplicationGetTimerTaskMemory+0x14>)
+   6:	600b      	str	r3, [r1, #0]
+   8:	f44f 7380 	mov.w	r3, #256	@ 0x100
+   c:	6013      	str	r3, [r2, #0]
+   e:	4770      	bx	lr
+  10:	00000400 	.word	0x00000400
+  14:	00000000 	.word	0x00000000
+
+Disassembly of section .text.vApplicationStackOverflowHook:
+
+00000000 <vApplicationStackOverflowHook>:
+   0:	b082      	sub	sp, #8
+   2:	9001      	str	r0, [sp, #4]
+   4:	9b01      	ldr	r3, [sp, #4]
+   6:	e7fe      	b.n	6 <vApplicationStackOverflowHook+0x6>
+
+Disassembly of section .text.vApplicationMallocFailedHook:
+
+00000000 <vApplicationMallocFailedHook>:
+   0:	f04f 0350 	mov.w	r3, #80	@ 0x50
+   4:	f383 8811 	msr	BASEPRI, r3
+   8:	f3bf 8f6f 	isb	sy
+   c:	f3bf 8f4f 	dsb	sy
+  10:	e7fe      	b.n	10 <vApplicationMallocFailedHook+0x10>
+
+Disassembly of section .text.vConfigureTimerForRunTimeStats:
+
+00000000 <vConfigureTimerForRunTimeStats>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <pl_dwt_init>
+   6:	bd08      	pop	{r3, pc}
+
+Disassembly of section .text.ulGetRunTimeCounterValue:
+
+00000000 <ulGetRunTimeCounterValue>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <pl_dwt_get_cycles>
+   6:	bd08      	pop	{r3, pc}

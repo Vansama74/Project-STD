@@ -1,0 +1,538 @@
+
+build/Debug/Application/Src/LDI/app_ldi_device.o:     file format elf32-littlearm
+
+
+Disassembly of section .text.display_params_ok:
+
+00000000 <display_params_ok>:
+   0:	7843      	ldrb	r3, [r0, #1]
+   2:	3b01      	subs	r3, #1
+   4:	b2db      	uxtb	r3, r3
+   6:	2b02      	cmp	r3, #2
+   8:	d80a      	bhi.n	20 <display_params_ok+0x20>
+   a:	7883      	ldrb	r3, [r0, #2]
+   c:	2b08      	cmp	r3, #8
+   e:	d809      	bhi.n	24 <display_params_ok+0x24>
+  10:	78c3      	ldrb	r3, [r0, #3]
+  12:	2b06      	cmp	r3, #6
+  14:	d808      	bhi.n	28 <display_params_ok+0x28>
+  16:	b149      	cbz	r1, 2c <display_params_ok+0x2c>
+  18:	2980      	cmp	r1, #128	@ 0x80
+  1a:	d809      	bhi.n	30 <display_params_ok+0x30>
+  1c:	2001      	movs	r0, #1
+  1e:	4770      	bx	lr
+  20:	2000      	movs	r0, #0
+  22:	4770      	bx	lr
+  24:	2000      	movs	r0, #0
+  26:	4770      	bx	lr
+  28:	2000      	movs	r0, #0
+  2a:	4770      	bx	lr
+  2c:	4608      	mov	r0, r1
+  2e:	4770      	bx	lr
+  30:	2000      	movs	r0, #0
+  32:	4770      	bx	lr
+
+Disassembly of section .text.alarm_output:
+
+00000000 <alarm_output>:
+   0:	b508      	push	{r3, lr}
+   2:	4b02      	ldr	r3, [pc, #8]	@ (c <alarm_output+0xc>)
+   4:	7018      	strb	r0, [r3, #0]
+   6:	f7ff fffe 	bl	0 <dev_io_flash_light>
+   a:	bd08      	pop	{r3, pc}
+   c:	00000000 	.word	0x00000000
+
+Disassembly of section .text.alarm_stop:
+
+00000000 <alarm_stop>:
+   0:	b508      	push	{r3, lr}
+   2:	2000      	movs	r0, #0
+   4:	f7ff fffe 	bl	0 <alarm_stop>
+   8:	2300      	movs	r3, #0
+   a:	4a04      	ldr	r2, [pc, #16]	@ (1c <alarm_stop+0x1c>)
+   c:	7013      	strb	r3, [r2, #0]
+   e:	4a04      	ldr	r2, [pc, #16]	@ (20 <alarm_stop+0x20>)
+  10:	7013      	strb	r3, [r2, #0]
+  12:	4a04      	ldr	r2, [pc, #16]	@ (24 <alarm_stop+0x24>)
+  14:	7013      	strb	r3, [r2, #0]
+  16:	4a04      	ldr	r2, [pc, #16]	@ (28 <alarm_stop+0x28>)
+  18:	7013      	strb	r3, [r2, #0]
+  1a:	bd08      	pop	{r3, pc}
+	...
+
+Disassembly of section .text.display_fill:
+
+00000000 <display_fill>:
+   0:	b500      	push	{lr}
+   2:	b089      	sub	sp, #36	@ 0x24
+   4:	ab01      	add	r3, sp, #4
+   6:	2200      	movs	r2, #0
+   8:	9201      	str	r2, [sp, #4]
+   a:	9202      	str	r2, [sp, #8]
+   c:	9203      	str	r2, [sp, #12]
+   e:	9204      	str	r2, [sp, #16]
+  10:	9205      	str	r2, [sp, #20]
+  12:	9206      	str	r2, [sp, #24]
+  14:	9207      	str	r2, [sp, #28]
+  16:	f88d 000c 	strb.w	r0, [sp, #12]
+  1a:	2202      	movs	r2, #2
+  1c:	f88d 200d 	strb.w	r2, [sp, #13]
+  20:	4618      	mov	r0, r3
+  22:	f7ff fffe 	bl	0 <app_render>
+  26:	b009      	add	sp, #36	@ 0x24
+  28:	bd00      	pop	{pc}
+
+Disassembly of section .text.display_clear:
+
+00000000 <display_clear>:
+   0:	b508      	push	{r3, lr}
+   2:	7843      	ldrb	r3, [r0, #1]
+   4:	2b03      	cmp	r3, #3
+   6:	d80d      	bhi.n	24 <display_clear+0x24>
+   8:	4a07      	ldr	r2, [pc, #28]	@ (28 <display_clear+0x28>)
+   a:	5cd0      	ldrb	r0, [r2, r3]
+   c:	f7ff fffe 	bl	0 <display_clear>
+  10:	f7ff fffe 	bl	0 <app_render_save>
+  14:	4b05      	ldr	r3, [pc, #20]	@ (2c <display_clear+0x2c>)
+  16:	2000      	movs	r0, #0
+  18:	7018      	strb	r0, [r3, #0]
+  1a:	7058      	strb	r0, [r3, #1]
+  1c:	7098      	strb	r0, [r3, #2]
+  1e:	4b04      	ldr	r3, [pc, #16]	@ (30 <display_clear+0x30>)
+  20:	7018      	strb	r0, [r3, #0]
+  22:	bd08      	pop	{r3, pc}
+  24:	2000      	movs	r0, #0
+  26:	e7f1      	b.n	c <display_clear+0xc>
+	...
+
+Disassembly of section .text.display_show:
+
+00000000 <display_show>:
+   0:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+   4:	b08d      	sub	sp, #52	@ 0x34
+   6:	4606      	mov	r6, r0
+   8:	460c      	mov	r4, r1
+   a:	f7ff fffe 	bl	0 <display_show>
+   e:	2800      	cmp	r0, #0
+  10:	f000 80aa 	beq.w	168 <display_show+0x168>
+  14:	4680      	mov	r8, r0
+  16:	7873      	ldrb	r3, [r6, #1]
+  18:	2b03      	cmp	r3, #3
+  1a:	d808      	bhi.n	2e <display_show+0x2e>
+  1c:	4a55      	ldr	r2, [pc, #340]	@ (174 <display_show+0x174>)
+  1e:	5cd3      	ldrb	r3, [r2, r3]
+  20:	469a      	mov	sl, r3
+  22:	78b3      	ldrb	r3, [r6, #2]
+  24:	4a54      	ldr	r2, [pc, #336]	@ (178 <display_show+0x178>)
+  26:	5cd7      	ldrb	r7, [r2, r3]
+  28:	1d75      	adds	r5, r6, #5
+  2a:	2300      	movs	r3, #0
+  2c:	e004      	b.n	38 <display_show+0x38>
+  2e:	2302      	movs	r3, #2
+  30:	469a      	mov	sl, r3
+  32:	e7f6      	b.n	22 <display_show+0x22>
+  34:	3301      	adds	r3, #1
+  36:	b29b      	uxth	r3, r3
+  38:	42a3      	cmp	r3, r4
+  3a:	d205      	bcs.n	48 <display_show+0x48>
+  3c:	5cea      	ldrb	r2, [r5, r3]
+  3e:	2a5f      	cmp	r2, #95	@ 0x5f
+  40:	d1f8      	bne.n	34 <display_show+0x34>
+  42:	220a      	movs	r2, #10
+  44:	54ea      	strb	r2, [r5, r3]
+  46:	e7f5      	b.n	34 <display_show+0x34>
+  48:	2300      	movs	r3, #0
+  4a:	f88d 3010 	strb.w	r3, [sp, #16]
+  4e:	f88d 3011 	strb.w	r3, [sp, #17]
+  52:	78f3      	ldrb	r3, [r6, #3]
+  54:	fab3 f383 	clz	r3, r3
+  58:	095b      	lsrs	r3, r3, #5
+  5a:	f88d 3012 	strb.w	r3, [sp, #18]
+  5e:	f7ff fffe 	bl	0 <dev_display_get>
+  62:	4684      	mov	ip, r0
+  64:	b180      	cbz	r0, 88 <display_show+0x88>
+  66:	8943      	ldrh	r3, [r0, #10]
+  68:	4699      	mov	r9, r3
+  6a:	8983      	ldrh	r3, [r0, #12]
+  6c:	9303      	str	r3, [sp, #12]
+  6e:	78f3      	ldrb	r3, [r6, #3]
+  70:	b1eb      	cbz	r3, ae <display_show+0xae>
+  72:	9a03      	ldr	r2, [sp, #12]
+  74:	2a0f      	cmp	r2, #15
+  76:	d91a      	bls.n	ae <display_show+0xae>
+  78:	ebb3 1f12 	cmp.w	r3, r2, lsr #4
+  7c:	d907      	bls.n	8e <display_show+0x8e>
+  7e:	9a03      	ldr	r2, [sp, #12]
+  80:	2300      	movs	r3, #0
+  82:	4698      	mov	r8, r3
+  84:	469b      	mov	fp, r3
+  86:	e017      	b.n	b8 <display_show+0xb8>
+  88:	4681      	mov	r9, r0
+  8a:	9003      	str	r0, [sp, #12]
+  8c:	e7ef      	b.n	6e <display_show+0x6e>
+  8e:	3b01      	subs	r3, #1
+  90:	b29b      	uxth	r3, r3
+  92:	011b      	lsls	r3, r3, #4
+  94:	b29b      	uxth	r3, r3
+  96:	461a      	mov	r2, r3
+  98:	469b      	mov	fp, r3
+  9a:	2100      	movs	r1, #0
+  9c:	9101      	str	r1, [sp, #4]
+  9e:	2310      	movs	r3, #16
+  a0:	9300      	str	r3, [sp, #0]
+  a2:	464b      	mov	r3, r9
+  a4:	4660      	mov	r0, ip
+  a6:	f7ff fffe 	bl	0 <dev_display_fill>
+  aa:	2210      	movs	r2, #16
+  ac:	e004      	b.n	b8 <display_show+0xb8>
+  ae:	b153      	cbz	r3, c6 <display_show+0xc6>
+  b0:	9a03      	ldr	r2, [sp, #12]
+  b2:	2300      	movs	r3, #0
+  b4:	4698      	mov	r8, r3
+  b6:	469b      	mov	fp, r3
+  b8:	b9a7      	cbnz	r7, e4 <display_show+0xe4>
+  ba:	464b      	mov	r3, r9
+  bc:	b18b      	cbz	r3, e2 <display_show+0xe2>
+  be:	9b03      	ldr	r3, [sp, #12]
+  c0:	b983      	cbnz	r3, e4 <display_show+0xe4>
+  c2:	2710      	movs	r7, #16
+  c4:	e00e      	b.n	e4 <display_show+0xe4>
+  c6:	9301      	str	r3, [sp, #4]
+  c8:	9b03      	ldr	r3, [sp, #12]
+  ca:	9300      	str	r3, [sp, #0]
+  cc:	464b      	mov	r3, r9
+  ce:	2200      	movs	r2, #0
+  d0:	4611      	mov	r1, r2
+  d2:	4660      	mov	r0, ip
+  d4:	f7ff fffe 	bl	0 <dev_display_fill>
+  d8:	9a03      	ldr	r2, [sp, #12]
+  da:	2300      	movs	r3, #0
+  dc:	4698      	mov	r8, r3
+  de:	469b      	mov	fp, r3
+  e0:	e7ea      	b.n	b8 <display_show+0xb8>
+  e2:	2710      	movs	r7, #16
+  e4:	4643      	mov	r3, r8
+  e6:	b11b      	cbz	r3, f0 <display_show+0xf0>
+  e8:	b117      	cbz	r7, f0 <display_show+0xf0>
+  ea:	2f10      	cmp	r7, #16
+  ec:	d900      	bls.n	f0 <display_show+0xf0>
+  ee:	2710      	movs	r7, #16
+  f0:	2300      	movs	r3, #0
+  f2:	f88d 3011 	strb.w	r3, [sp, #17]
+  f6:	f8ad 3014 	strh.w	r3, [sp, #20]
+  fa:	f8ad b016 	strh.w	fp, [sp, #22]
+  fe:	f8ad 9018 	strh.w	r9, [sp, #24]
+ 102:	f8ad 201a 	strh.w	r2, [sp, #26]
+ 106:	f88d a01c 	strb.w	sl, [sp, #28]
+ 10a:	f88d 301d 	strb.w	r3, [sp, #29]
+ 10e:	9508      	str	r5, [sp, #32]
+ 110:	f8ad 4024 	strh.w	r4, [sp, #36]	@ 0x24
+ 114:	4643      	mov	r3, r8
+ 116:	b103      	cbz	r3, 11a <display_show+0x11a>
+ 118:	2700      	movs	r7, #0
+ 11a:	f88d 7026 	strb.w	r7, [sp, #38]	@ 0x26
+ 11e:	2303      	movs	r3, #3
+ 120:	f88d 3027 	strb.w	r3, [sp, #39]	@ 0x27
+ 124:	ab04      	add	r3, sp, #16
+ 126:	930a      	str	r3, [sp, #40]	@ 0x28
+ 128:	2401      	movs	r4, #1
+ 12a:	f88d 402c 	strb.w	r4, [sp, #44]	@ 0x2c
+ 12e:	a805      	add	r0, sp, #20
+ 130:	f7ff fffe 	bl	0 <app_render>
+ 134:	4b11      	ldr	r3, [pc, #68]	@ (17c <display_show+0x17c>)
+ 136:	701c      	strb	r4, [r3, #0]
+ 138:	7872      	ldrb	r2, [r6, #1]
+ 13a:	705a      	strb	r2, [r3, #1]
+ 13c:	7934      	ldrb	r4, [r6, #4]
+ 13e:	709c      	strb	r4, [r3, #2]
+ 140:	b924      	cbnz	r4, 14c <display_show+0x14c>
+ 142:	f7ff fffe 	bl	0 <app_render_save>
+ 146:	4b0e      	ldr	r3, [pc, #56]	@ (180 <display_show+0x180>)
+ 148:	701c      	strb	r4, [r3, #0]
+ 14a:	e00e      	b.n	16a <display_show+0x16a>
+ 14c:	f7ff fffe 	bl	0 <osKernelGetTickCount>
+ 150:	7933      	ldrb	r3, [r6, #4]
+ 152:	f44f 727a 	mov.w	r2, #1000	@ 0x3e8
+ 156:	fb02 0003 	mla	r0, r2, r3, r0
+ 15a:	4b0a      	ldr	r3, [pc, #40]	@ (184 <display_show+0x184>)
+ 15c:	6018      	str	r0, [r3, #0]
+ 15e:	4b08      	ldr	r3, [pc, #32]	@ (180 <display_show+0x180>)
+ 160:	2201      	movs	r2, #1
+ 162:	701a      	strb	r2, [r3, #0]
+ 164:	2400      	movs	r4, #0
+ 166:	e000      	b.n	16a <display_show+0x16a>
+ 168:	2401      	movs	r4, #1
+ 16a:	4620      	mov	r0, r4
+ 16c:	b00d      	add	sp, #52	@ 0x34
+ 16e:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
+ 172:	bf00      	nop
+	...
+
+Disassembly of section .text.ldi_device_init:
+
+00000000 <ldi_device_init>:
+   0:	b510      	push	{r4, lr}
+   2:	2400      	movs	r4, #0
+   4:	4b07      	ldr	r3, [pc, #28]	@ (24 <ldi_device_init+0x24>)
+   6:	701c      	strb	r4, [r3, #0]
+   8:	4b07      	ldr	r3, [pc, #28]	@ (28 <ldi_device_init+0x28>)
+   a:	701c      	strb	r4, [r3, #0]
+   c:	2202      	movs	r2, #2
+   e:	705a      	strb	r2, [r3, #1]
+  10:	4b06      	ldr	r3, [pc, #24]	@ (2c <ldi_device_init+0x2c>)
+  12:	701c      	strb	r4, [r3, #0]
+  14:	4b06      	ldr	r3, [pc, #24]	@ (30 <ldi_device_init+0x30>)
+  16:	701c      	strb	r4, [r3, #0]
+  18:	f7ff fffe 	bl	0 <ldi_device_init>
+  1c:	4620      	mov	r0, r4
+  1e:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  22:	bd10      	pop	{r4, pc}
+	...
+
+Disassembly of section .text.ldi_device_display_ctrl:
+
+00000000 <ldi_device_display_ctrl>:
+   0:	b168      	cbz	r0, 1e <ldi_device_display_ctrl+0x1e>
+   2:	b508      	push	{r3, lr}
+   4:	7803      	ldrb	r3, [r0, #0]
+   6:	2b01      	cmp	r3, #1
+   8:	d003      	beq.n	12 <ldi_device_display_ctrl+0x12>
+   a:	2b02      	cmp	r3, #2
+   c:	d004      	beq.n	18 <ldi_device_display_ctrl+0x18>
+   e:	2001      	movs	r0, #1
+  10:	bd08      	pop	{r3, pc}
+  12:	f7ff fffe 	bl	0 <ldi_device_display_ctrl>
+  16:	e7fb      	b.n	10 <ldi_device_display_ctrl+0x10>
+  18:	f7ff fffe 	bl	0 <ldi_device_display_ctrl>
+  1c:	e7f8      	b.n	10 <ldi_device_display_ctrl+0x10>
+  1e:	2001      	movs	r0, #1
+  20:	4770      	bx	lr
+
+Disassembly of section .text.ldi_device_lane_signal_ctrl:
+
+00000000 <ldi_device_lane_signal_ctrl>:
+   0:	b328      	cbz	r0, 4e <ldi_device_lane_signal_ctrl+0x4e>
+   2:	b508      	push	{r3, lr}
+   4:	4603      	mov	r3, r0
+   6:	7800      	ldrb	r0, [r0, #0]
+   8:	2801      	cmp	r0, #1
+   a:	d122      	bne.n	52 <ldi_device_lane_signal_ctrl+0x52>
+   c:	785b      	ldrb	r3, [r3, #1]
+   e:	2b02      	cmp	r3, #2
+  10:	d00b      	beq.n	2a <ldi_device_lane_signal_ctrl+0x2a>
+  12:	2b03      	cmp	r3, #3
+  14:	d012      	beq.n	3c <ldi_device_lane_signal_ctrl+0x3c>
+  16:	2b01      	cmp	r3, #1
+  18:	d11c      	bne.n	54 <ldi_device_lane_signal_ctrl+0x54>
+  1a:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  1e:	4b0e      	ldr	r3, [pc, #56]	@ (58 <ldi_device_lane_signal_ctrl+0x58>)
+  20:	2201      	movs	r2, #1
+  22:	705a      	strb	r2, [r3, #1]
+  24:	701a      	strb	r2, [r3, #0]
+  26:	2000      	movs	r0, #0
+  28:	e014      	b.n	54 <ldi_device_lane_signal_ctrl+0x54>
+  2a:	2000      	movs	r0, #0
+  2c:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  30:	4b09      	ldr	r3, [pc, #36]	@ (58 <ldi_device_lane_signal_ctrl+0x58>)
+  32:	2202      	movs	r2, #2
+  34:	705a      	strb	r2, [r3, #1]
+  36:	2000      	movs	r0, #0
+  38:	7018      	strb	r0, [r3, #0]
+  3a:	e00b      	b.n	54 <ldi_device_lane_signal_ctrl+0x54>
+  3c:	2000      	movs	r0, #0
+  3e:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  42:	4b05      	ldr	r3, [pc, #20]	@ (58 <ldi_device_lane_signal_ctrl+0x58>)
+  44:	2203      	movs	r2, #3
+  46:	705a      	strb	r2, [r3, #1]
+  48:	2000      	movs	r0, #0
+  4a:	7018      	strb	r0, [r3, #0]
+  4c:	e002      	b.n	54 <ldi_device_lane_signal_ctrl+0x54>
+  4e:	2001      	movs	r0, #1
+  50:	4770      	bx	lr
+  52:	2001      	movs	r0, #1
+  54:	bd08      	pop	{r3, pc}
+  56:	bf00      	nop
+  58:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_device_alarm_ctrl:
+
+00000000 <ldi_device_alarm_ctrl>:
+   0:	2800      	cmp	r0, #0
+   2:	d046      	beq.n	92 <ldi_device_alarm_ctrl+0x92>
+   4:	b538      	push	{r3, r4, r5, lr}
+   6:	4604      	mov	r4, r0
+   8:	7800      	ldrb	r0, [r0, #0]
+   a:	2801      	cmp	r0, #1
+   c:	d143      	bne.n	96 <ldi_device_alarm_ctrl+0x96>
+   e:	7863      	ldrb	r3, [r4, #1]
+  10:	461d      	mov	r5, r3
+  12:	b1bb      	cbz	r3, 44 <ldi_device_alarm_ctrl+0x44>
+  14:	2b01      	cmp	r3, #1
+  16:	d13f      	bne.n	98 <ldi_device_alarm_ctrl+0x98>
+  18:	78a2      	ldrb	r2, [r4, #2]
+  1a:	4b20      	ldr	r3, [pc, #128]	@ (9c <ldi_device_alarm_ctrl+0x9c>)
+  1c:	705a      	strb	r2, [r3, #1]
+  1e:	78e2      	ldrb	r2, [r4, #3]
+  20:	709a      	strb	r2, [r3, #2]
+  22:	2201      	movs	r2, #1
+  24:	701a      	strb	r2, [r3, #0]
+  26:	4b1e      	ldr	r3, [pc, #120]	@ (a0 <ldi_device_alarm_ctrl+0xa0>)
+  28:	701a      	strb	r2, [r3, #0]
+  2a:	78a3      	ldrb	r3, [r4, #2]
+  2c:	b99b      	cbnz	r3, 56 <ldi_device_alarm_ctrl+0x56>
+  2e:	4610      	mov	r0, r2
+  30:	f7ff fffe 	bl	0 <ldi_device_alarm_ctrl>
+  34:	4b1b      	ldr	r3, [pc, #108]	@ (a4 <ldi_device_alarm_ctrl+0xa4>)
+  36:	2200      	movs	r2, #0
+  38:	701a      	strb	r2, [r3, #0]
+  3a:	78e0      	ldrb	r0, [r4, #3]
+  3c:	b9d8      	cbnz	r0, 76 <ldi_device_alarm_ctrl+0x76>
+  3e:	4b1a      	ldr	r3, [pc, #104]	@ (a8 <ldi_device_alarm_ctrl+0xa8>)
+  40:	7018      	strb	r0, [r3, #0]
+  42:	e029      	b.n	98 <ldi_device_alarm_ctrl+0x98>
+  44:	78a2      	ldrb	r2, [r4, #2]
+  46:	4b15      	ldr	r3, [pc, #84]	@ (9c <ldi_device_alarm_ctrl+0x9c>)
+  48:	705a      	strb	r2, [r3, #1]
+  4a:	78e2      	ldrb	r2, [r4, #3]
+  4c:	709a      	strb	r2, [r3, #2]
+  4e:	f7ff fffe 	bl	0 <ldi_device_alarm_ctrl>
+  52:	4628      	mov	r0, r5
+  54:	e020      	b.n	98 <ldi_device_alarm_ctrl+0x98>
+  56:	2001      	movs	r0, #1
+  58:	f7ff fffe 	bl	0 <ldi_device_alarm_ctrl>
+  5c:	4b11      	ldr	r3, [pc, #68]	@ (a4 <ldi_device_alarm_ctrl+0xa4>)
+  5e:	2201      	movs	r2, #1
+  60:	701a      	strb	r2, [r3, #0]
+  62:	f7ff fffe 	bl	0 <osKernelGetTickCount>
+  66:	78a3      	ldrb	r3, [r4, #2]
+  68:	f44f 727a 	mov.w	r2, #1000	@ 0x3e8
+  6c:	fb02 0003 	mla	r0, r2, r3, r0
+  70:	4b0e      	ldr	r3, [pc, #56]	@ (ac <ldi_device_alarm_ctrl+0xac>)
+  72:	6018      	str	r0, [r3, #0]
+  74:	e7e1      	b.n	3a <ldi_device_alarm_ctrl+0x3a>
+  76:	f7ff fffe 	bl	0 <osKernelGetTickCount>
+  7a:	78e3      	ldrb	r3, [r4, #3]
+  7c:	f44f 727a 	mov.w	r2, #1000	@ 0x3e8
+  80:	fb02 0003 	mla	r0, r2, r3, r0
+  84:	4b0a      	ldr	r3, [pc, #40]	@ (b0 <ldi_device_alarm_ctrl+0xb0>)
+  86:	6018      	str	r0, [r3, #0]
+  88:	4b07      	ldr	r3, [pc, #28]	@ (a8 <ldi_device_alarm_ctrl+0xa8>)
+  8a:	2201      	movs	r2, #1
+  8c:	701a      	strb	r2, [r3, #0]
+  8e:	2000      	movs	r0, #0
+  90:	e002      	b.n	98 <ldi_device_alarm_ctrl+0x98>
+  92:	2001      	movs	r0, #1
+  94:	4770      	bx	lr
+  96:	2001      	movs	r0, #1
+  98:	bd38      	pop	{r3, r4, r5, pc}
+  9a:	bf00      	nop
+	...
+
+Disassembly of section .text.ldi_device_timer_poll:
+
+00000000 <ldi_device_timer_poll>:
+   0:	b510      	push	{r4, lr}
+   2:	f7ff fffe 	bl	0 <osKernelGetTickCount>
+   6:	4604      	mov	r4, r0
+   8:	4b1b      	ldr	r3, [pc, #108]	@ (78 <ldi_device_timer_poll+0x78>)
+   a:	781b      	ldrb	r3, [r3, #0]
+   c:	b11b      	cbz	r3, 16 <ldi_device_timer_poll+0x16>
+   e:	4b1b      	ldr	r3, [pc, #108]	@ (7c <ldi_device_timer_poll+0x7c>)
+  10:	681b      	ldr	r3, [r3, #0]
+  12:	4283      	cmp	r3, r0
+  14:	d912      	bls.n	3c <ldi_device_timer_poll+0x3c>
+  16:	4b1a      	ldr	r3, [pc, #104]	@ (80 <ldi_device_timer_poll+0x80>)
+  18:	781b      	ldrb	r3, [r3, #0]
+  1a:	b133      	cbz	r3, 2a <ldi_device_timer_poll+0x2a>
+  1c:	4a19      	ldr	r2, [pc, #100]	@ (84 <ldi_device_timer_poll+0x84>)
+  1e:	7812      	ldrb	r2, [r2, #0]
+  20:	b11a      	cbz	r2, 2a <ldi_device_timer_poll+0x2a>
+  22:	4a19      	ldr	r2, [pc, #100]	@ (88 <ldi_device_timer_poll+0x88>)
+  24:	6812      	ldr	r2, [r2, #0]
+  26:	42a2      	cmp	r2, r4
+  28:	d913      	bls.n	52 <ldi_device_timer_poll+0x52>
+  2a:	b133      	cbz	r3, 3a <ldi_device_timer_poll+0x3a>
+  2c:	4b17      	ldr	r3, [pc, #92]	@ (8c <ldi_device_timer_poll+0x8c>)
+  2e:	781b      	ldrb	r3, [r3, #0]
+  30:	b11b      	cbz	r3, 3a <ldi_device_timer_poll+0x3a>
+  32:	4b17      	ldr	r3, [pc, #92]	@ (90 <ldi_device_timer_poll+0x90>)
+  34:	681b      	ldr	r3, [r3, #0]
+  36:	42a3      	cmp	r3, r4
+  38:	d90e      	bls.n	58 <ldi_device_timer_poll+0x58>
+  3a:	bd10      	pop	{r4, pc}
+  3c:	2000      	movs	r0, #0
+  3e:	f7ff fffe 	bl	0 <ldi_device_timer_poll>
+  42:	f7ff fffe 	bl	0 <app_render_save>
+  46:	2300      	movs	r3, #0
+  48:	4a12      	ldr	r2, [pc, #72]	@ (94 <ldi_device_timer_poll+0x94>)
+  4a:	7013      	strb	r3, [r2, #0]
+  4c:	4a0a      	ldr	r2, [pc, #40]	@ (78 <ldi_device_timer_poll+0x78>)
+  4e:	7013      	strb	r3, [r2, #0]
+  50:	e7e1      	b.n	16 <ldi_device_timer_poll+0x16>
+  52:	f7ff fffe 	bl	0 <ldi_device_timer_poll>
+  56:	e7f0      	b.n	3a <ldi_device_timer_poll+0x3a>
+  58:	4b0f      	ldr	r3, [pc, #60]	@ (98 <ldi_device_timer_poll+0x98>)
+  5a:	7818      	ldrb	r0, [r3, #0]
+  5c:	f080 0001 	eor.w	r0, r0, #1
+  60:	f7ff fffe 	bl	0 <ldi_device_timer_poll>
+  64:	4b0d      	ldr	r3, [pc, #52]	@ (9c <ldi_device_timer_poll+0x9c>)
+  66:	785b      	ldrb	r3, [r3, #1]
+  68:	f44f 727a 	mov.w	r2, #1000	@ 0x3e8
+  6c:	fb02 4303 	mla	r3, r2, r3, r4
+  70:	4a07      	ldr	r2, [pc, #28]	@ (90 <ldi_device_timer_poll+0x90>)
+  72:	6013      	str	r3, [r2, #0]
+  74:	e7e1      	b.n	3a <ldi_device_timer_poll+0x3a>
+  76:	bf00      	nop
+	...
+
+Disassembly of section .text.ldi_device_fill_sta:
+
+00000000 <ldi_device_fill_sta>:
+   0:	b1a1      	cbz	r1, 2c <ldi_device_fill_sta+0x2c>
+   2:	28e7      	cmp	r0, #231	@ 0xe7
+   4:	d008      	beq.n	18 <ldi_device_fill_sta+0x18>
+   6:	28e8      	cmp	r0, #232	@ 0xe8
+   8:	d00b      	beq.n	22 <ldi_device_fill_sta+0x22>
+   a:	28e6      	cmp	r0, #230	@ 0xe6
+   c:	d110      	bne.n	30 <ldi_device_fill_sta+0x30>
+   e:	4a09      	ldr	r2, [pc, #36]	@ (34 <ldi_device_fill_sta+0x34>)
+  10:	7812      	ldrb	r2, [r2, #0]
+  12:	710a      	strb	r2, [r1, #4]
+  14:	2001      	movs	r0, #1
+  16:	4770      	bx	lr
+  18:	4a07      	ldr	r2, [pc, #28]	@ (38 <ldi_device_fill_sta+0x38>)
+  1a:	7812      	ldrb	r2, [r2, #0]
+  1c:	710a      	strb	r2, [r1, #4]
+  1e:	2001      	movs	r0, #1
+  20:	4770      	bx	lr
+  22:	4a06      	ldr	r2, [pc, #24]	@ (3c <ldi_device_fill_sta+0x3c>)
+  24:	7812      	ldrb	r2, [r2, #0]
+  26:	710a      	strb	r2, [r1, #4]
+  28:	2001      	movs	r0, #1
+  2a:	4770      	bx	lr
+  2c:	4608      	mov	r0, r1
+  2e:	4770      	bx	lr
+  30:	2000      	movs	r0, #0
+  32:	4770      	bx	lr
+	...
+
+Disassembly of section .text.ldi_device_display_sta:
+
+00000000 <ldi_device_display_sta>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <ldi_device_display_sta+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_device_lane_signal_sta:
+
+00000000 <ldi_device_lane_signal_sta>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <ldi_device_lane_signal_sta+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.ldi_device_alarm_sta:
+
+00000000 <ldi_device_alarm_sta>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <ldi_device_alarm_sta+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000

@@ -1,0 +1,12 @@
+### CQ 口径（改动后树）
+arm-none-eabi-objcopy -O binary /tmp/landing_build/cq1263/Project_STD.elf /tmp/landing_build/cq1263/Project_STD.bin
+==== Build complete ====
+   text	   data	    bss	    dec	    hex	filename
+ 350468	    852	 161248	 512568	  7d238	/tmp/landing_build/cq1263/Project_STD.elf
+exit=0
+.text                154588   134480272
+.rodata              195112   134634864
+.data                   852   536870912
+.ccmram               37396   268435456
+.bss                 121292   536871764
+._user_heap_stack      2560   536993056

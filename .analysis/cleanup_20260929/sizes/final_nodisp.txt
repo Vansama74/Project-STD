@@ -1,0 +1,34 @@
+== tag final_nodisp ==
+make_rc=0
+warning_lines=0
+build/EIDEMyanmarNoDisp/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                131480   134480272
+.rodata              191928   134611752
+.hw_initcall            144   134803680
+.sw_initcall            128   134803824
+.ARM.extab                0   134803952
+.ARM                      8   134803952
+.preinit_array            0   134803960
+.init_array               4   134803960
+.fini_array               4   134803964
+.data                  1584   536870912
+.ccmram               16084   268435456
+.bss                 114496   536872496
+._user_heap_stack      2560   536986992
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          510427           0
+.debug_abbrev         85688           0
+.debug_loclists      189211           0
+.debug_aranges        17344           0
+.debug_rnglists       15251           0
+.debug_line          306523           0
+.debug_str            83104           0
+.debug_frame          54060           0
+.debug_line_str         474           0
+Total               1721011
+
+
+elf_md5=4821cafc58a2b49e379163f16ba59088

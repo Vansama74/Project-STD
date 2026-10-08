@@ -2,31 +2,23 @@
  * @file    app_yn_ol_proto_cmd.c
  * @brief   云南治超屏协议（YN_1.3.0）命令执行与应答组帧
  *
- * 显示映射：app_render（GBK 直通；'3' 单行按「行号 × 当前字号」定位、先清行再渲染、
- * 超宽截断；'4' 全屏按 X/Y 定位、先整屏清黑、按屏宽自动换行；0x01 全屏纯色）；
- * 行清除（0x42~0x46 / 0x50）按当前字号行高清行，越界行「执行但不落屏」（fill 起点越界
- * 早退——与云南常规行 5 口径一致）；亮度映射 0/'0'/0x00 = 恢复光敏自动、'1'~'8' = 挂起
- * 光敏 + 硬件档恒等映射；灯控映射 dev_io_lane_light / dev_io_flash_light（红优先）；
- * 网络配置走 STD 中立模块 app_board_net_cfg（Sector1 唯一真源，不建私有记录）。
+ * 显示映射：app_render（GBK 直通）；'3' 单行按「行号 × 当前字号」定位、先清行再渲染；
+ * '4' 全屏按 X/Y 定位、先整屏清黑、按屏宽自动换行；0x01 全屏纯色；行清除（0x42~0x46 /
+ * 0x50）按当前字号行高清行，越界行「执行但不落屏」。亮度 0/'0'/0x00 = 光敏自动、
+ * '1'~'8' = 挂起光敏 + 硬件档恒等映射；灯控走 dev_io_lane_light / dev_io_flash_light
+ *（红优先）；网络配置走 STD 中立模块 app_board_net_cfg（Sector1 唯一真源，不建私有记录）。
  *
- * 应答帧与请求同帧族（`{` + 命令字 + 长度 + 载荷 + `}`），一律**单播回源通道**
- * （与 GZ_OL 裁决一致：STD channel_send 语义）。
+ * 应答帧与请求同帧族（`{` + 命令字 + 长度 + 载荷 + `}`），一律**单播回源通道**。
+ * 渲染互斥：所有「清屏/清行/渲染/提交」整段持 app_scroll_render_lock（与 app_scroll
+ * 串行，消除混合帧黑条；引擎未创建时空操作）。
  *
- * 渲染互斥：本模块所有「清屏/清行/渲染/提交」整段持 app_scroll_render_lock，
- * 与安徽动态滚动（app_scroll）渲染串行，消除同屏混合帧黑条；引擎未创建时空操作。
+ * 屏体参数（0x49）为**持久化配置**（2026-09-17 裁决）：12B 记录（magic + version +
+ * 字体/字宽 + CRC32，仿 app_ldi_cfg.c 范式）落 W25Qxx 独立 4KB 扇区 `capacity - 12288`
+ *（选址与被占扇区核对见 app_yn_ol_proto.h）；初始化时装载、0x49 执行时写入；写入失败 /
+ * 记录损坏 → 回退默认值，不阻塞、不重启。默认 = STD 工程既有口径 FONT_16 / FONT_ST。
  *
- * 屏体参数（0x49）为**持久化配置**（2026-09-17 用户裁决 Q5）：模块级 12B 记录
- * （magic + version + 字体/字宽 + CRC32，仿 `Application/Src/LDI/app_ldi_cfg.c` 范式）
- * 落在 W25Qxx **独立 4KB 扇区** `capacity - 12288`（选址依据与被占扇区核对见
- * `app_yn_ol_proto.h`「0x49 持久化」段）；`sw_app_initcall` 初始化时装载，`0x49` 执行时
- * 写入；写入失败/记录损坏 → 回退/保持默认并打 RTT 告警，**不阻塞、不重启**。
- * 默认值 = **STD 工程既有默认口径** FONT_16 / FONT_ST（与青海/贵州/云南常规一致——
- * 沿用同一默认，不再按行清除命令数推断；见 doc/15 §3/§8）。
- *
- * 语音相关命令（'7'/'9'）与固定格式显示（'6'）文档明示治超屏不开发 → 本模块不实现。
- *
- * 上电效果（文档「祝您一路平安 + 稍候熄灭」）**不实现**（2026-09-17 用户裁决）：
- * 原 `app_yn_ol_proto_default.c` 与 5s 熄灭惰性任务已删除；上电画面走 STD 默认显示链路。
+ * '6'/'7'/'9' 文档明示治超屏不开发 → 不实现；上电效果「祝您一路平安」**不实现**
+ *（走 STD 默认显示链路）。详见 doc/15_云南治超屏协议/README.md。
  */
 
 #include "app_yn_ol_proto_cmd.h"
@@ -38,7 +30,6 @@
 
 #include "app_board_net_cfg.h"
 #include "app_boot.h" /* PROGRAM_CODE（0x02 版本号应答） */
-#include "app_diag.h"
 #include "app_light_sensor.h"
 #include "app_render.h"
 #include "app_scroll.h"
@@ -47,7 +38,6 @@
 #include "dev_io_ctrl.h"
 #include "dev_w25qxx.h"    /* 0x49 持久化（W25Qxx 独立扇区记录） */
 #include "pl_crc.h"        /* CRC32（记录校验，与 LDI 记录同源） */
-#include "SEGGER_RTT.h"    /* 联调诊断（YN_OL_RTT_DIAG）；置 0 时该头无引用 */
 #include "stm32f4xx_hal.h" /* NVIC_SystemReset */
 
 /* ---- 模块运行态（0x49 屏体参数；默认 = STD 工程默认口径，可由 W25Qxx 记录覆盖）---- */
@@ -62,15 +52,6 @@ static volatile bool s_yn_ol_selftest_abort;
 #define YN_OL_SELFTEST_STEP_MS (500U)
 /* 中止检查分片（保证下一帧命令到达后 ≤100ms 内退出，与云南常规自检同策） */
 #define YN_OL_SELFTEST_ABORT_SLICE_MS (100U)
-
-/* ---- 联调诊断（临时，只读）----
- * 0x47/0x51：打印端口字段原始序与解析值（自证「高字节在前 BE16」裁决口径）；
- * 0x49：打印字体/字宽参数、生效字号与落盘结果；
- * 上电装载：记录无效/为空 → 打一条回退默认的告警。
- * 一键关闭：YN_OL_RTT_DIAG 置 0（默认跟随总开关 APP_DIAG_BANNER，见 app_diag.h）。 */
-#ifndef YN_OL_RTT_DIAG
-#define YN_OL_RTT_DIAG (APP_DIAG_BANNER)
-#endif
 
 /* ---- 应答组帧 ---- */
 
@@ -177,24 +158,12 @@ bool yn_ol_screen_cfg_load(void)
                        YN_OL_CFG_RECORD_SIZE - sizeof(uint32_t)));
 
     if (!valid) {
-#if YN_OL_RTT_DIAG
-        SEGGER_RTT_printf(0,
-                          "[yn_ol] 0x49 cfg INVALID at boot (magic=%08x ver=%u type=%u size=%u "
-                          "crc=%08x) -> defaults FONT_16/FONT_ST\n",
-                          (unsigned)s_yn_ol_cfg_rec.magic, (unsigned)s_yn_ol_cfg_rec.version,
-                          (unsigned)s_yn_ol_cfg_rec.font_type, (unsigned)s_yn_ol_cfg_rec.font_size,
-                          (unsigned)s_yn_ol_cfg_rec.crc32);
-#endif
         return false;
     }
 
     s_yn_ol_font_type = (font_type_t)s_yn_ol_cfg_rec.font_type;
     s_yn_ol_font_size = (font_size_t)s_yn_ol_cfg_rec.font_size;
 
-#if YN_OL_RTT_DIAG
-    SEGGER_RTT_printf(0, "[yn_ol] 0x49 cfg loaded from %u: font_type=%d font_size=%d\n",
-                      (unsigned)addr, (int)s_yn_ol_font_type, (int)s_yn_ol_font_size);
-#endif
     return true;
 }
 
@@ -331,7 +300,7 @@ static int _yn_ol_exec_self_check(void)
         .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
     };
-    /* 判空 + RTT；创建失败回退防重入标志（否则自检永久锁死）。本任务与云南常规
+    /* 判空；创建失败回退防重入标志（否则自检永久锁死）。本任务与云南常规
      * 自检同构，同样**保持动态分配**（末尾先清标志再 osThreadExit，复用静态栈有踩踏风险）。 */
     osThreadId_t tid =
         pl_task_create_checked(osThreadNew(_yn_ol_selftest_task, NULL, &s_yn_ol_selftest_attr),
@@ -544,26 +513,9 @@ static int _yn_ol_exec_set_ip(channel_t *ch, const yn_ol_parsed_cmd_t *cmd)
     app_board_net_cfg_t cur;
     const uint32_t udp_port = (app_board_net_cfg_get(&cur) == 0) ? cur.udp_port : 20103U;
 
-#if YN_OL_RTT_DIAG
-    SEGGER_RTT_printf(0,
-                      "[yn_ol] 0x47 port field payload[12..13]=%02x %02x -> %u (BE16); "
-                      "ip=%u.%u.%u.%u mask=%u.%u.%u.%u gw=%u.%u.%u.%u keep_udp_port=%u\n",
-                      (unsigned)cmd->data[12], (unsigned)cmd->data[13], (unsigned)p->port, p->ip[0],
-                      p->ip[1], p->ip[2], p->ip[3], p->mask[0], p->mask[1], p->mask[2], p->mask[3],
-                      p->gw[0], p->gw[1], p->gw[2], p->gw[3], (unsigned)udp_port);
-#endif
 
     const int32_t wr_ret = app_board_net_cfg_update(p->ip, p->mask, p->gw, (uint32_t)p->port, udp_port);
 
-#if YN_OL_RTT_DIAG
-    {
-        app_board_net_cfg_t after;
-        const bool ok = (app_board_net_cfg_get(&after) == 0);
-        SEGGER_RTT_printf(0, "[yn_ol] 0x47 write ret=%d readback=%s port=%u -> reboot in 100ms\n",
-                          (int)wr_ret, ok ? "valid" : "INVALID",
-                          ok ? (unsigned)after.port : 0U);
-    }
-#endif
     (void)wr_ret;
 
     /* 应答 0x51：按解析值重建本次下发的配置（回显，非读回记录——落盘证据看 readback/重启后 0x48） */
@@ -591,11 +543,6 @@ static int _yn_ol_exec_get_ip(channel_t *ch)
     uint8_t payload[YN_OL_NET_PAYLOAD_LEN] = {0};
     (void)_yn_ol_net_payload(payload);
 
-#if YN_OL_RTT_DIAG
-    SEGGER_RTT_printf(0, "[yn_ol] 0x48 -> 0x51 payload port=%u (BE16 bytes %02x %02x)\n",
-                      (unsigned)(((uint16_t)payload[12] << 8) | payload[13]),
-                      (unsigned)payload[12], (unsigned)payload[13]);
-#endif
 
     _yn_ol_send_frame(ch, (uint8_t)YN_OL_PCMD_GET_IP_ACK, payload, YN_OL_NET_PAYLOAD_LEN);
     return YN_OL_EXEC_OK;
@@ -613,14 +560,9 @@ static int _yn_ol_exec_screen_param(const yn_ol_screen_param_t *p)
     s_yn_ol_font_type = p->font_type;
     s_yn_ol_font_size = p->font_size;
 
-    const bool saved = yn_ol_screen_cfg_save();
+    /* 写盘为「最佳努力」：失败不影响运行态生效（独立扇区记录，仅告警语义） */
+    (void)yn_ol_screen_cfg_save();
 
-#if YN_OL_RTT_DIAG
-    SEGGER_RTT_printf(0, "[yn_ol] 0x49 font_type=%d font_size=%d (persist %s)\n", (int)p->font_type,
-                      (int)p->font_size, saved ? "ok" : "FAILED (runtime only)");
-#else
-    (void)saved;
-#endif
     return YN_OL_EXEC_OK;
 }
 

@@ -1,0 +1,20 @@
+== A. 绑定点均在 sw_app_initcall 注册的 init 内 ==
+  [通过] bind 调用点共 33 处（已剔除注释提及），全部落在 sw_app_initcall 注册的函数体内
+  [通过] bind 调用点数 > 0（脚本确实检查到了）
+== B. app_boot.c 门控 ==
+  [通过] [CH_ID_TCP_SERVER] 由 app_dispatch_channel_has_proto 门控 → app_tcp_server_start()
+  [通过] [CH_ID_TCP_CLIENT] 由 app_dispatch_channel_has_proto 门控 → app_tcp_client_start()
+  [通过] [CH_ID_UDP] 由 app_dispatch_channel_has_proto 门控 → app_udp_start()
+  [通过] [CH_ID_UDP_CQ] 由 app_dispatch_channel_has_proto 门控 → app_udp_cq_start()
+  [通过] [CH_ID_UDP_GZOL] 由 app_dispatch_channel_has_proto 门控 → app_udp_gzol_start()
+  [通过] [CH_ID_RS485] 由 app_dispatch_channel_has_proto 门控 → app_rs485_start()
+  [通过] [CH_ID_RS232] 由 app_dispatch_channel_has_proto 门控 → app_rs232_start()
+  [通过] app_rs232_1_start() 保持无条件调用（语音 TX 桩，非通道任务）
+  [通过] 通道启动调用总数 = 8（7 门控 + 1 桩）
+== C. 查询 API ==
+  [通过] app_dispatch.c 实现存在
+  [通过] 越界返回 false（`>= CH_ID_MAX` 判定）
+  [通过] 返回 `ch_proto_map[ch_id] != 0`（只读，不改状态）
+  [通过] 头文件原型存在 + 文档注释
+
+通道门控结构校验：通过 15 / 失败 0

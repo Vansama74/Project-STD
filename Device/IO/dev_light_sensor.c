@@ -58,6 +58,11 @@ uint8_t dev_light_sensor_read(light_sensor_dev_t *dev)
 
 void dev_light_sensor_auto_adjust(light_sensor_dev_t *dev)
 {
+    /* 无显示驱动构建：init 时绑定的显示句柄为 nullptr，无亮度对象可调 → 安全跳过
+     * （dev_light_sensor_read 仍在采样，但不产生任何副作用）。 */
+    if (dev == nullptr || dev->display == nullptr)
+        return;
+
     static uint8_t old_light = 0;
     uint8_t new_light        = dev_light_sensor_read(dev);
 

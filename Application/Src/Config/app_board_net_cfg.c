@@ -18,7 +18,6 @@
 #include "dev_flash_int.h"
 #include "pl_crc.h"
 #include "initcall.h"
-#include "SEGGER_RTT.h" /* 诊断日志：版本落库分支观察点（低开销，仅失败/首写/跳过路径打印） */
 
 #include <string.h>
 
@@ -197,7 +196,6 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
 
     /* version 长度校验：>= 32 字节无法完整落库，显式拒绝（不截断） */
     if (version == NULL || strlen(version) >= sizeof(info.app_info.version)) {
-        SEGGER_RTT_printf(0, "[fwver] reject: bad version arg (len=%d)\n", version ? (int)strlen(version) : -1);
         return -2;
     }
 
@@ -211,7 +209,6 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
     /* 升级中间态保护：magic/CRC 有效但 update_sta != updated 的记录
      * （Bootloader 条件 A/B 写入，等待其条件 D 判定用），主固件不得覆盖 */
     if (valid && info.update_sta != APP_BOARD_UPDATED) {
-        SEGGER_RTT_printf(0, "[fwver] refuse: upgrade mid-state upd_sta=%lu\n", (unsigned long)info.update_sta);
         return -1;
     }
 
@@ -224,7 +221,6 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
         info.magic          = APP_BOARD_NET_CFG_MAGIC;
         info.update_sta     = APP_BOARD_UPDATED;
         info.app_info.crc32 = 0xFFFFFFFF;
-        SEGGER_RTT_printf(0, "[fwver] sector empty/damaged -> full init, write ver=%s\n", version);
     }
 
     /* 只动 version 字段：清零后拷贝（落库态尾部恒为 0，保证后续同值跳过可比较） */
@@ -234,7 +230,6 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
     /* Q3 同构：version 与现扇区一致则跳过擦写，返回成功（不做磨损均衡）。
      * 条件用 valid 而非 !empty：空/损坏时 old_version 为无效快照，必须走写路径 */
     if (valid && memcmp(info.app_info.version, old_version, sizeof(old_version)) == 0) {
-        SEGGER_RTT_printf(0, "[fwver] same ver=%s, skip erase/write\n", version);
         return 0;
     }
 
@@ -242,14 +237,8 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
                                     sizeof(app_board_sys_info_t) - sizeof(info.config_crc));
 
     int32_t ret = _erase();
-    if (ret < 0) {
-        SEGGER_RTT_printf(0, "[fwver] erase sector1 failed ret=%ld\n", (long)ret);
-        return ret;
-    }
-    ret = _write(&info);
     if (ret < 0)
-        SEGGER_RTT_printf(0, "[fwver] write sector1 failed ret=%ld\n", (long)ret);
-    else
-        SEGGER_RTT_printf(0, "[fwver] write ok ver=%s\n", version);
+        return ret;
+    ret = _write(&info);
     return ret < 0 ? ret : 0;
 }

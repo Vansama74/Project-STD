@@ -1,0 +1,63 @@
+# build/ 目录清单（清理前，2026-09-29 第二轮）
+2026-09-29 10:28:30
+
+25M	build/Debug
+10M	build/EIDEMyanmar
+11M	build/EIDEMyanmar1665
+9.9M	build/EIDEMyanmarNoDisp
+12M	build/MMAblation
+340K	build/Release
+16K	build/Testing
+
+## 各目录内容概览
+--- build/Debug/
+Application
+Compiler
+Core
+Device
+Drivers
+Kernel
+Middlewares
+Platform
+--- build/EIDEMyanmar/
+Application
+Compiler
+Core
+Device
+Drivers
+Kernel
+Middlewares
+Platform
+--- build/EIDEMyanmar1665/
+Application
+Compiler
+Core
+Device
+Drivers
+Kernel
+Middlewares
+Platform
+--- build/EIDEMyanmarNoDisp/
+Application
+Compiler
+Core
+Device
+Drivers
+Kernel
+Middlewares
+Platform
+--- build/MMAblation/
+Application
+Compiler
+Core
+Device
+Drivers
+Kernel
+Middlewares
+Platform
+--- build/Release/
+builder.params
+compile_commands.json
+ref.json
+--- build/Testing/
+Temporary

@@ -19,6 +19,8 @@
 void app_test_pixel_scan(void)
 {
     dev_display_t *dsp = dev_display_get();
+    if (!dsp)
+        return; /* 无显示驱动构建：无屏可走位，安全跳过 */
 
     for (;;) {
         for (int i = 0; i < (int)dsp->buffer_size; i++) {
@@ -43,12 +45,16 @@ void app_test_pixel_scan(void)
 
 void app_test_render_text(void)
 {
+    dev_display_t *dsp = dev_display_get();
+    if (!dsp)
+        return; /* 无显示驱动构建：无屏可渲染，安全跳过 */
+
     app_render(&(render_cfg_t){
         .type  = RENDER_TEXT,
         .x     = 0,
         .y     = 0,
-        .w     = dev_display_get()->screen_rows,
-        .h     = dev_display_get()->screen_cols,
+        .w     = dsp->screen_rows,
+        .h     = dsp->screen_cols,
         .style = &(render_style_t){
             .h_align   = ALIGN_LEFT_UP,
             .v_align   = ALIGN_LEFT_UP,

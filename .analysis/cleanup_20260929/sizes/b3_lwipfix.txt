@@ -1,0 +1,40 @@
+== tag: b3_lwipfix ==
+== cmd: make -j8 ==
+== date: 2026-09-29T09:17:55+08:00 ==
+make_rc=0
+warning_lines=0
+elf=/home/yystation/Program/3833024/Project-STD-main/build/Debug/Project_STD.elf
+elf_md5=523b06ed0898085edf9ca7cd08af4be1
+/home/yystation/Program/3833024/Project-STD-main/build/Debug/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                167288   134480272
+.rodata              195736   134647560
+.hw_initcall            152   134843296
+.sw_initcall            216   134843448
+.ARM.extab                0   134843664
+.ARM                      8   134843664
+.preinit_array            0   134843672
+.init_array               4   134843672
+.fini_array               4   134843676
+.data                  1656   536870912
+.ccmram               39652   268435456
+.bss                 123560   536872568
+._user_heap_stack      2560   536996128
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          657200           0
+.debug_abbrev        111323           0
+.debug_loclists      233868           0
+.debug_aranges        21192           0
+.debug_rnglists       19022           0
+.debug_line          375827           0
+.debug_str           100415           0
+.debug_frame          65912           0
+.debug_line_str         474           0
+Total               2116578
+
+
+==== Build complete ====
+   text	   data	    bss	    dec	    hex	filename
+ 363800	   1656	 165772	 531228	  81b1c	build/Debug/Project_STD.elf

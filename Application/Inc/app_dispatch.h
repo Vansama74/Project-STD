@@ -145,6 +145,18 @@ void app_proto_bind_channel(proto_mask_t mask, channel_id_t ch_id);
 ring_buffer_t *app_proto_acquire_buf(uint8_t id, uint16_t size);
 void frame_dispatch_task(void *argument);
 
+/**
+ * @brief 查询某通道是否已有协议绑定（只读）
+ *
+ * 协议绑定全部发生在 `sw_board_init()` 的 sw_app_initcall 阶段（协议模块 init），
+ * 早于 app_boot.c 的通道启动调用点。未绑定的通道启动后收到的数据无人消费
+ * （app_channel_dispatch → ch_proto_map==0 时静默丢弃），启动编排据此跳过。
+ *
+ * @param  ch_id 通道标识；越界返回 false
+ * @return true = 该通道至少有一个协议绑定；false = 无绑定或 ch_id 非法
+ */
+bool app_dispatch_channel_has_proto(channel_id_t ch_id);
+
 void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len);
 void app_channel_register(channel_id_t ch_id, channel_t *ch);
 channel_t *app_channel_get(channel_id_t ch_id);

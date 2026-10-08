@@ -15,12 +15,10 @@
 
 #include "app_udp.h"
 #include "app_dispatch.h"
-#include "app_diag.h"
 #include "app_ldi.h"
 #include "app_board_net_cfg.h"
 #include "pl_net.h"
 #include "pl_net_adapt.h"
-#include "SEGGER_RTT.h" /* 端口回退/同口冲突告警 + 绑定成功自证（APP_DIAG_BANNER） */
 
 /* ---- 配置 ---- */
 /* 端口固定（宏 LDI_DISCOVERY_PORT，创迪发现口 + IAP 共用），设计原则禁止修改接口 */
@@ -159,7 +157,7 @@ void udp_task(void *argument)
             /* 清空残留断开信号，避免刚起来就误退 */
             while (osSemaphoreAcquire(udp_disconnect_sem, 0) == osOK);
 
-            /* 连接任务创建失败（堆耗尽）→ 立刻 RTT 报错，2s 后自动重试 */
+            /* 连接任务创建失败（堆耗尽）由 pl_task_create_checked 判空，2s 后自动重试 */
             osThreadId_t tid = pl_task_create_checked(
                 osThreadNew(udp_connect_task, conn, &udp_connect_attr), "udp_connect_task");
             if (tid != NULL) {
@@ -366,7 +364,7 @@ void udp_cq_task(void *argument)
             /* 清空残留断开信号，避免刚起来就误退 */
             while (osSemaphoreAcquire(udp_cq_disconnect_sem, 0) == osOK);
 
-            /* 连接任务创建失败（堆耗尽）→ 立刻 RTT 报错，2s 后自动重试 */
+            /* 连接任务创建失败（堆耗尽）由 pl_task_create_checked 判空，2s 后自动重试 */
             osThreadId_t tid = pl_task_create_checked(
                 osThreadNew(udp_cq_connect_task, conn, &udp_cq_connect_attr), "udp_cq_connect_task");
             if (tid != NULL) {
@@ -443,11 +441,11 @@ void udp_cq_connect_task(void *argument)
  *  端口来源与回退（_udp_gzol_read_port，每轮重建前重读）：
  *    - `net_cfg.port` 合法（1~65535）→ 采纳（`0x40` 落盘值，重启后生效）；
  *    - 记录无效 / port 为 0 → 回退 UDP_GZOL_FALLBACK_PORT(9528，= net_cfg.port
- *      两口径出厂默认) 并 RTT 告警——**不静默绑定 0**（bind 0 = 随机口，上位机
- *      不可达）；正常路径下 app_net_boot_apply 已先行修复无效记录，此分支为防御；
- *    - 与常驻 UDP 口冲突（10011 发现口 / CQ 业务口）→ **跳过本实例绑定**并 RTT
- *      告警：net_cfg.port 被改成 10011 时 GZ_OL 仍由 CH_ID_UDP 第三 mask 承载
- *      （功能不受损），同口二次 bind 必 ERR_USE，跳过避免每 2s 空转告警。
+ *      两口径出厂默认)——**不静默绑定 0**（bind 0 = 随机口，上位机不可达）；
+ *      正常路径下 app_net_boot_apply 已先行修复无效记录，此分支为防御；
+ *    - 与常驻 UDP 口冲突（10011 发现口 / CQ 业务口）→ **跳过本实例绑定**：
+ *      net_cfg.port 被改成 10011 时 GZ_OL 仍由 CH_ID_UDP 第三 mask 承载
+ *      （功能不受损），同口二次 bind 必 ERR_USE，跳过避免每 2s 空转。
  *
  *  广播：建常驻 conn 时设 SOF_BROADCAST（与 10011/CQ 实例一致）——上位机若以
  *  广播方式发搜索帧，`IP_SOF_BROADCAST_RECV=1` 下需该选项才会投递到本 socket；
@@ -463,7 +461,7 @@ uint16_t app_udp_gzol_get_port(void)
     return g_udp_gzol_port;
 }
 
-/* ---- 绑定结果（只读诊断，自证「0x40 改端口是否真的落到服务口」；见 app_diag.h）---- */
+/* ---- 绑定结果（只读观察：「0x40 改端口是否真的落到服务口」）---- */
 static volatile app_udp_gzol_bind_sta_t s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_UNKNOWN;
 static volatile int16_t s_udp_gzol_bind_err;      /* 最近一次 netconn_bind 错误码 */
 static volatile uint32_t s_udp_gzol_bind_ok_cnt;  /* 绑定成功次数（每次重建 +1） */
@@ -509,7 +507,6 @@ static const osThreadAttr_t udp_gzol_connect_attr = {
 static udp_channel_t s_udp_gzol_ch;
 
 /* ---- 告警闩锁：同一异常端口值只打印一次（避免 2s 周期刷屏） ---- */
-static uint16_t s_udp_gzol_warned_port;
 
 static int32_t udp_gzol_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
 {
@@ -576,19 +573,8 @@ void udp_gzol_task(void *argument)
         const bool busy = (g_udp_gzol_port == busy_a || g_udp_gzol_port == busy_b);
 
         if (!cfg_ok || busy) {
+            /* cfg 无效 → 回退值 9528；与常驻口同号 → 跳过绑定（每 2s 重试一轮） */
             s_udp_gzol_bind_sta = cfg_ok ? APP_UDP_GZOL_BIND_SKIPPED : APP_UDP_GZOL_BIND_FALLBACK;
-            /* 告警闩锁：同一异常端口值只打印一次（2s 周期重进不刷屏） */
-            if (s_udp_gzol_warned_port != g_udp_gzol_port) {
-                s_udp_gzol_warned_port = g_udp_gzol_port;
-                if (!cfg_ok)
-                    SEGGER_RTT_printf(
-                        0, "[gz_ol] net_cfg.port invalid -> UDP service port fallback %u\n",
-                        (unsigned)g_udp_gzol_port);
-                else
-                    SEGGER_RTT_printf(
-                        0, "[gz_ol] UDP service port %u busy (resident %u/%u) -> skip bind\n",
-                        (unsigned)g_udp_gzol_port, (unsigned)busy_a, (unsigned)busy_b);
-            }
             osDelay(2000);
             continue;
         }
@@ -605,19 +591,13 @@ void udp_gzol_task(void *argument)
         err_t err = netconn_bind(conn, IP_ADDR_ANY, g_udp_gzol_port);
 
         if (err == ERR_OK) {
-            s_udp_gzol_warned_port = 0; /* 绑定成功 → 重置告警闩锁 */
-            s_udp_gzol_bind_sta    = APP_UDP_GZOL_BIND_OK;
+            s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_OK;
             s_udp_gzol_bind_ok_cnt++;
-#if APP_DIAG_BANNER
-            /* 自证：0x40 改端口后重启，本行端口号即「服务口是否真的换了」 */
-            SEGGER_RTT_printf(0, "[diag] gzol UDP service bound OK port=%u (net_cfg.port %s)\n",
-                              (unsigned)g_udp_gzol_port, cfg_ok ? "valid" : "fallback");
-#endif
 
             /* 清空残留断开信号，避免刚起来就误退 */
             while (osSemaphoreAcquire(udp_gzol_disconnect_sem, 0) == osOK);
 
-            /* 连接任务创建失败（堆耗尽）→ 立刻 RTT 报错，2s 后自动重试 */
+            /* 连接任务创建失败（堆耗尽）由 pl_task_create_checked 判空，2s 后自动重试 */
             osThreadId_t tid =
                 pl_task_create_checked(osThreadNew(udp_gzol_connect_task, conn, &udp_gzol_connect_attr),
                                         "udp_gzol_connect_task");
@@ -628,11 +608,6 @@ void udp_gzol_task(void *argument)
         } else {
             s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_FAIL;
             s_udp_gzol_bind_err = (int16_t)err;
-            if (s_udp_gzol_warned_port != g_udp_gzol_port) {
-                s_udp_gzol_warned_port = g_udp_gzol_port;
-                SEGGER_RTT_printf(0, "[gz_ol] UDP service port %u bind failed (err=%d)\n",
-                                  (unsigned)g_udp_gzol_port, (int)err);
-            }
         }
 
         /* 每次循环新建 netconn：delete 后不可再 bind 旧句柄 */

@@ -2,11 +2,29 @@
 
 > **角色**：本目录 **唯一占用实测账本**  
 > **状态**：现行　|　采样：**EIDE Debug（GCC 15.2）** / 编入 **1-577 3×3**、排除 1-260 / 1-969 / RLS / AH_MQTT / **2026-08-14 16:37**（重建复核，数字未漂移）  
-> **最新采样**：**2026-09-18 第三十二轮**（22_1665 删除自设 16KB CCM 预算；工作区宏值 8×2 = 128×32，见 **§8.4.2**）——
+> **最新采样**：**2026-09-29 代码瘦身轮第二轮**（自研诊断设施保持删除、**SEGGER RTT 底层恢复** +
+> 注释精简；业务行为零变化，全量重建，仅 3 条既有 HAL 告警）——`PROTO=ALL DISP=1_263 FACTORY=STD`
+> **`.text 167752 / .rodata 195776 / .data 1656 / .bss 124768 / .ccmram 39652 / ._user_heap_stack 2560`
+> ⇒ SRAM 合计 128984B（余 2088B）、CCM 余 25884B**；`FACTORY=MM` `.text 166216 / .rodata 195664 /
+> .bss 124504 / heap 2560`（余 2352B）；`PROTO=CQ DISP=1_263` `.text 154492 / .rodata 195112 /
+> .data 852 / .ccmram 37396 / .bss 121292`（余 6368B）；无显示等价口径 `.text 131928 / .rodata 191968 /
+> .ccmram 16084 / .bss 115704 / heap 2560`（余 11224B）；产物落 `.analysis/myanmar/build_nodisp/`。
+> 相对第一轮（RTT 移除态）差值：text **+464** / rodata **+40** / bss **+1208**（= `_acUpBuffer` 1024 +
+> `_acDownBuffer` 16 + `_SEGGER_RTT` 168）/ data、ccmram **±0**；明细见 **§8.4.4** 与
+> `.analysis/cleanup_20260929/round2_report.md`。
+> 上一条采样（**2026-09-29 代码瘦身轮第一轮**：RTT 调试设施整体移除 + 注释精简；仅 3 条既有 HAL 告警）——
+> `PROTO=ALL DISP=1_263 FACTORY=STD` **`.text 167288 / .rodata 195736 /
+> .data 1656 / .bss 123560 / .ccmram 39652 / ._user_heap_stack 2560` ⇒ SRAM 合计 127776B（余 3296B）、
+> CCM 余 25884B**；`FACTORY=MM` `.text 165752 / .rodata 195624 / .bss 123296 / heap 2560`；
+> `PROTO=CQ DISP=1_263` `.text 154044 / .rodata 195072 / .data 852 / .ccmram 37396 / .bss 120084`；
+> 无显示等价口径 `.text 131480 / .rodata 191928 / .ccmram 16084 / .bss 114496 / heap 2560`（余 13912B）。
+> 相对瘦身前同口径差值：text **−9288** / rodata **−7936** / bss **−1300**（SEGGER RTT 的 1KB 上行缓冲
+> 与诊断静态态）/ data **0**（CQ −4）/ ccmram **±0**；明细见 `.analysis/cleanup_20260929/report.md`。
+> 上一条采样（**2026-09-18 第三十二轮**，22_1665 删除自设 16KB CCM 预算；工作区宏值 8×2 = 128×32，见 **§8.4.2**）——
 > `PROTO=ALL DISP=22_1665`（8×2）**`.text 175248 / .rodata 203296 / .data 1656 / .bss 124836 / .ccmram 58876
 > （本模组 23040 = 1408×16 + 256×2）/ ._user_heap_stack 2564` ⇒ SRAM 合计 129056B（余 2016B）、CCM 余 6660B**；
 > 同轮 `PROTO=ALL DISP=1_263` 余 2016B、`PROTO=CQ DISP=1_263` 余 6296B。
-> 上一条采样（**2026-09-18 YN_OL TCP 现场修复轮**，见 **§8.4.1**）为
+> 再上一条采样（**2026-09-18 YN_OL TCP 现场修复轮**，见 **§8.4.1**）为
 > `PROTO=ALL DISP=22_1665`（1×5）**`.text 174640 / .rodata 203152 / .data 1680 / .bss 124816 / .ccmram 44156 /
 > ._user_heap_stack 2560` ⇒ SRAM 合计 129056B（余 2016B）**；`PROTO=ALL DISP=1_263` 余 2020B、`PROTO=CQ DISP=1_263` 余 6304B。
 > 2026-09-14 全量重采见 §7；**1-263 现值已为 `MODULE_ROWS=7 × 32 / MODULE_COLS=2 × 32 = 224×64`（CCM 29568B）**，
@@ -471,7 +489,26 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 - 2026-08-20（cJSON 升级官方 v1.7.18）：`Middlewares/Third_Party/cJSON/` 由裸机拷贝 v1.x 老版（编译 3 条 -Wmisleading-indentation 警告）替换为 DaveGamble/cJSON **v1.7.18** 官方源（GitHub codeload tarball）；parse 层类型判定改 `cJSON_IsString/IsNumber/IsObject` 辅助函数（`app_cq_proto_parse.c`），`cJSON_InitHooks` 换绑 FreeRTOS 堆不变（hooks 字段名仍 malloc_fn/free_fn），`cJSON_Parse`/GBK 字节直传用法不变。重采（Makefile 口径，cJSON 编译 warning 清零，仅余 HAL flash_ex 3 条既有 unused-parameter）：全协议 text **350004（+1764，cJSON 代码 ~8.5K→~10.2K）**、data **1656（+4）**、bss **136460（+4）**；`PROTO=CQ` text **335796（+1772）**、data **852（+4）**、bss **132984（+4）**。cJSON 解析树瞬时堆仍 ucHeap 内 2~4KB 量级（cJSON 结构体尺寸不变，钩子仍 pvPortMalloc/pvPortFree，解析后 cJSON_Delete 归还）。
 - 2026-09-04（新增安徽协议）：ProtocolParser_Anhui 四文件接入 Makefile（EIDE Debug 目标**编入不排除**——帧头 0x5A 串口槽唯一，无 '{' 守卫）；动态显示（0x86~0x89 滚动）留空 TODO、0x96/0x97 录制语音占位。增量：text **+~3.6KB**、SRAM **+~1168B**（queue_buf 807 + cb 80 + 帧缓冲 269 + mask/句柄 12，静态 SRAM 与青海/贵州/云南同）、CCM **+0**；ucHeap 任务栈 +1KB。构建：**Makefile 1-263 模组下 SRAM 溢出 1136B**（预算先于本任务耗尽）——链接脚本 `_Min_Heap_Size` 1KB→512B、`_Min_Stack_Size` 2.5KB→2KB、RTT `BUFFER_SIZE_UP` 2KB→1KB 合计让出 2048B 后 PROTO=ALL text **356500**/data 1656/bss 194020（含 CCM 65516）、PROTO=CQ text **342636**/data 852/bss 190544，均链接通过（详见 doc/13 §6）。
 - 2026-09-04（安徽内存回 SRAM，用户裁决）：安徽协议队列/控制块/任务帧缓冲由 `.ccmram` 移回静态 SRAM（与青海/贵州/云南一致，CQ 才是 CCMRAM 例外）；Makefile 模组保持 1-263（1-969 路线否决）；`Device/Display/dev_display_1_969.c` 还原 HEAD（1×1）。EIDE Debug 收录安徽四文件（virtualFolder + Debug incList，excludeList 不动）。链接期下限与 RTT 让位见上条。重采（`make clean` 全量）：PROTO=ALL text **356500** / data **1656** / bss **194020**（`.ccmram` 65516 = 1-263 显存 59136 + CQ 6377 + 3 对齐；`.bss` 125944、`._user_heap_stack` 2560 → SRAM ≈ **130160B（99.3%）**，余量 ~912B）；PROTO=CQ text **342636** / data **852** / bss **190544**（`.bss` 122468），均链接通过。
-- 2026-09-07（安徽动态显示落地 app_scroll）：新增 `Application/Src/app_scroll.c`（通用动态滚动模块，Makefile SRC_APPLICATION + `.eide/eide.yml` Application/files 收录）；app_render 导出 `app_render_draw_glyph_clipped`/`app_render_glyph_width_px`；安徽 0x86~0x89 接线。增量：text **+1912**、bss **+376**（s_slots[4] 360B + 句柄 12B；无 CCM 对象）、data 不变；scroll_task 栈 1KB 惰性（ucHeap）。重采（Makefile 1-263 单模块 32×32 口径）：PROTO=ALL text **358348** / data **1656** / bss **137756**（SRAM ≈ 130536B，余量 ≈ 536B）；PROTO=CQ text **344508** / data **852** / bss **134280**，均 0 新增告警链接通过（详见本文件上方安徽动态显示增量账与 doc/01_显示系统/动态滚动显示实现记录.md）。
+- 2026-09-29（**代码瘦身轮第二轮：RTT 底层恢复 + build 清理 + 长注释外移**，用户 4 条裁决）：
+  恢复 `Platform/Src/pl_rtt.c`（逐字节 = `git HEAD`）+ Makefile `SRC_RTT`（SEGGER 三源文件）/
+  `-I Middlewares/Third_Party/SEGGER_RTT` / `$(SRC_RTT)`（`.eide/eide.yml` 本就在册，未改）；
+  **自研诊断设施（`app_diag.h`/`[diag]`/`*_RTT_DIAG`/`[disp]` 告警）保持删除**，业务代码零 RTT API 调用。
+  四口径段尺寸见 **§8.4.4**（相对第一轮 text +464~+464 / rodata +40 / bss **+1208**；
+  SRAM 余量 3296→**2088B**）。同轮：删 `build/` 下 5 个非 Debug/Release 目录（43MB）、
+  Makefile `BUILD_DIR ?=`（脚本产物改落 `.analysis/`）、`app_boot.c` 两处长注释外移到
+  doc/01 §5.1 与本文 §8.2、`dev_display_22_1703.c` 文件头 46→27 行、`app_cq_proto.c` 头
+  （顺带修正 `net_cfg.port` → `net_cfg.udp_port`）。完整记录：`doc/17` §5、
+  `.analysis/cleanup_20260929/round2_report.md`。
+- 2026-09-29（**代码瘦身轮第一轮：RTT 调试设施整体移除**）：删除 `Platform/Src/pl_rtt.c`、
+  `Application/Inc/app_diag.h`、Makefile 的 `APP_DIAG`/`APP_LWIP_DBG_LEVEL`/`DIAG_DEFS` 与 SEGGER RTT
+  三个源文件/`-I`，各协议与通道的 `*_RTT_DIAG` 代码块、调度层 `[disp]` 告警、堆失败/任务创建失败钩子的
+  RTT 打印、LwIP 调试输出（改 `LWIP_DBG_TYPES_ON 0`）全部清零（业务逻辑零改动）。段尺寸（全量重编，
+  仅 3 条既有 HAL 告警）：`ALL/1_263/STD` text **167288**（−9288）/ rodata **195736**（−7936）/
+  bss **123560**（−1300）/ ccmram 39652（±0）/ heap 2560 ⇒ SRAM 余 **3296B**；`FACTORY=MM`
+  text 165752 / rodata 195624 / bss 123296；`CQ` text 154044 / rodata 195072 / bss 120084；
+  无显示口径 text 131480 / rodata 191928 / bss 114496（余 13912B）。RTT 1KB 上行缓冲（`_acUpBuffer`）
+  与 `s_pdbg_*`/`s_noproto_tick` 等诊断静态态随设施一起消失；CCM/任务栈账目不受影响。
+  （**历史完成**）- 2026-09-07（安徽动态显示落地 app_scroll）：新增 `Application/Src/app_scroll.c`（通用动态滚动模块，Makefile SRC_APPLICATION + `.eide/eide.yml` Application/files 收录）；app_render 导出 `app_render_draw_glyph_clipped`/`app_render_glyph_width_px`；安徽 0x86~0x89 接线。增量：text **+1912**、bss **+376**（s_slots[4] 360B + 句柄 12B；无 CCM 对象）、data 不变；scroll_task 栈 1KB 惰性（ucHeap）。重采（Makefile 1-263 单模块 32×32 口径）：PROTO=ALL text **358348** / data **1656** / bss **137756**（SRAM ≈ 130536B，余量 ≈ 536B）；PROTO=CQ text **344508** / data **852** / bss **134280**，均 0 新增告警链接通过（详见本文件上方安徽动态显示增量账与 doc/01_显示系统/动态滚动显示实现记录.md）。
 - 2026-09-08（④a 脏矩形 prepare + ⑤ 安徽侧渲染串行）：`dev_display_t` 基类新增 `dirty_rect_*` 字段（4×uint16 + bool + 填充 = **+12B**，每模组静态实例 1 份——1-263 实例带初始化器在 `.data`）；`dev_display.c` 新增 `dev_display_commit_frame_rect` + 待消费矩形暂存 **10B**（`.bss`）；app_scroll 新增 `s_render_mutex` 句柄 **4B**（372B→376B，`.bss`）——名义 +26B，链接后经段对齐空隙吸收，实测 text **+672**、data **+8**、bss **+8**（RAM 合计 +16B，CCM +0）。重采（同口径）：PROTO=ALL text **359036** / data **1664** / bss **137764**（SRAM ≈ 130544B，余量 ≈ 528B）；PROTO=CQ text **345180** / data **860** / bss **134288**，均 0 error（基线 18:24 产物为回绕修订后口径，增量与 doc/13 §6、doc/01 记录一致）。
 - 2026-09-14（新增 22-1703 显示模组 + 贵州治超协议，全量重采）：① `Device/Display/dev_display_22_1703.c`（P10 32x16，料号 2200001703，1/4 扫描，224×64，合并写 BSRR；Makefile 新增 `DISP` 开关，与 1-263 编译期二选一——两模组显存 + CQ + 治超 = 68729B > 64KB 不可同编）；② `ProtocolParser_GuiZhou_Overload`（"TCLY" 帧族，RS485+RS232，队列/控制块/任务帧缓冲 **1136B 置 CCMRAM**——ALL 口径 SRAM 仅余 496B，CPU 独占访问无 DMA，CQ 先例）。Makefile 四口径重采（`arm-none-eabi-size -A`；**原流程为「每口径删产物强制重链接」，2026-09-14 已由 Makefile 口径指纹 stamp 取代**——切口径自动全量重编 + 重链接，见 doc/构建开关总表.md §4）：**PROTO=ALL DISP=1_263 text 163652 / rodata 197760 / data 1664 / ccmram 37084 / bss 126348 / heap_stack 2564（SRAM 130576B，余量 496B）；PROTO=CQ DISP=1_263 text 150476 / data 860 / ccmram 37084 / bss 122872（余量 4776B）；PROTO=ALL DISP=22_1703 text 163924 / rodata 197840 / data 1744 / ccmram 39164 / bss 126348（余量 416B）；PROTO=CQ DISP=22_1703 text 150732 / data 940 / ccmram 39164 / bss 122872（余量 4696B）**，全部链接通过、零新增告警。**采样更正**：`PROTO=ALL` 两行原记 text 164068 / rodata 197800（1-263）与 164324 / 197880（22_1703）系「对象沿用上一 CQ 口径」的污染态（+416 text / +40 rodata，符号级归因见 doc/构建开关总表.md §4.1），**RAM 各段不变**。本轮增量（干净重采，A/B 对照）：治超协议 text **+2128**（CQ 口径 +2144）/ rodata **+216** / bss +16 / **ccmram +1136**；22-1703 相对 1-263 text **+272** / rodata +80 / data +80 / **ccmram +2080**（合并表 2848 − g_bsrr 768）。**口径更正**：工作区 1-263 现为 `MODULE_ROWS=7 / MODULE_COLS=2 = 224×64`（CCM 29568B），本页早期各节「224×128 / 59136B / CCM 65516」为历史口径，详情见新增 §7。
 - 2026-09-14（后续，贵州治超增绑 UDP 10011）：`gz_ol_proto_init` 第三个 mask 绑 `CH_ID_UDP`（挂 RJ45 共享槽 RB，**只 acquire 不 provide**，网口槽 1536B 仍由 IAP/LDI/CQ 提供）。四口径重采见 §7.1：`PROTO=ALL`/`PROTO=CQ` `DISP=1_263` text **163716 / 150524**、bss **126352 / 122876**（相对增绑前 **text +64 / +48、bss +4**），rodata/data/ccmram +0，SRAM 合计与余量逐字节不变（**496B / 4776B / 416B / 4696B**），四口径全部链接通过、零新增告警；默认口径 elf md5 `ef0eeaa2ede395242990ec8b49b7acd0`（重复 make 0 编译 0 链接、md5 不变）。⚠ 22_1703 两行的 `ccmram`（11420）系另一路 `dev_display_22_1703.c` 改动（显存降到 512B×2，模组 CCM 贡献 3904B）所致，与本模块无关，待该驱动定稿后重采（`[待更新]`，见 §7.1）。
@@ -577,6 +614,127 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
   即使 EIDE 口径与 make 口径不同，`make -j8` 也 0 编译 0 链接、静默复用 EIDE 的 elf**（必须
   `make clean && make`）。
 
+- **2026-09-24（新增缅甸 2D 费显协议 MM，只绑 RS232）**：`Application/Src/ProtocolParser_Myanmar/`
+  两文件（`app_mm_proto.c` / `app_mm_proto_cmd.c`）+ `Application/Inc/ProtocolParser_Myanmar/`
+  一头文件接入 Makefile `SRC_APPLICATION` 末尾（Anhui 之后）。**口径**：`PROTO=ALL` `DISP=1_263`
+  （Makefile GCC Debug，全量 `-B` 重编，`APP_DIAG_BANNER` 默认开）。
+  - **实测段尺寸**（含干接点输出层，见下条）：`.text 176064 / .rodata 203544 / .data 1656 /
+    .ccmram 39652 / .bss 124852 / ._user_heap_stack 2564` ⇒ **SRAM 合计 129072B（余 2000B）**、
+    **CCM 余 25884B**；`PROTO=CQ` 同轮：`.text 162868 / .rodata 202888 / .data 856 / .ccmram 37396 /
+    .bss 121376 / ._user_heap_stack 2560` ⇒ **SRAM 合计 124792B（余 6280B）**、**CCM 余 28140B**。
+    **两口径零新增告警**（仍 3 条既有 HAL `-Wunused-parameter`）。
+  - **本模块增量（同树 A/B：从 Makefile 摘除两文件后全量重编对比）**：text **+1088** /
+    rodata **+504** / data **+0** / **ccmram +1320** / **bss +16**（另 `.sw_initcall` +8）；
+    SRAM 余量 2016 → **2000B**。拆分：模块两对象 text 866B（`app_mm_proto.o` 368 + `app_mm_proto_cmd.o` 498）
+    + **为其新增的 Platform 接口** `pl_gpio_config_output` 64B / `pl_gpio_release_exti` 160B（只被本模块引用，
+    无模块时被 `--gc-sections` 丢弃）；rodata = 模块诊断串/映射表 ≈388B + 字符串池对齐。
+    **相对上一轮（占位实现，同口径基线 text 175648 / rodata 203456）**：text **+416** / rodata **+88**
+    / data/bss/ccmram/stack **±0** —— 即「占位 → 真实驱动」的净增量。
+  - **CCM 1320B 明细**：队列体 `s_mm_queue_buf` 84B（深度 3 × (frame_msg_t 8 + payload 20)）
+    + 队列 cb 80B + 任务帧缓冲 28B + 处理任务栈 1024B + `StaticTask_t` 100B + 对齐 4B。
+    **CCM 放置理由与 CQ/GZ_OL/YN_OL 同**（ALL 口径 SRAM 余量仅约 2KB；CPU 独占访问、无 DMA）。
+  - **RB 不新增**：`RB_PROVIDE_WEAK(rb_provide_rs232, ...)` 仅作极端裁剪构建兜底——实测链接
+    获胜者仍是既有 `.2` 定义的模块（本模块为 `.1`）⇒ **RS232 槽 768B + rb 结构 16B 不重复计**。
+  - **ucHeap 不新增**：处理任务走 `pl_task_static.h` 静态分配（栈+TCB 落 CCM），非动态；
+    队列为静态 `osMessageQueueNew` + 静态体。**ucHeap 水位不变**。
+  - **SRAM/CCM 以外的运行时副作用**（2026-09-24 阶段二，见下条）：干接点改为真实输出后
+    **不再有内存变化**（引脚接管只写寄存器）；`PE10/PE11/PE12` 的 EXTI 配置被按线摘除，
+    不影响 §8 的 DMA 门禁（这三脚本就非 DMA 资源）。
+  - 详见 `doc/16_缅甸2D费显协议/README.md`；队列深度登记见 `doc/05-01` §4.1。
+- **2026-09-24（阶段二：缅甸干接点输出层「未接线占位」→ 真实驱动 PE12/PE11/PE10 + 独立 EIDE 目标）**：
+  用户裁决 S1/S2/S3 = **PE12/PE11/PE10**（复用原 SW1/SW2/SW3 端子，改为推挽输出，
+  上电三路全灭；**该上电语义已于 2026-09-29 按用户需求改为「上电默认显示红叉 = 红灯点亮」，
+  见文末 2026-09-29 条**）；Platform 新增 `pl_gpio_config_output()` + `pl_gpio_release_exti()`。
+  **极性后经现场实测修正（2026-09-28）**：由「低有效」翻转为**高有效**（点亮 = 输出高，
+  全灭 = 输出低）——见下条；该修正只改映射表常量取值，**段尺寸零变化**。
+  **内存账不变**（无新增对象；text/rodata 的 +416/+88 见上条）；**EIDE 侧**新增 `targets.Myanmar`
+  （Debug 模板 + 缅甸模块 + 排除云南治超），Debug 目标**行为保持不变**（缅甸模块进其 excludeList；
+  ⚠ 该句为 2026-09-24 阶段二当时状态——**2026-09-28 用户裁决起 Debug 现行口径 = 编入缅甸、排除 LDI + 四川三**，见 doc/16 §9.1）。
+  - **EIDE 等价口径实测**（`.analysis/myanmar/check_eide_targets.py --emit-make` 生成临时 Makefile，
+    编译集与 EIDE 上次构建的 `build/Debug/builder.params` 源文件清单**逐条一致**）：
+    `EIDEMyanmar`（继承 Debug 排除表 ⇒ 显示模组 = `dev_display_1_969.c` 192×96，编入 IAP/LDI/ETC/MTC/SC_OL + MM）
+    = `.text 139136 / .rodata 197232 / .data 1632 / .ccmram 54292 / .bss 116052 / ._user_heap_stack 2564`
+    ⇒ **SRAM 合计 120248B（余 10824B）**、**CCM 余 11244B**（链接通过）；
+    若改用 `DISP=22_1665`（8×4 = 128×64）同集 = `.ccmram 62164 / .bss 116056`
+    ⇒ **CCM 余 3372B**（**仍链接通过**；EIDE 子集的固定 CCM 消费者仅 13644B + 缅甸 2440B，
+    与 Makefile `PROTO=ALL` 口径的 **37156B**（2026-10-08 实测；旧值 35836B）不同，**不存在溢出**）。
+    ⚠ 与此相对，Makefile `PROTO=ALL`/`CQ` 口径编 8×4 仍为**预存**链接期溢出
+    （**17700B / 15444B**，2026-10-08 实测，见 §8.4.2），**与本任务无关**。
+- **2026-09-24（阶段三：缅甸目标改「无显示驱动 + 去 `PROTO_CHONGQING`」+ 补无显示构建运行时守卫）**：
+  ① `.eide/eide.yml` 的 `targets.Myanmar` 排除 `Device/Display` 下**全部** `dev_display_*.c`
+  （含阶段二编入的 `dev_display_1_969.c`；基类 `dev_display.c` 保留）并去掉 `PROTO_CHONGQING`
+  （**`targets.Debug` 与 `files` 一字未动**；协议排除项一条未加）；
+  ② 为「整机无显示驱动」口径补**运行时 NULL 守卫**（新增 `dev_display_guard()` + 14 条路径判空，
+  **无编译期开关**；清单与判据见 doc/16 §10）。
+  - **守卫代码增量（标准口径 A/B，`PROTO=ALL` `DISP=1_263` 全量重编）**：`.text 176288 /
+    .rodata 203640 / .data 1656 / .ccmram 39652 / .bss 124860 / ._user_heap_stack 2564`
+    ⇒ **SRAM 合计 129080B（余 1992B）**、**CCM 余 25884B**；相对阶段二基线 = text **+224** /
+    rodata **+96** / data **±0** / **bss +8**（守卫助手的两个静态变量：`uint32_t` tick + tag 指针）
+    / **ccmram ±0**；**SRAM 余量 2000 → 1992B**。
+    `PROTO=CQ` 同轮：`.text 163060 / .rodata 202976 / .data 856 / .ccmram 37396 /
+    .bss 121384 / ._user_heap_stack 2560` ⇒ **SRAM 合计 124800B（余 6272B）**、CCM 余 28140B。
+    **两口径零新增告警**（仍 3 条既有 HAL `-Wunused-parameter`）。
+  - **无显示等价口径实测**（`check_eide_targets.py --emit-make` 生成、**`SRC_DISPLAY` 置空**；
+    `CONFIG=EIDEMyanmarNoDisp`，207 个源文件、零新增告警）：`.text 138720 / .rodata 197056 /
+    .data 1584 / **.ccmram 16084** / .bss 116060 / ._user_heap_stack 2564`
+    ⇒ **SRAM 合计 120208B（余 10864B）**、**CCM 余 49452B**；`.ccmram` 恰等于预算模型
+    13644 + 2440 = **16084B**（模型自证）；`Device/Display/` 下只编 `dev_display.c`，
+    `nm` 无任何模组驱动符号（只有基类 `dev_display_*` 与守卫）。
+    ——**2026-09-28 厂测轮复测（出厂测试改缅甸版）**：`.text **137328** / .rodata **196968** / .data 1584 / .ccmram **16084** / .bss **115796** / ._user_heap_stack 2564` ⇒ SRAM 合计 **119944B（余 11128B）**、CCM 余 **49452B**；链接通过、零新增告警（相对标准版出厂测试口径 text −1392 / rodata −88 / bss −264，`ccmram`/`data` 不变）。
+  - **无显示的运行时保证**（可执行证据，`objdump`/`nm`/`strings`）：`dev_display_start` 首条即
+    `bl <dev_display_guard>` + `cbnz`，为假时直接返回（不建 `scan_task`）；`pl_tim_start_it`
+    的调用者**只有 `scan_task`**（×2）且 `MX_TIM3/4_Init` 只 `HAL_TIM_Base_Init`
+    ⇒ **TIM3/TIM4 永不启动**；splash/默认画面/出厂检测/光敏调光各入口首条即守卫或判空。
+- **2026-09-28（缅甸干接点极性现场实测翻转：低有效 → 高有效）**：只改
+  `app_mm_proto_cmd.c` 的 `s_mm_lamp_map` 三条 `active_low`（`true` → `false`）+ 注释/日志文案，
+  `_mm_drive()` 与接管序列零改动 ⇒ **段尺寸零变化**（A/B 实测：text/rodata/ccmram/bss 全等，
+  见 `.analysis/myanmar/polarity_flip_20260928/`）；全灭 = 三路输出低、点亮 = 输出高；
+  宿主推演 103 → **108/108**。**SRAM/CCM 账不变**（本模块 CCM 仍 1320B）。详见 doc/16 §4 与修订记录。
+- **2026-09-28（TEST 键切换 0x0A/0x0B 箭头落点 + 缅甸版出厂测试二选一）**：
+  ① 缅甸模块新增 `mm_arrow_map_toggle()` / `mm_arrow_map_is_swapped()` + 静态开关
+  `s_mm_arrow_swapped`（**1B bss**）与 `_mm_effective_lamp()`；**开机复位不持久化**
+  （`mm_apply_init()` 内清）；② 新增 `Application/Src/app_factory_test_mm.c`
+  （TEST 键只做映射切换；**栈 256 words + TCB 静态落 CCMRAM = 1124B**，与标准版同量级；
+  **不引用任何显示 API** ⇒ 无显示构建安全）；③ **两文件二选一**（同名对外符号 ⇒ 同编即
+  `multiple definition`；Makefile `FACTORY=STD|MM` / EIDE `excludeList`）。
+  **实测（Makefile，`PROTO=ALL` `DISP=1_263`，全量 `-B` 重编）**：`FACTORY=STD` =
+  `.text 176336 / .rodata 203648 / .data 1656 / .ccmram 39652 / .bss 124860 /
+  ._user_heap_stack 2564` ⇒ **SRAM 合计 129080B（余 1992B）**；**`FACTORY=MM`** =
+  `.text 174944 / .rodata 203616 / .data 1656 / .ccmram 39652 / .bss 124596 /
+  ._user_heap_stack 2564` ⇒ **SRAM 合计 128816B（余 2256B）**（bss −264 = 标准版
+  `_aging_fill_screen` 的 256B 静态缓冲等不再编入）；**两口径 CCMRAM 相同**（本模块 CCM
+  仍 1320 + 任务栈/TCB 1124，未变）；**零新增告警**。**本模块（缅甸驱动自身）A/B**：
+  交换代码在三元组 [STD 构建] 下仅 `.text +48 / .rodata +8`（`mm_arrow_map_toggle` 与日志串被
+  `--gc-sections` 丢弃）；`_mm_effective_lamp` 28B / `mm_execute_cmd` +6B / `mm_apply_init` +8B /
+  `s_mm_arrow_swapped` 1B。详见 doc/16 §13。
+- **2026-09-29（缅甸上电默认红叉 + 开机默认画面「红色叉（×）」）**：
+  ① **上电默认态**：`mm_apply_init()` 接管完成后 `mm_apply_lamp(MM_LAMP_RED, true)` ⇒
+  红灯 S1/PE12 点亮（输出高）、两绿箭头灭（**取代** 2026-09-24 的「三路全灭」；2 条指令量级，
+  无新对象 ⇒ **内存账不变**）；
+  ② **开机默认画面（屏）**：`app_mm_proto.c` 新增 `_mm_default_red_cross()` +
+  `_mm_default_display_init()`（**仅当 `dev_display_get() != nullptr` 时** `app_default_display_register()`；
+  整屏清黑 + 两条对角线，`COLOR_RED`，几何取自 `dev_display_get()`，无缓冲、无静态对象）
+  —— **只增代码（Flash），0B RAM/CCM 增量**；无显示构建（`targets.Myanmar`）不注册、零告警。
+  - **实测（Makefile，`PROTO=ALL` `DISP=1_263`，全量 `-B` 重编）**：`FACTORY=STD` =
+    `.text **176576** / .rodata **203672** / .data 1656 / .ccmram 39652 / .bss 124860 /
+    ._user_heap_stack 2564` ⇒ **SRAM 合计 129080B（余 1992B）**；`FACTORY=MM` =
+    `.text **175184** / .rodata **203640** / .data 1656 / .ccmram 39652 / .bss 124596 /
+    ._user_heap_stack 2564` ⇒ **SRAM 合计 128816B（余 2256B）**；两口径增量 = **text +240 /
+    rodata +24**（相对 2026-09-28 厂测轮），**data / ccmram / bss / heap_stack ±0**；
+    **零新增告警**（仍 3 条既有 HAL）。
+  - **无显示等价口径实测**（`.analysis/myanmar/build_nodisp/Makefile.mm_nodisp` 按现行 yml 重生成，`CONFIG=EIDEMyanmarNoDisp`，产物落 `.analysis/`，`BUILD_DIR ?=` 支持，
+    零新增告警）：`.text **137632** / .rodata **197000** / .data 1584 / .ccmram **16084** /
+    .bss **115796** / ._user_heap_stack 2564` ⇒ **SRAM 合计 119944B（余 11128B）**、
+    **CCM 余 49452B**；相对厂测轮 = text **+304** / rodata **+32**（其余全等）；`nm` 无模组驱动
+    符号、`_mm_default_red_cross`/`_mm_cross_px` 在对象内（无显示 ⇒ 运行时不注册、不打印）。
+  - **`PROTO=CQ` 口径同轮复测**（`PROTO=CQ DISP=1_263`，全量重编）：`.text **163332** /
+    .rodata **203008** / .data 856 / .ccmram 37396 / .bss 121384 / ._user_heap_stack 2560`
+    ⇒ **SRAM 合计 124800B（余 6272B）**、CCM 余 28140B；零新增告警（3 条既有 HAL）。
+  - **脚本**：`mm_frame_sim.py` 142 → **159/159**；`check_display_guards.py`
+    **16/16 + 99/99**（+2 条硬断言：红叉注册点判空 / 回调判空）；`check_guard_disasm.py`
+    原操作零丢失；`check_eide_targets.py` **40/45**（口径差异，非回归）。详见 doc/16 §14。
+
+
 ---
 
 ## §8 FreeRTOS 堆预算表与任务栈 CCMRAM 下沉（2026-09-17，现场堆耗尽修复）
@@ -637,7 +795,7 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 | 任务 | 栈 | 创建点 | 释放 ucHeap |
 |---|---|---|---|
 | `scan_task` | 1KB | `dev_display.c`（sw2） | 1144B |
-| `factory_monitor_task` | 1KB | `app_factory_test.c`（sw3） | 1144B |
+| `factory_monitor_task`（标准版）/ **`mm_factory_monitor_task`（缅甸版，`FACTORY=MM`，二选一）** | 1KB | `app_factory_test.c` / `app_factory_test_mm.c`（sw3） | 1144B |
 | `frame_dispatch_task` | 1KB | `app_dispatch.c`（sw3） | 1144B |
 | `scroll_task` | 1KB | `app_scroll.c`（惰性，首个滚动帧） | 1144B |
 | `light_sensor_task` | 512B | `app_light_sensor.c`（sw3） | 632B |
@@ -661,9 +819,17 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 
 **另外两处（内核静态任务）**：`configSUPPORT_STATIC_ALLOCATION=1` 时 FreeRTOS 的空闲任务与
 定时器服务任务走 `vApplicationGetIdleTaskMemory` / `vApplicationGetTimerTaskMemory`，
-`cmsis_os2.c` 的 `__WEAK` 版把缓冲放在自己的 `.bss`（SRAM 1736B）；`app_boot.c` 以**强定义覆盖**，
-改置 `.ccmram`（`s_idle_task_stack/tcb` 612B + `s_timer_task_stack/tcb` 1124B）
+`cmsis_os2.c` 的 `__WEAK` 版把缓冲放在自己的 `.bss`（SRAM 1736B：Idle_TCB 100 + Idle_Stack 512 +
+Timer_TCB 100 + Timer_Stack 1024；`nm` 实测落在 `0x20007e30` / `0x200079cc` 等 SRAM 地址）；
+`app_boot.c` 以**强定义覆盖**，改置 `.ccmram`（`s_idle_task_stack/tcb` 612B + `s_timer_task_stack/tcb` 1124B）
 ⇒ **SRAM `.bss` −1732B**（槽位对齐后），这是**本轮到 SRAM 侧的唯一净收益**。
+CCM 侧合法性与任务栈同源（只被 CPU 读写、不经 DMA；`.ccmram` 由 `startup.c` 整体清零，
+满足「静态 TCB 缓冲须已清零」）；调用时机 = `vTaskStartScheduler()` 内（先空闲任务、后定时器任务），
+早于 `init_task`。驱动 `app_boot.c` 只留一行指针（长注释已本轮外移到本节）。
+
+⚠ **仍未下沉的部分**：`timers.c` 内的定时器队列（`xStaticTimerQueue` + `ucStaticTimerQueueStorage`，
+实测 0x50+0xA0 = 240B）是 timers.c 的 static 局部，无法从外部改置；若将来需要再挤 SRAM，
+可评估 `configUSE_TIMERS=0`（全项目无 `osTimerNew`/`xTimerCreate` 调用点）。
 
 **CCM 侧成本核算**：23 任务 = 22×1024 + 512（栈）+ 23×100（`StaticTask_t`）= **25340B**；
 加空闲/定时器 **1736B** = **27076B**；`.ccmram` 全片实测见 §8.4（ALL/1_263 **38332B / 65536B**，余 **27204B**）。
@@ -816,8 +982,8 @@ TCP Server 告警去重标记 1B + 对齐 ⇒ `.bss +40B`），**§8.3 的 ucHea
   `region .ccmram overflowed by N bytes`）；驱动内当时只剩「本模组数组 ≤ 整片区域 64KB」**物理守卫**
   （自设 16KB 预算已删，用户裁决「分辨率只受 CCMRAM 实际空间约束、由宏定义修改」）
   —— **该物理守卫亦已于第三十四轮删除（全部编译期防御取消），见 §8.4.3**。
-  **其他消费者 35836B**（= 58876 − 23040；含 §8.2 静态任务栈 25340 + 内核缓冲 1736 + CQ 6377 +
-  GZ_OL 1136 + YN_OL 1152 + 对齐）⇒ **本模组实用上限 ≈29700B**：COLS=2 时 M ≈ 20
+  **其他消费者 37156B**（2026-10-08 由 65536 + 17700 − 46080 反推；含 §8.2 静态任务栈 25340 + 内核缓冲 1736 +
+  CQ 6377 + GZ_OL 1136 + YN_OL 1152 + 对齐；旧值 35836B）⇒ **本模组实用上限 ≈28400B**：COLS=2 时 M ≈ 20
   （10×2 = 160×32，28672B、整片余 1028B）为上限量级〔**估算，以链接期为准**〕；9×2（25856B、余 3844B）较稳。
 * **⚠ 时序软约束（非编译期、本轮未改定时参数）**：8×2 每帧 1024 时钟 ⇒ `_22_1665_scan`
   ≈**0.36~0.48ms**（占 TIM3 固定 **500µs** 帧周期的 **72%~96%**）、`prepare`（整帧提交重算）
@@ -834,48 +1000,92 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
 **零代码、零新增/减少静态量** ⇒ **驱动对象逐 section 逐字节不变**（20 个段 md5 全同 + 反汇编 366 行 0 差异），
 本节的 SRAM/CCM 账**完全不变**；变的只有「错误几何的兜底方式」：由编译期断言改为**注释契约 + 链接期报错**。
 
+> **2026-10-08（冲突修复落地轮）实测（现行基线；表内第三十四轮各行为历史值）**：`PROTO=ALL DISP=1_263`
+> `.text **167944** / .rodata 195776 / .data 1656 / .ccmram 39652 / .bss 124768 / ._user_heap_stack 2560`
+> ⇒ SRAM 合计 **128984B（余 2088B）**、CCM 余 25884B（相对改前基线 **text +192**，其余段 ±0 —— 增量 =
+> C3 加固：`app_dispatch_channel_has_proto` 32 + `init_task` 门控 68 + `ldi_sync_net_from_board_cfg` 88 +
+> `cmd_search`/`cmd_rep_ip` 8）；`PROTO=CQ DISP=1_263` `.text **154588**`（+96）/ 其余 ±0；
+> `DISP=22_1665` 两口径链接期溢出 **17700B（ALL）/ 15444B（CQ）**（本模组 46080B）；
+> **EIDE 等价口径实构**：现行 Debug 选择（206 源文件，`--emit-make`）`.text 133112 / .rodata 192232 /
+> .ccmram **52972** / .bss 115952`、Myanmar（207 源文件、无显示）`.text 132136 / .ccmram **16084** /
+> .bss 115704`；**现行 Debug 选择 + 8×4 = `.ccmram 60844B`（余 4692B，链接通过）**。
+> 四口径均零新增告警（仍 3 条既有 HAL）。
+
 | 口径（Makefile GCC Debug，`APP_DIAG_BANNER` 默认开，第三十四轮实测） | `.text` | `.rodata` | `.data` | `.bss` | `.ccmram` | `._user_heap_stack` | SRAM 合计 | **SRAM 余** |
 |---|---|---|---|---|---|---|---|---|
 | `PROTO=ALL` `DISP=1_263` | **174976** | **203040** | 1656 | 124836 | 38332 | 2564 | **129056** | **2016B** |
 | `PROTO=CQ` `DISP=1_263` | **161796** | **202384** | 856 | 121360 | 36076 | 2560 | **124776** | **6296B** |
-| `PROTO=ALL` `DISP=22_1665`（8×4） | — | — | — | — | 81916（本模组 **46080** = `1408×32 + 256×4`） | — | — | **链接期溢出 16380B，无 elf** |
-| `PROTO=CQ` `DISP=22_1665`（8×4） | — | — | — | — | 79660（本模组 46080） | — | — | **链接期溢出 14124B，无 elf** |
+| `PROTO=ALL` `DISP=22_1665`（8×4） | — | — | — | — | 83116（本模组 **46080** = `1408×32 + 256×4`） | — | — | **链接期溢出 17700B，无 elf** |
+| `PROTO=CQ` `DISP=22_1665`（8×4） | — | — | — | — | 80980（本模组 46080） | — | — | **链接期溢出 15444B，无 elf** |
 
 * **前两行与第三十二轮记录逐值相同**（`ALL/1_263` `.text 174976 / .rodata 203040 / .ccmram 38332`、
   `CQ/1_263` `.text 161796 / .rodata 202384 / .ccmram 36076`）——两口径**不编 22_1665 驱动**，印证「本轮的
   断言/注释删除不产生代码」；四口径均**零新增告警**（仍 3 条既有 HAL `-Wunused-parameter`）。
-* **⚠ 工作区宏值 8×4 的现实（预存状态，非本轮引入）**：本模组 **46080B** + 其他消费者 **35836B**
-  （= 静态任务栈 25340 + 内核缓冲 1736 + CQ 6377 + GZ_OL 1136 + YN_OL 1152 + 对齐）= **81916B > 64KB**
-  ⇒ `PROTO=ALL` 溢出 **16380B**；`PROTO=CQ`（其他消费者 33580B）溢出 **14124B**。
+* **⚠ 工作区宏值 8×4 的现实（预存状态，非本轮引入）**：本模组 **46080B** + 其他消费者 **37156B**
+  （= 静态任务栈 25340 + 内核缓冲 1736 + CQ 6377 + GZ_OL 1136 + YN_OL 1152 + 对齐；2026-10-08 实测反推）= **83116B > 64KB**
+  ⇒ `PROTO=ALL` 溢出 **17700B**；`PROTO=CQ`（其他消费者 34900B）溢出 **15444B**。
   第三十三轮已按算术预测、本轮实测确认（`ld` 报错文本在改动前/后**逐字节一致**）。
   **⇒ `DISP=22_1665` 在 8×4 下没有任何 make 口径能产出 elf/hex**，只有 **EIDE Debug 子集**能装
-  （57484B / 余 8052B，第三十三轮实测）。**要让 make 出 22_1665 产物**：几何减到 8×2（23040B，
+  （**现行 Debug 选择 + 8×4 实测 `.ccmram 60844B` / 余 4692B**，2026-10-08 实构；旧记录 57484B/余 8052B = 当时更小的子集）。**要让 make 出 22_1665 产物**：几何减到 8×2（23040B，
   ALL 口径 58876B，`link_variant.sh mod8x2` 实测链接通过）或让出 CCM（CQ/治超队列 / 静态任务栈）——
   均属**待用户决策**（`doc/01` §6）。
 * **验证入口**：`bash .analysis/22_1665/verify_all.sh`（全量 **20 项全绿 / 1 项跳过**：`check_flash_artifact.sh`
   因上述「无 22_1665 make 产物」显式记为「跳过（前置不满足）」）；`check_compile_matrix.sh` C 节新增
   「47×1 = 66432B ⇒ 链接期 `overflowed by 896 bytes`」的链接期兜底回归；A/B 脚本 `check_round34_ab.sh`（5/5）。
 
-### §8.5 永久诊断与错误处理（本轮一并落地）
+### §8.4.4 2026-09-29 第二轮复采（RTT 底层恢复 + 注释精简；用户 4 条裁决口径）
 
-| 设施 | 位置 | 作用 |
+**背景**：同日第一轮把 RTT 设施整体移除后，用户裁决「RTT = 只清理 API 调用，不清理底层」⇒
+第二轮恢复 SEGGER RTT 三个源文件 + `Platform/Src/pl_rtt.c`（逐字节 = `git HEAD`）与其
+`hw_pl_initcall` 注册；自研诊断设施（`app_diag.h` / `APP_DIAG_BANNER` / `*_RTT_DIAG` / `[disp]` 告警）
+**保持删除**；业务代码**零 RTT API 调用**。同轮另做：`build/` 清理（删 5 个非 Debug/Release 目录，
+43MB）、Makefile `BUILD_DIR ?=`（供脚本把产物落到 `.analysis/`）、长注释外移。
+
+口径：`make clean` 后全量 `make -j8`（Makefile GCC Debug），仅 3 条既有 HAL 告警。
+
+| 口径 | text | rodata | data | ccmram | bss | heap | SRAM 合计 / 余量 |
+|---|---|---|---|---|---|---|---|
+| `PROTO=ALL` `DISP=1_263` `FACTORY=STD` | **167752**（+464） | **195776**（+40） | 1656 | 39652 | **124768**（+1208） | 2560 | **128984 / 2088B** |
+| `FACTORY=MM` | **166216**（+464） | **195664**（+40） | 1656 | 39652 | **124504**（+1208） | 2560 | **128720 / 2352B** |
+| `PROTO=CQ` `DISP=1_263` | **154492**（+448） | **195112**（+40） | 852 | 37396 | **121292**（+1208） | 2560 | **124704 / 6368B** |
+| 无显示等价口径（`.analysis/myanmar/build_nodisp/`） | **131928**（+448） | **191968**（+40） | 1584 | 16084 | **115704**（+1208） | 2560 | **119848 / 11224B** |
+
+* 括号内 = 相对第一轮（RTT 移除态）差值；**增量全部来自 RTT 底层**：text/rodata = `SEGGER_RTT_Init` +
+  `Write`/`WriteNoLock` + 系统调用垫片被引用的部分（`--gc-sections` 已丢弃 `SEGGER_RTT_printf` 等未引用函数）；
+  bss **+1208** = `_acUpBuffer` 1024 + `_acDownBuffer` 16 + `_SEGGER_RTT` 168（`nm` 实证：
+  `_acUpBuffer` @ `0x2000ebe0`、`_SEGGER_RTT` @ `0x2000efe0`）。
+* elf md5：默认口径 `09c574f0f2aed808510792d0c316fb13`、`FACTORY=MM` `43863e6b44ca38ed58935bd4d74ba5c9`、
+  `CQ` `dc0cf186c34af8fa7a6606aa732346c4`、无显示口径 `ce7fd155adac088b782f5b18cafe23d0`。
+* `nm` 复核：`pl_rtt_init` @ `0x08041330` + `__hw_initcall_1_pl_rtt_init`（initcall 表内）；
+  `SEGGER_RTT_Init` / `SEGGER_RTT_Write` / `SEGGER_RTT_WriteNoLock` / `_acUpBuffer` / `_acDownBuffer` /
+  `_SEGGER_RTT` 均在。**业务代码 0 处 RTT API 调用**（`Application/ Device/ Kernel/ Platform/`
+  下唯一命中 = `pl_rtt.c` 自身）。
+* **注释精简 A/B**（4 个被改文件：`app_boot.c` / `app_ldi.c` / `app_cq_proto.c` / `dev_display_22_1703.c`）：
+  「重建改动前源码 vs 现行源码」同 flags 重编 ⇒ section（排除 `.debug_*`）**逐字节一致** +
+  反汇编**逐行一致**（105 段 / 1801 行）——见 `.analysis/cleanup_20260929/round2_ab_compare.sh`。
+* 完整记录：`.analysis/cleanup_20260929/round2_report.md`、`doc/17` §5。
+
+### §8.5 永久诊断与错误处理（**设施已随 2026-09-29 瘦身轮删除；RTT 底层保留**）
+
+| 设施（历史） | 位置 | 原作用 |
 |---|---|---|
-| 开机横幅 `[diag] heap at banner free=… min=…` | `app_boot.c` `app_diag_boot_banner` | 一条 RTT 行给出当前余量与**开机以来最小余量** |
-| 逐通道 `[diag] heap after <chan>_start free=… min=…` | `app_boot.c` `init_task` | 每个通道启动后各打一次，堆耗尽可**不经调试器**定位到具体启动点 |
-| `[err] pvPortMalloc FAILED: request=… free=… min=… ucHeap=…` | `app_boot.c` `vApplicationMallocFailedHook` | 失败请求字节数由 `heap_4.c` 诊断补丁 `xLastFailedAllocSize` 导出；打印后关中断死循环**保留调用栈供调试器取证**（无人时 IWDG ≈33s 复位） |
-| `[err] task '<name>' create FAILED (heap exhausted): free=… min=…` | `Platform/Inc/pl_task_guard.h` `pl_task_create_checked()` | 通道/引擎启动点判空并报错（此前静默丢弃返回值 ⇒ RS485/RS232 无声失效） |
+| ~~开机横幅 `[diag] heap at banner free=… min=…`~~ | ~~`app_boot.c` `app_diag_boot_banner`~~ | 一条 RTT 行给出当前余量与**开机以来最小余量** |
+| ~~逐通道 `[diag] heap after <chan>_start free=… min=…`~~ | ~~`app_boot.c` `init_task`~~ | 每个通道启动后各打一次，堆耗尽可**不经调试器**定位到具体启动点 |
+| ~~`[err] pvPortMalloc FAILED: …`~~ | ~~`app_boot.c` `vApplicationMallocFailedHook`~~ | 失败请求字节数由 `heap_4.c` 诊断补丁 `xLastFailedAllocSize` 导出（补丁仍在，调试器可读）；**行为保留** = 关中断死循环保现场（无人时 IWDG ≈33s 复位） |
+| `pl_task_create_checked()` 判空 | `Platform/Inc/pl_task_guard.h` | **保留**（判空 + 保现场；RTT 打印已删）：通道/引擎启动点此前静默丢弃返回值 ⇒ RS485/RS232 无声失效 |
 
-**现场验证步骤**（RTT 通道 0）：
+**现行排障步骤**（无 `[diag]` 输出）：
 
-1. 复位后在 RTT 看横幅 `[diag] heap at banner …` 与各 `after …_start` 行；
-   `min` 一旦接近 0 即说明启动期擦边（本轮的判据）；
-2. 在 `app_rs485_start` 下断点，确认 `pl_task_create_checked(osThreadNew(...))` 返回值**非 NULL**；
-3. 需要看堆稳态时，在 `app_diag_boot_late()` 的 `post-boot` 行读取 `min`（启动期最低水位）。
+1. 先跑 `python3 .analysis/heap/heap_ledger.py` 复算启动期堆预算（§8.3），并与链接期段尺寸对账；
+2. 需要实测水位时，在 `app_rs485_start` 等启动点加一行 `SEGGER_RTT_printf(0, …)` 打
+   `xPortGetFreeHeapSize()` / `xPortGetMinimumEverFreeHeapSize()`（**RTT 底层已备**，业务代码本身零调用）；
+3. `vApplicationMallocFailedHook` 命中即关中断停机 ⇒ 调试器读 `g_fault_*` / `xLastFailedAllocSize` 现场。
 
 ### §8.6 纪律
 
-1. **新增任务/动态队列/信号量/netconn 前**：先跑 `python3 .analysis/heap/heap_ledger.py` 复算，
-   再在 RTT 看 `[diag] heap … min`；本表 §8.3 不更新即视为未评审。
+1. **新增任务/动态队列/信号量/netconn 前**：先跑 `python3 .analysis/heap/heap_ledger.py` 复算
+   （自研 `[diag] heap … min` 打印已随 2026-09-29 瘦身轮删除，改由脚本 + 链接期段尺寸核账）；
+   本表 §8.3 不更新即视为未评审。
 2. **可静态化的任务优先静态化**（`Platform/Inc/pl_task_static.h`，落 CCMRAM）——
    前提是「全生命周期只创建一次」；会被反复创建/退出的任务（每连接任务）保持动态，
    但创建点必须 `pl_task_create_checked` 判空。

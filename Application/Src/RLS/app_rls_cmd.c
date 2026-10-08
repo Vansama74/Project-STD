@@ -25,6 +25,12 @@ static void cmd_display(channel_t *ch, void *data)
     (void)ch;
     rls_dispaly_t *display_ctx = (rls_dispaly_t *)data;
 
+    /* 无显示驱动构建：无屏可绘制 → 安全跳过（app_render 自身亦判空，此处防的是
+     * 复合字面量里 dev_display_get()->screen_rows 的直接解引用） */
+    dev_display_t *d = dev_display_get();
+    if (!d)
+        return;
+
     // 显示前先清屏
     app_render(&(render_cfg_t){
         .type  = RENDER_FILL,
@@ -38,8 +44,8 @@ static void cmd_display(channel_t *ch, void *data)
         .type   = RENDER_BITMAP,
         .x      = 0,
         .y      = 0,
-        .w      = dev_display_get()->screen_rows,
-        .h      = dev_display_get()->screen_cols,
+        .w      = d->screen_rows,
+        .h      = d->screen_cols,
         .color  = display_ctx->color,
         .bitmap = display_ctx->bitmap,
     });
@@ -50,6 +56,11 @@ static void cmd_display_save(channel_t *ch, void *data)
     (void)ch;
     rls_dispaly_t *display_ctx = (rls_dispaly_t *)data;
 
+    /* 无显示驱动构建：同上，无屏可绘制 → 安全跳过（含持久化保存） */
+    dev_display_t *d = dev_display_get();
+    if (!d)
+        return;
+
     // 显示前先清屏
     app_render(&(render_cfg_t){
         .type  = RENDER_FILL,
@@ -63,8 +74,8 @@ static void cmd_display_save(channel_t *ch, void *data)
         .type   = RENDER_BITMAP,
         .x      = 0,
         .y      = 0,
-        .w      = dev_display_get()->screen_rows,
-        .h      = dev_display_get()->screen_cols,
+        .w      = d->screen_rows,
+        .h      = d->screen_cols,
         .color  = display_ctx->color,
         .bitmap = display_ctx->bitmap,
     });

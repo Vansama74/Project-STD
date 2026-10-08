@@ -93,6 +93,8 @@ static bool _factory_wait_tst(uint32_t timeout_ms)
 static void _aging_fill_screen(font_size_t size, font_type_t type, const char *ch_utf8, uint8_t ch_len)
 {
     dev_display_t *dsp = dev_display_get();
+    if (!dsp)
+        return; /* 无显示驱动构建：无屏可填（task 入口已整体降级，此处为纵深防御） */
 
     uint8_t cols = dsp->screen_cols / size;
     uint8_t rows = dsp->screen_rows / size;
@@ -139,6 +141,15 @@ static void factory_monitor_task(void *argument)
 {
     (void)argument;
     dev_display_t *dsp = dev_display_get();
+
+    /* 无显示驱动构建（EIDE Myanmar 目标）：出厂检测全流程（固件信息 / 七色满屏 /
+     * 通信灯 / 老化循环 / 斜扫）都必须在屏上判读，无对象可测 → 整体降级为待机
+     * （保留任务与 TEST 键 EXTI，不进入任何渲染/老化路径；限速告警一行）。 */
+    if (dsp == nullptr) {
+        dev_display_guard("factory-test");
+        for (;;)
+            osDelay(1000);
+    }
 
     for (;;) {
     idle_restart:

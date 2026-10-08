@@ -41,6 +41,18 @@ void dev_display_register(dev_display_t *dev) { s_active_display = dev; }
 
 dev_display_t *dev_display_get(void) { return s_active_display; }
 
+/* ---- 「整机无显示驱动」构建的调用侧守卫（运行时判空，无编译期开关）----
+ *
+ * 显示模组驱动未编入的构建（EIDE Myanmar 目标 = Device/Display 下无
+ * dev_display_*.c）里 s_active_display 恒为 nullptr：显存/查表/扫描任务全都不存在。
+ * 凡「必须显示才能完成」的入口先经本函数判空 → 安全跳过或降级。
+ * （`what` = 调用点标签，保留供调试器观察；原有 RTT 限速告警随本轮移除。） */
+bool dev_display_guard(const char *what)
+{
+    (void)what;
+    return (s_active_display != nullptr);
+}
+
 void dev_display_commit_frame(dev_display_t *dev)
 {
     if (!dev)
@@ -186,6 +198,12 @@ void dev_display_start(void)
 
     dev_display_t *dev = s_active_display;
 
+    /* 无显示驱动链接的构建（EIDE Myanmar 目标）：无扫描对象 → 不创建 scan_task、
+     * 不启动 TIM3（行同步）/ TIM4（PWM 调光），整机其余功能（协议 / 网络 / IO）照常。
+     * TIM3/TIM4 的启动唯一入口就是本任务体内的 pl_tim_start_it，不建任务即不启动。 */
+    if (!dev_display_guard("scan_task"))
+        return;
+
     dev->dirty = true;
 
     const osThreadAttr_t attr = {
@@ -200,6 +218,8 @@ sw_dev_initcall(dev_display_start);
 /* ---- 通用像素操作 ---- */
 void dev_display_set_pixel(dev_display_t *dev, uint16_t x, uint16_t y, display_color_t color)
 {
+    if (!dev)
+        return; /* 无显示驱动构建：显存不存在，写操作安全丢弃 */
     if (x < dev->screen_rows && y < dev->screen_cols) {
         dev->pixel_map[y * dev->screen_rows + x] = (uint8_t)color;
         dev->dirty                               = true;
@@ -208,12 +228,16 @@ void dev_display_set_pixel(dev_display_t *dev, uint16_t x, uint16_t y, display_c
 
 void dev_display_set_brightness(dev_display_t *dev, uint8_t level)
 {
+    if (!dev)
+        return; /* 无显示驱动构建：无亮度对象，安全丢弃 */
     if (level > DEV_DISPLAY_BRIGHTNESS_MAX) level = DEV_DISPLAY_BRIGHTNESS_MAX;
     dev->light_level = level;
 }
 
 void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, display_color_t color)
 {
+    if (!dev)
+        return; /* 无显示驱动构建：无显存可填，安全丢弃 */
     /* 起点越界：整区域不可见，直接丢弃。
      * 必须先判起点再截断——否则 screen_rows - x / screen_cols - y 无符号下溢成巨值，
      * memset/行循环写穿 pixel_map（CCMRAM）导致 HardFault。 */
@@ -231,6 +255,8 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
 
 void dev_display_draw_bitmap(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint8_t *bitmap, display_color_t color)
 {
+    if (!dev)
+        return; /* 无显示驱动构建：无显存可写，安全丢弃 */
     /* 起点越界早退（与 fill 对齐）：x+w / y+h 为 uint16 加法，
      * 起点已回绕出屏时 32 位判界也无法救回，直接丢弃整区域 */
     if (x >= dev->screen_rows || y >= dev->screen_cols)
@@ -276,6 +302,11 @@ static void _on_tim4_period(void)
 {
     dev_display_t *dev = dev_display_get();
     static uint8_t pwm_cnt;
+
+    /* 无显示驱动构建：TIM4 未被启动（dev_display_start 提前返回）本 ISR 不会触发；
+     * 判空属纵深防御 —— 若将来有其它路径启动 TIM4，也不会解引用空指针。 */
+    if (dev == nullptr)
+        return;
 
     pl_hub75_oe_set(pwm_cnt >= dev->light_level);
     pwm_cnt = (pwm_cnt + 1) & 7;

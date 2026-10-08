@@ -1,0 +1,241 @@
+--- /dev/fd/63	2026-09-29 09:28:47.151515293 +0800
++++ /dev/fd/62	2026-09-29 09:28:47.151515293 +0800
+@@ -1,156 +1,84 @@
+  <tcp_server_task>:
+-   0:	      	push	{r4, r5, r6, lr}
+-   2:	      	sub	sp, #40	@ 0x28
+-   4:	      	b.n	14 <tcp_server_task+0x14>
+-   6:	      	ldr	r3, [pc, #376]	@ (180 <tcp_server_task+0x180>)
+-   8:	      	ldrb	r3, [r3, #0]
+-   a:	      	cbz	r3, 54 <tcp_server_task+0x54>
+-   c:	  	mov.w	r0, #500	@ 0x1f4
+-  10:	  	bl	0 <osDelay>
+-  14:	      	movs	r2, #0
+-  16:	      	mov	r1, r2
+-  18:	      	movs	r0, #16
+-  1a:	  	bl	0 <netconn_new_with_proto_and_callback>
+-  1e:	      	cmp	r0, #0
+-  20:	      	beq.n	6 <tcp_server_task+0x6>
+-  22:	      	mov	r6, r0
+-  24:	      	ldr	r3, [pc, #344]	@ (180 <tcp_server_task+0x180>)
+-  26:	      	movs	r2, #0
+-  28:	      	strb	r2, [r3, #0]
+-  2a:	      	ldr	r3, [pc, #344]	@ (184 <tcp_server_task+0x184>)
+-  2c:	      	ldrh	r2, [r3, #0]
+-  2e:	      	ldr	r1, [pc, #344]	@ (188 <tcp_server_task+0x188>)
+-  30:	  	bl	0 <netconn_bind>
+-  34:	      	mov	r3, r0
+-  36:	      	cbz	r0, 62 <tcp_server_task+0x62>
+-  38:	      	ldr	r2, [pc, #328]	@ (184 <tcp_server_task+0x184>)
+-  3a:	      	ldrh	r2, [r2, #0]
+-  3c:	      	ldr	r1, [pc, #332]	@ (18c <tcp_server_task+0x18c>)
+-  3e:	      	movs	r0, #0
+-  40:	  	bl	0 <SEGGER_RTT_printf>
+-  44:	      	mov	r0, r6
+-  46:	  	bl	0 <netconn_delete>
+-  4a:	  	mov.w	r0, #500	@ 0x1f4
+-  4e:	  	bl	0 <osDelay>
+-  52:	      	b.n	14 <tcp_server_task+0x14>
+-  54:	      	ldr	r3, [pc, #296]	@ (180 <tcp_server_task+0x180>)
+-  56:	      	movs	r2, #1
+-  58:	      	strb	r2, [r3, #0]
+-  5a:	      	ldr	r1, [pc, #308]	@ (190 <tcp_server_task+0x190>)
+-  5c:	  	bl	0 <SEGGER_RTT_printf>
+-  60:	      	b.n	c <tcp_server_task+0xc>
+-  62:	      	movs	r1, #255	@ 0xff
+-  64:	      	mov	r0, r6
+-  66:	  	bl	0 <netconn_listen_with_backlog>
+-  6a:	      	ldr	r3, [pc, #280]	@ (184 <tcp_server_task+0x184>)
+-  6c:	      	ldrh	r2, [r3, #0]
+-  6e:	      	ldr	r1, [pc, #292]	@ (194 <tcp_server_task+0x194>)
+-  70:	      	movs	r0, #0
+-  72:	  	bl	0 <SEGGER_RTT_printf>
+-  76:	      	b.n	120 <tcp_server_task+0x120>
+-  78:	      	ldr	r1, [pc, #284]	@ (198 <tcp_server_task+0x198>)
+-  7a:	      	movs	r0, #0
+-  7c:	  	bl	0 <SEGGER_RTT_printf>
+-  80:	  	mov.w	r0, #500	@ 0x1f4
+-  84:	  	bl	0 <osDelay>
+-  88:	      	mov	r0, r6
+-  8a:	  	bl	0 <netconn_delete>
+-  8e:	      	b.n	14 <tcp_server_task+0x14>
+-  90:	      	ldr	r0, [sp, #28]
+-  92:	  	bl	0 <netbuf_next>
+-  96:	      	cmp	r0, #0
+-  98:	      	blt.n	c0 <tcp_server_task+0xc0>
+-  9a:	      	add	r2, sp, #20
+-  9c:	      	add	r1, sp, #32
+-  9e:	      	ldr	r0, [sp, #28]
+-  a0:	  	bl	0 <netbuf_data>
+-  a4:	  	ldrh.w	r1, [sp, #20]
+-  a8:	      	cmp	r1, #0
+-  aa:	      	beq.n	90 <tcp_server_task+0x90>
+-  ac:	      	ldr	r0, [sp, #32]
+-  ae:	  	bl	0 <tcp_server_task>
+-  b2:	  	ldrh.w	r2, [sp, #20]
+-  b6:	      	ldr	r1, [sp, #32]
+-  b8:	      	ldr	r0, [pc, #224]	@ (19c <tcp_server_task+0x19c>)
+-  ba:	  	bl	0 <app_channel_dispatch>
+-  be:	      	b.n	90 <tcp_server_task+0x90>
+-  c0:	      	ldr	r0, [sp, #28]
+-  c2:	  	bl	0 <netbuf_delete>
+-  c6:	      	add	r1, sp, #28
+-  c8:	      	ldr	r0, [sp, #24]
+-  ca:	  	bl	0 <netconn_recv>
+-  ce:	      	mov	r4, r0
+-  d0:	      	cmp	r0, #0
+-  d2:	      	beq.n	9a <tcp_server_task+0x9a>
+-  d4:	      	movs	r5, #0
+-  d6:	  	strh.w	r5, [sp, #22]
+-  da:	  	add.w	r2, sp, #22
+-  de:	      	add	r1, sp, #36	@ 0x24
+-  e0:	      	ldr	r0, [sp, #24]
+-  e2:	  	bl	0 <tcp_server_task>
+-  e6:	  	ldrb.w	r3, [sp, #38]	@ 0x26
+-  ea:	  	ldrb.w	r2, [sp, #39]	@ 0x27
+-  ee:	      	str	r4, [sp, #12]
+-  f0:	  	ldrh.w	r1, [sp, #22]
+-  f4:	      	str	r1, [sp, #8]
+-  f6:	      	str	r2, [sp, #4]
+-  f8:	      	str	r3, [sp, #0]
+-  fa:	  	ldrb.w	r3, [sp, #37]	@ 0x25
+-  fe:	  	ldrb.w	r2, [sp, #36]	@ 0x24
+- 102:	      	ldr	r1, [pc, #156]	@ (1a0 <tcp_server_task+0x1a0>)
+- 104:	      	mov	r0, r5
+- 106:	  	bl	0 <SEGGER_RTT_printf>
+- 10a:	      	ldr	r3, [pc, #152]	@ (1a4 <tcp_server_task+0x1a4>)
+- 10c:	      	str	r5, [r3, #0]
+- 10e:	      	ldr	r0, [pc, #140]	@ (19c <tcp_server_task+0x19c>)
+- 110:	  	bl	0 <tcp_server_task>
+- 114:	      	ldr	r0, [sp, #24]
+- 116:	  	bl	0 <netconn_close>
+- 11a:	      	ldr	r0, [sp, #24]
+- 11c:	  	bl	0 <netconn_delete>
+- 120:	      	movs	r3, #0
+- 122:	      	str	r3, [sp, #24]
+- 124:	      	add	r1, sp, #24
+- 126:	      	mov	r0, r6
+- 128:	  	bl	0 <netconn_accept>
+- 12c:	      	mov	r2, r0
+- 12e:	      	cmp	r0, #0
+- 130:	      	bne.n	78 <tcp_server_task+0x78>
+- 132:	      	ldr	r0, [sp, #24]
+- 134:	      	cmp	r0, #0
+- 136:	      	beq.n	78 <tcp_server_task+0x78>
+- 138:	  	bl	0 <tcp_server_task>
+- 13c:	      	ldr	r2, [pc, #104]	@ (1a8 <tcp_server_task+0x1a8>)
+- 13e:	      	ldr	r1, [sp, #24]
+- 140:	      	ldr	r0, [pc, #88]	@ (19c <tcp_server_task+0x19c>)
+- 142:	  	bl	0 <tcp_server_task>
+- 146:	      	ldr	r3, [pc, #92]	@ (1a4 <tcp_server_task+0x1a4>)
+- 148:	      	movs	r2, #1
+- 14a:	      	str	r2, [r3, #0]
+- 14c:	      	movs	r4, #0
+- 14e:	  	strh.w	r4, [sp, #32]
+- 152:	      	add	r2, sp, #32
+- 154:	      	add	r1, sp, #36	@ 0x24
+- 156:	      	ldr	r0, [sp, #24]
+- 158:	  	bl	0 <tcp_server_task>
+- 15c:	  	ldrb.w	r3, [sp, #38]	@ 0x26
+- 160:	  	ldrb.w	r2, [sp, #39]	@ 0x27
+- 164:	  	ldrh.w	r1, [sp, #32]
+- 168:	      	str	r1, [sp, #8]
+- 16a:	      	str	r2, [sp, #4]
+- 16c:	      	str	r3, [sp, #0]
+- 16e:	  	ldrb.w	r3, [sp, #37]	@ 0x25
+- 172:	  	ldrb.w	r2, [sp, #36]	@ 0x24
+- 176:	      	ldr	r1, [pc, #52]	@ (1ac <tcp_server_task+0x1ac>)
+- 178:	      	mov	r0, r4
+- 17a:	  	bl	0 <SEGGER_RTT_printf>
+- 17e:	      	b.n	c6 <tcp_server_task+0xc6>
++   0:	      	push	{r4, lr}
++   2:	      	sub	sp, #16
++   4:	      	b.n	e <tcp_server_task+0xe>
++   6:	  	mov.w	r0, #500	@ 0x1f4
++   a:	  	bl	0 <osDelay>
++   e:	      	movs	r2, #0
++  10:	      	mov	r1, r2
++  12:	      	movs	r0, #16
++  14:	  	bl	0 <netconn_new_with_proto_and_callback>
++  18:	      	cmp	r0, #0
++  1a:	      	beq.n	6 <tcp_server_task+0x6>
++  1c:	      	mov	r4, r0
++  1e:	      	ldr	r3, [pc, #180]	@ (d4 <tcp_server_task+0xd4>)
++  20:	      	ldrh	r2, [r3, #0]
++  22:	      	ldr	r1, [pc, #180]	@ (d8 <tcp_server_task+0xd8>)
++  24:	  	bl	0 <netconn_bind>
++  28:	      	cbz	r0, 3a <tcp_server_task+0x3a>
++  2a:	      	mov	r0, r4
++  2c:	  	bl	0 <netconn_delete>
++  30:	  	mov.w	r0, #500	@ 0x1f4
++  34:	  	bl	0 <osDelay>
++  38:	      	b.n	e <tcp_server_task+0xe>
++  3a:	      	movs	r1, #255	@ 0xff
++  3c:	      	mov	r0, r4
++  3e:	  	bl	0 <netconn_listen_with_backlog>
++  42:	      	b.n	a6 <tcp_server_task+0xa6>
++  44:	  	mov.w	r0, #500	@ 0x1f4
++  48:	  	bl	0 <osDelay>
++  4c:	      	mov	r0, r4
++  4e:	  	bl	0 <netconn_delete>
++  52:	      	b.n	e <tcp_server_task+0xe>
++  54:	      	ldr	r0, [sp, #8]
++  56:	  	bl	0 <netbuf_next>
++  5a:	      	cmp	r0, #0
++  5c:	      	blt.n	7c <tcp_server_task+0x7c>
++  5e:	  	add.w	r2, sp, #2
++  62:	      	add	r1, sp, #12
++  64:	      	ldr	r0, [sp, #8]
++  66:	  	bl	0 <netbuf_data>
++  6a:	  	ldrh.w	r2, [sp, #2]
++  6e:	      	cmp	r2, #0
++  70:	      	beq.n	54 <tcp_server_task+0x54>
++  72:	      	ldr	r1, [sp, #12]
++  74:	      	ldr	r0, [pc, #100]	@ (dc <tcp_server_task+0xdc>)
++  76:	  	bl	0 <app_channel_dispatch>
++  7a:	      	b.n	54 <tcp_server_task+0x54>
++  7c:	      	ldr	r0, [sp, #8]
++  7e:	  	bl	0 <netbuf_delete>
++  82:	      	add	r1, sp, #8
++  84:	      	ldr	r0, [sp, #4]
++  86:	  	bl	0 <netconn_recv>
++  8a:	      	cmp	r0, #0
++  8c:	      	beq.n	5e <tcp_server_task+0x5e>
++  8e:	      	ldr	r3, [pc, #80]	@ (e0 <tcp_server_task+0xe0>)
++  90:	      	movs	r2, #0
++  92:	      	str	r2, [r3, #0]
++  94:	      	ldr	r0, [pc, #68]	@ (dc <tcp_server_task+0xdc>)
++  96:	  	bl	0 <tcp_server_task>
++  9a:	      	ldr	r0, [sp, #4]
++  9c:	  	bl	0 <netconn_close>
++  a0:	      	ldr	r0, [sp, #4]
++  a2:	  	bl	0 <netconn_delete>
++  a6:	      	movs	r3, #0
++  a8:	      	str	r3, [sp, #4]
++  aa:	      	add	r1, sp, #4
++  ac:	      	mov	r0, r4
++  ae:	  	bl	0 <netconn_accept>
++  b2:	      	cmp	r0, #0
++  b4:	      	bne.n	44 <tcp_server_task+0x44>
++  b6:	      	ldr	r0, [sp, #4]
++  b8:	      	cmp	r0, #0
++  ba:	      	beq.n	44 <tcp_server_task+0x44>
++  bc:	  	bl	0 <tcp_server_task>
++  c0:	      	ldr	r2, [pc, #32]	@ (e4 <tcp_server_task+0xe4>)
++  c2:	      	ldr	r1, [sp, #4]
++  c4:	      	ldr	r0, [pc, #20]	@ (dc <tcp_server_task+0xdc>)
++  c6:	  	bl	0 <tcp_server_task>
++  ca:	      	ldr	r3, [pc, #20]	@ (e0 <tcp_server_task+0xe0>)
++  cc:	      	movs	r2, #1
++  ce:	      	str	r2, [r3, #0]
++  d0:	      	b.n	82 <tcp_server_task+0x82>
++  d2:	      	nop
+ 	...
+- 18c:	 	.word	0x00000044
+- 190:	 	.word	0x00000000
+- 194:	 	.word	0x0000007c
+- 198:	 	.word	0x000000a4
+- 19c:	 	.word	0x00000000
+- 1a0:	 	.word	0x00000104
+-	...
+- 1ac:	 	.word	0x000000e0

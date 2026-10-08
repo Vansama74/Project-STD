@@ -10,9 +10,10 @@
  * （组 g = 兄弟驱动通道对 2g / 2g+1 的 R/G 脚，各组并行、每帧 128 × MODULE_ROWS 时钟）；
  * **改屏体尺寸只改「模组参数」一节的 MODULE_ROWS / MODULE_COLS 两个宏**（其余全派生）。
  *
- * 物理约束（契约，非编译期守卫）：MODULE_COLS ≤ 5（HUB75 通道对上限，超限会越界读
- * `_22_1665_lines`）、像素数 / 帧位数 ≤ 65535（uint16 落点偏移与 scan 上界）；
- * 整片 CCMRAM 是否装得下由链接期兜底。
+ * 物理约束：`MODULE_COLS ≤ 5`（HUB75 通道对上限，超限会越界读 `_22_1665_lines`）与本模组
+ * 数组 ≤ 整片 CCMRAM 64KB 两条为**编译期守卫**（`_Static_assert`，2026-10-08 恢复）；
+ * 像素数 / 帧位数 ≤ 65535（uint16 落点偏移与 scan 上界）等仍为注释契约；
+ * 整片 CCMRAM（含 CQ / 治超队列 + 静态任务栈）是否装得下由链接期兜底。
  *
  * 详细说明（几何 / 接线与技术史 / 数据流 / 落点规则 / CCM 组成 / 选编 / 标定与历史轮次）
  * 见 `doc/01_显示系统/22-1665模组驱动分析与迁移记录.md` §0；宿主脚本索引见
@@ -95,6 +96,14 @@
 #define _22_1665_ROLE_GREEN (1U)
 #define _22_1665_GROUP_MAX  (HUB75_CHANNEL_MAX / 2U)
 
+/* ---- 编译期守卫 ①（2026-10-08 恢复）：通道表物理上限 ----
+ * 组 g 占 HUB75 通道对 2g / 2g+1，`_22_1665_lines` 只预声明 HUB75_CHANNEL_MAX / 2 = 5 组；
+ * MODULE_COLS ≥ 6 时 prepare / init 会**越界读**该表（-O3 下 gcc 报 UB 告警、-fsyntax-only 静默），
+ * 故在编译期拦下。 */
+_Static_assert(2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX,
+               "22_1665: per-column wiring needs 2 channels per module column"
+               " (2 x MODULE_COLS <= HUB75_CHANNEL_MAX = 10)");
+
 typedef struct {
     const char *name;        /* 线名（文档 / 烧录物身份用，不参与逻辑） */
     const hub75_pin_t *line; /* 数据脚 */
@@ -151,6 +160,19 @@ typedef struct {
 [[gnu::section(".ccmram")]] static pl_hub75_bsrr_t
     _22_1665_bsrr_tab[_22_1665_GROUP_COUNT][_22_1665_GROUP_PORT_MAX][_22_1665_STATES];
 static uint8_t _22_1665_bsrr_slot_cnt[_22_1665_GROUP_COUNT]; /* 各组件实际参与输出的端口数（≤ 2） */
+
+/** 本模组 CCMRAM 占用 = 4 个 `.ccmram` 数组之和（通式 1408·M + 256·MODULE_COLS；
+ *  1×1 = 1664B、1×2 = 3328B、8×4 = 46080B） */
+#define _22_1665_CCM_BYTES                                                                     \
+    (sizeof(_22_1665_chain_dst) + sizeof(_22_1665_pixel_map) +                                 \
+     sizeof(_22_1665_frame_state) + sizeof(_22_1665_bsrr_tab))
+
+/* ---- 编译期守卫 ②（2026-10-08 恢复）：本模组数组 ≤ 整片 CCMRAM 区域 ----
+ * 芯片事实 / 链接脚本 `CCMRAM (xrw) LENGTH = 64K`：本模组自身不超 64KB（**不是自设预算**，
+ * 几何无自设上限）；整片与其他消费者（CQ 6377B / 治超队列 / 静态任务栈）是否装得下，
+ * 仍由链接器按实际占用兜底。 */
+_Static_assert(_22_1665_CCM_BYTES <= 64U * 1024U,
+               "22_1665: arrays exceed CCMRAM region (64KB; reduce MODULE_ROWS/MODULE_COLS)");
 
 static dev_display_22_1665_t g_22_1665 = {
     .me = {

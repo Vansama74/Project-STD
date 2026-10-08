@@ -1,0 +1,61 @@
+--- /dev/fd/63	2026-09-29 09:28:47.011503070 +0800
++++ /dev/fd/62	2026-09-29 09:28:47.011503070 +0800
+@@ -2,14 +2,14 @@
+    0:	  	stmdb	sp!, {r4, r5, r6, r7, r8, r9, lr}
+    4:	      	sub	sp, #140	@ 0x8c
+    6:	      	str	r0, [sp, #4]
+-   8:	      	ldr	r3, [pc, #204]	@ (d8 <app_channel_dispatch+0xd8>)
++   8:	      	ldr	r3, [pc, #192]	@ (cc <app_channel_dispatch+0xcc>)
+    a:	  	ldr.w	r3, [r3, #400]	@ 0x190
+    e:	      	cmp	r3, #0
+   10:	      	beq.n	a4 <app_channel_dispatch+0xa4>
+   12:	      	mov	r8, r1
+   14:	      	mov	r9, r2
+   16:	      	ldrb	r3, [r0, #0]
+-  18:	      	ldr	r4, [pc, #188]	@ (d8 <app_channel_dispatch+0xd8>)
++  18:	      	ldr	r4, [pc, #176]	@ (cc <app_channel_dispatch+0xcc>)
+   1a:	      	adds	r3, #100	@ 0x64
+   1c:	  	add.w	r3, r4, r3, lsl #2
+   20:	      	ldr	r7, [r3, #4]
+@@ -41,7 +41,7 @@
+   5e:	      	lsls	r3, r0
+   60:	      	tst	r7, r3
+   62:	      	beq.n	50 <app_channel_dispatch+0x50>
+-  64:	      	ldr	r3, [pc, #112]	@ (d8 <app_channel_dispatch+0xd8>)
++  64:	      	ldr	r3, [pc, #100]	@ (cc <app_channel_dispatch+0xcc>)
+   66:	  	add.w	r3, r3, r0, lsl #2
+   6a:	      	ldr	r4, [r3, #4]
+   6c:	      	cmp	r4, #0
+@@ -63,7 +63,7 @@
+   92:	      	mov	r3, r5
+   94:	      	mov	r2, r5
+   96:	      	add	r1, sp, #4
+-  98:	      	ldr	r0, [pc, #60]	@ (d8 <app_channel_dispatch+0xd8>)
++  98:	      	ldr	r0, [pc, #48]	@ (cc <app_channel_dispatch+0xcc>)
+   9a:	  	ldr.w	r0, [r0, #400]	@ 0x190
+   9e:	  	bl	0 <osMessageQueuePut>
+   a2:	      	cbnz	r0, aa <app_channel_dispatch+0xaa>
+@@ -72,19 +72,14 @@
+   aa:	      	movs	r3, #20
+   ac:	      	mov	r2, r5
+   ae:	      	add	r1, sp, #4
+-  b0:	      	ldr	r0, [pc, #36]	@ (d8 <app_channel_dispatch+0xd8>)
++  b0:	      	ldr	r0, [pc, #24]	@ (cc <app_channel_dispatch+0xcc>)
+   b2:	  	ldr.w	r0, [r0, #400]	@ 0x190
+   b6:	  	bl	0 <osMessageQueuePut>
+   ba:	      	cmp	r0, #0
+   bc:	      	beq.n	a4 <app_channel_dispatch+0xa4>
+-  be:	      	ldr	r2, [pc, #24]	@ (d8 <app_channel_dispatch+0xd8>)
++  be:	      	ldr	r2, [pc, #12]	@ (cc <app_channel_dispatch+0xcc>)
+   c0:	  	ldr.w	r3, [r2, #484]	@ 0x1e4
+   c4:	      	adds	r3, #1
+   c6:	  	str.w	r3, [r2, #484]	@ 0x1e4
+-  ca:	      	ldr	r2, [sp, #4]
+-  cc:	      	ldrb	r2, [r2, #0]
+-  ce:	      	ldr	r1, [pc, #12]	@ (dc <app_channel_dispatch+0xdc>)
+-  d0:	      	mov	r0, r5
+-  d2:	  	bl	0 <SEGGER_RTT_printf>
+-  d6:	      	b.n	a4 <app_channel_dispatch+0xa4>
+-	...
++  ca:	      	b.n	a4 <app_channel_dispatch+0xa4>
++  cc:	 	.word	0x00000000

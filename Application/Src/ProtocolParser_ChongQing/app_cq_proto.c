@@ -5,7 +5,7 @@
  * 帧形态：JSON（'{' 花括号深度定界，上限 1044B）+ 固定 12B 二进制
  * （重启请求 / 搜索请求，CRC16-XMODEM 大端）。协议版本 2.0.1。
  *
- * 通道：业务口 CH_ID_UDP_CQ（PROTO_CHONGQING 读 Sector1 net_cfg.port，默认
+ * 通道：业务口 CH_ID_UDP_CQ（PROTO_CHONGQING 读 Sector1 net_cfg.udp_port，默认
  *       20103；dev 共存构建固定 20103，见 app_udp.c _udp_cq_read_port）+
  *       搜索口 CH_ID_UDP（10011 固定，与创迪发现口 / IAP 共享）。
  * 注册五步（doc/08-01）：RJ45 RB provide → acquire → register（两次，两逻辑
@@ -17,12 +17,9 @@
  * 渲染故障屏后清零；存活帧到达时若故障屏已显示，先恢复默认画面（
  * app_default_display_show）再执行本帧命令。工厂测试激活期间暂停计数。
  *
- * probe 注册序：Makefile 收录序 CQ 位于 LDI 之后（initcall 同层按链接序执行），
- * LDI probe 先于 CQ probe。全协议 dev 构建下 10011 口 12B 二进制帧先过 LDI
- * probe——CQ 12B 帧 len=00 00 00 02 且 CRC16-XMODEM 恰好通过 LDI 校验，
- * 2026-08-21 起 LDI probe 对 len==2 显式 FAKE 放行，帧仍由 CQ probe 认领
- * （「LDI 先探测、FAKE 放行、CQ 收单」，无功能受限；修复前 LDI 曾沿身份
- * 校验路径 SKIP 吞掉 CQ 搜索/重启帧，见 doc/03 PartB Q23）。
+ * probe 顺序：10011 上 LDI probe 先于本模块（源码收录序），对 CQ 12B 帧
+ * `data_len==2` 显式 FAKE 放行、由本模块认领（「LDI 先探测、FAKE 放行、CQ 收单」）
+ * ——来历与实态修正见 doc/03 PartB Q23。
  */
 
 #include "app_cq_proto.h"

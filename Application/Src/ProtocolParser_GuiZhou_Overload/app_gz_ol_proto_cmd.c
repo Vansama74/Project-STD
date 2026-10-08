@@ -20,13 +20,11 @@
 #include <string.h>
 
 #include "app_board_net_cfg.h"
-#include "app_diag.h"
 #include "app_light_sensor.h"
 #include "app_render.h"
 #include "app_scroll.h"
 #include "cmsis_os2.h"
 #include "dev_display.h"
-#include "SEGGER_RTT.h"    /* 联调诊断（GZ_OL_RTT_DIAG）；置 0 时该头无引用 */
 #include "stm32f4xx_hal.h" /* NVIC_SystemReset */
 
 /* ---- 模块运行态 ---- */
@@ -107,122 +105,6 @@ static void _gz_ol_clear_screen(dev_display_t *d)
     dev_display_commit_frame(d);
 }
 
-/* ---- 联调诊断（2026-09-14 临时）----
- * 0x20 每帧打印：载荷前 16 字节 + 解析结果 + 传送给渲染的参数 + 屏体几何 + 字形适配判定
- *  + 字号映射自证 + **字库 16/24/32 三档实读**（addr/返回码/非零字节数/前 8 字节）
- *  + 渲染后显存非黑像素数（「渲染到底有没有落屏」的直接证据）。
- * 0x40 每帧打印：落库返回值 + 写前/写后 read-back + 即将重启提示。
- * 用途：现场一眼区分「帧没到/被解析丢弃」「字号映射错」「字库缺该字号数据/地址越界」
- *       「渲染/裁剪丢字」「屏体几何放不下（整字形丢弃）」五类可能。
- *
- * **一键关闭**：GZ_OL_RTT_DIAG 置 0（默认跟随总开关 APP_DIAG_BANNER，见 app_diag.h；
- * 也可单独覆盖 0/1）。关闭后本块整体消失，协议行为不变（诊断全部只读）。 */
-#ifndef GZ_OL_RTT_DIAG
-#define GZ_OL_RTT_DIAG (APP_DIAG_BANNER)
-#endif
-
-#if GZ_OL_RTT_DIAG
-
-/** @brief 显存非黑像素计数（0 = 渲染后屏上确实没内容；>0 = 已落 pixel_map） */
-static uint32_t _gz_ol_diag_nonblack(const dev_display_t *d, uint8_t *out_first_color)
-{
-    uint32_t n     = 0;
-    uint8_t first  = 0;
-    const uint32_t total = (uint32_t)d->screen_rows * (uint32_t)d->screen_cols;
-    for (uint32_t i = 0; i < total; i++) {
-        if (d->pixel_map[i] != (uint8_t)COLOR_BLACK) {
-            if (n == 0U)
-                first = d->pixel_map[i];
-            n++;
-        }
-    }
-    if (out_first_color != nullptr)
-        *out_first_color = first;
-    return n;
-}
-
-/** @brief 载荷前 16 字节十六进制 dump（越界/空字节以 '.' 占位；输出 "xx xx ..." 共 47B + NUL）
- *
- *  诊断用：现场只需看这一行就能确认「上位机到底发了什么」——尤其 0x40 的
- *  `payload[12..13]`（端口字段：**高字节在前 BE16**，2026-09-15 用户裁决）是否真的是
- *  `27 2c`（10028）而不是别的编码（ASCII "10"/"28"、偏移错位、或 IP 字段被写成
- *  0.0.0.0 等）。 */
-static void _gz_ol_diag_dump16(const uint8_t *pl, uint16_t plen, char *out)
-{
-    static const char hex[] = "0123456789abcdef";
-    for (uint8_t i = 0U; i < 16U; i++) {
-        if (pl != nullptr && i < plen) {
-            out[i * 3U]      = hex[pl[i] >> 4];
-            out[i * 3U + 1U] = hex[pl[i] & 0x0FU];
-        } else {
-            out[i * 3U]      = '.';
-            out[i * 3U + 1U] = '.';
-        }
-        out[i * 3U + 2U] = (i == 15U) ? '\0' : ' ';
-    }
-}
-
-/**
- * @brief  文本首字符的字库三档（16/24/32）实读诊断 —— 问题①的决定性证据。
- *
- *  对同一字符分别按 FONT_16/24/32 计算地址并实读一次，打印：
- *    地址 / 是否落在存储容量内 / dev_storage_read 返回码 / 非零字节数 / 前 8 字节。
- *  读法：
- *    - rd<0 或 inCAP=0        → 地址越界/读取失败（激活的字库布局与实际芯片不符）
- *    - rd>=0 且 nz=0          → 该字号区块确实是空数据（字库没有这个字号）
- *    - rd>=0 且 nz 合理        → 字库有数据 → 问题在渲染/裁剪/屏体几何侧
- *  另打印「另一套芯片布局」的纯算术地址（不切换全局配置、不读），用于判断
- *  当前激活布局是否选错（DIP2）。
- */
-static void _gz_ol_diag_font_probe(const uint8_t *text, uint16_t text_len, font_type_t type)
-{
-    if (text == nullptr || text_len == 0U) {
-        SEGGER_RTT_printf(0, "[gz_ol] font-probe: empty text, skip\n");
-        return;
-    }
-
-    /* 与 app_render._is_gbk 同判据（此处独立实现，避免为诊断改动渲染内部） */
-    const bool gbk = (text_len >= 2U) && (text[0] >= 0x81U && text[0] <= 0xFEU) &&
-                     (text[1] >= 0x40U && text[1] <= 0xFEU) && (text[1] != 0x7FU);
-    uint8_t ch[2] = {text[0], 0U};
-    if (gbk)
-        ch[1] = text[1];
-    const font_enc_t enc = gbk ? FONT_ENC_GBK : FONT_ENC_ASCII;
-
-    app_render_chip_info_t ci;
-    if (app_render_chip_info_get(&ci)) {
-        SEGGER_RTT_printf(0, "[gz_ol] font-probe chip=%s cap=%u enc=%s type=%d ch=%02x,%02x\n",
-                          ci.name, (unsigned)ci.flash_capacity, gbk ? "GBK" : "ASCII", (int)type,
-                          (unsigned)ch[0], (unsigned)ch[1]);
-    }
-
-    static const font_size_t sizes[3] = {FONT_16, FONT_24, FONT_32};
-    for (uint8_t i = 0U; i < 3U; i++) {
-        app_render_glyph_probe_t pb;
-        if (!app_render_glyph_probe(sizes[i], type, enc, ch, &pb))
-            continue;
-        SEGGER_RTT_printf(
-            0,
-            "[gz_ol]   size=%u addr=0x%06x inCAP=%u rd=%d nz=%u/%u head=%02x %02x %02x %02x %02x %02x %02x %02x\n",
-            (unsigned)sizes[i], (unsigned)pb.addr, pb.addr_in_range ? 1U : 0U, (int)pb.ret,
-            (unsigned)pb.nonzero, (unsigned)pb.total, (unsigned)pb.head[0], (unsigned)pb.head[1],
-            (unsigned)pb.head[2], (unsigned)pb.head[3], (unsigned)pb.head[4], (unsigned)pb.head[5],
-            (unsigned)pb.head[6], (unsigned)pb.head[7]);
-    }
-
-    /* 另一套芯片布局的地址（纯算术，不切换 s_active_config、不读 Flash）——
-     * 判断「激活布局是否选错（DIP2 / 字库芯片型号）」 */
-    const font_chip_id_t cur = app_render_chip_current();
-    const font_chip_id_t alt = (cur == FONT_CHIP_W25Q64) ? FONT_CHIP_MX25L256 : FONT_CHIP_W25Q64;
-    SEGGER_RTT_printf(
-        0, "[gz_ol]   alt-layout(%s) addr 16=0x%06x 24=0x%06x 32=0x%06x (arith only)\n",
-        (alt == FONT_CHIP_W25Q64) ? "W25Q64" : "MX25L256",
-        (unsigned)app_render_glyph_addr_for(alt, FONT_16, type, enc, ch),
-        (unsigned)app_render_glyph_addr_for(alt, FONT_24, type, enc, ch),
-        (unsigned)app_render_glyph_addr_for(alt, FONT_32, type, enc, ch));
-}
-
-#endif /* GZ_OL_RTT_DIAG */
 
 /**
  * @brief  把 0x20 显示文本里的字面两字节序列 `\n`（0x5C 0x6E）转换为换行符 0x0A
@@ -287,7 +169,7 @@ static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_
  * 「字号 > 屏高」时字形露出**可见的上部**（单模组 32×16 台架上 24/32 点阵），不再是
  * 「清屏后全黑」；224×64 整机字形全在屏内、表现零变化；16 点阵在两种几何上均不变。
  * 本函数传参保持「区域 = 剩余屏幕」：w = 屏宽 − x、h = 屏高 − y——首行不受行终止判定
- * 约束，h 无需为 24/32 放大即可绘制。诊断将该判定打印为「完整/裁剪」。
+ * 约束，h 无需为 24/32 放大即可绘制（`draw_bitmap` 按屏幕交集裁剪绘制）。
  * 文本预处理（2026-09-18 用户裁决）：渲染前把字面两字节序列 `\n`（0x5C 0x6E）原地
  * 转换为换行 0x0A（GBK 安全行走，见 _gz_ol_text_unescape_nl），其余字节不变。
  */
@@ -303,61 +185,14 @@ static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
     const uint16_t w = (uint16_t)(d->screen_rows - x);
     const uint16_t h = (uint16_t)(d->screen_cols - y);
 
-#if GZ_OL_RTT_DIAG
-    {
-        char dump[3U * 16U + 1U]; /* "xx xx ... xx" 16 字节 + NUL */
-        _gz_ol_diag_dump16(cmd->data, cmd->data_len, dump);
-        /* 字形框与屏体几何：完整可见 / 裁剪可见（draw_bitmap 2026-09-14 起按交集裁剪绘制） */
-        const uint16_t gw     = (uint16_t)p->font_size; /* GBK 字形宽 = 字号（ASCII 半宽） */
-        const uint32_t vis_h  = ((uint32_t)y + p->font_size <= d->screen_cols)
-                                    ? (uint32_t)p->font_size
-                                    : ((uint32_t)y < d->screen_cols ? (uint32_t)d->screen_cols - y : 0U);
-        const uint32_t vis_w  = ((uint32_t)x + gw <= d->screen_rows)
-                                    ? (uint32_t)gw
-                                    : ((uint32_t)x < d->screen_rows ? (uint32_t)d->screen_rows - x : 0U);
-        SEGGER_RTT_printf(0, "[gz_ol] 0x20 plen=%u payload[0..15]=%s\n", (unsigned)cmd->data_len,
-                          dump);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x20 x=%u y=%u size=%d type=%d color=%d text_len=%u"
-                          " -> render x=%u y=%u w=%u h=%u wrap=1 enc=GBK\n",
-                          (unsigned)p->x, (unsigned)p->y, (int)p->font_size, (int)p->font_type,
-                          (int)p->color, (unsigned)p->text_len, (unsigned)x, (unsigned)y,
-                          (unsigned)w, (unsigned)h);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x20 size-map field=%u/%u -> FONT_%d glyph_box=%ux%u\n",
-                          (unsigned)cmd->data[12], (unsigned)cmd->data[13], (int)p->font_size,
-                          (unsigned)gw, (unsigned)p->font_size);
-        SEGGER_RTT_printf(0, "[gz_ol] 0x20 screen=%ux%u code=%s glyph_visible=%ux%u of %ux%u%s\n",
-                          (unsigned)d->screen_rows, (unsigned)d->screen_cols,
-                          (d->module_code != nullptr) ? d->module_code : "?", (unsigned)vis_w,
-                          (unsigned)vis_h, (unsigned)gw, (unsigned)p->font_size,
-                          (vis_w == gw && vis_h == (uint32_t)p->font_size)
-                              ? ""
-                              : " *** glyph CLIPPED by screen edge (draw_bitmap intersection) ***");
-        /* 字库三档实读（问题①决定性证据，见函数注释） */
-        _gz_ol_diag_font_probe((const uint8_t *)p->text, p->text_len, p->font_type);
-        /* 渲染前显存基线（清屏后应为 0） */
-        SEGGER_RTT_printf(0, "[gz_ol] 0x20 pixel_map before render: nonblack=%u\n",
-                          (unsigned)_gz_ol_diag_nonblack(d, nullptr));
-    }
-#endif
 
     /* 文本字面 "\n"（0x5C 0x6E）→ 换行 0x0A 原地转换（2026-09-18 用户裁决，GBK 安全行走）。
      * p->text 指向任务帧缓冲拷贝（任务独占、可变，见 _gz_ol_text_unescape_nl 注释），
      * 转换输出 ≤ 输入，无额外缓冲；执行层转换保证 RS485/RS232/UDP10011/专用口四通道一致。 */
     uint16_t text_len = p->text_len;
-    uint16_t nl_count = 0U;
     if (text_len > 0U)
-        text_len = _gz_ol_text_unescape_nl((char *)p->text, text_len, &nl_count);
+        text_len = _gz_ol_text_unescape_nl((char *)p->text, text_len, nullptr);
 
-#if GZ_OL_RTT_DIAG
-    if (nl_count > 0U) {
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x20 nl-unescape: literal \\n x %u -> 0x0A, text_len %u -> %u"
-                          " (GBK-safe walk)\n",
-                          (unsigned)nl_count, (unsigned)p->text_len, (unsigned)text_len);
-    }
-#endif
 
     app_scroll_render_lock();
 
@@ -385,19 +220,6 @@ static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
         dev_display_commit_frame(d);
     }
 
-#if GZ_OL_RTT_DIAG
-    /* 渲染后显存非黑像素数 = 「渲染是否真的落到 pixel_map」的直接证据：
-     *   >0 → 渲染侧正常（屏幕若仍无内容 → 问题在屏体几何/扫描侧，对照横幅 screen=）；
-     *   =0 → 渲染/裁剪/字库侧（结合上方 font-probe 的 rd/nz 判定）。 */
-    {
-        uint8_t first_color = 0;
-        const uint32_t nz   = _gz_ol_diag_nonblack(d, &first_color);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x20 post-render: nonblack=%u first_color=%u commits=%u\n",
-                          (unsigned)nz, (unsigned)first_color,
-                          (unsigned)g_dev_display_commit_count);
-    }
-#endif
 
     app_scroll_render_unlock();
 }
@@ -469,12 +291,11 @@ void gz_ol_resume_auto_dim(void)
  * @brief  执行 0x40 修改 IP：写 Sector1（port 字段；udp_port 保留现值）→ 应答 0x50 帧
  *         → 短延时后软复位（源固件语义：应答后重启生效）。
  * @param  ch   来源通道。
- * @param  cmd  解析结果（`p.setip` 为 14B 网络参数；`data/data_len` 仅供诊断 dump 原始载荷）。
+ * @param  cmd  解析结果（`p.setip` 为 14B 网络参数）。
  *
- *  诊断（`GZ_OL_RTT_DIAG`）：打印**原始载荷 16 字节**（确认上位机端口字段的字节序/偏移/
- *  编码——10028 必须表现为 `payload[12..13] = 27 2c`；**高字节在前 BE16，2026-09-15 用户
- *  裁决**）+ 写前快照 + 落库返回值 + 写后 read-back。`0x50` 应答只是回显请求，**不是落盘
- *  证据**；落盘证据是 read-back 与重启后 `0x70` 搜索回显（见 README §13.4）。
+ *  端口字段 **高字节在前 BE16**（2026-09-15 用户裁决，10028 → `payload[12..13] = 27 2c`）。
+ *  `0x50` 应答只是回显请求，**不是落盘证据**；落盘证据 = 重启后 `0x70` 搜索回显
+ *（见 doc/14 §13.4）。
  */
 static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 {
@@ -487,56 +308,10 @@ static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
     app_board_net_cfg_t cur;
     uint32_t udp_port = (app_board_net_cfg_get(&cur) == 0) ? cur.udp_port : 20103U;
 
-#if GZ_OL_RTT_DIAG
-    /* 原始载荷 + 写前快照（自证「改端口是否真的落库」；0x50 回显只是回声、不能作落盘证据） */
-    {
-        char dump[3U * 16U + 1U];
-        _gz_ol_diag_dump16(cmd->data, cmd->data_len, dump);
-        SEGGER_RTT_printf(0, "[gz_ol] 0x40 plen=%u payload[0..15]=%s\n", (unsigned)cmd->data_len,
-                          dump);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x40 port field payload[12..13]=%02x %02x -> %u (BE16); "
-                          "ip=%u.%u.%u.%u\n",
-                          (unsigned)cmd->data[12], (unsigned)cmd->data[13], (unsigned)p->port,
-                          p->ip[0], p->ip[1], p->ip[2], p->ip[3]);
-    }
-    {
-        app_board_net_cfg_t before;
-        const bool before_ok = (app_board_net_cfg_get(&before) == 0);
-        SEGGER_RTT_printf(0, "[gz_ol] 0x40 write-before: rec=%s port=%u udp_port=%u\n",
-                          before_ok ? "valid" : "INVALID",
-                          before_ok ? (unsigned)before.port : 0U,
-                          before_ok ? (unsigned)before.udp_port : 0U);
-        SEGGER_RTT_printf(0, "[gz_ol] 0x40 requested: ip=%u.%u.%u.%u mask=%u.%u.%u.%u gw=%u.%u.%u.%u "
-                             "port=%u (keep udp_port=%u)\n",
-                          p->ip[0], p->ip[1], p->ip[2], p->ip[3], p->mask[0], p->mask[1],
-                          p->mask[2], p->mask[3], p->gw[0], p->gw[1], p->gw[2], p->gw[3],
-                          (unsigned)p->port, (unsigned)udp_port);
-    }
-#endif
 
     const int32_t wr_ret = app_board_net_cfg_update(p->ip, p->mask, p->gw, (uint32_t)p->port, udp_port);
 
-#if GZ_OL_RTT_DIAG
-    /* 写后立即 read-back（唯一有效的落盘证据）+ 重启后预期端口提示 */
-    {
-        app_board_net_cfg_t after;
-        const bool after_ok = (app_board_net_cfg_get(&after) == 0);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x40 write ret=%d (%s) readback=%s ip=%u.%u.%u.%u port=%u "
-                          "udp_port=%u\n",
-                          (int)wr_ret, (wr_ret == 0) ? "OK" : "ERR(erase/write failed)",
-                          after_ok ? "valid" : "INVALID", after.ip[0], after.ip[1], after.ip[2],
-                          after.ip[3], after_ok ? (unsigned)after.port : 0U,
-                          after_ok ? (unsigned)after.udp_port : 0U);
-        SEGGER_RTT_printf(0,
-                          "[gz_ol] 0x40 ack=0x50 echo (NOT evidence) -> reboot in 100ms; after "
-                          "reboot expect: GZ_OL UDP service port=%u (CH_ID_UDP_GZOL) + TCP biz "
-                          "port=%u + 10011 unchanged\n",
-                          (unsigned)p->port, (unsigned)p->port);
-    }
-#endif
-    (void)wr_ret; /* 非诊断构建下显式忽略（诊断构建下已在上一块打印） */
+    (void)wr_ret; /* 返回值不影响应答与重启流程（0x50 回显 + 重启为固定语义） */
 
     /* 应答 0x50 帧（**按解析值重建**本次下发的配置，与源固件一致；
      * 端口字段与请求同序 = BE16 高字节在前，2026-09-15 用户裁决；**回显不是落盘证据**） */

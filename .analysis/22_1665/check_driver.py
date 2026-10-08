@@ -9,9 +9,10 @@
   B. 落点模型（**按指定口径复算**）：链段区域由「模块序号 + 线序号」推导、每链段 128 位双射、
      每模块红/绿链段各覆盖该模块 256 像素、全屏红/绿各覆盖全部像素、级联时钟映射无缝无重
   C. CCMRAM 占用复算（模型 B：1408·M + 256·MODULE_COLS）+ 基类字段一致性
-     （尺寸 ⇄ 数组 ⇄ 实例绑定）；**第三十四轮起：无编译期防御**——0 条 `_Static_assert`、
-     无 `#error`，「MODULE_COLS ≤ 5 / 像素与帧位 ≤ 65535 / 整片 CCMRAM 由链接期兜底」
-     降级为**注释契约 + doc/01 §0.3 文档**（越限后果 = 静默越界 / 链接期溢出）
+     （尺寸 ⇄ 数组 ⇄ 实例绑定）；**编译期守卫 = 2 条**（2026-10-08 按用户裁决恢复）：
+     ① 通道表物理上限 `2×MODULE_COLS ≤ HUB75_CHANNEL_MAX`（COLS ≥ 6 越界读 `_22_1665_lines`）、
+     ② 本模组数组 ≤ 整片 CCMRAM 区域 64KB；其余几何约束（像素数/帧位 ≤ 65535、单模块恰
+     8 块 = 128 位等）仍为**注释契约 + doc/01 §0.3 文档**（第三十四轮删防御的余量）
   D. 源码卫生：RTT / 探针 / 兼容口径 / 手工补行**零残留**；行为开关仅存 1 个（链首口径）；
      prepare 逐链掩码表达式正确（round21 教训）；历史轮次叙述零残留
   E. 文件规模：文件头 ≤ 60 行、整文件 ≤ 400 行（round34 精简后 372 行，防历史叙述回流）
@@ -249,18 +250,21 @@ check(f"CCM 占用 = chain_dst {2*CHAIN_COUNT*SEGMENT_BITS} + pixel_map {SCREEN_
       f"（通式 1408·M + 256·MODULE_COLS）",
       CCM == 1408 * MODULES + 256 * MODULE_COLS,
       str(CCM))
-check("**无编译期防御**（第三十四轮用户裁决）：0 条 `_Static_assert`、无 `#error`、无 error 属性",
-      re.search(r"_Static_assert\s*\(", src) is None and "#error" not in src
+check("**编译期守卫 = 2 条**（2026-10-08 恢复）：① 通道上限 ② 本模组 ≤ 64KB；"
+      "无 `#error`、无 error 属性",
+      len(re.findall(r"_Static_assert\s*\(", src)) == 2 and "#error" not in src
       and "__attribute__((error" not in src)
-check("仅断言使用的派生宏已清理（`_22_1665_CCM_BYTES` / `_22_1665_BSRR_SLOTS` 零残留）",
-      "_22_1665_CCM_BYTES" not in src and "_22_1665_BSRR_SLOTS" not in src)
-check("自设 16KB 预算与 64KB 物理守卫断言均已删除（无 `16384` / `budget exceeded` / "
-      "`arrays exceed CCMRAM region` 旧消息残留）",
+check("守卫 ① 源码形态（`2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX`）",
+      "2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX" in src)
+check("守卫 ② 走**实测 sizeof 求和**（`_22_1665_CCM_BYTES` = 4 个 .ccmram 数组之和 ≤ 64U*1024U）；"
+      "`_22_1665_BSRR_SLOTS` 仍零残留",
+      "_22_1665_CCM_BYTES" in src and "sizeof(_22_1665_chain_dst)" in src
+      and "_22_1665_CCM_BYTES <= 64U * 1024U" in src and "_22_1665_BSRR_SLOTS" not in src)
+check("自设 16KB 预算零残留（无 `16384` / `budget exceeded`），但 64KB 物理守卫消息在册",
       "16384" not in src and "budget exceeded" not in src
-      and "arrays exceed CCMRAM region" not in src)
-check("物理契约降级为**注释**（文件头「物理约束（契约，非编译期守卫）」+ `MODULE_COLS ≤ 5` "
-      "+ 像素/帧位 `≤ 65535` + 链接期兜底）",
-      "物理约束（契约，非编译期守卫）" in src and "MODULE_COLS ≤ 5" in src
+      and "arrays exceed CCMRAM region" in src)
+check("物理约束表述（文件头「编译期守卫」+ `MODULE_COLS ≤ 5` + 像素/帧位 `≤ 65535` + 链接期兜底）",
+      "编译期守卫" in src and "MODULE_COLS ≤ 5" in src
       and "65535" in src and "链接期" in src)
 check("CCM 通式与实例值写在缓冲段注释里（`1408·M + 256·COLS`；1×1 = 1664B、8×4 = 46080B）",
       "1408·M + 256·COLS" in src and "1×1 = 1664B" in src and "8×4 = 46080B" in src)
@@ -299,9 +303,10 @@ check("接线模型开关已退休（`_22_1665_HUB_WIRING` 无 `#define`；无 `
       and "_22_1665_flush_state" not in src and "_22_1665_PORT_MAX" not in src
       and src.count("_22_1665_flush_group") == 2 and src.count("_22_1665_scan(dev_display_t") == 1
       and src.count("_22_1665_build_bsrr_table(void)") == 1)
-check("每列一口通道上限的**契约**（`MODULE_COLS ≤ 5`）与越限后果（越界读 `_22_1665_lines`）"
-      "写在注释里（不再由编译期拦下）",
-      "MODULE_COLS ≤ 5" in src and "越界读" in src and "_22_1665_lines`" in src)
+check("每列一口通道上限**由守卫 ① 编译期拦下**（`2 × MODULE_COLS ≤ HUB75_CHANNEL_MAX`）"
+      "且越限后果（越界读 `_22_1665_lines`）写在注释里",
+      "MODULE_COLS ≤ 5" in src and "越界读" in src and "_22_1665_lines`" in src
+      and "2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX" in src)
 check("历史轮次叙述零残留（注释里不再出现「第N轮」编号；历史移交 doc/01 附录 A）",
       re.search(r"第[一二三四五六七八九十百]+轮", src) is None)
 check("状态数组按组分段（scan 读 state[组 × CLOCKS + 时钟位]）",
@@ -318,9 +323,9 @@ check("详细说明与归档恢复路径在文档里（doc/01 含 finalize 归�
       DOC01.exists()
       and "archive/finalize/driver_pre_finalize_20260917.c" in DOC01.read_text(encoding="utf-8")
       and "archive/prev_round/" in DOC01.read_text(encoding="utf-8"))
-check("断言已清零（第三十四轮用户裁决）⇒ 不再有「ASCII 断言消息」约束；"
-      "契约改由注释 + `doc/01` §0.3 承担",
-      re.search(r"_Static_assert\s*\(", src) is None and "22_1665:" not in src)
+check("断言条数 = 2 条（2026-10-08 恢复的编译期守卫）⇒ ASCII 断言消息在册"
+      "（`22_1665:` 前缀）；其余契约仍由注释 + `doc/01` §0.3 承担",
+      len(re.findall(r"_Static_assert\s*\(", src)) == 2 and src.count('"22_1665:') == 2)
 
 # ================================================================
 #  E. 文件规模
