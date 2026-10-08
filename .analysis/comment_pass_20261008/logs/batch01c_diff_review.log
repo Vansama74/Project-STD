@@ -1,0 +1,5 @@
+  ✔ Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h  +26 / -75（注释/块注释续行/空行，其中行尾注释改写 6 行（代码部分未动，token 流另有独立证明））
+  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto.c  +27 / -64（注释/块注释续行/空行）
+  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c  +22 / -50（注释/块注释续行/空行）
+  ✔ Application/Src/app_factory_test_mm.c  +3 / -3（注释/块注释续行/空行）
+######## 结果：+78 / -192（行尾注释改写 6 行），仅注释变化 ✔

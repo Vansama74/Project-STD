@@ -1,20 +1,12 @@
 /**
  * @file    app_mm_proto_cmd.c
- * @brief   缅甸 2D 费显协议 — 帧解析 + 车道灯执行 + **干接点输出单一映射点**
+ * @brief   缅甸 2D 费显协议 — 帧解析 + 干接点输出（唯一映射点）
  *
- * ① `mm_parse_frame`：定长 20 字节帧的字段抽取与命令字/取值判别（纯函数）；
- * ② `s_mm_lamp_map` + `_mm_drive()` / `mm_apply_lamp()` / `mm_apply_init()`：
- *    灯位 → 干接点输出的**唯一**映射点——改脚位/改有效电平/改继电器或光耦驱动
- *    **只改这两处**；极性（现行**高有效**，2026-09-28 现场实测翻转）与引脚表见下；
- * ③ `mm_arrow_map_toggle()`：0x0A ⇄ 0x0B 箭头落点运行时交换（出厂测试用，生效单点 =
- *    `mm_execute_cmd()` → `_mm_effective_lamp()`，红灯 0x90 不受影响、不掉电保存）。
- *
- * 引脚（2026-09-24 用户裁决，2026-09-28 修正极性）：红灯 = S1 = PE12 / 左下箭头 =
- * S2 = PE11 / 右下箭头 = S3 = PE10，复用原 SW1~SW3 端子、方向改**推挽输出**、
- * **高 = 点亮**（复位后红灯即亮 + PE12 实测 3.3V，文档 doc/16 §4.1）；接管顺序
- * （先写灭电平 → 摘该线 EXTI → 切输出 → 全灭 → 红灯点亮）保证无毛刺。
- * ⚠ 接管副作用（预期）：SW1~SW3 输入语义失效（灯灭读「闭合」/点亮读「未闭合」），
- * `PROTO=ALL` 同编构建下 RLS 干接点轮询可能据此渲染车道状态，量产排除 RLS 即无影响。
+ * 干接点：红灯=S1/PE12、左下=S2/PE11、右下=S3/PE10，推挽**高电平有效（点亮 = 输出高）**；
+ * **上电默认红叉 = 红灯点亮**；接管顺序（写灭电平 → 按线摘 EXTI → 切推挽输出 → 点亮红灯）无毛刺、
+ * **禁止 `HAL_NVIC_DisableIRQ`**；改脚位/极性/驱动方式只改 `s_mm_lamp_map` + `_mm_drive()`；
+ * 副作用（SW1~SW3 输入语义失效 ⇒ `PROTO=ALL` 下 RLS 显示「车道关闭」；量产排除 RLS 即无影响）见 §4.3。
+ * 详见 doc/16_缅甸2D费显协议/README.md §3、§4、§6、§13、§14
  */
 
 #include "app_mm_proto.h"
@@ -38,7 +30,7 @@ typedef struct {
 } mm_lamp_map_t;
 
 /* 现行极性 = **高有效**（active_low=false）：复位后红灯即亮 + PE12 实测 3.3V
- * ⇒ 3.3V = 点亮（2026-09-28 现场实测；推导见 doc/16 §4.1）。 */
+ * ⇒ 3.3V = 点亮（2026-09-28 现场实测；推导见 doc/16_缅甸2D费显协议/README.md §4.1）。 */
 static const mm_lamp_map_t s_mm_lamp_map[MM_LAMP_COUNT] = {
     [MM_LAMP_RED]   = {.contact = "S1", .lamp_name = "红灯",       .port = PL_PORT_E, .pin = 12, .active_low = false},
     [MM_LAMP_LEFT]  = {.contact = "S2", .lamp_name = "左下箭头灯", .port = PL_PORT_E, .pin = 11, .active_low = false},
@@ -56,12 +48,12 @@ static volatile bool s_mm_arrow_swapped;
 
 /**
  * @brief  按灯位描述驱动干接点（动作单一实现点；`mm_apply_init` 的预写也走本函数）。
- * @param  m 灯位映射项；@param on true=闭合（开灯）/ false=断开（关灯）。
+ * @param  m   灯位映射项。
+ * @param  on  true=闭合（开灯）/ false=断开（关灯）。
  */
 static void _mm_drive(const mm_lamp_map_t *m, bool on)
 {
-    /* **电平唯一真源**（禁止别处硬编码电平）：high = (on != m->active_low)，同一
-     * 表达式同时覆盖高有效（现行）与低有效（历史口径）。 */
+    /* 电平唯一真源（禁止别处硬编码）：high = on != m->active_low（兼容两种极性口径） */
     pl_gpio_write(m->port, m->pin, on != m->active_low);
 }
 
@@ -82,13 +74,9 @@ void mm_apply_lamp(mm_lamp_t lamp, bool on)
 }
 
 /**
- * @brief  上电初始化干接点输出层（**默认显示红叉**：红灯 S1/PE12 点亮、两个绿箭头熄灭）。
- *
- * 接管顺序见文件头（先置**灭电平** → 摘 EXTI → 切推挽输出 → 全灭 → 红灯点亮），
- * 全程无毛刺；灭电平由映射表推导（`_mm_drive(m, false)`，**不在本函数硬编码高低**）；
- * 红灯点亮走 `mm_apply_lamp()`（唯一动作点 ⇒ 影子状态一并更新）。
- * 「三路全灭」是 2026-09-24 的旧语义，2026-09-29 按用户需求改为**上电默认红叉**
- * （车道关闭态）；协议帧到达后照常按帧驱动。
+ * @brief  干接点输出层上电初始化：接管三路为推挽输出，**默认显示红叉 = 红灯 S1/PE12 点亮**。
+ * @note   顺序（无毛刺）= 写灭电平（由映射表推导，不硬编码）→ 按线摘 EXTI → 切推挽输出 →
+ *         点亮红灯（唯一动作点 `mm_apply_lamp()`，影子状态同步）；协议帧到达后照常按帧驱动（§14.2）。
  */
 void mm_apply_init(void)
 {
@@ -99,9 +87,7 @@ void mm_apply_init(void)
     for (unsigned i = 0U; i < (unsigned)MM_LAMP_COUNT; i++) {
         const mm_lamp_map_t *m = &s_mm_lamp_map[i];
 
-        /* ① 先把输出数据寄存器写成「灭」电平（**由映射表推导**：高有效 ⇒ 低）——
-         *    `_mm_drive` 是电平唯一真源，本处不硬编码。此时引脚仍是输入 + 上拉，
-         *    写 ODR 不驱动引脚、不会产生毛刺；步骤 ③ 切成输出的瞬间即为「灭」。 */
+        /* ① 先写「灭」电平（由映射表推导，不硬编码）：引脚仍为输入+上拉，写 ODR 不驱动引脚 */
         _mm_drive(m, false);
         /* ② 只摘本引脚那条 EXTI 线（不碰其它线、不碰 NVIC） */
         pl_gpio_release_exti(m->port, m->pin);
@@ -111,9 +97,8 @@ void mm_apply_init(void)
         s_mm_lamp_state[i] = false;
     }
 
-    /* ⑤ 上电默认显示红叉（用户需求 2026-09-29）：三路接管完成后把红灯 S1/PE12 点亮 =
-     *    车道关闭态；两个绿箭头保持熄灭。只经 `mm_apply_lamp()`（唯一动作点）驱动，
-     *    不新增电平硬编码路径、不破坏「接管无毛刺」顺序（①②③ 之后才点亮）。 */
+    /* ⑤ 上电默认红叉：三路接管完成后点亮红灯 = 车道关闭态；只经唯一动作点
+     *    `mm_apply_lamp()`（不新增电平硬编码、不破坏无毛刺顺序，§14.2）。 */
     mm_apply_lamp(MM_LAMP_RED, true);
 
 }
@@ -123,17 +108,9 @@ void mm_apply_init(void)
  * ========================================================================== */
 
 /**
- * @brief  命令 → 灯位的「箭头落点交换」单点（**唯一生效点**）。
- *
- * 交换只在 0x0A / 0x0B 两条命令的落点之间进行（**红灯 0x90 不受影响**）：
- *   默认态：MM_LAMP_LEFT → 左下箭头（S2/PE11）／MM_LAMP_RIGHT → 右下箭头（S3/PE10）
- *   交换态：MM_LAMP_LEFT → 右下箭头（S3/PE10）／MM_LAMP_RIGHT → 左下箭头（S2/PE11）
- *
- * 交换的是「命令落点」而非映射表：`s_mm_lamp_map` / `_mm_drive()` / probe / 解析 / 队列
- * 全部零改动；`mm_apply_lamp()` 仍按**最终灯位**取表，日志因此如实反映实际驱动的灯与引脚。
- *
- * @param  lamp  `mm_parse_frame()` 得到的命令对应灯位。
- * @return 本次应按哪个灯位驱动（默认态原样返回）。
+ * @brief  命令 → 灯位的「箭头落点交换」唯一生效点（红灯原样返回）。
+ * @param  lamp  `mm_parse_frame()` 得到的灯位。
+ * @return 本次应按哪个灯位驱动（默认态原样返回；交换态 LEFT ⇄ RIGHT，语义见 §13.2）。
  */
 static mm_lamp_t _mm_effective_lamp(mm_lamp_t lamp)
 {
@@ -164,10 +141,7 @@ bool mm_arrow_map_toggle(void)
  * ========================================================================== */
 
 /**
- * @brief  解析缅甸 2D 费显帧（纯函数）。
- *
- * 只做字段抽取与命令字判别：不作结束码/校验校验（文档未定义校验；结束码不校验的理由
- * 见 `app_mm_proto.c` 文件头 probe 注释）。
+ * @brief  解析定长帧的字段与车道灯命令（纯函数；不校验结束码、无 XOR——文档未定义校验，§6）。
  */
 mm_parsed_cmd_t mm_parse_frame(const uint8_t *raw, uint16_t raw_len)
 {
@@ -203,10 +177,8 @@ mm_parsed_cmd_t mm_parse_frame(const uint8_t *raw, uint16_t raw_len)
 }
 
 /**
- * @brief  执行解析后的车道灯命令（帧处理任务调用；无应答、无显示、无语音）。
- *
- * 落点经 `_mm_effective_lamp()` 做「箭头落点交换」后驱动（红灯不受影响）；
- * 交换开关的语义与生命周期见 `mm_arrow_map_toggle()` / `mm_apply_init()`。
+ * @brief  执行解析后的车道灯命令（无应答、无显示、无语音）。
+ * @note   落点先经 `_mm_effective_lamp()` 交换单点再驱动（红灯不受影响，§13）。
  */
 void mm_execute_cmd(const mm_parsed_cmd_t *cmd)
 {

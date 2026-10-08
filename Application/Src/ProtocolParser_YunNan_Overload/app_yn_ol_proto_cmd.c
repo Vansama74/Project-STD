@@ -1,24 +1,12 @@
 /**
  * @file    app_yn_ol_proto_cmd.c
- * @brief   云南治超屏协议（YN_1.3.0）命令执行与应答组帧
+ * @brief   云南治超屏协议 — 命令执行与应答组帧
  *
- * 显示映射：app_render（GBK 直通）；'3' 单行按「行号 × 当前字号」定位、先清行再渲染；
- * '4' 全屏按 X/Y 定位、先整屏清黑、按屏宽自动换行；0x01 全屏纯色；行清除（0x42~0x46 /
- * 0x50）按当前字号行高清行，越界行「执行但不落屏」。亮度 0/'0'/0x00 = 光敏自动、
- * '1'~'8' = 挂起光敏 + 硬件档恒等映射；灯控走 dev_io_lane_light / dev_io_flash_light
- *（红优先）；网络配置走 STD 中立模块 app_board_net_cfg（Sector1 唯一真源，不建私有记录）。
- *
- * 应答帧与请求同帧族（`{` + 命令字 + 长度 + 载荷 + `}`），一律**单播回源通道**。
- * 渲染互斥：所有「清屏/清行/渲染/提交」整段持 app_scroll_render_lock（与 app_scroll
- * 串行，消除混合帧黑条；引擎未创建时空操作）。
- *
- * 屏体参数（0x49）为**持久化配置**（2026-09-17 裁决）：12B 记录（magic + version +
- * 字体/字宽 + CRC32，仿 app_ldi_cfg.c 范式）落 W25Qxx 独立 4KB 扇区 `capacity - 12288`
- *（选址与被占扇区核对见 app_yn_ol_proto.h）；初始化时装载、0x49 执行时写入；写入失败 /
- * 记录损坏 → 回退默认值，不阻塞、不重启。默认 = STD 工程既有口径 FONT_16 / FONT_ST。
- *
- * '6'/'7'/'9' 文档明示治超屏不开发 → 不实现；上电效果「祝您一路平安」**不实现**
- *（走 STD 默认显示链路）。详见 doc/15_云南治超屏协议/README.md。
+ * 显示走 app_render（GBK 直通）：'3' 按行号 × 当前字号（先清行）、'4' 按 X/Y（先清屏、
+ * word_wrap）——行起点越界 = 「执行但不落屏」；亮度 0 = 光敏自动、'1'~'8' = 挂起光敏；
+ * 灯控红优先；网络配置写 Sector1（唯一真源）、端口 BE16；「清屏/清行/渲染/提交」整段持
+ * `app_scroll_render_lock`（与 app_scroll 串行）。
+ * 详见 doc/15_云南治超屏协议/README.md §1、§3、§7、§8
  */
 
 #include "app_yn_ol_proto_cmd.h"
@@ -48,20 +36,14 @@ static font_type_t s_yn_ol_font_type = FONT_ST;
 static volatile bool s_yn_ol_selftest_running;
 static volatile bool s_yn_ol_selftest_abort;
 
-/* 自检单步时长（文档未定义节奏；500ms/字为推断值，见 doc/15 §8 残余待确认项） */
+/* 自检单步时长（文档未定义节奏；500ms/字为推断值，见 doc/15_云南治超屏协议/README.md §8 残余待确认项） */
 #define YN_OL_SELFTEST_STEP_MS (500U)
 /* 中止检查分片（保证下一帧命令到达后 ≤100ms 内退出，与云南常规自检同策） */
 #define YN_OL_SELFTEST_ABORT_SLICE_MS (100U)
 
 /* ---- 应答组帧 ---- */
 
-/**
- * @brief  构造并发送本协议应答帧（`{` + cmd + len + payload + `}`）。
- * @param  ch           来源通道（单播回源）。
- * @param  cmd          应答命令字。
- * @param  payload      载荷（可为 NULL）。
- * @param  payload_len  载荷字节数（本模块应答最长 14B：0x51 网络配置帧）。
- */
+/** @brief 构造并发送应答帧（`{` + cmd + len + payload + `}`；单播回源，resp ≤14B）。 */
 static void _yn_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload, uint16_t payload_len)
 {
     uint8_t buf[YN_OL_HEAD_LEN + YN_OL_NET_PAYLOAD_LEN + 1U];
@@ -79,15 +61,11 @@ static void _yn_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload
 }
 
 /**
- * @brief  读当前网络配置并填入 14B 应答载荷（ip4 + mask4 + gw4 + port2 高字节在前）。
- *
- *  port 字段 = Sector1 `net_cfg.port`（STD 统一「配置功能端口」口径，与 LDI 12H /
- *  IAP 0x01 / GZ_OL 0x70 一致）；`udp_port`（CQ 专有）不参与。
- *  字节序 = **高字节在前 BE16**（`25 38` = 9528）——**已裁决口径**（2026-09-17），
- *  见 `app_yn_ol_proto.h` 文件头「端口字段字节序」。
- *
+ * @brief  读当前网络配置并填入 14B 应答载荷（ip4 + mask4 + gw4 + port2 **BE16**）。
  * @param  out  14B 输出缓冲。
  * @return true = 读到有效配置；false = 记录无效（调用方回全 0 兜底）。
+ * @note   port = Sector1 `net_cfg.port`（STD 统一口径，与 LDI 12H / IAP 0x01 / GZ_OL 一致）；
+ *         字节序依据见 doc/15_云南治超屏协议/README.md §2。
  */
 static bool _yn_ol_net_payload(uint8_t *out)
 {
@@ -98,24 +76,16 @@ static bool _yn_ol_net_payload(uint8_t *out)
     memcpy(&out[0], cfg.ip, 4);
     memcpy(&out[4], cfg.mask, 4);
     memcpy(&out[8], cfg.gw, 4);
-    out[12] = (uint8_t)(cfg.port >> 8); /* 高字节在前（见头文件「端口字段字节序」） */
+    out[12] = (uint8_t)(cfg.port >> 8); /* BE16（见 .h / doc/15_云南治超屏协议/README.md §2） */
     out[13] = (uint8_t)(cfg.port & 0xFFU);
     return true;
 }
 
-/* ================================================================
- *  0x49 屏体参数持久化（W25Qxx 12B 记录；2026-09-17 用户裁决 Q5）
- *
- *  记录：magic(4) + version(2) + font_type(1) + font_size(1) + crc32(4) = 12B
- *  地址：`dev_storage_capacity(w25) - YN_OL_CFG_SECTOR_OFFSET`（capacity - 12288：
- *        倒数第三个 4KB 扇区；LDI 占 capacity-4096、app_render persist 占
- *        capacity-8192，字库数据止于第 1997 扇区 → 本扇区无占用，见头文件）。
- *  语义：记录无效/为空 → 保持默认（FONT_16/FONT_ST）并打告警；写入失败 → 运行态仍生效，
- *        仅掉电不保留 + 告警。**不阻塞、不重启**。
- *
- *  缓冲说明：读写各用 12B 静态 SRAM（与 LDI 记录同范式；读写路径经 dev_w25qxx 内部锁，
- *  写路径为其整扇区读-改-写，本模块不需要自备 4KB 镜像）。
- * ================================================================ */
+/* 0x49 屏体参数持久化（W25Qxx 12B 记录：magic + version + 字体/字宽 + CRC32）。
+ * 地址 = `capacity - 12288`（独立扇区；LDI 占 -4096、app_render 占 -8192）；
+ * 记录无效/为空 → 保持默认并告警，写失败 → 运行态仍生效（仅掉电不保留）——**不阻塞、不重启**；
+ * 读写共用 12B 静态 SRAM，无需自备 4KB 扇区镜像（读-改-写由 dev_w25qxx 内部完成）。
+ * 选址核对与语义见 doc/15_云南治超屏协议/README.md §7 */
 
 static yn_ol_screen_cfg_record_t s_yn_ol_cfg_rec; /**< 12B：装载/落盘共用缓冲（SRAM） */
 
@@ -199,11 +169,10 @@ static display_color_t _yn_ol_map_color(uint8_t idx)
 }
 
 /**
- * @brief  把第 row 行区域刷黑（**不提交**；调用方统一在渲染后提交或自行提交）。
+ * @brief  把第 row 行区域刷黑（**不提交**，由调用方统一提交）。
  * @param  d    显示实例。
  * @param  row  行号 0~5（行高 = 当前生效字号）。
- * @note   行起点越界（row × 字号 ≥ 屏高）时 dev_display_fill 起点越界早退，
- *         即「执行但不落屏」（安全无副作用）。
+ * @note   行起点越界时 dev_display_fill 起点越界早退 = 「执行但不落屏」（无副作用）。
  */
 static void _yn_ol_row_black(dev_display_t *d, uint8_t row)
 {
@@ -224,8 +193,7 @@ static void _yn_ol_clear_screen(dev_display_t *d)
  * @brief  执行 '1' 主机查询：回固定「状态正常」应答帧 `7B 31 01 00 7D`。
  * @param  ch  源通道（应答回源）。
  * @return YN_OL_EXEC_OK。
- * @note   文档定义正常/异常两种应答；本设备恒正常（异常应答无触发条件），
- *         与云南常规 '1' 口径一致。
+ * @note   文档定义正常/异常两种应答；本设备恒正常（异常无触发条件，同云南常规 '1' 口径）。
  */
 static int _yn_ol_exec_host_query(channel_t *ch)
 {
@@ -239,10 +207,9 @@ static int _yn_ol_exec_host_query(channel_t *ch)
 /**
  * @brief  自检任务：整屏居中显示数字 1~9 交替（每 500ms 步进），可被下一帧命令打断。
  * @param  argument  未使用。
- * @note   文档原文「固定汉字信息及数字 1～9 交替显示，语音报出示例语音内容」——
- *         治超屏不开发语音（文档开头声明），故仅实现显示部分；「固定汉字信息」
- *         的内容文档未给出 → 本实现只做数字交替（见 doc/15 §8 残余待确认项）。
+ * @note   仅实现显示部分（文档「固定汉字信息」内容未给、语音部分明示不开发）；
  *         被打断退出时**不清屏**（屏幕交给打断它的新命令）。
+ *         文案/节奏与残余待确认项见 doc/15_云南治超屏协议/README.md §1、§8。
  */
 static void _yn_ol_selftest_task(void *argument)
 {
@@ -314,10 +281,9 @@ static int _yn_ol_exec_self_check(void)
 
 /**
  * @brief  执行 '3' 单行显示：先清行再按当前字号渲染文本（GBK 直通、超宽截断）。
- * @param  p  单行显示参数（color/row/text）。
- * @note   行号 '1'~'5'（row 0~4）全按协议接受；行 5 在屏高不足时渲染调用照常发出，
- *         由 dev_display_fill / draw_bitmap 起点越界早退「执行但不落屏」。
- *         app_render 内部自带提交，故清行不单独提交（同帧一并生效）。
+ * @param  p  单行显示参数（color / row / text）。
+ * @note   行 5 在屏高不足时渲染调用照常发出，由 fill / draw_bitmap 起点越界早退
+ *         「执行但不落屏」；app_render 内部自带提交，故清行不单独提交。
  */
 static int _yn_ol_exec_one_line(const yn_ol_one_line_t *p)
 {
@@ -348,17 +314,15 @@ static int _yn_ol_exec_one_line(const yn_ol_one_line_t *p)
         .text_enc  = FONT_ENC_GBK,
     });
     app_scroll_render_unlock();
-    /* 「执行但不落屏」（行起点越界时 fill/draw 早退）不算失败：协议语义正常，
-     * 诊断行会打印 y/屏高并标注 OFF-SCREEN 供现场判读。 */
+    /* 「执行但不落屏」（行起点越界时 fill/draw 早退）不算失败：协议语义正常 */
     return (int)YN_OL_EXEC_OK;
 }
 
 /**
  * @brief  执行 '4' 全屏可编辑显示：先整屏清黑，再按 (x, y) 定位渲染（按屏宽自动换行）。
- * @param  p  全屏显示参数（color/x/y/text）。
- * @return YN_OL_EXEC_OK（坐标越界为「执行但不落屏」，同 '3' 口径）。
- * @note   文本中回车 0x0A/0x0D 由渲染引擎原生处理（0x0A 换行、0x0D 跳过）。
- *         坐标越界（x ≥ 屏宽或 y ≥ 屏高）时清屏后不渲染（同云南常规 '4' 口径）。
+ * @param  p  全屏显示参数（color / x / y / text）。
+ * @return YN_OL_EXEC_OK（坐标越界时清屏后不渲染 = 「执行但不落屏」，同 '3' 口径）。
+ * @note   回车 0x0A/0x0D 由渲染引擎原生处理（换行 / 跳过）。
  */
 static int _yn_ol_exec_full_screen(const yn_ol_full_screen_t *p)
 {
@@ -421,14 +385,13 @@ static int _yn_ol_exec_clear_row(uint8_t row)
     _yn_ol_row_black(d, row);
     dev_display_commit_frame(d);
     app_scroll_render_unlock();
-    return YN_OL_EXEC_OK; /* 行起点越界 = 执行但不落屏（诊断行标注） */
+    return YN_OL_EXEC_OK; /* 行起点越界 = 执行但不落屏（不提交可见变化外的动作） */
 }
 
 /**
  * @brief  执行 0x01 全屏点亮（整屏填充单色）。
- * @param  color  DATA0 二进制颜色值（与 display_color_t 枚举恒等）：
- *                0x01 红 / 0x02 绿 / 0x03 黄（文档三色）+
- *                0x04 蓝 / 0x05 紫 / 0x06 青 / 0x07 白（扩展保留，与云南常规则一致）。
+ * @param  color  DATA0 二进制颜色值（与 display_color_t 枚举恒等）：01 红 / 02 绿 / 03 黄
+ *                （文档三色）+ 04~07 蓝/紫/青/白（扩展保留，与云南常规则一致）。
  */
 static int _yn_ol_exec_fill_all(uint8_t color)
 {
@@ -448,10 +411,9 @@ static int _yn_ol_exec_fill_all(uint8_t color)
 
 /**
  * @brief  执行 '8' 亮度设定。
- * @param  level  0 = 自动亮度（参数 0x00 / '0'）；1~8 = 手动档（参数 '1'~'8'，8 最亮）。
- * @note   0 → 恢复光敏任务自动调光（osThreadResume）；
- *         1~8 → 挂起光敏任务（防 1s 周期自动调光覆盖手动档）+ 硬件档恒等映射。
- *         文档口径为 '0'~'5'（5 最亮）——本实现接受超集 '1'~'8'（**已裁决维持**，doc/15 §8）。
+ * @param  level  0 = 自动（参数 0x00 / '0'）；1~8 = 手动档（'1'~'8'，8 最亮）。
+ * @note   0 → 恢复光敏自动调光；1~8 → 挂起光敏任务（防 1s 周期自动调光覆盖手动档）
+ *         + 硬件档恒等映射。文档口径 '0'~'5' 的超集（已裁决维持，doc/15_云南治超屏协议/README.md §8）。
  */
 static int _yn_ol_exec_brightness(uint8_t level)
 {
@@ -476,10 +438,8 @@ static int _yn_ol_exec_brightness(uint8_t level)
 /**
  * @brief  执行 'A' 外设控制（bit0 绿灯 / bit1 红灯 / bit2 黄闪报警）。
  * @param  ctrl  控制位图。
- * @note   车道灯为单灯互斥（true=绿/false=红）：红绿同置时红灯优先
- *         （沿贵州治超/云南常规裁决，协议未定义优先级）。
- *         文档附注（云南 P6 治超屏 192×96）：`7B 41 01 00 7D` 黄闪关、
- *         `7B 41 01 04 7D` 黄闪开——与 bit2 语义一致。
+ * @note   车道灯单灯互斥（true=绿 / false=红）：红绿同置时**红灯优先**（协议未定义优先级，
+ *         沿贵州治超/云南常规裁决）；文档 P6 附注（`04` 黄闪开）与 bit2 语义一致。
  */
 static int _yn_ol_exec_peripheral(uint8_t ctrl)
 {
@@ -498,13 +458,12 @@ static int _yn_ol_exec_peripheral(uint8_t ctrl)
 /* ---- 0x47 修改 IP / 0x48 查询 IP / 0x49 屏体参数 ---- */
 
 /**
- * @brief  执行 0x47 修改 IP：写 Sector1（`port` 字段；`udp_port` 保留现值）→ 应答 0x51
- *         回显 → 短延时后软复位（STD 约定「改 IP/端口重启生效」；对齐 GZ_OL `0x40` 先例）。
+ * @brief  执行 0x47 修改 IP：写 Sector1 `port`（保留 `udp_port`）→ 应答 0x51 回显 →
+ *         `osDelay(100)` 后软复位（STD 约定「改 IP/端口重启生效」）。
  * @param  ch   来源通道。
  * @param  cmd  解析结果（`p.setip` 为 14B 网络参数）。
- * @note   **已裁决维持**（2026-09-17 Q2）：协议文档未定义 0x47 的应答与重启行为——
- *         本实现借 0x51（查询 IP 返回值）作「已写入」回执 + osDelay(100) 后软复位
- *         （STD 约定「改 IP/端口重启生效」；对齐 GZ_OL `0x40` 先例）。
+ * @note   文档未定义 0x47 的应答与复位行为——本实现借 0x51 作「已写入」回执 + 软复位
+ *         （对齐 GZ_OL `0x40` 先例；已裁决维持，见 doc/15_云南治超屏协议/README.md §8 裁决 3）。
  */
 static int _yn_ol_exec_set_ip(channel_t *ch, const yn_ol_parsed_cmd_t *cmd)
 {
@@ -518,12 +477,12 @@ static int _yn_ol_exec_set_ip(channel_t *ch, const yn_ol_parsed_cmd_t *cmd)
 
     (void)wr_ret;
 
-    /* 应答 0x51：按解析值重建本次下发的配置（回显，非读回记录——落盘证据看 readback/重启后 0x48） */
+    /* 应答 0x51：按解析值回显本次下发的配置（非读回记录——落盘证据看重启后 0x48） */
     uint8_t payload[YN_OL_NET_PAYLOAD_LEN];
     memcpy(&payload[0], p->ip, 4);
     memcpy(&payload[4], p->mask, 4);
     memcpy(&payload[8], p->gw, 4);
-    payload[12] = (uint8_t)(p->port >> 8); /* 与请求同序：高字节在前（见头文件） */
+    payload[12] = (uint8_t)(p->port >> 8); /* 与请求同序 BE16（见 .h / doc/15_云南治超屏协议/README.md §2） */
     payload[13] = (uint8_t)(p->port & 0xFFU);
     _yn_ol_send_frame(ch, (uint8_t)YN_OL_PCMD_GET_IP_ACK, payload, YN_OL_NET_PAYLOAD_LEN);
 
@@ -533,10 +492,10 @@ static int _yn_ol_exec_set_ip(channel_t *ch, const yn_ol_parsed_cmd_t *cmd)
 }
 
 /**
- * @brief  执行 0x48 查询 IP：读 Sector1 net_cfg → 应答 0x51 帧（14B 载荷，单播回源）。
+ * @brief  执行 0x48 查询 IP：读 Sector1 net_cfg → 应答 0x51 帧（14B，单播回源）。
  * @param  ch  来源通道。
  * @return YN_OL_EXEC_OK。
- * @note   记录无效时回全 0（IP/掩码/网关/端口全 0 = 尚未配置，诚实回显）。
+ * @note   记录无效时回全 0（全 0 = 尚未配置，诚实回显）。
  */
 static int _yn_ol_exec_get_ip(channel_t *ch)
 {
@@ -549,18 +508,17 @@ static int _yn_ol_exec_get_ip(channel_t *ch)
 }
 
 /**
- * @brief  执行 0x49 设置屏体参数：更新运行态（字体/字宽）并**持久化到 W25Qxx**。
+ * @brief  执行 0x49 设置屏体参数：更新运行态（字体/字宽）并持久化到 W25Qxx。
  * @param  p  屏体参数（font_type / font_size）。
- * @return YN_OL_EXEC_OK（运行态已生效）；写盘失败仍返回 OK（仅告警，不阻塞、不重启）。
- * @note   影响后续 '3'/'4'/行清除的行高与字形；掉电保留（独立 4KB 扇区 12B 记录，
- *         见头文件「0x49 持久化」）。
+ * @return YN_OL_EXEC_OK（运行态已生效）；写盘失败仍返回 OK（仅掉电不保留，不阻塞、不重启）。
+ * @note   生效于后续 '3'/'4'/行清除的行高与字形；记录与选址见 doc/15_云南治超屏协议/README.md §7。
  */
 static int _yn_ol_exec_screen_param(const yn_ol_screen_param_t *p)
 {
     s_yn_ol_font_type = p->font_type;
     s_yn_ol_font_size = p->font_size;
 
-    /* 写盘为「最佳努力」：失败不影响运行态生效（独立扇区记录，仅告警语义） */
+    /* 写盘为「最佳努力」：失败不影响运行态生效（仅掉电不保留） */
     (void)yn_ol_screen_cfg_save();
 
     return YN_OL_EXEC_OK;
@@ -569,13 +527,11 @@ static int _yn_ol_exec_screen_param(const yn_ol_screen_param_t *p)
 /* ---- 0x02 版本号 ---- */
 
 /**
- * @brief  执行 0x02 获取版本号：串口/网络回裸 ASCII PROGRAM_CODE + 屏幕居中显示
- *         「版本:PROGRAM_CODE」。
+ * @brief  执行 0x02 获取版本号：回裸 ASCII PROGRAM_CODE + 屏显「版本:PROGRAM_CODE」。
  * @param  ch  源通道。
- * @return YN_OL_EXEC_OK（版本串已回）；YN_OL_EXEC_NO_DISPLAY 仅屏显部分跳过。
- * @note   文档示例版本号 `YN_ZCP_P10_3.0` 为源固件私有串；本实现沿云南常规/
- *         贵州常规裁决口径回编译期常量 PROGRAM_CODE（唯一固件身份真源），
- *         屏上显示格式沿贵州常规 0x02 先例（`版本:` 前缀 + FONT_SELF_ADAPT 居中）。
+ * @return YN_OL_EXEC_OK；YN_OL_EXEC_NO_DISPLAY = 仅屏显部分跳过（版本串已回）。
+ * @note   回编译期常量 PROGRAM_CODE（唯一固件身份真源，沿云南/贵州常规裁决口径）；
+ *         屏显格式沿贵州常规先例（`版本:` 前缀 + FONT_SELF_ADAPT 居中）。
  */
 static int _yn_ol_exec_version(channel_t *ch)
 {
@@ -632,9 +588,8 @@ font_type_t yn_ol_current_font_type(void)
  * @brief  执行云南治超屏协议命令。
  * @param  ch   当前通道。
  * @param  cmd  解析后的命令结构体。
- * @return yn_ol_exec_ret_t：0 = 已执行；<0 = 未执行/未生效原因（逐帧诊断用）。
- * @note   仅 '1'（状态应答）、0x48（0x51 应答）、0x47（0x51 回执 + 复位）产生上行；
- *         其余命令单向执行不回；解析失败静默丢弃（协议未定义错误应答）。
+ * @return yn_ol_exec_ret_t（0 = 已执行；<0 = 未执行/未生效原因，供调试器观察）。
+ * @note   仅 '1'、0x48、0x47（→0x51）产生上行；其余单向执行不回；解析失败静默丢弃。
  */
 int yn_ol_execute_cmd(channel_t *ch, const yn_ol_parsed_cmd_t *cmd)
 {

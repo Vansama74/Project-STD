@@ -1,26 +1,12 @@
 /**
  * @file    app_gz_ol_proto_parse.c
- * @brief   贵州治超屏协议（"TCLY" 帧族）帧解析
+ * @brief   贵州治超屏协议 — 帧解析（纯函数）
  *
- * 帧结构：`54 43 4C 59` + 包序号(4) + 长度(2 小端，整帧长) + 保留(2) + 命令(4，低字节有效)
- *          + 载荷(变长) + `0x00` 结束符；**无校验**（协议文档未定义任何校验字段）。
- *
- * 解析纪律（对齐 README §待裁决清单的采纳默认值）：
- *   - 长度字段必须等于整帧长、尾字节必须是 0x00（probe 已判，此处二次防御）；
- *   - 0x20 字号仅接受 16/24/32（源固件对其它字号读未初始化变量属未定义行为，
- *     本实现比源固件更严格：整帧丢弃，不复制缺陷）；
- *   - 0x10/0x30/0x50/0x60 不校验载荷长度（源固件各 handler 均忽略载荷；协议文档
- *     0x30 清屏帧例本身即带 17B 显示参数块，严格校验会拒掉上位机真实帧）；
- *   - 0x40 要求载荷 ≥ 14B（源固件不检查直接读，本实现加下界防越界，多余字节忽略）；
- *   - 颜色仅识别 FF0000/00FF00/0000FF 三原色（其余回退红，复现源固件），
- *     其中 00 00 FF 按源固件映射为黄色（现场既有行为，README Q7）；
- *   - 屏宽/屏高字段读取后忽略（渲染一律以 dev_display 实际几何为准，README Q9）。
- *
- * ⚠ 端口字段字节序（**有意偏差**，2026-09-15 用户裁决，README §13.5.1/§14）：
- *   0x40 载荷 `[12..13]` 为**高字节在前（BE16）**——写 10028 发 `27 2C`；
- *   这**不参考协议文档/源固件**（源固件 `UDP_SERVER.C:233` 为低字节在前），
- *   是本设备与上位机对齐后的设计口径。**其它 16 位字段（帧长、0x20 的 X/Y/屏宽/屏高）
- *   仍为小端 LE16，未动**。
+ * 解析纪律（probe 已判帧结构、此处二次防御）：长度字段须 = 整帧长、尾字节须 0x00；
+ * 0x10/0x30/0x50/0x60 **载荷长度不限**（源固件忽略载荷；文档 0x30 帧例自带 17B 参数块），
+ * 0x20 须 ≥17B、0x40 须 ≥14B（源固件不检查直接读，防越界）；字号仅 16/24/32，其余整帧
+ * 丢弃（源固件读未初始化变量属 UB）；0x40 端口 **BE16**（`27 2C` = 10028）仅此一字段。
+ * 详见 doc/14_贵州治超屏协议/README.md §1、§13.5.1
  */
 
 #include "app_gz_ol_proto_parse.h"
@@ -40,16 +26,13 @@ static inline uint16_t _gz_ol_le16(const uint8_t *p)
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
 
-/** @brief 2 字节高字节在前（BE16）读取——**仅 0x40 端口字段**（2026-09-15 用户裁决）。 */
+/** @brief 2 字节高字节在前读取——**仅 0x40 端口字段**（2026-09-15 用户裁决）。 */
 static inline uint16_t _gz_ol_be16(const uint8_t *p)
 {
     return (uint16_t)(((uint16_t)p[0] << 8) | (uint16_t)p[1]);
 }
 
-/**
- * @brief  字体名（GBK 4 字节）→ 字型；未命中回退宋体（与源固件一致）。
- * @param  name  4 字节字体名字段。
- */
+/** @brief 字体名（GBK 4B）→ 字型；未命中回退宋体（与源固件一致）。 */
 static font_type_t _gz_ol_font_type(const uint8_t *name)
 {
     if (memcmp(name, "宋体", GZ_OL_FONT_NAME_LEN) == 0)
@@ -63,12 +46,7 @@ static font_type_t _gz_ol_font_type(const uint8_t *name)
     return FONT_ST;
 }
 
-/**
- * @brief  字体大小字段（两字节均为数值 16/24/32）→ 字号。
- * @param  size_lo,size_hi  字号字段两字节。
- * @param  out              解析结果（成功时写入）。
- * @return true = 合法字号。
- */
+/** @brief 字号字段（两字节须相等）→ font_size_t；仅 16/24/32 合法。 */
 static bool _gz_ol_font_size(uint8_t size_lo, uint8_t size_hi, font_size_t *out)
 {
     if (size_lo != size_hi)
@@ -81,12 +59,7 @@ static bool _gz_ol_font_size(uint8_t size_lo, uint8_t size_hi, font_size_t *out)
     }
 }
 
-/**
- * @brief  字体颜色（RGB 三字节）→ 8 色枚举。
- *
- *  复现源固件映射：FF0000→红、00FF00→绿、0000FF→**黄**（源固件既有行为）、
- *  其余→红（默认）。
- */
+/** @brief 颜色（RGB 3B）→ 8 色枚举；复现源固件（0000FF→黄、其余未知→红）。 */
 static display_color_t _gz_ol_color(const uint8_t *rgb)
 {
     if (rgb[0] == 0xFF && rgb[1] == 0x00 && rgb[2] == 0x00)
@@ -98,7 +71,7 @@ static display_color_t _gz_ol_color(const uint8_t *rgb)
     return COLOR_RED;
 }
 
-/** @brief 命令字（4B 容器低字节）→ 命令枚举。 */
+/** @brief 命令字（4B 容器低字节）→ 命令枚举；未识别 → GZ_OL_PCMD_INVALID。 */
 static gz_ol_pcmd_t _gz_ol_cmd(uint8_t c)
 {
     switch (c) {
@@ -147,13 +120,13 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             const uint8_t *p = cmd.data;
             font_size_t size = FONT_16;
             if (!_gz_ol_font_size(p[12], p[13], &size)) {
-                /* 字号非 16/24/32：源固件此处读未初始化变量（UB），本实现整帧丢弃 */
+                /* 字号非 16/24/32：源固件此处读未初始化变量（UB）→ 本实现整帧丢弃 */
                 cmd.sta = GZ_OL_PARSE_ERR_PARAM;
                 break;
             }
             cmd.p.display.x         = _gz_ol_le16(&p[0]);
             cmd.p.display.y         = _gz_ol_le16(&p[2]);
-            /* p[4..7] 屏宽/屏高：源固件读取后忽略，本实现同样忽略（README Q9） */
+            /* p[4..7] 屏宽/屏高：源固件读取后忽略，本实现同样忽略（§2 #4） */
             cmd.p.display.font_type = _gz_ol_font_type(&p[8]);
             cmd.p.display.font_size = size;
             cmd.p.display.color     = _gz_ol_color(&p[14]);
@@ -164,8 +137,7 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
         }
 
         case GZ_OL_PCMD_SET_IP: {
-            /* 源固件不检查载荷长度直接读前 14B；本实现要求至少 14B（防越界读），
-             * 多余字节忽略 */
+            /* 下界 14B 防越界读（源固件不检查直接读前 14B）；多余字节忽略 */
             if (cmd.data_len < GZ_OL_NET_PAYLOAD_LEN) {
                 cmd.sta = GZ_OL_PARSE_ERR_PARAM;
                 break;
@@ -173,8 +145,8 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             memcpy(cmd.p.setip.ip, &cmd.data[0], 4);
             memcpy(cmd.p.setip.mask, &cmd.data[4], 4);
             memcpy(cmd.p.setip.gw, &cmd.data[8], 4);
-            /* 端口字段 **高字节在前**（2026-09-15 用户裁决，有意偏离源固件/协议文档；
-             * 只此一字段，见文件头与 README §13.5.1/§14）：`27 2C` → 10028。 */
+            /* 端口字段 **高字节在前**（2026-09-15 用户裁决：有意偏离源固件/协议文档；
+             * 只此一字段，见文件头与 §13.5.1）：`27 2C` → 10028 */
             cmd.p.setip.port = _gz_ol_be16(&cmd.data[12]);
             cmd.sta          = GZ_OL_PARSE_OK;
             break;
@@ -192,14 +164,12 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             break;
         }
 
-        /* 无载荷命令：**载荷长度不限**（与源固件一致——各 handler 不读载荷）。
-         * 依据：协议文档 0x30 清屏帧例实际带 17B 显示参数块（长度字段 0x22=34），
-         * 严格校验会拒掉上位机的真实帧；源固件 cmd_screenclear/cmd_getfailure/
-         * cmd_scip_ctrl 均忽略载荷。 */
+        /* 无载荷命令：**载荷长度不限**（与源固件一致——各 handler 不读载荷）。依据：文档
+         * 0x30 清屏帧例本身带 17B 参数块（长度 0x22=34），严格校验会拒掉上位机真实帧。 */
         case GZ_OL_PCMD_FAULT_QUERY:
         case GZ_OL_PCMD_CLEAR:
         case GZ_OL_PCMD_SEARCH:
-        case GZ_OL_PCMD_SET_IP_ACK: /* 兼容源固件：入站 0x50 亦作搜索触发（README Q3） */
+        case GZ_OL_PCMD_SET_IP_ACK: /* 入站 0x50 亦作搜索触发（§8 Q3 采纳 C） */
             cmd.sta = GZ_OL_PARSE_OK;
             break;
 

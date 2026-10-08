@@ -1,18 +1,12 @@
 /**
  * @file    app_gz_ol_proto_cmd.c
- * @brief   贵州治超屏协议（"TCLY" 帧族）命令执行与应答组帧
+ * @brief   贵州治超屏协议 — 命令执行与应答组帧
  *
- * 显示映射：app_render（GBK 直通；0x20 按 X/Y 定位、先整屏清黑、按屏宽自动换行、
- * 超屏裁剪）；亮度/自动调光映射：dev_display_set_brightness + 光敏任务挂起/恢复；
- * 网络配置：STD 中立模块 app_board_net_cfg（Sector1），不写私有 W25Qxx 记录。
- *
- * 应答帧与请求同帧族（引导串 + 长度 + 命令 + 载荷 + 0x00），一律**单播回源通道**
- * （README Q4 推荐 A：STD channel_send 语义；源固件搜索应答为广播，联调如证明上位机
- * 依赖广播再评估）。
- *
- * 渲染互斥（README Q13 推荐 B）：本模块「stop/清屏 + 渲染 + 提交」整段持
- * app_scroll_render_lock，与安徽动态滚动（app_scroll）渲染串行，消除同屏混合帧黑条；
- * 引擎未创建时该锁为空操作，零成本。
+ * 显示走 app_render（GBK 直通、先整屏清黑、按屏宽换行、越屏裁剪绘制）；0x20 文本字面
+ * `\n`（0x5C 0x6E）在执行层原地转 0x0A（GBK 安全行走）；亮度/调光 = set_brightness +
+ * 光敏任务挂起/恢复（0x80 副作用）；网络配置写 Sector1 `net_cfg.port`（`udp_port` 保留）、
+ * 端口 **BE16**；「清屏/渲染/提交」持 `app_scroll_render_lock`；应答单播回源。
+ * 详见 doc/14_贵州治超屏协议/README.md §1、§3、§8、§10、§11、§13
  */
 
 #include "app_gz_ol_proto_cmd.h"
@@ -28,16 +22,16 @@
 #include "stm32f4xx_hal.h" /* NVIC_SystemReset */
 
 /* ---- 模块运行态 ---- */
-static bool s_gz_ol_auto_dim_off; /**< 光敏自动调光是否被本模块挂起（0x80 副作用） */
+static bool s_gz_ol_auto_dim_off; /**< 光敏自动调光是否被本模块挂起（0x80 副作用，见 §1） */
 
 /* ---- 应答组帧 ---- */
 
 /**
- * @brief  构造并发送本协议应答帧。
- * @param  ch           来源通道（单播回源）。
+ * @brief  组帧并经来源通道单播发送。
+ * @param  ch           来源通道。
  * @param  cmd          应答命令字（4B 容器低字节有效）。
  * @param  payload      载荷（可为 NULL）。
- * @param  payload_len  载荷字节数。
+ * @param  payload_len  载荷字节数（本模块应答最长 14B，超出直接返回）。
  */
 static void _gz_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload, uint16_t payload_len)
 {
@@ -71,16 +65,11 @@ static void _gz_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload
 }
 
 /**
- * @brief  读当前网络配置并填入 14B 应答载荷（ip4 + mask4 + gw4 + port2 高字节在前）。
- *
- *  port 字段语义（2026-09-14 用户裁决，doc/14 §13）：报 Sector1 net_cfg.port——
- *  它同时是 GZ_OL 专用业务口（CH_ID_UDP_GZOL）的监听口与 TCP 业务口（同号不同协议栈），
- *  与 LDI 12H / IAP 0x01 上报一致；udp_port（CQ 专有）不参与。
- *  字节序（2026-09-15 用户裁决，doc/14 §13.5.1/§14）：**高字节在前 BE16**——`27 2C`
- *  在线上的语义是 10028（有意偏离源固件/协议文档的低字节在前口径）。
- *
+ * @brief  读 Sector1 net_cfg 填入 14B 载荷（ip4 + mask4 + gw4 + port2 **BE16**）。
  * @param  out  14B 输出缓冲。
- * @return true = 读到有效配置；false = 记录无效（调用方用出厂默认兜底）。
+ * @return true = 读到有效配置；false = 记录无效（调用方用全 0 兜底）。
+ * @note   port 报 `net_cfg.port`——它同时是 GZ_OL 专用 UDP 业务口与 TCP 业务口的监听号
+ *         （与 LDI 12H / IAP 0x01 同源）；`udp_port`（CQ 专有）不参与。详见 §13。
  */
 static bool _gz_ol_net_payload(uint8_t *out)
 {
@@ -105,34 +94,13 @@ static void _gz_ol_clear_screen(dev_display_t *d)
     dev_display_commit_frame(d);
 }
 
-
 /**
- * @brief  把 0x20 显示文本里的字面两字节序列 `\n`（0x5C 0x6E）转换为换行符 0x0A
- *         （原地转换，输出长度 ≤ 输入长度）。
- *
- *  2026-09-18 用户裁决（doc/14 README §1/§14）：上位机 GBK 文本以字面 `\` + `n` 两个
- *  字节作行分隔符，固件须解析为换行后交给渲染引擎（app_render 支持 0x0A 换行，
- *  山东 '4' / 贵州常规 '4' 先例）。仅处理 `\n`：`\r` 与其它转义序列不解析。
- *
- *  GBK 安全行走（关键正确性）：GBK 双字节字符的**尾字节可以是 0x5C**，朴素两字节匹配
- *  会把「某 GBK 汉字尾字节 0x5C + 下一个 ASCII 'n'」误判成换行、毁掉该汉字。因此按
- *  GBK 结构行走：
- *   - src[i]==0x5C 且 src[i+1]==0x6E → 输出 0x0A，i += 2；
- *   - src[i] 是 GBK 首字节（0x81~0xFE）且后续尾字节合法（0x40~0xFE 除 0x7F）
- *     → 原样拷贝两字节（**不检查尾字节是否为 0x5C**），i += 2；
- *   - 其余单字节拷贝，i += 1。
- *  纯 ASCII 文本（全部 < 0x81）逐字节行走，结果与朴素匹配一致。
- *
- *  原地安全：text 指向任务帧缓冲拷贝（gz_ol_proto_handle_task 的 msg_buf，
- *  GZ_OL_MSG_SIZE = sizeof(frame_msg_t) + GZ_OL_PAYLOAD_MAX = 8 + 256；osMessageQueueGet
- *  取帧后的任务独占私有拷贝，非共享 RB 数据），且本函数输出 ≤ 输入、双指针只落后不
- *  超前，无需额外缓冲。文本上界 = GZ_OL_FRAME_LEN_MAX(256) − GZ_OL_FRAME_LEN_MIN(17)
- *  − GZ_OL_DISPLAY_PREFIX_LEN(17) = 222B，恒在 msg_buf 内。
- *
+ * @brief  把 0x20 文本里的字面 `\n`（0x5C 0x6E）原地转换为换行 0x0A。
  * @param  text    文本（GBK/ASCII 混合，可原地修改）。
- * @param  len     文本字节数。
- * @param  out_nl  输出：转换出的换行个数（可为 NULL）。
- * @return 转换后文本字节数（≤ len）。
+ * @param  len     文本字节数；`out_nl` 输出转换出的换行个数（可为 NULL）。
+ * @return 转换后长度（≤ len；输出 ≤ 输入、双指针只落后不超前，无需额外缓冲）。
+ * @note   必须按 GBK 结构行走（尾字节可为 0x5C，朴素匹配会毁字）：首字节 0x81~0xFE +
+ *         合法尾字节整体拷贝、不参与转义判定；仅 `\n` 转换。裁决与陷阱回归见 §1、§14。
  */
 static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_nl)
 {
@@ -159,19 +127,11 @@ static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_
 }
 
 /**
- * @brief  执行 0x20 立即显示：先整屏清黑，再按 (x, y) 定位渲染（按屏宽自动换行）。
- * @param  cmd  解析结果（p.display 为显示参数；data/data_len 仅供诊断 dump 原始载荷）。
- *
- * **字号与屏体几何（2026-09-14 用户裁决修订）**：字号（16/24/32）**不再要求 ≤ 屏高**。
- * 渲染层仅对「行首已完全越出渲染区域」（cur_y >= h）的行终止绘制，行框下缘越界
- * （cur_y < h <= cur_y+字号）保留并由 `dev_display_draw_bitmap()` 按屏幕交集逐像素
- * 裁剪（该函数越界由整块丢弃改为裁剪绘制，见 `Device/Display/dev_display.c`）。因此
- * 「字号 > 屏高」时字形露出**可见的上部**（单模组 32×16 台架上 24/32 点阵），不再是
- * 「清屏后全黑」；224×64 整机字形全在屏内、表现零变化；16 点阵在两种几何上均不变。
- * 本函数传参保持「区域 = 剩余屏幕」：w = 屏宽 − x、h = 屏高 − y——首行不受行终止判定
- * 约束，h 无需为 24/32 放大即可绘制（`draw_bitmap` 按屏幕交集裁剪绘制）。
- * 文本预处理（2026-09-18 用户裁决）：渲染前把字面两字节序列 `\n`（0x5C 0x6E）原地
- * 转换为换行 0x0A（GBK 安全行走，见 _gz_ol_text_unescape_nl），其余字节不变。
+ * @brief  执行 0x20：先整屏清黑，再按 (x, y) 渲染（按屏宽自动换行、越屏裁剪绘制）。
+ * @param  cmd  解析结果（`p.display` 为显示参数；`text` 可原地转换，见 `_gz_ol_text_unescape_nl`）。
+ * @note   字号**不受屏高限制**：行框下缘越屏由 `dev_display_draw_bitmap` 按屏幕交集裁剪绘制
+ *         （2026-09-14 裁决，另两层改动见 §12.6）；区域 = 剩余屏幕（w/h 不做字号补偿，
+ *         首行不受行终止判定约束）。`x`/`y` ≥ 屏宽/屏高时钳 0（源固件行为）。
  */
 static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
 {
@@ -186,9 +146,8 @@ static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
     const uint16_t h = (uint16_t)(d->screen_cols - y);
 
 
-    /* 文本字面 "\n"（0x5C 0x6E）→ 换行 0x0A 原地转换（2026-09-18 用户裁决，GBK 安全行走）。
-     * p->text 指向任务帧缓冲拷贝（任务独占、可变，见 _gz_ol_text_unescape_nl 注释），
-     * 转换输出 ≤ 输入，无额外缓冲；执行层转换保证 RS485/RS232/UDP10011/专用口四通道一致。 */
+    /* 字面 `\n`（0x5C 0x6E）→ 0x0A 原地转换（2026-09-18 裁决）；p->text 为任务帧缓冲
+     * 私有拷贝（可变），转换输出 ≤ 输入、无额外缓冲——四通道一律经此转换。 */
     uint16_t text_len = p->text_len;
     if (text_len > 0U)
         text_len = _gz_ol_text_unescape_nl((char *)p->text, text_len, nullptr);
@@ -225,7 +184,7 @@ static void _gz_ol_exec_display(const gz_ol_parsed_cmd_t *cmd)
 }
 
 /**
- * @brief  执行 0x30 清屏（全屏清黑）。
+ * @brief  执行 0x30 清屏（全屏清黑；载荷长度不限）。
  */
 static void _gz_ol_exec_clear(void)
 {
@@ -238,12 +197,10 @@ static void _gz_ol_exec_clear(void)
 }
 
 /**
- * @brief  执行 0x80 创迪扩展全屏纯色。
- *
- *  复现源固件行为：仅识别 FF0000(红)/00FF00(绿)/0000FF(黄) 三色，其余**不动屏幕**；
- *  副作用：关闭光敏自动调光并置亮度 8（最亮）。
- *
+ * @brief  执行 0x80 全屏纯色（复现源固件：仅 FF0000/00FF00/0000FF 三色，其余不动屏幕）。
  * @param  rgb  三字节 RGB。
+ * @note   副作用 = 挂起光敏任务 + 亮度 8（`DEV_DISPLAY_BRIGHTNESS_MAX`）；收到任意帧即由
+ *         `gz_ol_resume_auto_dim()` 恢复。见 §1 命令表与 §8 Q6。
  */
 static void _gz_ol_exec_full_color(const gz_ol_rgb_t *rgb)
 {
@@ -288,23 +245,19 @@ void gz_ol_resume_auto_dim(void)
 }
 
 /**
- * @brief  执行 0x40 修改 IP：写 Sector1（port 字段；udp_port 保留现值）→ 应答 0x50 帧
- *         → 短延时后软复位（源固件语义：应答后重启生效）。
+ * @brief  执行 0x40：写 Sector1 `net_cfg.port`（`udp_port` 保留）→ 应答 0x50 → 延时软复位。
  * @param  ch   来源通道。
- * @param  cmd  解析结果（`p.setip` 为 14B 网络参数）。
- *
- *  端口字段 **高字节在前 BE16**（2026-09-15 用户裁决，10028 → `payload[12..13] = 27 2c`）。
- *  `0x50` 应答只是回显请求，**不是落盘证据**；落盘证据 = 重启后 `0x70` 搜索回显
- *（见 doc/14 §13.4）。
+ * @param  cmd  解析结果（`p.setip` 为 14B 网络参数，端口已按 BE16 解析）。
+ * @note   `0x50` 应答是**按解析值重建的回显、不是落盘证据**（落盘证据 = 重启后 `0x70`
+ *         回读 + 新端口实发，见 §13.4）；`osDelay(100)` 给 9600bps 下的应答留传输时间。
  */
 static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 {
     const gz_ol_setip_t *p = &cmd->p.setip;
 
-    /* 端口字段语义（2026-09-14 用户裁决，doc/14 §13）：写 net_cfg.port——重启后由
-     * app_net_boot 应用到 TCP 业务口、由本协议专用 UDP 实例（CH_ID_UDP_GZOL）应用到
-     * GZ_OL 业务口（同号不同协议栈）；udp_port 保留现值（CQ 专有）。
-     * 记录无效时 udp_port 按出厂默认 20103 兜底（与 app_net_boot 默认一致）。 */
+    /* 写 net_cfg.port：重启后由 app_net_boot 应用到 TCP 业务口、由 GZ_OL 专用 UDP 实例
+     * （CH_ID_UDP_GZOL）应用到业务口（同号不同协议栈）；udp_port 保留现值（CQ 专有），
+     * 记录无效时按出厂默认 20103 兜底（与 app_net_boot 默认一致）。见 §13。 */
     app_board_net_cfg_t cur;
     uint32_t udp_port = (app_board_net_cfg_get(&cur) == 0) ? cur.udp_port : 20103U;
 
@@ -313,8 +266,8 @@ static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 
     (void)wr_ret; /* 返回值不影响应答与重启流程（0x50 回显 + 重启为固定语义） */
 
-    /* 应答 0x50 帧（**按解析值重建**本次下发的配置，与源固件一致；
-     * 端口字段与请求同序 = BE16 高字节在前，2026-09-15 用户裁决；**回显不是落盘证据**） */
+    /* 应答 0x50 帧（**按解析值重建**本次下发的配置，与源固件一致；端口与请求同序 BE16，
+     * 2026-09-15 用户裁决；**回显不是落盘证据**） */
     uint8_t payload[GZ_OL_NET_PAYLOAD_LEN];
     memcpy(&payload[0], p->ip, 4);
     memcpy(&payload[4], p->mask, 4);
@@ -332,6 +285,7 @@ static void _gz_ol_exec_set_ip(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
 /**
  * @brief  执行 0x50 / 0x60 搜索：应答 0x70 帧（14B 载荷，单播回源）。
  * @param  ch  来源通道。
+ * @note   记录无效（`app_board_net_cfg_get` 失败）时回**全 0** 载荷（尚未配置，诚实回显）。
  */
 static void _gz_ol_exec_search(channel_t *ch)
 {
@@ -343,9 +297,8 @@ static void _gz_ol_exec_search(channel_t *ch)
 
 /**
  * @brief  执行 0x10 故障查询：应答 2 字节状态 0x0000（先低字节后高字节）。
- *
- *  协议文档「若硬件无此故障信息硬件，该位补 0」→ STD 硬件无对应故障采集点，
- *  全 0 合规且诚实（源固件为空实现不应答，会让上位机轮询超时，不复制该缺陷）。
+ * @note   文档「无此故障硬件的位补 0」→ STD 无对应故障采集点，全 0 合规；源固件空实现
+ *         不应答会让上位机轮询超时，不复制该缺陷（§2 #2）。
  */
 static void _gz_ol_exec_fault_query(channel_t *ch)
 {
@@ -375,7 +328,7 @@ void gz_ol_execute_cmd(channel_t *ch, const gz_ol_parsed_cmd_t *cmd)
             _gz_ol_exec_set_ip(ch, cmd);
             break;
         case GZ_OL_PCMD_SEARCH:
-        case GZ_OL_PCMD_SET_IP_ACK: /* 入站 0x50 兼容为搜索触发（README Q3 推荐 C） */
+        case GZ_OL_PCMD_SET_IP_ACK: /* 入站 0x50 兼容为搜索触发（§8 Q3） */
             _gz_ol_exec_search(ch);
             break;
         default:

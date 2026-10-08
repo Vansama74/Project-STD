@@ -1,0 +1,6 @@
+== 口径：pre（归档 = git HEAD）==
+  Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h          总行  171 / 注释行  109 / 文件头  29
+  Application/Src/ProtocolParser_Myanmar/app_mm_proto.c          总行  257 / 注释行   89 / 文件头  19
+  Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c      总行  217 / 注释行   93 / 文件头  18
+  Application/Src/app_factory_test_mm.c                          总行   76 / 注释行   30 / 文件头  10
+  合计                                                             总行  721 / 注释行  321

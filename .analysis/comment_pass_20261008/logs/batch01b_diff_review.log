@@ -1,0 +1,8 @@
+  ✔ Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h  +34 / -77（注释/块注释续行/空行，其中行尾注释改写 24 行（代码部分未动，token 流另有独立证明））
+  ✔ Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.h  +0 / -0（注释/块注释续行/空行）
+  ✔ Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.h  +0 / -0（注释/块注释续行/空行）
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c  +29 / -64（注释/块注释续行/空行）
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c  +43 / -90（注释/块注释续行/空行，其中行尾注释改写 4 行（代码部分未动，token 流另有独立证明））
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c  +19 / -49（注释/块注释续行/空行，其中行尾注释改写 2 行（代码部分未动，token 流另有独立证明））
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c  +6 / -9（注释/块注释续行/空行）
+######## 结果：+131 / -289（行尾注释改写 30 行），仅注释变化 ✔

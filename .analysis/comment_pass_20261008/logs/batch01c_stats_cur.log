@@ -1,0 +1,6 @@
+== 口径：cur（工作区现行）==
+  Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h          总行  122 / 注释行   60 / 文件头  10
+  Application/Src/ProtocolParser_Myanmar/app_mm_proto.c          总行  220 / 注释行   52 / 文件头   9
+  Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c      总行  189 / 注释行   65 / 文件头  10
+  Application/Src/app_factory_test_mm.c                          总行   76 / 注释行   30 / 文件头  10
+  合计                                                             总行  607 / 注释行  207

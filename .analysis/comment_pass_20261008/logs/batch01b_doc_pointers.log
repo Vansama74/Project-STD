@@ -1,0 +1,8 @@
+  ✔ Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h:9  doc/14_贵州治超屏协议/README.md §1、§3、§4、§13
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c:9  doc/14_贵州治超屏协议/README.md §1、§3、§4、§11、§13
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c:24  doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c:40  doc/14_贵州治超屏协议/README.md §6
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c:9  doc/14_贵州治超屏协议/README.md §1、§3、§8、§10、§11、§13
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c:9  doc/14_贵州治超屏协议/README.md §1、§13.5.1
+  ✔ Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c:9  doc/14_贵州治超屏协议/README.md §7
+######## doc 指针检查：7/7 通过，失败 0

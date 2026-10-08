@@ -4,9 +4,9 @@
  *
  * 与标准版 `Application/Src/app_factory_test.c` **二选一编译**：两文件对外符号同名同义
  * （`app_factory_mode_interrupt` / `app_factory_test_active` / `g_factory_test`）⇒ 同编即
- * 链接报 multiple definition（天然守卫）。选择入口：Makefile `FACTORY=STD|MM`、
- * EIDE `targets.<目标>.excludeList`。语义/日志与现场测试矩阵见
- * `doc/16_缅甸2D费显协议/README.md` §13。
+ * 链接报 `multiple definition`（天然守卫）。选择入口：Makefile `FACTORY=STD|MM`、
+ * EIDE `targets.<目标>.excludeList`；**不引用任何显示 API**（无显示构建安全）。
+ * 语义与现场测试矩阵见 doc/16_缅甸2D费显协议/README.md §13
  */
 
 #include "app_factory_test.h"

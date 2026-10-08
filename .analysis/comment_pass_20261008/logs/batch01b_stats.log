@@ -1,0 +1,26 @@
+== 改后行数/注释行（含改前对照） ==
+  app_gz_ol_proto.h          行  180 ->  137   注释行   84 ->   42
+  app_gz_ol_proto_cmd.h      行    7 ->    7   注释行    4 ->    4
+  app_gz_ol_proto_parse.h    行    7 ->    7   注释行    4 ->    4
+  app_gz_ol_proto.c          行  227 ->  192   注释行   81 ->   46
+  app_gz_ol_proto_cmd.c      行  384 ->  337   注释行  131 ->   85
+  app_gz_ol_proto_default.c  行   79 ->   76   注释行   21 ->   18
+  app_gz_ol_proto_parse.c    行  213 ->  183   注释行   55 ->   25
+  合计                        行 1097 -> 939   注释行 380 -> 224
+
+== 注释块长度上限（文件头 ≤10 / 函数 ≤8）==
+  app_gz_ol_proto.h          超限块: 无
+  app_gz_ol_proto_cmd.h      超限块: 无
+  app_gz_ol_proto_parse.h    超限块: 无
+  app_gz_ol_proto.c          超限块: 无
+  app_gz_ol_proto_cmd.c      超限块: 无
+  app_gz_ol_proto_default.c  超限块: 无
+  app_gz_ol_proto_parse.c    超限块: 无
+  结论: 全部通过
+
+== diff stat ==
+34	77	Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h
+29	64	Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c
+43	90	Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c
+6	9	Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c
+19	49	Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c

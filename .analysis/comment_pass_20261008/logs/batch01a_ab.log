@@ -1,0 +1,40 @@
+== 改前源码（归档）md5 ==
+6f07bc05cf8392c36a4cc19f49ad6c32  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c
+1ca4845c9c3125947290d2207c28c383  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.c
+d0f6758d9ebcdbcb8ec8e0dd36d5dba3  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.c
+871a4a6c13d5c9a9974935cf6b6052b7  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.h
+c5805f1309116ae355beb1c85f719ad6  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto.h
+34fd69602a5cd451d6d213c07c7ffbd8  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.h
+
+== 编译改前（影子头文件）==
+  app_yn_ol_proto.c: exit=0 warnings=0
+  app_yn_ol_proto_cmd.c: exit=0 warnings=0
+  app_yn_ol_proto_parse.c: exit=0 warnings=0
+
+== 编译改后（仓库现行）==
+  app_yn_ol_proto.c: exit=0 warnings=0
+  app_yn_ol_proto_cmd.c: exit=0 warnings=0
+  app_yn_ol_proto_parse.c: exit=0 warnings=0
+
+######## app_yn_ol_proto.c
+  整对象 md5（含 .debug*）：pre=b2a53b6b5467eb96cbe5dd727601cd0a cur=83c7d03b9acbc6361416a94003283ee8
+  strip-debug md5     ：pre=0ed06b47ee624d9ff5338d3b8976fbf0 cur=0ed06b47ee624d9ff5338d3b8976fbf0
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 22）
+  ✔ 反汇编逐行一致（203 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_yn_ol_proto_cmd.c
+  整对象 md5（含 .debug*）：pre=3d430e11744da864c6d508fd98ed5254 cur=918adb2373227050956199142e43750a
+  strip-debug md5     ：pre=68c35618e10332f88faffef7b6ceb6e8 cur=68c35618e10332f88faffef7b6ceb6e8
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 42）
+  ✔ 反汇编逐行一致（963 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_yn_ol_proto_parse.c
+  整对象 md5（含 .debug*）：pre=4f66917c4b518bb959955302ec903eb5 cur=1e4cd75b9a337bb6ed4dc5186cabae7d
+  strip-debug md5     ：pre=0470abe17547cf3dcc183018f5299d6b cur=0470abe17547cf3dcc183018f5299d6b
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 7）
+  ✔ 反汇编逐行一致（395 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## 结果：批 1a 全部一致（注释规范化零机器码影响）

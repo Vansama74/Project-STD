@@ -2,30 +2,11 @@
  * @file    app_mm_proto.h
  * @brief   缅甸 2D 费显协议（车道灯开关量控制）公共定义
  *
- * 协议原文：`2D缅甸费显协议.doc`（3 页）。实读要点：RS232 / 9600 / 8N1；
- * 帧 = 起始码 0xFF + 机器地址 0xE0 + 命令方式字 1B + 命令内容 12B(DATA0~11) +
- * 结束码 5B ⇒ **整帧定长 20 字节**（字节序 [0]=0xFF、[1]=0xE0、[2]=命令字、
- * [3..14]=DATA0~11、[15..19]=结束码 00×5；本模块只读 DATA0=[3]）。
- *
- * 命令方式字（文档仅列 5 个）：0x10 数码管 / 0x40 亮度 / 0x80 黄闪报警 /
- * 0x90 红色车道灯 / 0x0A 车道灯（文档标题与注文自相矛盾）。
- * **本模块只解析车道灯开关量指令**（用户需求），其余命令结构合法即整帧 SKIP 消费。
- *
- * 用户裁决的灯位映射：`0x90→红灯` / `0x0A→左下箭头` / `0x0B→右下箭头`（DATA0：1 开 / 0 关）。
- * ⚠ 文档没有 0x0B（0x0A 例 2 后即结束），0x0A 标题/注文不一致——按用户口径实现，
- * 待现场确认项见 doc/16 §8。⚠ 箭头落点可运行时交换（`mm_arrow_map_toggle()`，出厂测试用，
- * 红灯不受影响、不掉电保存，见 doc/16 §13）。
- *
- * 开关量输出层：红灯 = S1 = PE12 / 左下箭头 = S2 = PE11 / 右下箭头 = S3 = PE10，
- * **推挽输出、高电平有效**（2026-09-28 现场实测：复位后红灯即亮 + PE12 实测 3.3V ⇒
- * 高 = 点亮），**上电默认红叉 = 红灯点亮**（2026-09-29 用户需求，取代「三路全灭」）；
- * 映射单一改动点 = `app_mm_proto_cmd.c` 的 `s_mm_lamp_map` + `_mm_drive()`。
- * 接管时按线摘 EXTI（`pl_gpio_release_exti`，不碰其它线/NVIC），原 SW1~SW3 输入语义
- * 随之失效——副作用与兼容矩阵见 doc/16 §4 与 doc/05-01 §6。
- *
- * 通道：**只绑 CH_ID_RS232**（RS232_1/USART6 为语音 TTS 专用，禁止 bind）；
- * 波特率 9600 由 DIP1 全局选择 ⇒ 现场必须置 OFF。命名前缀 `mm_` / `MM_`，
- * 与 doc/12 未实施的旧缅甸方案（`app_md_*`）不复用、不混用。
+ * 帧 = `FF E0` + 命令字 1B + 内容 12B(DATA0~11) + 结束码 5B ⇒ **定长 20B、无长度字段、无校验、无应答**；
+ * 只解析 `0x90` 红灯 / `0x0A` 左下 / `0x0B` 右下（DATA0：1 开 / 0 关），其它命令整帧 SKIP。
+ * 干接点 = 红灯 S1/PE12、左下 S2/PE11、右下 S3/PE10，推挽**高电平有效**，上电默认红叉（红灯亮）；
+ * 只绑 `CH_ID_RS232`（**禁绑 `CH_ID_RS232_1`** 语音 TX）；9600 靠 DIP1 置 OFF；箭头交换不持久化（§13）。
+ * 详见 doc/16_缅甸2D费显协议/README.md §2、§3、§6、§7、§8、§13、§14
  */
 #pragma once
 
@@ -44,18 +25,16 @@
 /** 整帧定长 = 起始码 1 + 机器地址 1 + 命令 1 + 内容 12 + 结束码 5（文档「命令长度 20 字节」） */
 #define MM_FRAME_LEN (3U + MM_DATA_LEN + MM_TAIL_LEN)
 
-/** 结束码「结构正签名」：用于区分「本设备的结构合法帧」与「同槽其它 0xFF 帧族」。
- *  取 [15..18] = 结束字符5..2（文档取值 00 00 00 00）；**末字节 [19] 不参与判别**——
- *  同源 8051 固件（`MianDian_Fee/C51_UART.C`）把该字节当 XOR 字节（算出但从不比对），
- *  现场若上位机确实填了 XOR，纳入判别会导致该帧被误拒。 */
+/** 结束码「结构正签名」（SKIP 分支门槛）：取 [15..18] 四字节 == 0x00；**末字节 [19] 不参与判别**
+ *  ——同源 8051 把该字节当 XOR（算出但从不比对），纳入判别会误拒「真填 XOR」的合法帧（§2.4、§6）。 */
 #define MM_TAIL_SIG_OFFSET (MM_FRAME_LEN - MM_TAIL_LEN) /**< 15 */
 #define MM_TAIL_SIG_LEN (MM_TAIL_LEN - 1U)              /**< 4 */
 #define MM_TAIL_SIG_VALUE (0x00U)                       /**< 结束字符5..2 取值 */
 
 /** 入队/解析上限 = 定长帧长（本协议无变长帧） */
 #define MM_PAYLOAD_MAX (MM_FRAME_LEN)
-#define MM_QUEUE_DEPTH (3U)
-#define MM_MSG_SIZE    (sizeof(frame_msg_t) + MM_PAYLOAD_MAX)
+#define MM_QUEUE_DEPTH (3U) /**< 队列深度（文档「先到先处理」缓存语义） */
+#define MM_MSG_SIZE    (sizeof(frame_msg_t) + MM_PAYLOAD_MAX) /**< 单消息 = frame_msg_t + 定长载荷 */
 
 _Static_assert(MM_PAYLOAD_MAX <= RB_SIZE_RS232, "MM frame must fit RS232 RB");
 _Static_assert(MM_FRAME_LEN == 20U, "MM frame is fixed 20 bytes per protocol doc");
@@ -73,7 +52,7 @@ typedef enum {
     MM_LAMP_RED      = 0, /**< 红灯      ← 命令 0x90 */
     MM_LAMP_LEFT     = 1, /**< 左下箭头灯 ← 命令 0x0A */
     MM_LAMP_RIGHT    = 2, /**< 右下箭头灯 ← 命令 0x0B */
-    MM_LAMP_COUNT    = 3,
+    MM_LAMP_COUNT    = 3, /**< 灯位总数（遍历上界） */
 } mm_lamp_t;
 
 /** 帧解析结果 */
@@ -85,40 +64,26 @@ typedef struct {
 } mm_parsed_cmd_t;
 
 /**
- * @brief  解析缅甸 2D 费显帧（纯函数：无副作用、不阻塞、不持有锁）。
- *
- * 只做定长帧的字段抽取与命令字/取值判别；不做整帧校验（文档未定义校验字节，
- * 结束码 5 字节的取值判别在 probe 层完成——见 `app_mm_proto.c` 的 probe 注释）。
- *
- * @param  raw      原始帧（调用者保证长度 = MM_FRAME_LEN，由 probe 保证）。
- * @param  raw_len  原始帧长度；≠ MM_FRAME_LEN 时直接返回 parsed=false。
+ * @brief  解析定长帧的字段与车道灯命令（纯函数：无副作用、不阻塞、不持锁）。
+ * @param  raw      原始帧（probe 保证结构；长度 ≠ `MM_FRAME_LEN` 时返回 parsed=false）。
+ * @param  raw_len  原始帧长度。
  * @return 解析结果；parsed=false 时执行层不动作。
+ * @note   不校验结束码（文档未定义校验；取值判别在 probe 层，见 §6）。
  */
 mm_parsed_cmd_t mm_parse_frame(const uint8_t *raw, uint16_t raw_len);
 
 /**
- * @brief  执行解析后的车道灯命令（帧处理任务调用）。
+ * @brief  执行解析后的车道灯命令（无应答、无显示、无语音）。
  * @param  cmd  解析结果（parsed=false 时直接返回）。
- * @note   仅本模块持有的一处干接点映射 → `_mm_apply_lamp()`；无应答、无显示动作。
- *         实际落点经 `_mm_effective_lamp()` 做「箭头落点交换」后驱动（见 `mm_arrow_map_toggle()`）。
+ * @note   落点先经「箭头交换」单点 `_mm_effective_lamp()` 再驱动（红灯不受影响，见 §13）。
  */
 void mm_execute_cmd(const mm_parsed_cmd_t *cmd);
 
 /**
- * @brief  交换 / 还原 0x0A 与 0x0B 两条箭头命令的干接点落点（出厂测试开关）。
- *
- * 语义（默认态 ⇄ 交换态，可来回切换；**不做掉电保存**，每次开机回默认态）：
- *   默认态：`0x0A` → 左下箭头（`MM_LAMP_LEFT`，S2/PE11）；`0x0B` → 右下箭头（`MM_LAMP_RIGHT`，S3/PE10）
- *   交换态：`0x0A` → 右下箭头；`0x0B` → 左下箭头
- * 不变量：
- *   · **红灯 `0x90` 不受影响**（只有 LEFT ⇄ RIGHT 两支参与交换）；
- *   · probe 判据 / 帧解析 / 队列 / `s_mm_lamp_map` / 极性表达式**零改动**——
- *     交换只发生在「命令 → 灯位」的单点（`_mm_effective_lamp()`，`mm_execute_cmd()` 调用）；
- *   · 实际驱动的灯与引脚始终如实对应（`mm_apply_lamp()` 侧本就按最终灯位取映射表）。
- *
- * @return 切换后的状态：true = 已交换（0x0A→右下 / 0x0B→左下）；false = 默认态。
- * @note   消费者 = 缅甸版出厂测试 `app_factory_test_mm.c`（TEST 键，与标准版二选一编译）；
- *         现场测试矩阵见 doc/16 §13。
+ * @brief  交换 / 还原 `0x0A` ⇄ `0x0B` 的干接点落点（出厂测试开关）。
+ * @return 切换后状态：true = 已交换（0x0A→右下 S3/PE10 / 0x0B→左下 S2/PE11）；false = 默认态。
+ * @note   红灯 `0x90` 不受影响；**不持久化**（`mm_apply_init()` 开机复位为默认态）；消费者
+ *         = 缅甸版出厂测试 `app_factory_test_mm.c`（与标准版二选一编译），现场矩阵见 §13。
  */
 bool mm_arrow_map_toggle(void);
 
@@ -130,32 +95,18 @@ bool mm_arrow_map_is_swapped(void);
 
 /**
  * @brief  干接点输出单一映射点（灯位 → 端口/引脚/有效电平）。
- *
- * @note   灯位与引脚的对应关系（以及有效电平）全部写在 `app_mm_proto_cmd.c` 的
- *         映射表 `s_mm_lamp_map` 里：**红灯 = S1 = PE12 / 左下箭头 = S2 = PE11 /
- *         右下箭头 = S3 = PE10，推挽输出、高电平有效**（点亮 = 输出高 / 熄灭 = 输出低；
- *         2026-09-28 现场实测翻转）。改硬件只改该表 + `_mm_drive()`，其余代码零改动。
- *
  * @param  lamp  目标灯位（红灯 / 左下箭头灯 / 右下箭头灯）。
  * @param  on    true=闭合（开灯）/ false=断开（关灯）。
+ * @note   引脚与极性只在 `app_mm_proto_cmd.c` 的 `s_mm_lamp_map` + `_mm_drive()` 里改（§3）。
  */
 void mm_apply_lamp(mm_lamp_t lamp, bool on);
 
 /**
- * @brief  上电初始化干接点输出层（**默认显示红叉**：红灯 S1/PE12 点亮、绿箭头熄灭）。
- *
- * @note   源 8051 固件（`/home/yystation/Program/3218008/MianDian_Fee`）上电把三路
- *         开关量（C1/C2/C3）全部清零 = **灯全灭**；本实现**不再沿用**该语义——
- *         2026-09-29 用户需求「开机默认显示红叉」⇒ 三路接管完成后**红灯点亮**
- *         （车道关闭态，安全默认），两个绿箭头熄灭。
- *         接管顺序（无毛刺）：① 先写 ODR 为「灭」电平（**由映射表 `active_low` 推导**，
- *         不硬编码；引脚仍是输入 + 上拉，写 ODR 不驱动引脚）→ ② 按线摘除 EXTI
- *         （`pl_gpio_release_exti`，不碰其它线/NVIC）→ ③ 切成推挽输出
- *         （`pl_gpio_config_output`，此刻起稳定驱动「灭 = 低」）→ ④ 影子状态 = 全灭
- *         → ⑤ `mm_apply_lamp(MM_LAMP_RED, true)` 点亮红灯（唯一动作点，影子状态与
- *         诊断日志同步；协议帧到达后照常按帧驱动，红灯可被 `0x90 00` 关掉）。
- *         另把**箭头落点交换开关复位为默认态**（`mm_arrow_map_toggle()` 的状态不做持久化，
- *         每次开机回默认：0x0A→PE11 / 0x0B→PE10，用户需求 3）。
+ * @brief  干接点输出层上电初始化：接管三路为推挽输出，**默认显示红叉 = 红灯 S1/PE12 点亮**。
+ * @note   接管顺序（无毛刺）= ① 写「灭」电平（由映射表推导，不硬编码；此时引脚仍输入+上拉）
+ *         → ② 按线摘 EXTI（`pl_gpio_release_exti`，**不碰其它线/NVIC**）→ ③ 切推挽输出
+ *         → ④ 影子状态 = 灭 → ⑤ 点亮红灯（唯一动作点 `mm_apply_lamp()`）；同时把箭头交换
+ *         开关复位为默认态（不持久化）。协议帧到达后照常按帧驱动（`0x90 00` 仍可关红灯）。
  */
 void mm_apply_init(void);
 

@@ -2,53 +2,11 @@
  * @file    app_yn_ol_proto.h
  * @brief   云南治超屏协议（YN_1.3.0，`{` 帧族）公共定义
  *
- * 协议文档：《车道费额显示器通信协议》YN_1.3.0（2021-11-24，治超屏裁剪版；文档开头
- * 明示治超屏不开发语音与固定格式显示）。模块前缀 `yn_ol_` / `YN_OL_`，与云南常规
- * （`yn_`）严格区分——两者帧族相同、命令字高度重叠，属 `{` 帧族互斥关系。
- *
- * ── 帧格式（长度字段定界，**无校验**，与云南常规完全同构）──
- *   `'{'`(0x7B) + 命令字(1B) + 参数长度(1B **二进制字节值**) + 参数区(变长) + `'}'`(0x7D)；
- *   帧总长 = 参数长度 + 4。
- *
- * ── 命令表（'6'/'7'/'9' 文档明示不开发 → probe 快拒）──
- *   '1' 主机查询 → 应答 `{ '1' 01 00 }`；'2' 自检（数字 1~9 交替，无语音）；
- *   '3' 单行（颜色 + 行号 1~5 + GBK，**颜色/行号接受 ASCII 或二进制超集**）；
- *   '4' 全屏可编辑（颜色 + X/Y 像素坐标 + GBK，word_wrap）；'5' 全屏清除；
- *   '8' 亮度（'0'/0x00 = 光敏自动，'1'~'8' 手动并挂起光敏）；
- *   'A' 外设（bit0 绿 / bit1 红 / bit2 黄闪，红优先）；
- *   0x42~0x46 第一~五行清除、0x50 第六行清除（屏高不足时行起点越界不落屏）；
- *   0x47 修改 IP（ip4+mask4+gw4+port2 → 写 Sector1 net_cfg.port，udp_port 保留
- *        → 应答 0x51 回显 → 延迟 100ms 软复位）；
- *   0x48 查询 IP → 应答 0x51（14B，单播回源）；0x51 仅出站（入站静默丢弃）；
- *   0x49 屏体参数（字体 + 字宽）→ **持久化**（W25Qxx 独立 4KB 扇区，掉电保留、上电装载）
- *        并立即作为后续 '3'/'4'/行清除的字号字型（见本文件「0x49 持久化」段）；
- *   0x01 全屏点亮（01红/02绿/03黄，04~07 按 display_color_t 直通保留）；
- *   0x02 版本号（回裸 ASCII PROGRAM_CODE + 屏显「版本:PROGRAM_CODE」）。
- *
- * ── 端口字段字节序（**已裁决：高字节在前 BE16**，2026-09-17）──
- *   0x47 请求与 0x51 应答的 PORT0/PORT1 高字节在前（写 9528 发 `25 38`）；依据 = 用户
- *   裁决，对齐同厂 GZ_OL（doc/14 §13.5.1）与本固件 LDI 12H / IAP 0x01 既有口径。
- *
- * ── 通道与波特率（2026-09-17 用户裁决：追加 TCP 双通道）──
- *   绑 `CH_ID_RS485` + `CH_ID_RS232` + `CH_ID_TCP_SERVER` + `CH_ID_TCP_CLIENT`，四通道
- *   四 mask 共用一静态队列。**RJ45 槽 '{' 与重庆 CQ 的 JSON 同首字节**：解法靠通道掩码
- *   而非收录序——CQ 只绑 UDP/UDP_CQ、不绑 TCP ⇒ TCP 链上 CQ probe 不被调用；本模块
- *   **不绑 10011** ⇒ CQ 量产行为零削弱。反向安全由命令字白名单保证（CQ JSON 第二字节
- *   恒为 '"' 不在白名单 → 本 probe FAKE 放行）。见 doc/15 §4/§7。
- *   波特率由 DIP1 全局选择（文档 9600~115200 默认 9600 → 现场置 OFF）。
- *
- * ── 上电效果：不实现（2026-09-17 用户裁决）──
- *   文档「祝您一路平安 + 稍候熄灭」不由本模块实现（原 `app_yn_ol_proto_default.c` 已删除），
- *   上电画面走 STD 默认显示链路。
- *
- * ── 帧族纪律 ──
- *   属 `{` 帧族 → 定义 `g_brace_proto_guard` 互斥守卫（与云南常规已 `ld -r` 实测
- *   multiple definition）⇒ **量产 EIDE 目录必二选一**；`0x42` 与云南常规 'B' 同字节歧义
- *   （本协议 = 第一行清除），`0x46`~`0x51` 为本协议独有。
- *
- * ── 内存纪律 ──
- *   队列体 + 控制块 + 任务帧缓冲置 **CCMRAM**（1152B；PROTO=ALL 口径 SRAM 余量放不下，
- *   且该缓冲 CPU 独占访问、不经 DMA/ETH）；协议处理任务与帧缓冲的占用账见 doc/06-04。
+ * 帧 = `{`(0x7B) + 命令字 + 参数长度(1B **二进制**，= 参数区字节数) + 参数 + `}`(0x7D)，
+ * 帧 ≤259B、**无校验**；端口字段（0x47/0x51）**高字节在前 BE16**（已裁决）。
+ * 属 `{` 帧族 → 定义 `g_brace_proto_guard`，量产与其它 `{` 族协议**二选一**。
+ * 队列体/控制块/任务帧缓冲置 **CCMRAM**（1152B，见 §6）。
+ * 详见 doc/15_云南治超屏协议/README.md §1、§2、§4、§6、§7
  */
 #pragma once
 
@@ -118,9 +76,8 @@ typedef enum {
     YN_OL_PARSE_ERR_PARAM, /**< 参数长度或取值非法（整帧丢弃） */
 } yn_ol_parse_sta_t;
 
-/** 执行结果状态码（`yn_ol_execute_cmd` 返回值；逐帧诊断 `[yn_ol] exec ... ret=` 用）
- *  语义：0 = 已执行（屏幕动作可能因坐标越界而无可见效果，属正常协议语义）；
- *        <0 = 未执行/未生效原因，现场可据此一眼区分「帧被拒」与「执行了但看不到」。 */
+/** 执行结果状态码（`yn_ol_execute_cmd` 返回值；供调试器观察，不产生上行报文）。
+ *  语义：0 = 已执行（含坐标越界「执行但不落屏」，属正常协议语义）；<0 = 未执行/未生效原因。 */
 typedef enum {
     YN_OL_EXEC_OK         = 0,  /**< 已执行（含「执行但不落屏」） */
     YN_OL_EXEC_NO_DISPLAY = -1, /**< 无显示实例（dev_display_get()==NULL） */
@@ -151,7 +108,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
-    uint16_t port; /**< **高字节在前 BE16**（已裁决，见文件头「端口字段字节序」） */
+    uint16_t port; /**< **高字节在前 BE16**（写 9528 发 `25 38`；已裁决，见 doc/15_云南治超屏协议/README.md §2） */
 } yn_ol_setip_t;
 
 /** 0x49 屏体参数 */
@@ -160,26 +117,11 @@ typedef struct {
     font_size_t font_size; /**< 字宽 0→FONT_16 / 1→FONT_24 / 2→FONT_32 */
 } yn_ol_screen_param_t;
 
-/* ================================================================
- *  0x49 持久化（W25Qxx 记录；2026-09-17 用户裁决 Q5 = 需要持久化）
- *
- *  记录布局（12B，与 LDI 的 magic + 载荷 + CRC32 范式一致）：
- *    magic(4) + version(2) + font_type(1) + font_size(1) + crc32(4)
- *  CRC32 覆盖 magic..font_size（前 8B），不含 crc32 自身。
- *
- *  存储位置：`dev_storage_capacity(w25) - 12288`（**倒数第三个 4KB 扇区**），
- *  与 LDI 记录（`capacity - 4096`）和 app_render 的显示持久化记录
- *  （`capacity - 8192`，`app_render.c:372`）各占独立扇区。选址依据（实测核对）：
- *    · 字库数据最大绝对地址 ≈ 8,181,856B（32 点阵 GBK 黑体末字，
- *      `_flash_addr_cfg` 公式 + `_packed_glyph_bytes(32,GBK)=128`）→ 只用到第 1997 扇区；
- *      第 1998~2045 扇区全空（W25Q64 共 2048 个 4KB 扇区）。
- *    · `capacity - 4096`（扇区 2047）= LDI 配置记录（`app_ldi_cfg.c`）；
- *      `capacity - 8192`（扇区 2046）= app_render 显示持久化（`app_render.c`）。
- *    · 故取 2045（`capacity - 12288`）——**独立扇区、零共享、无整扇区保全负担**。
- *  写语义：`dev_w25qxx._write` 内部按 4KB 扇区读-改-写（目标区间含非 0xFF 字节时
- *  先擦该扇区再回写整扇区），本模块只需写 12B 记录，无需自备整扇区镜像；
- *  本扇区仅本模块使用 → 自擦自写不波及 LDI / app_render 记录。
- */
+/* 0x49 持久化记录（12B，仿 LDI 记录范式）：magic + version + 字体/字宽 + CRC32（覆盖前 8B）。
+ * 落 W25Qxx **独立 4KB 扇区** `capacity - 12288`（不与 LDI `-4096`、app_render `-8192` 共享）；
+ * 无自备整扇区镜像（整扇区读-改-写由 dev_w25qxx._write 内部完成）；记录无效/写失败 → 回默认，
+ * 不阻塞、不重启。
+ * 选址核对、装载/保存失败语义、默认值口径见 doc/15_云南治超屏协议/README.md §7 */
 #define YN_OL_CFG_MAGIC (0x594E4F4CU)   /**< "YNOL"（小端存 'Y''N''O''L'） */
 #define YN_OL_CFG_VERSION (1U)          /**< 记录版本；不匹配即视为无效回默认 */
 #define YN_OL_CFG_SECTOR_OFFSET (12288U) /**< 扇区位置 = capacity - 12288 */
@@ -232,44 +174,35 @@ yn_ol_pcmd_t yn_ol_cmd_from_byte(uint8_t c);
 yn_ol_parsed_cmd_t yn_ol_parse_frame(const uint8_t *raw, uint16_t raw_len);
 
 /**
- * @brief  执行解析后的命令。
+ * @brief  执行解析后的命令（失败静默——协议未定义错误应答）。
  * @param  ch   帧来源通道（应答单播回源）。
  * @param  cmd  解析结果（sta != OK 时直接返回 YN_OL_EXEC_NOT_RUN）。
- * @return yn_ol_exec_ret_t：0 = 已执行；<0 = 未执行/未生效原因。
- * @note   返回值供调用方/调试器观察执行结果；协议行为不变
- *         （协议未定义错误应答 → 失败仍静默）。
+ * @return yn_ol_exec_ret_t（0 = 已执行；<0 = 未执行/未生效原因，供调试器观察）。
  */
 int yn_ol_execute_cmd(channel_t *ch, const yn_ol_parsed_cmd_t *cmd);
 
 /**
  * @brief  当前生效的屏体字号（0x49 设置 / 上电从 W25Qxx 装载）。
- * @note   默认 **FONT_16** —— 沿用 STD 工程既有默认口径（青海/贵州/云南常规等
- *         `{` 帧族协议的默认字号同为 FONT_16，见 `app_qh_proto_cmd.c` /
- *         `app_gz_proto_cmd.c` / `app_yn_proto_cmd.c`）。
+ * @note   默认 FONT_16 —— 沿用 STD 既有默认口径（同青海/贵州/云南常规），见 doc/15_云南治超屏协议/README.md §7。
  */
 font_size_t yn_ol_current_font_size(void);
 
 /**
  * @brief  当前生效的屏体字型（0x49 设置 / 上电从 W25Qxx 装载）。
- * @note   默认 **FONT_ST**（宋体）—— 沿用 STD 工程既有默认口径（同青海/贵州/云南常规）。
+ * @note   默认 FONT_ST —— 沿用 STD 既有默认口径（同青海/贵州/云南常规），见 doc/15_云南治超屏协议/README.md §7。
  */
 font_type_t yn_ol_current_font_type(void);
 
 /**
  * @brief  上电装载 0x49 屏体参数记录（模块 `sw_app_initcall` 初始化时调用）。
- *
- * 读 `capacity - 12288` 处的 12B 记录：magic + version + 字段范围 + CRC32 全部通过
- * 才覆盖运行态；否则保持默认值（不阻塞、不重启）。
- * **不阻塞、不重启**：记录为空/损坏即静默回默认。
- *
- * @return true = 装载成功（运行态已被记录覆盖）；false = 无有效记录（保持默认）。
+ * @return true = 装载成功（运行态已被记录覆盖）；false = 记录为空/损坏（静默保持默认）。
+ * @note   记录为空/损坏/写失败一律不阻塞、不重启；语义与选址见 doc/15_云南治超屏协议/README.md §7。
  */
 bool yn_ol_screen_cfg_load(void);
 
 /**
  * @brief  保存当前 0x49 屏体参数到 W25Qxx 记录（`0x49` 执行时调用）。
- * @return true = 写入成功；false = 存储不可用或写入失败（运行态仍已生效，
- *         仅掉电不保留；失败不阻塞、不重启）。
+ * @return true = 写入成功；false = 存储不可用或写入失败（运行态仍已生效，仅掉电不保留）。
  */
 bool yn_ol_screen_cfg_save(void);
 
