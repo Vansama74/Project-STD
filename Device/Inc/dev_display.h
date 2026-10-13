@@ -133,8 +133,8 @@ dev_display_t *dev_display_get(void);
 
 /** @brief 「整机无显示驱动」构建的调用侧守卫（纯运行时判空，无编译期开关）
  *
- *  显示模组驱动未编入的构建（如 EIDE Myanmar 目标：Device/Display 下无任何
- *  dev_display_*.c）里 dev_display_get() 恒为 nullptr。凡「必须显示才能完成」的
+ *  显示模组驱动未编入的构建（Device/Display 下不编 dev_display_*.c）里
+ *  dev_display_get() 恒为 nullptr。凡「必须显示才能完成」的
  *  入口先经本函数判空：
  *      if (!dev_display_guard("ldi.e6")) return;   // 无显示 → 安全跳过/降级
  *  有显示时仅多一次判空（等价于调用方自行 `if (!d) return;`，零行为差异）；

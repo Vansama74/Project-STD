@@ -46,7 +46,7 @@
 
 ### B.1.2 与 LDI 的产品关系（已确认）
 
-**编译期互斥**：重庆固件不含 LDI，LDI 固件不含重庆。编译切换由 **EIDE target 的 `defineList`/`excludeList`** 实现（如加 `PROTO_CHONGQING` + 排除 LDI 目录；配方见 `doc/构建开关总表.md` §7；原「Makefile 条件编译」已随 Makefile 移除作废）。
+**编译期互斥**：重庆固件不含 LDI，LDI 固件不含重庆。编译切换由 **EIDE 的 `defineList`/`excludeList`（GUI 按需点选）** 实现（如加 `PROTO_CHONGQING` + 排除 LDI 目录；配方见 `doc/构建开关总表.md` §7.2 第 2/7 条；原「Makefile 条件编译」已随 Makefile 移除作废）。
 
 ### B.1.3 与裸机工程的关系
 
@@ -105,9 +105,11 @@ endif
   源码收录序，CQ 必须后于 LDI）；cJSON.c 恒定编入第三方源列表。
 - `PROTO=CQ` 分支仅剔除 LDI 目录文件 + 追加 `-DPROTO_CHONGQING`；`{` 帧族
   （青海/山东/贵州/四川MTC）仍编入且保留 `-DSTD_ALL_PROTO` 豁免守卫。
-- 量产 EIDE 互斥配置：新增 `Application/protocol/ProtocolParser_ChongQing` 文件夹与
-  incList 条目已入 `.eide/eide.yml`（Debug 目标未排除 CQ）；LDI 互斥按既有
-  excludeList 纪律操作（添加 `<virtual_root>/Application/protocol/ldi` 排除项）。
+- 量产 EIDE 互斥配置：`Application/protocol/ProtocolParser_ChongQing` 文件夹与
+  incList 条目已入 `.eide/eide.yml`〔**2026-10-13 现状更新**：Base/Debug 基线**排除 CQ 模块与 `ldi`、
+  也不定义 `PROTO_CHONGQING`**——恢复 CQ 量产口径 = 在 GUI 取消排除 CQ 模块 **且** 把 `PROTO_CHONGQING`
+  加回 `defineList`（否则只「能收 JSON」不含量产语义），LDI 互斥按既有 excludeList 纪律操作
+  （添加 `<virtual_root>/Application/protocol/ldi` 排除项）；配方见 `doc/构建开关总表.md` §7.2 第 2/7 条〕。
 
 ---
 
@@ -329,8 +331,8 @@ parse 拒绝（与裸机行为一致，不兼容字符串）。
 
 | 构建 | setip 后重启生效语义 | 验证方法 |
 |------|---------------------|----------|
-| dev 共存（EIDE Debug / `make` 默认，LDI 编入） | **IP 生效**：`app_net_boot_apply` 读 Sector1 net_cfg（magic+CRC 有效、IP 非 0、port 1~65535）→ `pl_net_set_ip` + `app_tcp_server_set_port`（`ldi_ctx_init` 分支 1 只负责装载 cfg 与 W25 自愈，2026-08-21 起不再应用 netif；其分支判定中 `update_sta==updated` 不参与——升级中间态记录同样采纳 Sector1.net_cfg，防 W25 陈旧镜像回写覆盖 setip 刚写入的 net_cfg）；**端口均不生效**——setip 端口写 Sector1 `udp_port` 但 dev 构建 CQ 业务口固定 20103（`_udp_cq_read_port` `#else` 分支，防历史污染回归，勿改）；**TCP 口（port）不被 setip 改动**（保留现值），LDI 12H/1DH 仍报 TCP 口 | 改 IP 后重启，用新 IP 向 **20103** 发 text1 验证；端口修改须在 PROTO_CHONGQING 构建验证 |
-| CQ 量产（`make PROTO=CQ` / EIDE 配置 `PROTO_CHONGQING` 目标，LDI 剔除） | **IP + UDP 端口均生效**：重启后 `app_net_boot_apply` 读 Sector1 → `pl_net_set_ip` + `app_tcp_server_set_port(net_cfg.port)`（**TCP 口两口径统一应用，2026-08-24 修订**——TCP Server 通道仍启动、绑定 net_cfg.port；CQ setip 只写 udp_port、port 保留现值，故 TCP 口不受 setip 影响）；`udp_cq_task` 每轮重建前 `_udp_cq_read_port` 读 Sector1 net_cfg.udp_port（有效 1~65535 即用，无效回退 20103） | 改 IP+端口后重启，用新 IP 向新端口发 text1 / 12B 搜索帧验证；搜索应答 port 字段报 `app_udp_cq_get_port()` |
+| dev 共存（〔历史〕`make` 默认 = LDI 编入；**2026-10-13 起 Base/Debug 基线为「LDI 排除」态，需在 GUI 取消排除 `ldi` 后方为该口径**） | **IP 生效**：`app_net_boot_apply` 读 Sector1 net_cfg（magic+CRC 有效、IP 非 0、port 1~65535）→ `pl_net_set_ip` + `app_tcp_server_set_port`（`ldi_ctx_init` 分支 1 只负责装载 cfg 与 W25 自愈，2026-08-21 起不再应用 netif；其分支判定中 `update_sta==updated` 不参与——升级中间态记录同样采纳 Sector1.net_cfg，防 W25 陈旧镜像回写覆盖 setip 刚写入的 net_cfg）；**端口均不生效**——setip 端口写 Sector1 `udp_port` 但 dev 构建 CQ 业务口固定 20103（`_udp_cq_read_port` `#else` 分支，防历史污染回归，勿改）；**TCP 口（port）不被 setip 改动**（保留现值），LDI 12H/1DH 仍报 TCP 口 | 改 IP 后重启，用新 IP 向 **20103** 发 text1 验证；端口修改须在 PROTO_CHONGQING 构建验证 |
+| CQ 量产（〔历史〕`make PROTO=CQ`；**EIDE 侧 = 取消排除 `ProtocolParser_ChongQing` + `defineList` 加 `PROTO_CHONGQING`**（`doc/构建开关总表.md` §7.2 第 2/7 条），LDI 剔除） | **IP + UDP 端口均生效**：重启后 `app_net_boot_apply` 读 Sector1 → `pl_net_set_ip` + `app_tcp_server_set_port(net_cfg.port)`（**TCP 口两口径统一应用，2026-08-24 修订**——TCP Server 通道仍启动、绑定 net_cfg.port；CQ setip 只写 udp_port、port 保留现值，故 TCP 口不受 setip 影响）；`udp_cq_task` 每轮重建前 `_udp_cq_read_port` 读 Sector1 net_cfg.udp_port（有效 1~65535 即用，无效回退 20103） | 改 IP+端口后重启，用新 IP 向新端口发 text1 / 12B 搜索帧验证；搜索应答 port 字段报 `app_udp_cq_get_port()` |
 
 > **不变量（2026-08-21 方案 B 更新，2026-08-24 端口应用两口径化修订）**：网络配置应用自 2026-08-21 起由中立模块
 > `app_net_boot` 统一兜底（两口径都编入、均在 `app_board_net_cfg_fw_version_update`

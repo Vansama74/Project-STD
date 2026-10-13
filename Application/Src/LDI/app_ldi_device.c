@@ -148,7 +148,7 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
     if (!display_params_ok(ctrl, text_len))
         return LDI_DEV_FAIL;
 
-    /* 无显示驱动构建（EIDE Myanmar 目标）：E6 设备无屏可显示 → 按协议回失败
+    /* 无显示驱动构建：E6 设备无屏可显示 → 按协议回失败
      * （0x01H 由 ldi_cmd 写入应答 status，不静默假装成功）。
      * 有显示时仅多一次判空，后续路径与改动前逐条一致。 */
     if (!dev_display_guard("ldi.e6"))

@@ -191,9 +191,10 @@ RJ45 槽 RB（1536B）由 IAP/LDI/CQ 同槽 weak 提供，本模块只 acquire�
 - **Makefile**：`INC_DIRS` 增 `Application/Inc/ProtocolParser_GuiZhou_Overload`；
   `SRC_APPLICATION` 增 4 个源文件（紧随 `ProtocolParser_GuiZhou` 之后）；
   **`PROTO=ALL` 与 `PROTO=CQ` 两口径均编入**（与其它地区协议一致；`PROTO=CQ` 只剔除 LDI 目录）。
-- **EIDE Debug**：`virtualFolder → Application → protocol → ProtocolParser_GuiZhou_Overload`
+- **EIDE Debug**〔**2026-10-12 当时口径**；2026-10-13 target 重组后 Base/Debug = 基线、排除全部 13 个协议目录，
+  要用本协议在 GUI 取消排除该虚拟文件夹即可（GZ_OL 与其它协议无互斥要求）〕：`virtualFolder → Application → protocol → ProtocolParser_GuiZhou_Overload`
   新增节点（4 文件）+ `targets.Debug.cppPreprocessAttrs.incList` 增 include 目录；
-  **excludeList 不动**（无互斥要求）→ 本协议在 EIDE Debug 目标内**编入**。
+  **excludeList 不动**（无互斥要求）→ 当时本协议在 EIDE Debug 目标内**编入**。
 - ⚠ **外部改 `eide.yml` 后必须在 EIDE 执行 `EIDE: Reload Project`**，期间不做任何触发
   保存的 GUI 操作（EIDE 会用自己的内存模型回写 yml，历史两次冲掉外部编辑）。
 

@@ -63,7 +63,7 @@
 ## 5. 帧头冲突纪律
 
 - 云南 ASCII 命令集 `'1'~'9','A','B'` 与青海 probe 命令集**完全重叠**（同 `{` 帧族、len 字段同构）：全协议构建下青海 probe 先注册（源码收录序 qh 在前）先认领，云南 probe 仅承接青海 FAKE 的帧（与贵州处境一致）。
-- **量产 EIDE 目录排除纪律**：云南与青海/山东/贵州/四川MTC 互斥（`.eide/eide.yml` Debug 目标已启用四川MTC、排除青海/山东/贵州/云南；云南量产目标须启用云南并排除其余 `{` 帧族）。**与同地区的「云南治超」`app_yn_ol_proto`（doc/15）也必须二选一**：两者同 `{` 帧族、命令字大面积重叠（`'1'`~`'5'`/`'8'`/`'A'`），且 `0x42` 同字节歧义（本协议 = `'B'` 费额语音 / 云南治超 = 第一行清除）。
+- **量产 EIDE 目录排除纪律**：云南与青海/山东/贵州/四川MTC 互斥。〔**2026-10-13 现状**：Base/Debug 基线**排除全部 13 个协议目录**；启用云南 = 在 GUI 取消排除本目录、并确保其余 `{` 帧族仍排除（`doc/构建开关总表.md` §7.2）〕**与同地区的「云南治超」`app_yn_ol_proto`（doc/15）也必须二选一**：两者同 `{` 帧族、命令字大面积重叠（`'1'`~`'5'`/`'8'`/`'A'`），且 `0x42` 同字节歧义（本协议 = `'B'` 费额语音 / 云南治超 = 第一行清除）。
 - **编译期互斥守卫**：云南主文件携带 `g_brace_proto_guard`（`#ifndef STD_ALL_PROTO` 包裹、`__attribute__((used))`）——EIDE 量产构建多个 `{` 帧族编入即链接报 `multiple definition`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序纪律约束）。**「云南常规 × 云南治超」这一对已用 `arm-none-eabi-ld -r` 双编实测报 `multiple definition of 'g_brace_proto_guard'`**（加 `-DSTD_ALL_PROTO` 复编后退出码 0），守卫对该对确实生效（复跑 `bash .analysis/yn_ol/guard_test.sh`；见 doc/15 §4/§8 裁决 7）。
 - 0x01/0x02 二进制命令字不属于青海/山东/四川MTC 的 ASCII 命令集，各 probe 首命令字快拒 → 云南 probe 可无冲突认领。
 
@@ -71,8 +71,9 @@
 
 - **Makefile PROTO=ALL（dev）**：编入（`SRC_APPLICATION` 收录序在贵州之后、`app_uart_baud.c` 之前，probe 注册序为 `{` 帧族末位）。
 - **Makefile PROTO=CQ**：**仍编入**——现有纪律 PROTO=CQ 仅剔除 LDI 目录并追加 `-DPROTO_CHONGQING`，`{` 帧族（青海/山东/贵州/四川MTC）均保留 + `-DSTD_ALL_PROTO` 豁免，云南同属 `{` 帧族随同编入（不改「排除 LDI ↔ PROTO_CHONGQING」不变量）。
-- **EIDE Debug（PROTO_CHONGQING 量产口径）**：云南**排除**（excludeList 加 `Application/protocol/ProtocolParser_YunNan`）——Debug 已启用四川MTC（`{` 帧族守卫生效），云南若编入即 `multiple definition`。Inc 目录已入 incList（与青海/山东/贵州同列，供后续云南量产目标启用）。
-- **EIDE Release**：已知错配未修，本次不动。
+- **EIDE Debug（PROTO_CHONGQING 量产口径）**〔**2026-08-24 当时口径**；2026-10-13 target 重组后 Base/Debug = 基线、
+  排除全部 13 个协议目录（含云南与四川MTC）——启用云南 = 取消排除本目录 + 确保其余 `{` 帧族排除，见 §7.2〕：云南**排除**（excludeList 加 `Application/protocol/ProtocolParser_YunNan`）——当时 Debug 已启用四川MTC（`{` 帧族守卫生效），云南若编入即 `multiple definition`。Inc 目录已入 incList（供后续云南量产口径直接点选）。
+- **EIDE Release**：〔历史〕已知错配未修、本次未动；**该 target 已于 2026-10-13 按用户裁决整块删除**（现行 target 只剩 `Base` / `Debug`）。
 - 无新增编译开关 → `doc/构建开关总表.md` 不动。
 
 ## 7. as-built 状态

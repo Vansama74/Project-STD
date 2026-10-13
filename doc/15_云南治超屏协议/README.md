@@ -199,12 +199,14 @@
 | **本协议独有** | `0x46`、`0x47`、`0x48`、`0x49`、`0x50`、`0x51`（云南常规只认 `'1'`~`'9'`/`'A'`/`'B'`/`0x01`/`0x02`；MTC 上限 `0x45`） | 全协议构建下由本 probe 独占认领（离线证据：`yn_ol_frame_sim.py` §7，172 用例全通过） |
 
 - **EIDE Debug 处置**：`.eide/eide.yml` 已把本模块 **3 个源文件**加入 `virtualFolder` + `incList`
-  （`app_yn_ol_proto_default.c` 条目已随 Q7 删除），**同时保留 `excludeList` 排除项**（默认不编入）
-  ——与贵州治超 GZ_OL 的当前处置一致。
-  理由：EIDE Debug 现行编译集含**四川 MTC**（`{` 帧族），若移除本模块排除项而不排除 MTC，
-  链接期即撞 `g_brace_proto_guard`。**切换方法**：从 `excludeList` 移除
-  `<virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload`，**并同时移除 MTC**
-  （或排除其它 `{` 族目录，含**云南常规**——Q8 已实测两者的守卫互斥），然后 **`EIDE: Reload Project`**。
+  （`app_yn_ol_proto_default.c` 条目已随 Q7 删除）〔**2026-10-13 现状**：Base/Debug 基线排除全部 13 个协议目录，
+  本模块与四川 MTC 均在排除表内；启用本模块 = 取消排除本目录 + **确保其它 `{` 族目录（MTC / 云南常规等）仍排除**，
+  然后 `EIDE: Reload Project`（`doc/构建开关总表.md` §7.2）〕。
+  理由：`{` 帧族编译集在任一时刻**只能有一个**——多编即链接期撞 `g_brace_proto_guard`〔历史 2026-08-24 当时
+  Debug 编译集含**四川 MTC**，故本模块曾保持排除项并「同时保留 excludeList 排除项」（默认不编入）〕。
+  **切换方法**：从 `excludeList` 移除
+  `<virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload`，**并同时排除 MTC**
+  （或其它 `{` 族目录，含**云南常规**——Q8 已实测两者的守卫互斥），然后 **`EIDE: Reload Project`**。
 
 ---
 
@@ -509,11 +511,15 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
    `JLinkRTTLogger -Device STM32F407ZG -If SWD -Speed 4000 -RTTChannel 0 <file>`（推荐，证据可回传）。
 3. **复位**，等 `[diag]` 横幅：确认 `fw=` / `built=` / `tree=`（＝这份镜像）、`display screen=WxH`、
    `dispatch qfull=0 resync=0 notify_drop=0`；并记下 `[diag] chan tcp_srv=.. port=..`（＝上位机该连的端口）。
-   **注意 IP 口径**：EIDE Debug 的 `defineList` 含 `PROTO_CHONGQING` ⇒ 烧完擦掉 Sector1 后板子会以 CQ 口径
+   **注意 IP 口径**〔**2026-09-18 当时口径**；**2026-10-13 target 重组后 Base/Debug 基线既不定义 `PROTO_CHONGQING` 也不编协议模块**，烧完擦 Sector1 后按 dev 口径默认 IP 启动（192.168.114.200）；要复现下述 CQ 默认口径 = 点选加回重庆模块 + `defineList` 加 `PROTO_CHONGQING`〕：当时 EIDE Debug 的 `defineList` 含 `PROTO_CHONGQING` ⇒ 烧完擦掉 Sector1 后板子会以 CQ 口径
    默认 IP 启动（**192.168.1.5** / 端口 9528），横幅 `[diag] netcfg VALID ip=… port=…` 会直接给出实际值；
    上位机必须连这个 `ip:port`（用旧的 192.168.114.200 会连不上——那种情况下连 `accept` 都不会有）。
-   另：EIDE Debug 的 excludeList 当前**已排除 LDI / 全部 `{` 族它省协议、只编 IAP + 云南治超（YN_OL）**，
-   故本镜像里 `[yn_ol]` 行必然存在（若横幅里没有 `[yn_ol]` 相关输出，先查 yml 是否被改动、是否需 Reload）。
+   另：〔2026-09-18 当时〕EIDE Debug 的 excludeList **已排除 LDI / 全部 `{` 族它省协议、只编 IAP + 云南治超（YN_OL）**
+   〔**2026-10-13 现状**：Base/Debug 基线 = 只编核心 + IAP + 标准厂测 + RTT + 显示基类，
+   **YN_OL 也在排除表内**——要用本模块在 GUI 取消排除 `ProtocolParser_YunNan_Overload`，
+   并确保其它 `{` 族仍排除，见 `doc/构建开关总表.md` §7.2〕，
+   〔当时〕故该镜像里 `[yn_ol]` 行必然存在（若 `[yn_ol]` 相关输出缺失，先查 yml 是否被改动、是否需 Reload）。
+   （〔2026-09-29 起 RTT/`[diag]`/`[yn_ol]` 打印已整体删除，上两句的判读手段不再可用。〕）
 4. **点一次「连接设备」** → 应出现 `[tcp_srv] accept <ip>:<port>`（客户端连上来时还会看到
    `[tcp_cli] connecting/connect FAIL`，属正常，与本次症状无关）。
 5. **发「全屏点亮」**（`7B 01 01 01 7D`）→ 期望 `[tcp_srv] recv …` + `[yn_ol] rx … cmd=0x01` + `exec cmd=0x01 ret=0`。

@@ -142,9 +142,9 @@ static void factory_monitor_task(void *argument)
     (void)argument;
     dev_display_t *dsp = dev_display_get();
 
-    /* 无显示驱动构建（EIDE Myanmar 目标）：出厂检测全流程（固件信息 / 七色满屏 /
+    /* 无显示驱动构建：出厂检测全流程（固件信息 / 七色满屏 /
      * 通信灯 / 老化循环 / 斜扫）都必须在屏上判读，无对象可测 → 整体降级为待机
-     * （保留任务与 TEST 键 EXTI，不进入任何渲染/老化路径；限速告警一行）。 */
+     * （保留任务与 TEST 键 EXTI，不进入任何渲染/老化路径）。 */
     if (dsp == nullptr) {
         dev_display_guard("factory-test");
         for (;;)

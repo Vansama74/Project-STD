@@ -42,7 +42,7 @@
 山东与青海帧完全同构（`{`+cmd+len+`}`），命令字 `'1'~'5','7','8'` 全部落入青海 probe 命令集：
 
 - **全协议 Makefile 构建**：青海 probe 先注册（源码收录序 `qh_proto_init` 在前）先认领山东帧。`'3'/'4'/'5'` 语义与青海巧合一致（行为等价）；`'1'/'2'/'7'/'8'` 语义分歧（山东 '1'=全屏单色 vs 青海 '1'=主机查询等）。
-- **量产**：EIDE 目录排除纪律——山东项目须排除 `ProtocolParser_QingHai` + `ProtocolParser_SiChuang_MTC`（`{` 帧族二选一）；当前 `.eide/eide.yml` Debug 目标（贵州现行）已排除山东目录。
+- **量产**：EIDE 目录排除纪律——山东项目须排除 `ProtocolParser_QingHai` + `ProtocolParser_SiChuang_MTC`（`{` 帧族二选一）。〔**2026-10-13 现状**：Base/Debug 基线**排除全部 13 个协议目录**（含山东）；启用山东 = 在 GUI 取消排除本目录、并确保其余 `{` 帧族仍排除；`doc/构建开关总表.md` §7.2〕
 - **编译期互斥守卫**：山东主文件携带 `g_brace_proto_guard`（`#ifndef STD_ALL_PROTO` 包裹、`__attribute__((used))`）——EIDE 量产构建多个 `{` 帧族编入即链接报 `multiple definition`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序纪律约束）。
 
 详见 `doc/05_协议模块多协议兼容优化/01_architecture.md` §3.3 / §6。

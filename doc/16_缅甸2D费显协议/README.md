@@ -13,12 +13,13 @@
 > （前缀 `mm_` / 宏 `MM_`；全仓无既有 `mm_`/`MM_` 占用；与 doc/12_缅甸费显项目适配/README.md 未实施的旧缅甸方案
 > `app_md_*` **不复用、不混用**）。
 > 宿主推演：`.analysis/myanmar/mm_frame_sim.py`（**158 用例通过 / 失败 0**——2026-10-13 全仓编译期断言清理后，原「定长 20 字节编译期断言」检查改为「契约注释存在 + 宿主侧复算」，净 +1；2026-09-29 代码瘦身轮复跑计数为 157；原 159 条中的 4 条 RTT 日志断言已改写为「无 SEGGER/RTT 残留」+「行为修复保留」两类，检查强度不降。含源码常量/引脚/极性/接管顺序断言 + §10 箭头落点交换语义 + §11 开机默认画面几何）。
-> EIDE 目标校验：`.analysis/myanmar/check_eide_targets.py`（**2026-10-08 改写为「结构不变量」口径**：
-> 不再断言「Debug 必须 = 某集合」（协议/显示模组编不编属可按需调整的选择，`.eide/eide.yml` 是 GUI 地盘、
-> 外部不改），改为 I1~I8 八条结构不变量（显示驱动 ≤1 / 基类必编 / 出厂测试恰好 1 / `{` 帧族 ≤1（无
-> `STD_ALL_PROTO`）/ `PROTO_CHONGQING` ⇒ CQ 模块 / 私有 `-I` 齐备 / 工程宏）+ **当前集合信息输出**；
-> **复跑结果 14/15（唯一失败 = Debug 的 I6：带 `PROTO_CHONGQING` 却排掉 CQ 模块 —— C3 混编，待用户在 GUI 二选一）**，
-> 详见 §9/§13；含与 EIDE 上次构建源文件清单的地面真相对拍（差异只报信息）+ CCMRAM 预算算术）。
+> EIDE 目标校验：`.analysis/myanmar/check_eide_targets.py`（**该脚本已随 `.analysis/` 于 2026-10-13 移除、不再可用**；
+> 其历史结论：**2026-10-08 改写为「结构不变量」口径**——不再断言「Debug 必须 = 某集合」（协议/显示模组编不编属可按需调整的选择，
+> `.eide/eide.yml` 是 GUI 地盘、外部不改），改为 I1~I8 八条结构不变量（显示驱动 ≤1 / 基类必编 / 出厂测试恰好 1 / `{` 帧族 ≤1（无
+> `STD_ALL_PROTO`）/ `PROTO_CHONGQING` ⇒ CQ 模块 / 私有 `-I` 齐备 / 工程宏）+ 当前集合信息输出；
+> 当时复跑 14/15（唯一失败 = Debug 的 I6：带 `PROTO_CHONGQING` 却排掉 CQ 模块，待用户在 GUI 二选一）——
+> **2026-10-13 target 重组后该 I6 遗留已清零**（Base/Debug 基线不定义 `PROTO_CHONGQING`、CQ 模块在排除表）；
+> 现行核对方式 = 按 I1~I8 清单人工核对 + 构建验证，见 `doc/构建开关总表.md` §7）。
 > 出厂测试：TEST 键切换 `0x0A` ⇄ `0x0B` 箭头落点（`mm_arrow_map_toggle()`）+ 缅甸版出厂测试文件
 > `Application/Src/app_factory_test_mm.c`（与标准版**二选一编译**，`FACTORY=STD|MM`）——见 **§13**。
 
@@ -35,7 +36,16 @@
 **状态**：`[解析层已落地]` `[干接点输出层已落地 = PE12/PE11/PE10 高有效推挽（2026-09-28 现场实测翻转极性），2026-09-24 用户裁决]`
 `[Makefile PROTO=ALL/CQ DISP=1_263 链接通过 · 零新增告警]` `[宿主推演 158/158]`
 **`[TEST 键箭头落点切换 + 缅甸版出厂测试已落地（FACTORY=MM，2026-09-28）]`**
-**`[EIDE 独立 Myanmar 目标已建，等价口径实测链接通过；Debug 现行口径（2026-09-28 用户裁决）= 编入缅甸、排除 LDI + 四川三，§9.1]`**
+**`[Myanmar target 已于 2026-10-13 按用户裁决整块删除——缅甸固件改按 doc/构建开关总表.md §7.2 第 5 条在 EIDE GUI 点选组出（源码与厂测文件均未变）；原目标结构与内存账见 §9（历史），基线口径见「现状」条]`**
+
+> **〔现状 2026-10-13〕EIDE target 重组**：`Myanmar` target 已删除；现行 target = `Base`（**基线 / 重置模板**）、
+> `Debug`（**与 `Base` 同口径、日常主用**；2026-10-13 全量 Rebuild 构建成功）；**`Release` target 亦已于
+> 2026-10-13 按用户裁决整块删除**（原「已损坏、勿用」态）。
+> 基线 = 核心代码 + IAP + 标准厂测 `app_factory_test.c` + RTT 底层 4 源 + 显示基类 `dev_display.c`；
+> 7 个显示驱动 + 13 个协议目录 + `ah`/`rls`/`ldi` + `app_factory_test_mm.c` 全在排除表、`defineList` 仅
+> `USE_HAL_DRIVER` / `STM32F407xx`。**缅甸固件配方 = 取消排除 `ProtocolParser_Myanmar` +
+> 取消排除 `app_factory_test_mm.c`（同时排除标准版）+ 不编任何显示驱动 + 不定义 `PROTO_CHONGQING`**；
+> 本模块的「只绑 RS232 / 干接点 / probe 判据 / 厂测切换」等行为说明**全部照旧有效**（源码零改动）。
 
 ---
 
@@ -308,7 +318,7 @@ RS232 槽（USART3）既有协议首字节：`0x0A`（四川 ETC）/ `0x5A`（�
 | `Application/Src/app_factory_test_mm.c` | **2026-09-28 起**：缅甸版出厂测试（TEST 键切换箭头落点；与标准版 `app_factory_test.c` **二选一编译**，见 §13）。不引用任何显示 API（无显示构建安全）；栈/TCB 静态落 CCMRAM（256 words，同标准版） |
 | `Platform/Inc/pl_gpio.h` · `Platform/Src/pl_gpio.c` | **本轮增量**：`pl_gpio_config_output()`（推挽输出）+ `pl_gpio_release_exti()`（按线摘 EXTI） |
 | `Makefile`（**已于 2026-10-13 移除，本行仅作历史**） | `-I Application/Inc/ProtocolParser_Myanmar` + 两个 `.c`（`SRC_APPLICATION` 末尾，Anhui 之后）；**本轮增量**：`FACTORY ?= STD`（`STD`/`MM` 二选一，非法值 `$(error)`；开关值进 `.build_stamp`；`SRC_FACTORY_TEST` 决定收录标准版还是缅甸版） |
-| `.eide/eide.yml` | **本轮增量**：`files` 收录 `app_factory_test_mm.c`；Debug / Myanmar 目标 `excludeList` 增 `<virtual_root>/Application/app_factory_test.c`（= 编缅甸版、排标准版，恰好一个；见 §13.3）；缅甸模块两文件收录与 `targets.Myanmar` 同前（Debug 现行口径见 §9.1） |
+| `.eide/eide.yml` | **2026-09-28 本轮增量（历史；2026-10-13 target 重组后口径见 §9 顶部「现状」条）**：`files` 收录 `app_factory_test_mm.c`；Debug / Myanmar 目标 `excludeList` 增 `<virtual_root>/Application/app_factory_test.c`（= 编缅甸版、排标准版，恰好一个；见 §13.3）；缅甸模块两文件收录与 `targets.Myanmar`〔已删〕同前 |
 | `.analysis/myanmar/mm_frame_sim.py`（**已随 `.analysis` 移除**，结果列为历史记录） | 宿主 probe/parse 推演 + 源码断言（**当时 158/158**——2026-10-13 编译期断言清理后原断言存在性检查改「契约注释 + 宿主复算」，净 +1；此前瘦身轮删除 RTT 断言后由 159 收敛为 157，见 `.analysis/cleanup_20260929/report.md`；含引脚/极性/上电默认态/接管顺序/EXTI 纪律 + **§10 箭头落点交换语义与不变量** + **§11 开机默认画面「红色叉（×）」几何与源码断言** + Makefile `FACTORY` / 缅甸版出厂测试文件断言；**2026-09-28 起期望值 = 高有效**，**2026-09-29 起上电默认 = 红叉亮**） |
 | `.analysis/myanmar/check_eide_targets.py`（**已随 `.analysis` 移除**） | **EIDE 目标校验（结构不变量口径）+ 编译集/CCM 预算**（**2026-10-08 改写**：只校验 I1~I8 结构不变量 + 输出当前集合；不再锁「Debug 必须 = 某集合」；`.eide/eide.yml` 只读不改）。**现行 14/15：唯一失败 = Debug 的 I6（`PROTO_CHONGQING` 定义但 CQ 模块未编入 = C3 混编，待用户在 GUI 二选一）**；另有与 `build/<target>/builder.params` 的对拍（差异只报信息）与 `--emit-make [--target T]`（生成等价口径，无显示时 `SRC_DISPLAY` 置空） |
 
@@ -323,7 +333,7 @@ RS232 槽（USART3）既有协议首字节：`0x0A`（四川 ETC）/ `0x5A`（�
 - [x] **干接点真实驱动**（PE12/PE11/PE10 **高有效**推挽、**上电默认显示红叉 = 红灯 S1/PE12 点亮（2026-09-29 起，取代「上电全灭」）**、按线摘 EXTI；见 §4/§14）
 - [x] 〔历史（make 时代）〕`make -j8`（`PROTO=ALL` / `PROTO=CQ`）零新增告警（仍 3 条既有 HAL）——**2026-10-13 起等价判据 = EIDE 全量重建零新增告警**
 - [x] doc/05_协议模块多协议兼容优化/01_architecture.md（§3.3 / §4.1 / §6 变更记录）、doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md、doc/CLAUDE.md、本文件 已更新
-- [x] **EIDE 已收录**：独立 `targets.Myanmar`（见 §9；**阶段三改为「无显示驱动 + 无 `PROTO_CHONGQING`」**，并补齐无显示构建的运行时守卫，见 §10）；**Debug 现行口径（2026-09-28 用户裁决）= 编入本模块、排除 LDI + 四川 ETC/MTC/治超（见 §9.1）**
+- [x] **EIDE 已收录**：〔2026-10-13 更新〕原独立 `targets.Myanmar`（阶段三口径 =「无显示驱动 + 无 `PROTO_CHONGQING`」，配套无显示构建的运行时守卫见 §10）**已于 2026-10-13 删除**；**缅甸固件改按 `doc/构建开关总表.md` §7.2 第 5 条在 GUI 点选组出**（取消排除本模块 + 缅甸版厂测 + 不编显示驱动 + 不定义 `PROTO_CHONGQING`）。〔历史〕2026-09-28~2026-10-13 期间 Debug 曾「编入本模块、排除 LDI + 四川 ETC/MTC/治超」（见 §9.1，已作废）
 
 ### 7.3 波特率（默认 9600 的落地方式）
 
@@ -346,24 +356,32 @@ RS232 槽（USART3）既有协议首字节：`0x0A`（四川 ETC）/ `0x5A`（�
 | **Q3** | `0x0B`（右下箭头）在协议文档中**不存在**（文档只到 `0x0A`）；`0x0A` 文档标题写「红色车道灯」、注文写「绿色车道灯」。**请提供 0x0B 的出处** | 本实现按用户口径实现 `0x0B`（`doc_extract.txt` 已确认原文无 `0x0B`）。若 `0x0B` 是笔误，删一条命令即可 |
 | **Q4** | 结束码 5 字节现场实际取值？（文档 `00 00 00 00 00`，同源 8051 末字节为 XOR 但从不比对） | 本实现**不校验**结束码取值（只把 `[15..18]` 当正签名用于 SKIP 分支）。若现场确认恒为 `00×5`，可收紧为全 5 字节校验 |
 | **Q5** | 「默认 9600」是否需要**脱离 DIP1** 强约束（即 DIP1 置 ON 时本模块仍 9600）？ | 当前 = 不改波特率逻辑，靠 **DIP1 置 OFF** 落地（§7.3）。若需强约束，需新增端口级波特率覆写机制（影响 RS485 或需拆分端口配置） |
-| **Q6** | 是否需要在**缅甸量产构建**里同时保留四川治超（SC_OL）/ 四川 ETC / 四川 MTC / LDI / IAP？ | ✅ **2026-09-24 用户裁决（第三阶段）：保留 —— 协议编译集保持「继承 Debug 全集」**，一行不裁。理由：四者首字节 `0xFF` 的共存已做到双向不误吞（§5，宿主推演 §6 覆盖），同编即可；如将来要更小的量产集，把它们加进 `targets.Myanmar.excludeList` 即可（一行一处，见 §9） |
+| **Q6** | 是否需要在**缅甸量产构建**里同时保留四川治超（SC_OL）/ 四川 ETC / 四川 MTC / LDI / IAP？ | ✅ **2026-09-24 用户裁决（第三阶段）：保留 —— 协议编译集保持「继承 Debug 全集」**，一行不裁。理由：四者首字节 `0xFF` 的共存已做到双向不误吞（§5，宿主推演 §6 覆盖），同编即可；如将来要更小的量产集，在 GUI 里把对应协议目录加进排除表即可（一行一处；原 `targets.Myanmar.excludeList` 已随该 target 于 2026-10-13 删除，同义操作见 `doc/构建开关总表.md` §7.2） |
 | **Q7** | 是否需要**报警灯控制**（`0x80` bit2 黄闪）与**亮度**（`0x40`）？ | 本次按用户需求**只做三个车道灯**；文档的 `0x80`/`0x40`/`0x10` 目前整帧 SKIP（不动作）。2026-WS002 变更通知明确要求「增加报警灯的外围控制命令」→ 很可能是后续需求 |
-| **Q8** | **EIDE 显示模组口径**：`targets.Myanmar` 是否要编显示驱动？ | ✅ **2026-09-24 用户裁决（第三阶段）：不带显示驱动** —— `targets.Myanmar.excludeList` 排除 `Device/Display/` 下**全部** `dev_display_*.c`（含当时编入的 `dev_display_1_969.c` 与全部备用模组 p20/1_263/1_260/22_1703/22_1665/1_577）；基类 `dev_display.c` **保留**（注册表 / 守卫 / 通用像素 API 宿主）。**代价与防护**：无显示时全部渲染路径必须能安全跳过 —— 本阶段补齐运行时 NULL 守卫，见 **§10**。实测（等价口径 `CONFIG=EIDEMyanmarNoDisp`）：`.ccmram **16084B**`（余 49452B）、链接通过、`Device/Display/` 下只编 `dev_display.c`（`nm` 无任何模组驱动符号） |
-| **Q9** | **EIDE `defineList` 仍沿用 Debug 的 `PROTO_CHONGQING`**（⇒ 该目标默认网络配置走 CQ 口径 IP 192.168.1.5 / TCP 9528 / udp_port 20103），但**目标内不编 CQ 协议**（CQ 目录在排除表内）。缅甸是否需要自己的网络默认口径？ | ✅ **2026-09-24 用户裁决（第三阶段）：去掉 `PROTO_CHONGQING`** —— `targets.Myanmar.cppPreprocessAttrs.defineList` 现为 `USE_HAL_DRIVER` / `STM32F407xx`（= Debug 去掉该宏），网络默认回落 **dev 口径**（192.168.114.200 / 网关 .1 / TCP 9528 / CQ 业务口固定 20103）；缅甸不用网络，此改动只影响默认 IP 文本与端口绑定对象 |
+| **Q8** | **EIDE 显示模组口径**：`targets.Myanmar` 是否要编显示驱动？ | ✅ **2026-09-24 用户裁决（第三阶段）：不带显示驱动** —— 〔当时〕`targets.Myanmar.excludeList` 排除 `Device/Display/` 下**全部** `dev_display_*.c`（含当时编入的 `dev_display_1_969.c` 与全部备用模组 p20/1_263/1_260/22_1703/22_1665/1_577）；基类 `dev_display.c` **保留**（注册表 / 守卫 / 通用像素 API 宿主）。**代价与防护**：无显示时全部渲染路径必须能安全跳过 —— 本阶段补齐运行时 NULL 守卫，见 **§10**。实测（等价口径 `CONFIG=EIDEMyanmarNoDisp`）：`.ccmram **16084B**`（余 49452B）、链接通过、`Device/Display/` 下只编 `dev_display.c`（`nm` 无任何模组驱动符号）。**〔2026-10-13：该 target 已删除，同义口径 = 点选时不取消排除任何显示驱动，见 `doc/构建开关总表.md` §7.2 第 5 条〕** |
+| **Q9** | **EIDE `defineList` 仍沿用 Debug 的 `PROTO_CHONGQING`**（⇒ 该目标默认网络配置走 CQ 口径 IP 192.168.1.5 / TCP 9528 / udp_port 20103），但**目标内不编 CQ 协议**（CQ 目录在排除表内）。缅甸是否需要自己的网络默认口径？ | ✅ **2026-09-24 用户裁决（第三阶段）：去掉 `PROTO_CHONGQING`** —— 〔当时〕`targets.Myanmar.cppPreprocessAttrs.defineList` 为 `USE_HAL_DRIVER` / `STM32F407xx`（= Debug 去掉该宏），网络默认回落 **dev 口径**（192.168.114.200 / 网关 .1 / TCP 9528 / CQ 业务口固定 20103）；缅甸不用网络，此改动只影响默认 IP 文本与端口绑定对象。**〔2026-10-13：该 target 已删除；Base/Debug 基线本身就不定义 `PROTO_CHONGQING`，点选缅甸固件时保持基线 defineList 即同义〕** |
 
 ---
 
-## 9. EIDE 独立缅甸目标（阶段二落地、阶段三改口径）与内存账
+## 9. EIDE 独立缅甸目标〔**已于 2026-10-13 按用户裁决整块删除**〕（阶段二落地、阶段三改口径）与内存账
 
-### 9.1 目标结构（`.eide/eide.yml`）
+> **⚠ 现状（2026-10-13）**：`Myanmar` target 已删除（175 行），**需要缅甸固件时改按 GUI 点选现场组出**：
+> 取消排除 `ProtocolParser_Myanmar`（两文件）+ 取消排除 `app_factory_test_mm.c` 并排除
+> `app_factory_test.c`（两文件同名符号，必须恰好一个）+ **不编任何显示驱动** +
+> **不定义 `PROTO_CHONGQING`**（Base/Debug 基线本来就没有）；配方见 `doc/构建开关总表.md` §7.2 第 5 条。
+> 同轮 `Debug` 也已清成基线（排缅甸、排 LDI/四川三、编标准厂测）。**本节下方内容为 `targets.Myanmar`
+> 存在期间的目标结构与内存账（历史）**——除标注「现状」者外一律按历史理解；**内存数字仅对
+> 各自标注的口径/日期成立**。
+
+### 9.1 目标结构（`.eide/eide.yml`）（历史）
 
 | 项 | 内容 |
 |---|---|
 | `files` | 虚拟文件夹 `Application > protocol > ProtocolParser_Myanmar`，收录 `app_mm_proto.c` / `app_mm_proto_cmd.c`（**EIDE 的文件树只收 `.c`**；`.h` 走 incList）。**本阶段一字未动**。另：`Application` 虚拟文件夹收录 `app_factory_test.c` **与** `app_factory_test_mm.c`（2026-09-28 新增，二选一由排除表决定，见下一行） |
-| **出厂测试二选一（2026-09-28 新增）** | `targets.Debug` 与 `targets.Myanmar` 的 `excludeList` 均含 `<virtual_root>/Application/app_factory_test.c` ⇒ 两目标**恰好编入缅甸版** `app_factory_test_mm.c`（标准版被排除）。切回标准版 = 把它移出排除表并排除 `app_factory_test_mm.c`；`check_eide_targets.py` 对两目标各断言「恰好一个 / 是缅甸版 / 排除标准版」（见 §13.3） |
-| `targets.Debug` | **现行口径（2026-09-28 用户裁决：暂保持 EIDE 回写后的状态）**：**编入缅甸模块**（不在其 `excludeList` 内）、**排除 `ldi` + 四川 ETC/MTC/治超**；显示模组仍为 `dev_display_1_969.c`。**编入 = IAP(2) + 缅甸(2) + `dev_display_1_969.c`（193 源文件**，实测 = EIDE 自己写的 `build/Debug/builder.params` `sourceList` 193 条，见 §9.2）。**历史口径（阶段三基线，2026-09-24 修复轮一度恢复）= 排缅甸、编 IAP + LDI + 四川三（206 源文件）**；两次口径的差异详见本节下方 2026-09-28 注记与 §9.1.1（2026-09-24 修复轮） |
-| `targets.Myanmar` | 以 Debug 为模板；**阶段三口径**：① 不排除缅甸模块；② `incList` 增 `Application/Inc/ProtocolParser_Myanmar`；③ **不带显示驱动**——`excludeList` 排除 `Device/Display/` 下全部 `dev_display_*.c`（新增一行 `dev_display_1_969.c`，其余 6 个阶段二已在表内）；④ **`defineList` 去掉 `PROTO_CHONGQING`** |
-| 排除表 | `targets.Myanmar.excludeList` = **阶段三基线 Debug 排除集**（历史口径）− {缅甸} + {`dev_display_1_969.c`}（**`targets.Myanmar` 自身未随 2026-09-28 的 Debug 口径变化**）；**协议排除项一条未加**（Q6 裁决：保留 LDI / 四川 ETC/MTC/治超） |
+| **出厂测试二选一（2026-09-28 新增）** | 〔当时〕`targets.Debug` 与 `targets.Myanmar` 的 `excludeList` 均含 `<virtual_root>/Application/app_factory_test.c` ⇒ 两目标**恰好编入缅甸版** `app_factory_test_mm.c`（标准版被排除）。**现状（2026-10-13）**：Base/Debug 基线反过来 = 编标准版、排缅甸版；要缅甸版在 GUI 把两处勾选互换（`doc/构建开关总表.md` §7.2 第 5 条）；互斥机制不变（见 §13.3） |
+| `targets.Debug` | 〔**历史口径（2026-09-28 用户裁决当时）；已于 2026-10-13 作废**〕**编入缅甸模块**（不在其 `excludeList` 内）、**排除 `ldi` + 四川 ETC/MTC/治超**；显示模组为 `dev_display_1_969.c`。**编入 = IAP(2) + 缅甸(2) + `dev_display_1_969.c`（193 源文件**，实测 = EIDE 自己写的 `build/Debug/builder.params` `sourceList` 193 条，见 §9.2）。**更早历史口径（阶段三基线，2026-09-24 修复轮一度恢复）= 排缅甸、编 IAP + LDI + 四川三（206 源文件）**。**现状 = Base/Debug 基线（190 个 .c，排缅甸/排 LDI/排四川三、编标准厂测）**，见顶部「现状」条 |
+| `targets.Myanmar` | 〔**该 target 已于 2026-10-13 整块删除**；下表为删除前的阶段三口径，仅作历史〕以 Debug 为模板：① 不排除缅甸模块；② `incList` 增 `Application/Inc/ProtocolParser_Myanmar`；③ **不带显示驱动**——`excludeList` 排除 `Device/Display/` 下全部 `dev_display_*.c`（新增一行 `dev_display_1_969.c`，其余 6 个阶段二已在表内）；④ **`defineList` 去掉 `PROTO_CHONGQING`**（同义口径现由点选表达：`doc/构建开关总表.md` §7.2 第 5 条） |
+| 排除表 | 〔历史〕`targets.Myanmar.excludeList` = **阶段三基线 Debug 排除集**（历史口径）− {缅甸} + {`dev_display_1_969.c`}（**`targets.Myanmar` 自身未随 2026-09-28 的 Debug 口径变化**）；**协议排除项一条未加**（Q6 裁决：保留 LDI / 四川 ETC/MTC/治超） |
 | defineList | `USE_HAL_DRIVER` / `STM32F407xx`（**无 `STD_ALL_PROTO`、无 `PROTO_CHONGQING`**）：编入的 `{` 帧族只剩四川 MTC 一个 ⇒ `g_brace_proto_guard` 不冲突 |
 | toolchain / uploader | GCC / **JLink**（`tool/flash_all.sh`）。注：Debug 的 uploader 是 `Custom`，缅甸目标是 JLink —— 属阶段二既有差异，本阶段按「不回退既有内容」保持现状（`check_eide_targets.py` 已把它钉成基线快照） |
 
@@ -387,10 +405,15 @@ RS232 槽（USART3）既有协议首字节：`0x0A`（四川 ETC）/ `0x5A`（�
 > **2026-09-28 用户裁决：暂保持现行口径（Debug 编入缅甸、排除 LDI + 四川 ETC/MTC/治超），
 > 不恢复阶段三排除表**——Debug 正好编入缅甸，便于当前现场调试（LDI/四川以后再说）。
 > **该口径下 `check_eide_targets.py` 预期 40/45（5 条失败 = 口径差异，非回归；2026-09-28 出厂测试轮扩断言前为 30/35）**；
-> （本节上表 `targets.Debug` 行已按本裁决改写为现行实态；「阶段三基线」一律作历史口径标注。）
+> （本节上表 `targets.Debug` 行已按本裁决改写为**当时**实态；「阶段三基线」一律作历史口径标注。）
 > **如需恢复阶段三基线**（非现行口径，可选路径）：在 **EIDE GUI 的目标设置里**把「缅甸」加回 Debug 排除表、
 > 并去掉 `ldi` 与四川三协议的排除（纯文件编辑会被再次回写），随后 `EIDE: Reload Project`，
 > 再以 `check_eide_targets.py`（期望 **35/35**）复核。
+>
+> **〔2026-10-13 更新：以上「暂保持现行口径」整段作废（历史）〕** —— 用户已按新用法对 EIDE 目标重组：
+> 新增 `Base` 基线、`Debug` 清成同一基线、**`Myanmar` target 删除**；协议/显示驱动不再靠「维持某个
+> 排除表口径」，而是随时按需点选。上文的「恢复阶段三基线 / 35/35 复核」等操作（含已移除的
+> `check_eide_targets.py`）不再执行。
 
 ### 9.1.1 2026-09-24 修复轮：EIDE 回写改坏 `targets.Debug` 排除表（当轮已修复；后于 2026-09-28 再次被回写，用户裁决**暂保持**，见 §9.1）
 
@@ -421,7 +444,7 @@ fatal error: app_mm_proto.h: No such file or directory`（两个缅甸文件都�
   **−** `<virtual_root>/Application/protocol/ldi` 与三条 `ProtocolParser_SiChuang_{ETC,MTC,Overload}`
   （后 4 条为恢复阶段三基线，即「Debug 编入 LDI + 四川三」）。
 - `targets.Debug.incList` + `targets.Release.incList`：**+** `Application/Inc/ProtocolParser_Myanmar`
-  （**兜底**：即使将来有人误把缅甸编进某目标，也不会因缺 `-I` 而炸；仅头文件搜索路径、零副作用）。
+  （**兜底**：即使将来有人误把缅甸编进某目标，也不会因缺 `-I` 而炸；仅头文件搜索路径、零副作用；**`targets.Release` 已于 2026-10-13 按用户裁决删除，本行保留为历史记录**）。
 - 未动 `files` 树、未动 `targets.Myanmar`、未动其它 target。
 
 **验证（2026-09-24）**：
@@ -440,23 +463,25 @@ fatal error: app_mm_proto.h: No such file or directory`（两个缅甸文件都�
   `-Wunused-parameter`）⇒ make 路径未受影响。**注**：make 与 EIDE 共用 `build/Debug/` 产物，
   本轮跑完 make 后已把 EIDE 产物整目录恢复，避免口径混淆（纪律见 doc/CLAUDE.md「构建卫生」）。
 
-### 9.2 编译集（实证，非推测）
+### 9.2 编译集（实证，非推测；**以下均为 `targets.Myanmar` / 旧 Debug 存在期间的口径，2026-10-13 起为历史**）
 
-`.analysis/myanmar/check_eide_targets.py`（**阶段三基线口径 35/35**；阶段二 19/19、阶段三 34/34、
+`.analysis/myanmar/check_eide_targets.py`（**该脚本已随 `.analysis/` 于 2026-10-13 移除**；历史结果：**阶段三基线口径 35/35**；阶段二 19/19、阶段三 34/34、
 2026-09-24 修复轮改两条 incList 断言后 35/35；**2026-09-28 出厂测试轮新增 11 条断言（两文件入 `files` /
-每目标恰好编入一个 / 是缅甸版 / 排除标准版 / 地面真相差异只允许「空 / 整对」）后共 45 条——现行 Debug
+每目标恰好编入一个 / 是缅甸版 / 排除标准版 / 地面真相差异只允许「空 / 整对」）后共 45 条——当时 Debug
 口径下预期 40/45（5 条失败 = 口径差异，非回归）**；用例只增不减）按 EIDE 的
 排除语义推导编入/排除清单，并与 EIDE 上次构建留下的 `build/Debug/builder.params`（**IDE 自己写的
-源文件清单**，**现行 193 条**）**逐条对拍一致**：
+源文件清单**，**当时 193 条**）**逐条对拍一致**：
 
-- **Debug 编入（现行口径，推导 = 实测，193 源文件）**：平台 + Kernel + Core + HAL + LwIP/FreeRTOS/RTT +
+- **Debug 编入（〔当时〕口径，推导 = 实测，193 源文件）**〔**2026-09-28~2026-10-13 期间口径，现已作废**：
+  现行 Base/Debug = 基线（190 个 .c，编 IAP(2) + 标准厂测 + `dev_display.c`，排缅甸/LDI/四川三及各协议）〕：
+  平台 + Kernel + Core + HAL + LwIP/FreeRTOS/RTT +
   cJSON + **IAP(2) + 缅甸(2)** + `dev_display_1_969.c`；
   **排除**：山东 / 青海 / 贵州常规 / 贵州治超 / 云南常规 / 云南治超 / 重庆 / 安徽 / AH / RLS
   **+ LDI(5) + 四川 ETC(3)/MTC(4)/治超(3)** + 全部非 1_969 显示驱动。
   （**历史口径 = 阶段三基线**：编入 IAP + LDI + 四川三、排除缅甸 = 206 源文件。）
-- **Myanmar 编入（目标自身口径未变）** = 阶段三基线编入集 + 缅甸两文件 **− 显示驱动
+- **Myanmar 编入（目标自身口径未变）**〔**该 target 已于 2026-10-13 删除**；下集即点选缅甸固件时的编入集〕 = 阶段三基线编入集 + 缅甸两文件 **− 显示驱动
   `dev_display_1_969.c`**（**207** 源文件）⇒ 四川治超 / 四川 ETC / 四川 MTC / LDI / IAP **全部保留**
-  （Q6 裁决）；**`Device/Display/` 下只编基类 `dev_display.c`**（守卫与注册表宿主，必须保留）。
+  （Q6 裁决；**现状点选配方可另行裁剪**，见 `doc/构建开关总表.md` §7.2 第 5 条）；**`Device/Display/` 下只编基类 `dev_display.c`**（守卫与注册表宿主，必须保留）。
 - **编译期口径**：无 `PROTO_CHONGQING`（网络默认回落 dev 口径）、无 `STD_ALL_PROTO`。
 
 ### 9.3 CCMRAM 预算与等价口径实测（**链接通过**）
@@ -466,14 +491,15 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
 
 | 口径 | CCM 用量 | 结论 |
 |---|---|---|
-| **现行（缅甸目标 = 无显示驱动，Q8 裁决）** | 13644 + 2440 = **16084B** | 链接通过，**余 49452B**（实测 `.ccmram 16084`） |
+| 〔当时〕**缅甸目标 = 无显示驱动，Q8 裁决** | 13644 + 2440 = **16084B** | 链接通过，**余 49452B**（实测 `.ccmram 16084`） |
 | 历史（阶段二继承 1_969，192×96） | 13644 + 2440 + 38208 = 54292B | 链接通过，余 11244B |
 | 参考（22_1665 8×4，128×64） | 13644 + 2440 + 46080 = 62164B | 链接通过，余 3372B |
 
 - **等价口径复现**〔2026-10-13 更新〕：**Makefile 已移除，等价口径构建一律走 EIDE** ——
-  在 EIDE GUI 新建一个 target、按无显示口径勾选 `excludeList`（排除 `Device/Display/` 下全部
-  `dev_display_*.c`、保留基类 `dev_display.c`；协议集按目标口径）后构建；配方与不变量清单见
-  `doc/构建开关总表.md` §7。〔历史〕原做法 = `check_eide_targets.py --emit-make` 生成等价口径 Makefile
+  **在 EIDE GUI 里对当前 target 按需点选**（取消排除 `ProtocolParser_Myanmar` 两文件 + 缅甸版厂测
+  两处勾选互换 + 保持 `Device/Display/` 下全部 `dev_display_*.c` 排除、基类 `dev_display.c` 保留 +
+  不定义 `PROTO_CHONGQING`）后直接 Build；配方与不变量清单见 `doc/构建开关总表.md` §7.2 第 5 条。
+  〔历史〕原做法 = 新建/复制 target 或 `check_eide_targets.py --emit-make` 生成等价口径 Makefile
   （产物落 `.analysis/myanmar/build_nodisp/`，`CONFIG=EIDEMyanmarNoDisp`；脚本已随 `.analysis` 移除、
   `make BUILD_DIR=<dir>` 亦随 Makefile 移除作废）。
   （**阶段三首次实测**：`.text 138720 / .rodata 197056 / .data 1584 / .ccmram 16084 / .bss 116060 /
@@ -497,13 +523,14 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
   elf md5 `ce7fd155adac088b782f5b18cafe23d0`、207 个源文件；生成物按现行 yml 重生成。
 - ⚠ **注意区分**：Makefile 的 `PROTO=ALL` / `PROTO=CQ` 口径编 22_1665(8×4) 仍是**预存**的链接期
   CCMRAM 溢出（**17700B / 15444B**，2026-10-08 实测；`doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.2）——那是「全协议 + 全部任务栈」口径；
-  **EIDE 缅甸目标（无显示）不存在该问题**（余量 49KB）。
+  **无显示口径（原 `targets.Myanmar`；现按不编任何显示驱动点选）不存在该问题**（余量 49KB）。
 
 ---
 
 ## 10. 无显示驱动构建的边界防护（阶段三核心）
 
-`targets.Myanmar` 不编任何显示模组驱动 ⇒ **`dev_display_get()` 恒返回 `nullptr`**。此时「解引用显示
+无显示口径（〔历史〕原 `targets.Myanmar`；**该 target 已于 2026-10-13 删除，现 = 点选时不编任何显示驱动**）
+不编任何显示模组驱动 ⇒ **`dev_display_get()` 恒返回 `nullptr`**。此时「解引用显示
 实例」的每一处运行路径都必须能**安全跳过 / 降级**，否则上电即 HardFault（`dev_display_start` 是
 `sw_initcall`，启动链上必然执行）或定时任务空指针（光敏 1s 周期）。
 
@@ -615,6 +642,7 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
 | **2026-09-29（第二轮：RTT 底层恢复 + build 清理，本轮）** | **① RTT 底层恢复**（用户裁决「只清理 API 调用、不清理底层」）：`Platform/Src/pl_rtt.c`（逐字节 = `git HEAD`，`hw_pl_initcall` 注册）+ Makefile `SRC_RTT` 三源文件 （`SEGGER_RTT.c` / `SEGGER_RTT_printf.c` / `SEGGER_RTT_Syscalls_GCC.c`）+ `-I Middlewares/Third_Party/SEGGER_RTT` 加回；**自研诊断设施（`app_diag.h` / `[diag]` / `[mm]` / `[disp]`）保持删除**，**业务代码零 RTT API 调用**（grep 0 命中）；本模块 `MM_RTT_DIAG` 代码块仍为删除态。**② build/ 清理 + 防再污染**：删 `build/` 下 5 个非 Debug/Release 目录（合计 43MB，含 `EIDEMyanmarNoDisp`）；Makefile 新增 `BUILD_DIR ?=`，`check_eide_targets.py --emit-make` 生成物默认把产物写到 `.analysis/myanmar/build_nodisp/$(CONFIG)`（不再污染 `build/`）。**③ 等价口径复测（现行）**：`.text 131928 / .rodata 191968 / .data 1584 / .ccmram 16084 / .bss 115704 / heap_stack 2560` ⇒ SRAM 余 **11224B**、CCM 余 49452B，207 源文件、零新增告警。**④ 脚本**：`mm_frame_sim.py` **157/157**、`check_display_guards.py` **16/16 + 95/95**、`check_guard_disasm.py` 原操作零丢失、`check_eide_targets.py` **40/45**（口径差异，非回归）。**⑤ 本模块段尺寸（现行）**：`FACTORY=MM` = text **166216** / rodata **195664** / bss 124504（SRAM 余 2352B）。完整记录：`.analysis/cleanup_20260929/round2_report.md`、`doc/17` §5。**未烧录、未提交、未改 git 配置、未改 `.eide/eide.yml`** |
 
 | **2026-10-13（全仓编译期断言清理，第二轮）** | 本模块 2 条 `_Static_assert`（`MM_PAYLOAD_MAX ≤ RS232 RB` / `MM_FRAME_LEN == 20U`）删除 → 契约注释（§2 定长帧事实）；`mm_frame_sim.py` **157 → 158/158**（原断言存在性检查改「契约注释存在 + 宿主复算」）。**行为零变化**：改前/改后全量重编段级逐字节一致 + strip-debug elf md5 相同（`.analysis/comment_pass_20261013/report.md` §⑧）。文档同步：本节 + §7.1 表 + 顶部横幅 + `.analysis/myanmar/README.md`。**未烧录、未提交、未改 git 配置、未改 `.eide/eide.yml`** |
+| **2026-10-13（EIDE target 重组：`Myanmar` target 删除）** | 用户裁决 EIDE 侧重组成 3 个 target：**新增 `Base`**（基线 / 重置模板）、**`Debug` 清成同一基线**（日常主用；当日全量 Rebuild 构建成功、190 个 .c）、**`Myanmar` target 整块删除**（175 行）；`Release` 仍损坏勿用（**同日稍晚亦按用户裁决整块删除**）。**本模块源码零改动**（协议 / 干接点 / 厂测文件均在仓库），**缅甸固件改为 GUI 点选组出**：取消排除 `ProtocolParser_Myanmar` + 取消排除 `app_factory_test_mm.c`（同时排除标准版）+ 不编任何显示驱动 + 不定义 `PROTO_CHONGQING`（配方见 `doc/构建开关总表.md` §7.2 第 5 条）。文档同步：本文件顶部「现状」条 + §9 标题/§9.1/§9.2/§9.3 + §7.1/§7.2 + §8 Q6/Q8/Q9 注记 + §10/§13.3/§14.3/§14.5 + `doc/CLAUDE.md` 构建小节与缅甸小节 + `doc/构建开关总表.md` §1/§7 + `doc/06-04` + `doc/19` + `doc/05-01`。**未烧录、未提交、未改 `.eide/eide.yml`**（该 yml 改动由用户在 EIDE GUI 完成） |
 | **2026-10-13（裁决执行轮：全项目编译期断言清零 + 观察 API 清理）** | ① 本模块**无编译期断言**（第二轮已清）；② **`s_mm_lamp_state` 影子状态删除**（零业务消费者；`mm_apply_lamp`/`mm_apply_init` 各减一处写入）。**行为零变化**：灯驱动路径 `_mm_drive()` 与映射表一字未改；宿主推演 `mm_frame_sim.py` **158/158**、`check_display_guards.py` **16/16 + 101/101** 全绿；全量重编 `.text −224 / .bss −24`（`PROTO=ALL`，逐对象期望清单 7/7 归因）。文档同步：本表 + §3/§4.1/§4.2/§4.3/§14.2 的「影子状态」表述 + `doc/CLAUDE.md` + `doc/06-04` §8.4.7 + `doc/05-01`。详见 `.analysis/comment_pass_20261013/report.md` 裁决执行轮。 |
 
 ---
@@ -682,7 +710,7 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
 | **TEST 键行为** | 11 步序列（固件信息 / 七色满屏 / 通信灯 / 老化循环 / 斜扫 / 重启） | **每按一次 → `mm_arrow_map_toggle()`**，不进入任何序列、不渲染 |
 
 - 监视任务名 `mm_factory_test`（≤ `configMAX_TASK_NAME_LEN`=16），优先级 `osPriorityHigh`（同标准版）；
-- 本文件**不引用任何显示 API** ⇒ 在「无显示驱动」构建（`targets.Myanmar` 口径）下同样安全；
+- 本文件**不引用任何显示 API** ⇒ 在「无显示驱动」构建（〔历史〕`targets.Myanmar` 口径；现 = 不编任何显示驱动）下同样安全；
 - TEST 键消费方式不变：`dev_key_wait_press(DEV_KEY_TST, …)`（EXTI 下降沿释放二值信号量，
   获取即**一次性消费**）。
 
@@ -700,7 +728,7 @@ arm-none-eabi-ld -r build/Debug/Application/Src/app_factory_test.o \
 | 入口 | 标准版 | 缅甸版 |
 |---|---|---|
 | 〔历史〕Makefile（**已移除**） | `make`（默认 `FACTORY=STD`，保持改动前行为） | `make FACTORY=MM`（非法值 `$(error)`；开关值进 `.build_stamp` ⇒ 切口径全量重编 + 重链接） |
-| EIDE | 把 `<virtual_root>/Application/app_factory_test.c` 移出 `excludeList`（并排除 `app_factory_test_mm.c`） | **现行**：Debug / `targets.Myanmar` 的 `excludeList` 均含标准版条目 ⇒ 恰好编入缅甸版 |
+| EIDE | 把 `<virtual_root>/Application/app_factory_test.c` 移出 `excludeList`（并排除 `app_factory_test_mm.c`） | **〔2026-10-13 现行〕Base/Debug 基线 = 编标准版、排缅甸版；要缅甸版把两处勾选互换**（`doc/构建开关总表.md` §7.2 第 5 条）。〔历史（2026-09-28~2026-10-13）〕Debug / `targets.Myanmar` 的 `excludeList` 均含标准版条目 ⇒ 恰好编入缅甸版 |
 
 ### 13.4 现场测试矩阵（TEST 键）
 
@@ -756,7 +784,7 @@ arm-none-eabi-ld -r build/Debug/Application/Src/app_factory_test.o \
 
 - **注册**：`mm_proto_init()` 内调 `_mm_default_display_init()` ——
   `if (dev_display_get() != nullptr) app_default_display_register(_mm_default_red_cross);`
-  **仅当本构建带显示驱动时注册**；无显示驱动构建（`targets.Myanmar`）不注册、不打印、零行为
+  **仅当本构建带显示驱动时注册**；无显示驱动构建（〔历史〕`targets.Myanmar`；现 = 不编任何显示驱动）不注册、不打印、零行为
   （调用侧仍走 `dev_display_guard("default-display")` 的既有安全跳过路径，见 §10）。
 - **画法**（不依赖字库，避免字库无 '×' 字形时画空）：整屏清黑 → 两条对角线（整数线性插值逐行落笔，
   线宽 `max(2, h/24)`：192×96 → 4px、32×32 → 2px）→ `dev_display_commit_frame()`；
@@ -764,8 +792,9 @@ arm-none-eabi-ld -r build/Debug/Application/Src/app_factory_test.o \
   —— **无硬编码分辨率**（宿主脚本断言函数体内不出现 16/32/64/96/128/160/192/224 等数值）。
 - **作用域（单槽首个注册生效）**：本模块在 Makefile 收录序上位于山东（`app_sd_proto_default.c`）与
   贵州治超（`app_gz_ol_proto_default.c`）之后 ⇒ **`PROTO=ALL` 开发构建仍由山东先占槽、画面不变**；
-  只有「无其它默认画面注册者」的构建（**EIDE Debug**（山东/贵州治超均在排除表内）、
-  **EIDE `targets.Myanmar`**（同上，且无显示驱动 ⇒ 不注册））由本回调生效。
+  只有「无其它默认画面注册者」的构建（**〔2026-10-13 现态〕点选补上任一显示驱动的构建**
+  〔历史：2026-09-29 当时 = `EIDE Debug`（山东/贵州治超均在排除表内）、`EIDE targets.Myanmar`
+  （同上，且无显示驱动 ⇒ 不注册）〕）由本回调生效。
 - **无显示纪律**：回调内 `if (d == nullptr) return;` 纵深防御；不新增任何编译期开关；
   新调用点已进 `.analysis/myanmar/check_display_guards.py` 的硬断言表（16/16）与调用点扫描（当时 99/99；**2026-09-29 瘦身轮后 = 95/95**，差值 = 随 RTT 诊断删除的 `dev_display_get()` 调用点）。
 - **开机时序提醒**：`app_splash_display()`（FW/MD 版本，5s）仍在**默认画面之前**；
@@ -784,7 +813,7 @@ arm-none-eabi-ld -r build/Debug/Application/Src/app_factory_test.o \
   `data / ccmram / bss / heap_stack ±0`（**SRAM 余量不变**）；无显示口径 = text +304 / rodata +32。
 - **三口径链接通过、零新增告警**（仍 3 条既有 HAL `stm32f4xx_hal_flash_ex.c` `-Wunused-parameter`）。
 - 脚本：`mm_frame_sim.py` **158/158**（**2026-10-13 编译期断言清理后净 +1；此前瘦身轮由 159 收敛为 157**，见本文件顶部横幅）、`check_display_guards.py` **16/16 + 95/95**（瘦身后）、
-  `check_guard_disasm.py` **原操作零丢失**、`check_eide_targets.py` **40/45**（5 条 = Debug 现行口径差异，非回归）。
+  `check_guard_disasm.py` **原操作零丢失**、`check_eide_targets.py` **40/45**（〔当时〕5 条 = Debug 现行口径差异，非回归；**该脚本已随 `.analysis` 移除、I6 遗留已随 2026-10-13 target 重组清零**）。
   证据留档：无显示口径 ELF `nm` 无模组驱动符号、红叉符号在对象内；`objdump -dr` 显示
   `mm_apply_init` 的重定位序 = `_mm_drive` → `pl_gpio_release_exti` → `pl_gpio_config_output` → `mm_apply_lamp`
   （接管完成后才点亮红灯，顺序与设计一致）。
@@ -796,7 +825,7 @@ arm-none-eabi-ld -r build/Debug/Application/Src/app_factory_test.o \
 | 1 | 复位上电（不发任何命令） | **车道灯板红灯（红叉）亮**（PE12 = 3.3V）；RTT 两行（接管摘要 + 红灯 ON） |
 | 2 | 发 `FF E0 90 00 …` | 红叉灭（PE12 ≈ 0V）—— 证明协议仍可按帧关灯 |
 | 3 | 屏侧（若调试构建挂了屏，如 EIDE Debug 的 1_969 = 192×96） | 上电默认画面 = **整屏黑底 + 红色叉（×）**（替换原「欢迎行驶 / 高速公路」欢迎语） |
-| 4 | 无显示构建（`targets.Myanmar`） | 无任何显示相关行为、无 `[disp]` 告警新增（红叉回调不注册） |
+| 4 | 无显示构建（〔历史〕`targets.Myanmar`；现 = 不编任何显示驱动） | 无任何显示相关行为、无 `[disp]` 告警新增（红叉回调不注册） |
 
 **待用户拍板**：① 「红叉」是否**只需要车道灯侧**（若要，B 一行删除）；② 屏侧红叉的**大小/线宽/是否留边**
 （现行 = 满屏对角线、线宽 `max(2, h/24)`）；③ 若希望「上电只显示红叉、连 splash 也不要」，

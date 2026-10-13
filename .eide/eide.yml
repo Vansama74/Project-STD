@@ -409,13 +409,11 @@ outDir: build
 miscInfo:
   uid: e3e6d7588780775da2eb8dcb95a2ad14
 targets:
-  Debug:
+  Base:
     cppPreprocessAttrs:
       defineList:
         - USE_HAL_DRIVER
         - STM32F407xx
-        - PROTO_CHONGQING
-        - XJ_FAULT_SCREEN=0
       incList:
         - Core/Inc
         - Drivers/CMSIS/Include
@@ -457,27 +455,30 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
-      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Device/Display/dev_display_p20.c
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
       - <virtual_root>/Device/Display/dev_display_22_1703.c
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload
       - <virtual_root>/Device/Display/dev_display_1_577.c
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ldi
       - <virtual_root>/Application/app_factory_test_mm.c
-      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
-      - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
       - <virtual_root>/Device/Display/dev_display_22_1665.c
-      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
-      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -553,7 +554,7 @@ targets:
     uploadConfigMap:
       Custom:
         bin: ""
-        commandLine: bash ./tool/flash_all.sh
+        commandLine: bash ./tool/flash_all.sh -a build/Base/Project_STD.hex
         eraseChipCommand: ""
       JLink:
         baseAddr: ""
@@ -588,7 +589,7 @@ targets:
         speed: 10000
         target: STM32F407ZG
     uploader: Custom
-  Myanmar:
+  Debug:
     cppPreprocessAttrs:
       defineList:
         - USE_HAL_DRIVER
@@ -634,25 +635,28 @@ targets:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
-      - <virtual_root>/Application/protocol/ah
-      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Device/Display/dev_display_p20.c
-      - <virtual_root>/Application/protocol/rls
-      - <virtual_root>/Device/Display/dev_display_1_263.c
-      - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan
-      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
-      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
       - <virtual_root>/Device/Display/dev_display_22_1703.c
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload
+      - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ldi
+      - <virtual_root>/Application/app_factory_test_mm.c
       - <virtual_root>/Device/Display/dev_display_22_1665.c
-      - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
-      - <virtual_root>/Application/app_factory_test.c
-      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
+      - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -762,108 +766,4 @@ targets:
         protocol: swd
         speed: 10000
         target: STM32F407ZG
-    uploader: JLink
-  Release:
-    cppPreprocessAttrs:
-      defineList:
-        - USE_HAL_DRIVER
-        - STM32F407xx
-      incList:
-        - Core/Inc
-        - Drivers/CMSIS/Include
-        - Drivers/CMSIS/Device/ST/STM32F4xx/Include
-        - Drivers/STM32F4xx_HAL_Driver/Inc
-        - Drivers/BSP/Components/dp83848
-        - Drivers/BSP/Components/HUB75
-        - Drivers/BSP/Components/W25Qxx
-        - Drivers/RTT/Config
-        - Drivers/RTT/RTT
-        - LWIP/App
-        - LWIP/Target
-        - Middlewares/Third_Party/LwIP/src/include
-        - Middlewares/Third_Party/LwIP/system
-        - Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
-        - Middlewares/Third_Party/FreeRTOS/Source/include
-        - Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
-        - Application/Inc/ProtocolParser_ChongQing
-        - Middlewares/Third_Party/cJSON
-        - Compiler
-        - Drivers/BSP/Display
-        - Drivers/BSP/Key
-        - Drivers/BSP/RingBuffer
-        - Drivers/BSP/IAP
-        - Drivers/BSP/RingBuff
-        - Drivers/BSP/Components/ADC
-        - Drivers/BSP/Components/LightSensor
-        - Drivers/BSP/Protocol
-        - Drivers/BSP/Display/text_cvt
-        - Drivers/BSP/IOCtrl
-        - Application/Inc/ProtocolParser_Myanmar
-      libList: []
-    excludeList:
-      - <virtual_root>/Drivers/BSP/Key/key.c
-      - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
-      - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/NetIF/udp_interface.c
-    settings:
-      debugger: cortex-debug
-    toolchain: GCC
-    toolchainConfigMap:
-      GCC:
-        archExtensions: ""
-        cpuType: Cortex-M4
-        floatingPointHardware: single
-        options:
-          version: 5
-          afterBuildTasks: []
-          asm-compiler: {}
-          beforeBuildTasks: []
-          c/cpp-compiler:
-            language-c: c17
-            language-cpp: c++17
-            no-exceptions: true
-            no-rtti: true
-            no-threadsafe-statics: true
-            no-use-cxa-atexit: true
-            one-elf-section-per-data: true
-            one-elf-section-per-function: true
-            optimization: level-size
-            warnings: all-warnings
-          global:
-            $float-abi-type: hard
-            arm-thumb-interwork: true
-            arm-thumb-mode: thumb
-            not-use-syscalls: true
-            output-debug-info: enable
-            use-newlib-nano: true
-          linker:
-            $toolName: auto
-            LIB_FLAGS: -lm
-            output-format: elf
-            remove-unused-input-sections: true
-            use-float-printf: true
-        scatterFilePath: Compiler/STM32F407XX_FLASH.ld
-        storageLayout:
-          RAM: []
-          ROM: []
-        useCustomScatterFile: true
-    uploadConfigMap:
-      Custom:
-        bin: ""
-        commandLine: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/${fileWorkspaceFolderBasename}.hex verify reset exit"
-        eraseChipCommand: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"
-      JLink:
-        baseAddr: ""
-        bin: ""
-        cpuInfo:
-          cpuName: "null"
-          vendor: "null"
-        otherCmds: ""
-        proType: 1
-        speed: 8000
-      OpenOCD:
-        baseAddr: "0x08000000"
-        bin: ""
-        interface: stlink
-        target: stm32f1x
     uploader: Custom

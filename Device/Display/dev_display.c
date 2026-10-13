@@ -40,10 +40,10 @@ dev_display_t *dev_display_get(void) { return s_active_display; }
 
 /* ---- 「整机无显示驱动」构建的调用侧守卫（运行时判空，无编译期开关）----
  *
- * 显示模组驱动未编入的构建（EIDE Myanmar 目标 = Device/Display 下无
- * dev_display_*.c）里 s_active_display 恒为 nullptr：显存/查表/扫描任务全都不存在。
+ * 显示模组驱动未编入的构建（Device/Display 下不编 dev_display_*.c）里
+ * s_active_display 恒为 nullptr：显存/查表/扫描任务全都不存在。
  * 凡「必须显示才能完成」的入口先经本函数判空 → 安全跳过或降级。
- * （`what` = 调用点标签，保留供调试器观察。） */
+ * （`what` = 调用点标签，本函数不打印、不告警，仅保留供调试器观察。） */
 bool dev_display_guard(const char *what)
 {
     (void)what;
@@ -190,7 +190,7 @@ void dev_display_start(void)
 
     dev_display_t *dev = s_active_display;
 
-    /* 无显示驱动链接的构建（EIDE Myanmar 目标）：无扫描对象 → 不创建 scan_task、
+    /* 无显示驱动链接的构建：无扫描对象 → 不创建 scan_task、
      * 不启动 TIM3（行同步）/ TIM4（PWM 调光），整机其余功能（协议 / 网络 / IO）照常。
      * TIM3/TIM4 的启动唯一入口就是本任务体内的 pl_tim_start_it，不建任务即不启动。 */
     if (!dev_display_guard("scan_task"))

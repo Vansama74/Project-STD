@@ -20,7 +20,7 @@ static app_default_display_fn_t s_default_fn = nullptr;
 /* 系统默认欢迎画面（无协议注册时上电显示与故障恢复共用） */
 static void _render_welcome(void)
 {
-    /* 无显示驱动构建：无屏可渲染 → 安全跳过（限速告警一行，由 dev_display_guard 打） */
+    /* 无显示驱动构建：无屏可渲染 → 安全跳过（dev_display_guard 判空，不打印） */
     if (!dev_display_guard("default-display"))
         return;
 

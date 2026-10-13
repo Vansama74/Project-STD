@@ -62,7 +62,7 @@
 ## 4. 帧头冲突纪律
 
 - 贵州 ASCII 命令集 `'1'~'9','A','B'` 与青海 probe 命令集**完全重叠**（同 `{` 帧族、len 字段同构）：全协议构建下青海 probe 先注册（源码收录序 `qh_proto_init` 在前）先认领，贵州 probe 仅承接青海 FAKE 的帧。
-- **量产 EIDE 目录排除纪律**：贵州与青海/山东/四川MTC 互斥（`.eide/eide.yml` Debug 目标已启用贵州、排除青海/山东/四川MTC；其他量产目标须启用本协议并排除其余 `{` 帧族）。
+- **量产 EIDE 目录排除纪律**：贵州与青海/山东/四川MTC 互斥。〔**2026-10-13 现状**：Base/Debug 基线**排除全部 13 个协议目录**；启用贵州 = 在 GUI 取消排除本目录、并确保其余 `{` 帧族仍排除（`doc/构建开关总表.md` §7.2）〕
 - **编译期互斥守卫**：贵州主文件携带 `g_brace_proto_guard`（`#ifndef STD_ALL_PROTO` 包裹、`__attribute__((used))`）——EIDE 量产构建多个 `{` 帧族编入即链接报 `multiple definition`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序纪律约束）。
 - 0x01/0x02 二进制命令字不属于青海/山东/四川MTC 的 ASCII 命令集，各 probe 首命令字快拒 → 贵州 probe 可无冲突认领。
 

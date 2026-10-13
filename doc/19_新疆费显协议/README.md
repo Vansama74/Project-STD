@@ -112,7 +112,7 @@
 
 ### 2.3 文本显示 `'T'`（严格 16 字节/行）
 
-- `N = 内容长度/16`（内容 = `[9..len-2]`，共 16N 字节，N=1~4）；**`[5]` 显示行字段忽略**（文档只定义 0）。
+- `N = 内容长度/16`（内容 = `[9..len-2]`，共 16N 字节，N=1~6）；**`[5]` 显示行字段忽略**（文档只定义 0）。
 - **先整屏清黑，再逐行渲染**；字号 `FONT_16`、字型 `FONT_ST`；每行左对齐 `x=0`、`y=行号×16`。
 - 行内容**去尾部 0x00/0x20**（两者都不是 GBK 尾字节，去除安全）；去尾后为空则该行不画（行号不压缩）。
 - **GBK 双字节不被 16B 边界劈开**：某行窗口末字节恰为 GBK 首字节（0x81~0xFE）且其尾字节在窗口外时，
@@ -192,15 +192,15 @@
 
 | 同槽协议 | 其帧特征 | 与 `FF DC` 的关系 | 隔离结果 |
 |---|---|---|---|
-| 四川治超 SC_OL | `FF + 长度(07~FF，排除 FE) + … + BCC + FF` | **唯一重叠**（0xDC 是其合法长度值） | 四重隔离：长度 ≤74（治超 0xDC=220 立即 FAKE）、命令字白名单（治超 0x80~0xB9 无 ASCII 字母）、BCC、链式（治超对本协议帧判 WAIT 继续试下一协议 → 本 probe READY 认领） |
+| 四川治超 SC_OL | `FF + 长度(07~FF，排除 FE) + … + BCC + FF` | **唯一重叠**（0xDC 是其合法长度值） | 四重隔离：长度 ≤106（治超 0xDC=220 > 106 立即 FAKE）、命令字白名单（治超 0x80~0xB9 无 ASCII 字母）、BCC、链式（治超对本协议帧判 WAIT 继续试下一协议 → 本 probe READY 认领） |
 | RLS | `FF FE …` | `[1]=0xFE` | 第 4 步 FAKE |
 | 缅甸 MM | `FF E0 …`（定长 20） | `[1]=0xE0` | 第 4 步 FAKE |
 | 四川 ETC / 安徽 / `{` 族 | `0A` / `5A` / `7B` | 首字节不同 | 第 2 步 FAKE |
 | GZ_OL | `54 43 4C 59` | 首字节不同 | 第 2 步 FAKE |
 
 ⇒ **无需 EIDE 目录互斥**；**非 `{` 帧族 → 不定义 `g_brace_proto_guard`**（与安徽/GZ_OL 的「免互斥」同类）。
-残余误判概率 = 治超帧恰以 `FF DC` 开头且第 4 字节恰为 9 白名单字母之一且 BCC 吻合
-（`9/256 × 1/256 ≈ 1.4e-4`），且要求治超第 2 字节（长度）恰为 0xDC 且 ≤74 —— 与「长度 = 0xDC = 220」互斥，
+残余误判概率 = 治超帧恰以 `FF DC` 开头且第 4 字节恰为 14 白名单字母之一且 BCC 吻合
+（`14/256 × 1/256 ≈ 2.1e-4`），且要求治超第 2 字节（长度）恰为 0xDC 且 ≤106 —— 与「长度 = 0xDC = 220」互斥，
 实际为 0。
 
 ---
@@ -227,17 +227,23 @@
 - `SRC_APPLICATION` **末尾**追加 3 个 .c（`app_xj_proto.c` / `app_xj_proto_parse.c` / `app_xj_proto_cmd.c`）
   —— 放在所有既有协议之后 ⇒ **新疆 probe 优先级最低**（同槽重叠时既有协议先认领，最安全）。
 
-### 5.2 EIDE（**2026-10-12 已外部增收，待用户 `Reload Project`**）
+### 5.2 EIDE（2026-10-12 已外部增收；**2026-10-13 target 重组后口径见下方「现状」**）
+
+> **〔现状 2026-10-13〕**：EIDE 现行 target = `Base`（基线 / 重置模板）、`Debug`（**与 `Base` 同基线、日常主用**）；
+> **`Myanmar` target 与 `Release` target 均已整块删除**（`Release` 原为「损坏勿用」态）。下表「2026-10-12 落地结果」为当时口径
+> ——**Base/Debug 基线现已排除本模块（新疆）、`defineList` 也不含 `XJ_FAULT_SCREEN=0`**；
+> **要用新疆 = 在 GUI 取消排除 `ProtocolParser_XinJiang` 那一条**，加回即**维护屏默认开**（`XJ_FAULT_SCREEN=0`
+> 才是显式关），见 `doc/构建开关总表.md` §7.2 第 3 条。
 
 > **2026-10-12 更新**：由本轮任务裁决直接外部编辑 `.eide/eide.yml`（最小外科式插行 + YAML 解析校验；
 > 原文备份 `.analysis/xinjiang/eide_20261012/eide.yml.before_xj`，本轮只新增 10 行、未触碰会话前既有在飞改动）。
 > 落地内容与原「GUI 执行清单」逐条对应：
 
-| # | 操作 | 2026-10-12 落地结果 |
+| # | 操作 | 2026-10-12 落地结果（〔历史口径，2026-10-13 起已被 target 重组取代〕） |
 |---|---|---|
-| 1 | `files` 节点新增源文件 | 已增 `Application/protocol/ProtocolParser_XinJiang` 虚拟文件夹（3 个 .c，**排在 `rls` 之后**）。注：EIDE 实际链接/probe 顺序由 `objlist` **路径字典序**决定（与 yml 收录序无关），本模块在 Debug 编入集中仍排全部协议之后 ⇒ **probe 优先级最低**（设计目标达成） |
-| 2 | `targets.Debug.incList` 增包含路径 | 已增 `Application/Inc/ProtocolParser_XinJiang`（**不带 `-I`**，EIDE 条目格式；I7 不变量硬要求） |
-| 3 | 目标选择 | **`targets.Debug` 编入**（不在 `excludeList`）+ `defineList` 追加 **`XJ_FAULT_SCREEN=0`**（共存构建关闭 15s 心跳维护屏）；**`targets.Myanmar` 明确排除**（`excludeList` 增该虚拟文件夹）且 `incList` 兜底同路径；**`targets.Release` 不动**（`incList` 仍是已删除的 `Drivers/BSP/*` 旧路径 = 非可用入口） |
+| 1 | `files` 节点新增源文件 | 已增 `Application/protocol/ProtocolParser_XinJiang` 虚拟文件夹（3 个 .c，**排在 `rls` 之后**）。注：EIDE 实际链接/probe 顺序由 `objlist` **路径字典序**决定（与 yml 收录序无关），本模块在 Debug 编入集中仍排全部协议之后 ⇒ **probe 优先级最低**（设计目标达成）。**该 `files` 收录现仍有效**（模块文件在树内、点选即可编） |
+| 2 | `targets.Debug.incList` 增包含路径 | 已增 `Application/Inc/ProtocolParser_XinJiang`（**不带 `-I`**，EIDE 条目格式；I7 不变量硬要求）。**现仍有效**（Base/Debug 的 `incList` 保留全部模块私有头路径） |
+| 3 | 目标选择 | 〔当时〕**`targets.Debug` 编入**（不在 `excludeList`）+ `defineList` 追加 **`XJ_FAULT_SCREEN=0`**（共存构建关闭 15s 心跳维护屏）；**`targets.Myanmar` 明确排除**（`excludeList` 增该虚拟文件夹）且 `incList` 兜底同路径；**`targets.Release` 不动**（`incList` 仍是已删除的 `Drivers/BSP/*` 旧路径 = 非可用入口；**该 target 后于 2026-10-13 删除**）。**〔2026-10-13 现态〕Base/Debug 基线排除本模块、无 `XJ_FAULT_SCREEN=0`；`Myanmar` target 已删除——见本节顶部「现状」条** |
 | 4 | 收尾 | **待用户执行 `EIDE: Reload Project`**（否则 EIDE 用内存模型回写 yml 时可能丢失外部条目；Reload 后 EIDE 按自己格式回写 yml 属预期） |
 
 - **等价口径实测**（`.analysis/xinjiang/eide_20261012/`：`Debug.before/after.mk` + `build_before/after.log` +
@@ -251,6 +257,8 @@
   对照构建实测），与 §6 全协议口径记录**逐字节一致**。
 - 结构不变量 `check_eide_targets.py` **改前 14/15 → 改后 14/15**（唯一失败 = 既有 Debug `PROTO_CHONGQING` ↔
   CQ 模块错配 I6，非本轮引入；新疆相关不变量全绿）；Myanmar 等价 Makefile 改前/改后**逐字节相同**（不含新疆 3 文件）。
+  〔**2026-10-13 更新**：该脚本已随 `.analysis/` 移除；**该 I6 遗留已随 target 重组清零**（Base/Debug 基线不定义 `PROTO_CHONGQING`）；
+  `Myanmar` target 亦已删除〕
 - 方法学注记：脚本产出的是 **EIDE 目标「源文件集等价」** Makefile（用本仓 Makefile 的 Debug 旗标 `-Og -g`），
   与 EIDE 真实旗标（`optimization: level-3`）略有差异 ⇒ 绝对段尺寸仅供同口径对照，**本表 Δ 为同一旗标下的真 A/B**。
 
@@ -323,7 +331,7 @@
   任务帧缓冲 `82→114` +32；**bss ±0 = 自备槽体被同槽 weak 合并**（多协议口径无额外 SRAM）。
 - 模块自身 `.ccmram` 跨度（`nm` 符号级）：任务帧缓冲 114 + 队列体 342 + cb 80 + 栈 1024 + TCB 100 = 1660（+对齐 8）= **1668B**。
 
-#### 6.3.1 用户目标口径 A/B：自备 RB 的代价（等价 EIDE Debug = IAP + LDI + 新疆）
+#### 6.3.1 用户目标口径 A/B：自备 RB 的代价（等价 EIDE Debug = IAP + LDI + 新疆）〔**2026-10-12 当时口径**；2026-10-13 target 重组后 Base/Debug = 基线，该子集需在 GUI 按需点选，见 `doc/构建开关总表.md` §7〕
 
 Makefile 原由 `python3 .analysis/myanmar/check_eide_targets.py --target Debug --emit-make /tmp/xjmk/Debug.mk` 生成
 （**该脚本已随 `.analysis` 移除**；生成物 = 与 EIDE Debug 等价的 28 个 app 源文件、显示 `dev_display_1_263.c`、
@@ -357,7 +365,7 @@ DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
 | `.analysis/audit_20261008/landing_20261008/check_channel_gate.py` | **15/15 通过**（bind 调用点 35 处全在 `sw_app_initcall` 内；七条通道门控与桩调用一一对应） |
 | `.analysis/myanmar/check_display_guards.py` | **16/16 硬断言 + 101/101 调用点判空覆盖**（新疆调用点全部判空） |
 | `.analysis/comment_pass_20261008/scripts/refine_round2/check_contracts.py` / `check_doc_pointers.py` / `long_comments.py` | 复跑全绿（前两脚本的模块表为硬编码、不含新疆；新疆契约块纪律由 `xj_frame_sim.py` 自证：头 ≤10 行、条数 4~8、每条 ≤30 字、无日期/理由、引用编号一致、长行 ≤100 列） |
-| `.analysis/myanmar/check_eide_targets.py` | **14/15**（结构不变量口径；唯一失败 = `[Debug] I6 定义 PROTO_CHONGQING ⇒ CQ 模块编入`——2026-10-08 已记录的**预存口径差异、非本轮回归**，待用户在 EIDE GUI 二选一；新疆是否编入 EIDE 由用户裁决，见 §5.2） |
+| `.analysis/myanmar/check_eide_targets.py` | **14/15**（结构不变量口径；唯一失败 = `[Debug] I6 定义 PROTO_CHONGQING ⇒ CQ 模块编入`——2026-10-08 已记录的**预存口径差异、非本轮回归**，待用户在 EIDE GUI 二选一；新疆是否编入 EIDE 由用户裁决，见 §5.2）〔**2026-10-13：该脚本已随 `.analysis/` 移除；I6 已随 target 重组清零（基线不定义该宏）；新疆编入现由 GUI 点选**〕 |
 
 ---
 
@@ -397,7 +405,10 @@ DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
    - 若是 `FE DB …` ⇒ 用的是下载位图 `'B'`（未实现，需补）；
    - 若整帧 > 106B ⇒ 还有更长形态（需再放宽）；
    - 响应核对：`'C'`/`'Z'` 会回 `FF DC 05 43/5A BCC`（本轮已实现），`'T'`/`'O'` 单向不回。
-4. **EIDE**：按 §5.2 收录后 `EIDE: Reload Project`。
+4. **EIDE**：〔2026-10-13 起〕**加回新疆 = 在 GUI 取消排除 `ProtocolParser_XinJiang` 那一条**（维护屏默认开；
+   要关再往 `defineList` 加 `XJ_FAULT_SCREEN=0`，见 `doc/构建开关总表.md` §7.2 第 3 条）；改完（GUI 或 yml）
+   必须 `EIDE: Reload Project`。〔历史〕原为「按 §5.2 收录后 Reload」——Base/Debug 基线现已排除本模块，
+   收录项本身仍在（`files` / `incList`）。
 5. 无显示构建下：`'T'`/`'C'`/维护屏走判空跳过，灯控/语音正常（`check_display_guards.py` 已覆盖）。
 
 ---
@@ -408,7 +419,8 @@ DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
 |---|---|
 | 2026-10-12 | 首版：新疆费额显示器协议接入（9 命令最小集）+ 调度框架掩码 32→64；Makefile 收录（EIDE 待用户）；宿主推演 246/246；B0/B1/B2/B2-CQ 四口径实测（见 §6）；文档同步（doc/05-01、doc/06-04、doc/构建开关总表、CLAUDE.md） |
 | 2026-10-12 | **复核修正（缺陷修复，段尺寸不变）**：`xj_probe_frame` 第二处 `rb_peek` 读长 `XJ_LEN_OFFSET`(2) → `XJ_LEN_OFFSET + 1U`(3)，消除 `head[XJ_LEN_OFFSET]` 的未初始化读（探针对首个/突发帧偶发误判 FAKE/WAIT → 现场偶发丢帧）；全模块 `rb_peek` 调用点复查仅此一处不配套；`xj_frame_sim.py` 加 1 条覆盖回归断言（**247/247**）；PROTO=ALL/CQ 全量重编段尺寸与上条逐字节相同（见 §6） |
-| 2026-10-12 | **EIDE 收录轮（外部编辑 `.eide/eide.yml`，见 §5.2）**：`files` 增 `ProtocolParser_XinJiang` 虚拟文件夹（3 个 .c，排 `rls` 之后）；`targets.Debug` 编入 + `defineList` 追加 `XJ_FAULT_SCREEN=0` + `incList` 增本模块 `-I`；`targets.Myanmar` 排除（`excludeList` 增虚拟文件夹）+ `incList` 兜底；`targets.Release` 不动。等价口径实测 Debug 编入 **206 → 209** 文件、`.text +1616 / .rodata +248 / .ccmram +1544 / .bss +32`、告警仍 3 条 HAL；`XJ_FAULT_SCREEN=0` 净效果实测 text −288 / rodata −16 / bss −8；`check_eide_targets.py` 改前/改后均 14/15（I6 遗留，非本轮）。**未运行 EIDE、未提交、未改 git 配置**；待用户 `Reload Project` |
+| 2026-10-13 | **EIDE target 重组（`Myanmar` target 删除；新增 `Base`、`Debug` 清成基线）**：用户裁决 EIDE 侧重组成 `Base`（基线/重置模板）/ `Debug`（同基线、日常主用）/ `Release`（仍损坏勿用，**后于同日按用户裁决整块删除**）；**`Myanmar` target 整块删除**。**本模块（新疆）现不在 Base/Debug 编入集、`defineList` 也无 `XJ_FAULT_SCREEN=0`**——要用新疆 = GUI 取消排除即可（维护屏默认开；`XJ_FAULT_SCREEN=0` 才是显式关），见 §5.2 顶部「现状」条与 `doc/构建开关总表.md` §7.2 第 3 条。**本模块源码零改动** |
+| 2026-10-12 | **EIDE 收录轮（外部编辑 `.eide/eide.yml`，见 §5.2）**〔**历史口径**：`targets.Debug` 编入与 `XJ_FAULT_SCREEN=0`、`targets.Myanmar` 排除均已于 2026-10-13 target 重组时作废（基线排除本模块、不带该宏；`Myanmar` target 已删），`files`/`incList` 收录项仍有效〕：`files` 增 `ProtocolParser_XinJiang` 虚拟文件夹（3 个 .c，排 `rls` 之后）；`targets.Debug` 编入 + `defineList` 追加 `XJ_FAULT_SCREEN=0` + `incList` 增本模块 `-I`；`targets.Myanmar` 排除（`excludeList` 增虚拟文件夹）+ `incList` 兜底；`targets.Release` 不动。等价口径实测 Debug 编入 **206 → 209** 文件、`.text +1616 / .rodata +248 / .ccmram +1544 / .bss +32`、告警仍 3 条 HAL；`XJ_FAULT_SCREEN=0` 净效果实测 text −288 / rodata −16 / bss −8；`check_eide_targets.py` 改前/改后均 14/15（I6 遗留，非本轮）。**未运行 EIDE、未提交、未改 git 配置**；待用户 `Reload Project` |
 | 2026-10-12 | **按 PDF 全文（2020 版）扩协议面**：白名单 9→14 命令（新增 `'D'` 行/全屏、`'G'`/`'H'`、`'Z'`、`'P'`，`'B'` 不进）；`'S'` 按帧长 12/17/18/8 四形态分派（报价 1/2/3 拼中文句，修复报价语音 100% 静默失效）；§4.4 ETC 文案 5→8 条；§3.2 应答帧经来源通道回送；推演 312/312。**未改架构、未动其他模块** |
 | 2026-10-12 | **第二轮：PDF 全文（2020 版 22 页）差异核对 + 现场「无反应」根因修复**。① **根因（已修）**：用户 EIDE Debug 目标被裁成「IAP + LDI + 新疆」（16:25 yml 外部编辑，相对 15:41 备份唯一差异 = 新增 3 行 SC_* 排除）⇒ RS485/RS232 **两槽无提供者** ⇒ `app_proto_acquire_buf` 双双失败 ⇒ 模块 init 静默 return（不注册/不绑定）⇒ `app_boot.c` 门控连串口通道启动都跳过（UART RX 未挂）⇒ 发帧零反应。修复 = 模块**自备两槽 `RB_PROVIDE_WEAK`**（A/B：text +16 / data +32 / bss +1536 / ccmram ±0；`PROTO=ALL`/`CQ` 下 `.bss` ±0）。② **帧长 74→106**：PDF §5.2 两份采样全屏 `'D'` 帧都是 103B（96B = 6 行，BCC 自洽，此前会 FAKE）⇒ 现收 `'T'` N≤6、`'D'` 全屏 7+16N（N=2~6）。③ 文档同步（本文 §1.1/§1.2/§2.2/§3.1/§4/§5.2/§6.3/§7/§8/§10、`doc/CLAUDE.md`、`doc/06-04` §8.4.6、`.analysis/xinjiang/eide_20261012/README.md` 补注）；推演 **329/329**；报告 `.analysis/xinjiang/round2_pdf_fulltext_and_rb.md`、PDF 全文留档 `.analysis/xinjiang/doc_v2/`。**未烧录、未提交、未改 git 配置、未改 `.eide/eide.yml`** |
 | 2026-10-13 | **编译期检查清除（用户裁决）**：本模块 12 条 `_Static_assert` 全删 → 改写为「一句人话契约 + doc 指针」（§11 逐条映射）；机器码零变化（段级逐字节 + strip-debug elf md5 一致，`.analysis/comment_pass_20261013/report.md`）。同轮全项目注释精简（本模块内）：`app_xj_proto.c` 自备 RB 注释去现场事故叙事、`app_xj_proto_cmd.c` 音量/缓冲注释去「实测」措辞 |

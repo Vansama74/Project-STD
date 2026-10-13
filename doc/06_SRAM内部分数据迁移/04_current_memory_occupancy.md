@@ -4,6 +4,9 @@
 
 > **角色**：本目录 **唯一占用实测账本**  
 > **状态**：现行　|　采样：**EIDE Debug（GCC 15.2）** / 编入 **1-577 3×3**、排除 1-260 / 1-969 / RLS / AH_MQTT / **2026-08-14 16:37**（重建复核，数字未漂移）  
+> 〔2026-10-13 注〕上列采样口径为 **2026-08-14 当时的 EIDE Debug**（其显示/协议选编早已变更）；同日 target 重组后
+> **Base/Debug = 基线**（核心 + IAP + 标准厂测 + RTT + 显示基类，协议与显示驱动按需点选，见 `doc/构建开关总表.md` §7）
+> —— 采样数字仅对标注日期/口径成立，勿当成当前 target 构型。
 > **最新采样**：**2026-09-29 代码瘦身轮第二轮**（自研诊断设施保持删除、**SEGGER RTT 底层恢复** +
 > 注释精简；业务行为零变化，全量重建，仅 3 条既有 HAL 告警）——`PROTO=ALL DISP=1_263 FACTORY=STD`
 > **`.text 167752 / .rodata 195776 / .data 1656 / .bss 124768 / .ccmram 39652 / ._user_heap_stack 2560`
@@ -42,7 +45,7 @@
 
 | 项 | 值 |
 |----|-----|
-| 构建 | **EIDE Debug**（Arm GNU Toolchain 15.2 / GCC）；`outDir=build` → `build/Debug/Project_STD.elf`（对象在 `build/Debug/.obj/`） |
+| 构建 | **EIDE Debug**（Arm GNU Toolchain 15.2 / GCC）；`outDir=build` → `build/Debug/Project_STD.elf`（对象在 `build/Debug/.obj/`）〔**2026-08-14 采样时口径**〕 |
 | 模组（CCM） | 编入 **1-577 3×3**（`.eide/eide.yml` exclude 1-260 / 1-969）；CCM **38208B**，与 1-969 同量级 |
 | 协议选编 | 编入 **IAP + LDI + 青海**；exclude **RLS / AH_MQTT** |
 | 段合计 | `.data` 1612 + `.bss` 115620 + `._user_heap_stack` 3588 = **120820** |
@@ -652,8 +655,10 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
   **极性后经现场实测修正（2026-09-28）**：由「低有效」翻转为**高有效**（点亮 = 输出高，
   全灭 = 输出低）——见下条；该修正只改映射表常量取值，**段尺寸零变化**。
   **内存账不变**（无新增对象；text/rodata 的 +416/+88 见上条）；**EIDE 侧**新增 `targets.Myanmar`
+  〔**该 target 已于 2026-10-13 整块删除**，同义口径改为 GUI 点选：`doc/构建开关总表.md` §7.2 第 5 条〕
   （Debug 模板 + 缅甸模块 + 排除云南治超），Debug 目标**行为保持不变**（缅甸模块进其 excludeList；
-  ⚠ 该句为 2026-09-24 阶段二当时状态——**2026-09-28 用户裁决起 Debug 现行口径 = 编入缅甸、排除 LDI + 四川三**，见 doc/16 §9.1）。
+  ⚠ 该句为 2026-09-24 阶段二当时状态——2026-09-28 用户裁决起 Debug 曾一度「编入缅甸、排除 LDI + 四川三」，
+  **2026-10-13 target 重组后 Base/Debug = 基线（排缅甸、排 LDI/四川三，含 IAP + 标准厂测）**，见 doc/16 §9.1 与 §7）。
   - **EIDE 等价口径实测**（`.analysis/myanmar/check_eide_targets.py --emit-make` 生成临时 Makefile，
     编译集与 EIDE 上次构建的 `build/Debug/builder.params` 源文件清单**逐条一致**）：
     `EIDEMyanmar`（继承 Debug 排除表 ⇒ 显示模组 = `dev_display_1_969.c` 192×96，编入 IAP/LDI/ETC/MTC/SC_OL + MM）
@@ -665,7 +670,7 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
     ⚠ 与此相对，Makefile `PROTO=ALL`/`CQ` 口径编 8×4 仍为**预存**链接期溢出
     （**17700B / 15444B**，2026-10-08 实测，见 §8.4.2），**与本任务无关**。
 - **2026-09-24（阶段三：缅甸目标改「无显示驱动 + 去 `PROTO_CHONGQING`」+ 补无显示构建运行时守卫）**：
-  ① `.eide/eide.yml` 的 `targets.Myanmar` 排除 `Device/Display` 下**全部** `dev_display_*.c`
+  ① `.eide/eide.yml` 的 `targets.Myanmar`〔**已于 2026-10-13 删除**〕排除 `Device/Display` 下**全部** `dev_display_*.c`
   （含阶段二编入的 `dev_display_1_969.c`；基类 `dev_display.c` 保留）并去掉 `PROTO_CHONGQING`
   （**`targets.Debug` 与 `files` 一字未动**；协议排除项一条未加）；
   ② 为「整机无显示驱动」口径补**运行时 NULL 守卫**（新增 `dev_display_guard()` + 14 条路径判空，
@@ -718,7 +723,7 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
   ② **开机默认画面（屏）**：`app_mm_proto.c` 新增 `_mm_default_red_cross()` +
   `_mm_default_display_init()`（**仅当 `dev_display_get() != nullptr` 时** `app_default_display_register()`；
   整屏清黑 + 两条对角线，`COLOR_RED`，几何取自 `dev_display_get()`，无缓冲、无静态对象）
-  —— **只增代码（Flash），0B RAM/CCM 增量**；无显示构建（`targets.Myanmar`）不注册、零告警。
+  —— **只增代码（Flash），0B RAM/CCM 增量**；无显示构建（〔当时〕`targets.Myanmar`——**该 target 已于 2026-10-13 删除**，无显示口径改由「不编任何显示驱动」的点选表达）不注册、零告警。
   - **实测（Makefile，`PROTO=ALL` `DISP=1_263`，全量 `-B` 重编）**：`FACTORY=STD` =
     `.text **176576** / .rodata **203672** / .data 1656 / .ccmram 39652 / .bss 124860 /
     ._user_heap_stack 2564` ⇒ **SRAM 合计 129080B（余 1992B）**；`FACTORY=MM` =
@@ -1008,9 +1013,10 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
 > C3 加固：`app_dispatch_channel_has_proto` 32 + `init_task` 门控 68 + `ldi_sync_net_from_board_cfg` 88 +
 > `cmd_search`/`cmd_rep_ip` 8）；`PROTO=CQ DISP=1_263` `.text **154588**`（+96）/ 其余 ±0；
 > `DISP=22_1665` 两口径链接期溢出 **17700B（ALL）/ 15444B（CQ）**（本模组 46080B）；
-> **EIDE 等价口径实构**：现行 Debug 选择（206 源文件，`--emit-make`）`.text 133112 / .rodata 192232 /
+> **EIDE 等价口径实构**：〔2026-10-08 当时口径〕Debug 选择（206 源文件，`--emit-make`）`.text 133112 / .rodata 192232 /
 > .ccmram **52972** / .bss 115952`、Myanmar（207 源文件、无显示）`.text 132136 / .ccmram **16084** /
-> .bss 115704`；**现行 Debug 选择 + 8×4 = `.ccmram 60844B`（余 4692B，链接通过）**。
+> .bss 115704`；〔2026-10-08 当时〕Debug 选择 + 8×4 = `.ccmram 60844B`（余 4692B，链接通过）。
+> **2026-10-13 target 重组后**：`Myanmar` 已删、Base/Debug 基线不编显示驱动/协议模块（见 `doc/构建开关总表.md` §7）。
 > 四口径均零新增告警（仍 3 条既有 HAL）。
 
 | 口径（Makefile GCC Debug，`APP_DIAG_BANNER` 默认开，第三十四轮实测） | `.text` | `.rodata` | `.data` | `.bss` | `.ccmram` | `._user_heap_stack` | SRAM 合计 | **SRAM 余** |
@@ -1027,8 +1033,8 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
   （= 静态任务栈 25340 + 内核缓冲 1736 + CQ 6377 + GZ_OL 1136 + YN_OL 1152 + 对齐；2026-10-08 实测反推）= **83116B > 64KB**
   ⇒ `PROTO=ALL` 溢出 **17700B**；`PROTO=CQ`（其他消费者 34900B）溢出 **15444B**。
   第三十三轮已按算术预测、本轮实测确认（`ld` 报错文本在改动前/后**逐字节一致**）。
-  **⇒ `DISP=22_1665` 在 8×4 下没有任何 make 口径能产出 elf/hex**，只有 **EIDE Debug 子集**能装
-  （**现行 Debug 选择 + 8×4 实测 `.ccmram 60844B` / 余 4692B**，2026-10-08 实构；旧记录 57484B/余 8052B = 当时更小的子集）。**要让 make 出 22_1665 产物**：几何减到 8×2（23040B，
+  **⇒ `DISP=22_1665` 在 8×4 下没有任何 make 口径能产出 elf/hex**，只有 **EIDE 子集**能装
+  （〔2026-10-08 当时口径〕Debug 选择 + 8×4 实测 `.ccmram 60844B` / 余 4692B，2026-10-08 实构；旧记录 57484B/余 8052B = 当时更小的子集；**2026-10-13 起 Base/Debug 基线不编显示驱动，要用 22_1665 按 `doc/构建开关总表.md` §7.2 第 8 条点选**）。**要让 make 出 22_1665 产物**：几何减到 8×2（23040B，
   ALL 口径 58876B，`link_variant.sh mod8x2` 实测链接通过）或让出 CCM（CQ/治超队列 / 静态任务栈）——
   均属**待用户决策**（`doc/01` §6）。
 * **验证入口**：`bash .analysis/22_1665/verify_all.sh`（全量 **20 项全绿 / 1 项跳过**：`check_flash_artifact.sh`
@@ -1126,7 +1132,8 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
   其 static 缓冲随 `--gc-sections` 丢弃，**多协议口径无额外 SRAM 代价**。
 * **新疆模块 `.ccmram` 跨度（`nm` 符号级）**：任务帧缓冲 114 + 队列体 342 + `StaticQueue_t` 80 +
   任务栈 1024 + `StaticTask_t` 100 = **1660**（+对齐 8）= **1668B**（§8.4.5 记的 1544B 为 payload=74 口径）。
-* **同一目标口径 A/B（等价 EIDE Debug = IAP + LDI + 新疆，用户现场口径）**：
+* **同一目标口径 A/B（等价 EIDE Debug = IAP + LDI + 新疆，用户现场口径）**〔**2026-10-12 当时**的 Debug 选择；
+  2026-10-13 target 重组后 Base/Debug = 基线（不含 LDI/新疆），该子集需在 GUI 按需点选，见 `doc/构建开关总表.md` §7〕：
   `check_eide_targets.py --target Debug --emit-make` 生成等价 Makefile，`BUILD_DIR=build/xj_r2_dbg`（改后）
   与 `build/xj_r2_dbg_nofix`（临时摘掉两行 `RB_PROVIDE_WEAK` 的改前对照）：
 
