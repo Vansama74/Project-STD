@@ -1,5 +1,7 @@
 # 01 背景、根因与影响
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > **状态**：现行事实　|　2026-08-14  
 > **触发**：EIDE 工程仅勾选 LDI 相关源文件时链接失败（见终端 `undefined reference to app_flash_iap_*` / `g_config`）。  
 > **解耦方案** → [02_decoupling_solutions.md](./02_decoupling_solutions.md)  

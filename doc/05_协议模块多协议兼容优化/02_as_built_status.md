@@ -1,5 +1,7 @@
 # 多协议共享 RB — 落地状态（对照当前代码）
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > **基准**：2026-08-14（含 RB/DMA/queue 修订后）  
 > **总体结论：RB / 协议绑定 DoD = READY（已落地）**  
 > 设计规范：[01_architecture.md](./01_architecture.md)  

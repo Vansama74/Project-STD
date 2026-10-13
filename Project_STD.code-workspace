@@ -32,15 +32,7 @@
             "editor.tabSize": 4,
             "editor.autoIndent": "advanced"
         },
-        "cortex-debug.variableUseNaturalFormat": false,
-        "makefile.configureOnOpen": false,
-        "makefile.launchConfigurations": [
-            {
-                "cwd": "/home/mqj/workspace/Project-STD/build/Debug",
-                "binaryPath": "/home/mqj/workspace/Project-STD/build/Debug/Project_STD.elf",
-                "binaryArgs": []
-            }
-        ]
+        "cortex-debug.variableUseNaturalFormat": false
     },
     "extensions": {
         "recommendations": [

@@ -1,5 +1,7 @@
 # 15 云南治超屏协议（YN_1.3.0，`{` 帧族）
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > ⚠ **2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
 > （宿主推演 / 校验脚本 / 报告 / 证据 / 备份）**一律作废、仅作历史线索保留**，需要时用
 > `git show 069be96:<路径>` 取回（在仓库外运行）。下文脚本结果列为历史记录。
@@ -502,8 +504,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 1. **在 EIDE 中重新构建并烧录**（现场跑的是 EIDE 镜像；`.eide/eide.yml` 若被外部改动需先 `EIDE: Reload Project`），
    烧完按纪律**擦除 Sector1 恢复出厂态**（`bash tool/flash_all.sh` 默认行为；单固件烧录同理）。
-   *（若改用 make 构建：EIDE 构建会覆写 `build/Debug/` 的 elf/hex/bin，此后 `make -j8` 可能**静默复用**
-    EIDE 产物（实测口径不同也照样复用）——必须先 `make clean && make`，见 `doc/构建开关总表.md` §4.2 R1。）*
+   *（〔2026-10-13〕原注：若改用 make 构建，需先 `make clean && make` 以免静默复用 EIDE 产物——**该风险随 Makefile 移除消失**，见 `doc/构建开关总表.md` §4.2 R1。）*
 2. **连 RTT 并落盘**：JLinkRTTViewer，或
    `JLinkRTTLogger -Device STM32F407ZG -If SWD -Speed 4000 -RTTChannel 0 <file>`（推荐，证据可回传）。
 3. **复位**，等 `[diag]` 横幅：确认 `fw=` / `built=` / `tree=`（＝这份镜像）、`display screen=WxH`、

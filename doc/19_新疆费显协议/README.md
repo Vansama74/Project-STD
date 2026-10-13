@@ -1,5 +1,7 @@
 # 19 新疆费额显示器协议（ZJ_2024）
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > **⚠ 2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
 > （宿主推演 / 校验脚本 / 调研与实施报告 / EIDE 备份 / 构建证据）**一律作废、仅作历史线索保留**；
 > 对应文件需要时从 git 历史取回：`git show 069be96:<.analysis 下路径>`。下文脚本结果列为历史记录。
@@ -219,7 +221,7 @@
 
 ## §5 构建收录
 
-### 5.1 Makefile（已完成）
+### 5.1 〔历史〕Makefile（已完成；Makefile 已于 2026-10-13 从仓库移除，本小节仅作历史）
 
 - `INC_DIRS` 增 `-I Application/Inc/ProtocolParser_XinJiang`
 - `SRC_APPLICATION` **末尾**追加 3 个 .c（`app_xj_proto.c` / `app_xj_proto_parse.c` / `app_xj_proto_cmd.c`）
@@ -263,6 +265,9 @@
 ---
 
 ## §6 实测段尺寸（`PROTO=ALL DISP=1_263 FACTORY=STD`，Makefile GCC Debug，全量重编）
+
+> 〔2026-10-13〕**本节为 make 时代采样记录**（Makefile 已移除）；下列 `make … BUILD_DIR=build/xj_*`
+> 命令一律作废，数字仅作历史基线与归因对照，**不可与 EIDE 构建的字节数对等比较**（编译参数不同）。
 
 | 口径 | `.text` | `.rodata` | `.data` | `.ccmram` | `.bss` | `._user_heap_stack` | SRAM 合计 / 余 | 告警 |
 |---|---|---|---|---|---|---|---|---|

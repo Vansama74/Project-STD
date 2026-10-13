@@ -1,5 +1,7 @@
 # 10 贵州费显协议
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > 贵州常规费显协议（协议文档 06 贵州常规费显协议，2020-06-17 修订）接入记录。
 > 模块：`Application/Src/ProtocolParser_GuiZhou/` + `Application/Inc/ProtocolParser_GuiZhou/`（前缀 `gz_`）。
 

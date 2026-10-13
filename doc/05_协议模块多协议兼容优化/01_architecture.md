@@ -1,5 +1,7 @@
 # 多协议共享 RB — 设计规范
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > ⚠ **2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
 > （宿主推演 / 校验脚本 / 报告 / 证据 / 备份）**一律作废、仅作历史线索保留**，需要时用
 > `git show 069be96:<路径>` 取回（在仓库外运行）。下文脚本结果列为历史记录。
@@ -15,7 +17,7 @@
 | 编号 | 验收项 | 判定标准 |
 |------|--------|----------|
 | A-1 | 单固件多地区协议 | 同一镜像可同编多个兼容解析器（如 LDI + 青海 + RLS） |
-| A-2 | 工程目录选编 | EIDE/Makefile 包含/排除协议目录；不以 `APP_PROTOCOL` 宏为主 |
+| A-2 | 工程目录选编 | EIDE target 的 include/exclude 选编协议目录（**Makefile 已移除**）；不以 `APP_PROTOCOL` 宏为主 |
 | A-3 | 启动自注册 | `sw_app_initcall` → acquire / register / bind / 任务；`app_boot` 无协议 `#ifdef` |
 | A-4 | 同通道链式解析 | 绑定同通道的协议共享物理 RB，链式 probe，匹配者消费 |
 | A-5 | USART6 语音专用 | 禁止任何协议 `bind(CH_ID_RS232_1)`；TTS → `PL_UART6` 旁路 |
@@ -280,7 +282,7 @@ sw_app_initcall(xxx_proto_init);
 | 贵州治超 + 贵州常规费显（同名地区、不同帧族） | RS485/RS232 链式 | **允许**：`0x54` vs `0x7B` 互斥；两者命名前缀已区分（`gz_` vs `gz_ol_`） |
 | 贵州治超 + `CH_ID_UDP_GZOL`（专用业务口，与 TCP 业务口同号） | 与 TCP Server 同端口号、**不同协议栈**（UDP vs TCP） | **允许**：端口号空间按协议栈隔离，二者互不冲突；该通道只服务 GZ_OL（唯一绑定者），与 10011/CQ 口同号时由实例侧跳过绑定兜底 |
 | 贵州治超 + IAP / LDI / 重庆CQ（`CH_ID_UDP` 10011 同槽，2026-09-14 增绑后） | RJ45（UDP 共享，同一 1536B RB） | **允许**：首字节 `0x54` 与 IAP `0x5A`/LDI `0xFF`/CQ `'{'` 或 `FF FF`+12B 全部互斥，**双向首字节快拒成立**——IAP probe 非 `0x5A` 即 FAKE（`app_iap.c:107-114`）、LDI probe 非 `0xFF` 即 FAKE（`app_ldi.c:408-415`）、CQ probe 仅认 `'{'`（花括号深度扫描）与 `FF FF` 起始的 12B 精确匹配（其余首字节一律 FAKE，`cq_probe_frame`）、本 probe 非 `0x54` 即 FAKE；CQ 无首字节为 `0x54` 的帧型。**不占第二份网口缓冲**（贵州治超只 `acquire` 不 `provide` RJ45 RB；`PROTO=ALL` 与 `PROTO=CQ` 两口径该槽均由 IAP/LDI/CQ 提供）。注册序（Makefile 收录序）：IAP → LDI → CQ → … → GZ_OL，互不干扰。证据见 `.analysis/9k23881580/gz_ol_udp_binding_report.md` §2。**专用口与 10011 同槽同理**：`CH_ID_UDP_GZOL` 亦挂 RJ45 槽、probe 同函数，两 mask 共用同一队列；收包帧按 `frame_msg_t.ch` 携带的收包通道回源，不串台 |
-| `{` 帧族任意两两（QH/SD/GZ/SC_MTC/YN） | RS485/RS232 链式 | ⚠️ **编译期互斥守卫**：五个协议主文件各定义同名强符号 `g_brace_proto_guard`（`__attribute__((used))` 防 `--gc-sections` 丢弃，`#ifndef STD_ALL_PROTO` 包裹）——EIDE 量产构建多个编入即链接报 `multiple definition of 'g_brace_proto_guard'`，无法绕过；Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（probe 注册序与本文纪律约束）。EIDE excludeList 目录排除纪律仍为操作层首选 |
+| `{` 帧族任意两两（QH/SD/GZ/SC_MTC/YN） | RS485/RS232 链式 | ⚠️ **编译期互斥守卫**：五个协议主文件各定义同名强符号 `g_brace_proto_guard`（`__attribute__((used))` 防 `--gc-sections` 丢弃，`#ifndef STD_ALL_PROTO` 包裹）——EIDE 量产构建多个编入即链接报 `multiple definition of 'g_brace_proto_guard'`，无法绕过；〔历史〕Makefile 全协议开发构建经 `-DSTD_ALL_PROTO` 豁免共存（**现由 EIDE 的 `DevAll` 等价 target 承担，宏名同**，见 doc/构建开关总表.md §7）。EIDE excludeList 目录排除纪律仍为操作层首选 |
 | **缅甸2D费显（MM）+ 四川治超（`0xFF` 首字节重叠）** | RS232 链式（MM **只绑 RS232**；治超 RS485+RS232） | **允许，无需 EIDE 互斥**：① MM 第二字节必须 `0xE0`，治超帧长字段非 `0xE0` 时 MM 立即 FAKE；② 治超帧长**恰为 `0xE0`** 时其 probe 判 WAIT（链式契约继续试下一协议）→ MM 对**非本模块命令**要求「结束码正签名 `[15..18]==00 00 00 00`」才 SKIP，正签名不成立则 FAKE（不消费字节）⇒ 治超长帧不被截断；③ 反向：MM 命令字 `{0x90,0x0A,0x0B}` 与治超命令集合 `{80~88,94,96,98,99,A0~A8,B6,B8,B9}` **无交集** ⇒ MM 不误吞治超帧。残余风险 = 治超长帧 `[15..18]` 恰为 4 个 `0x00`（`(1/256)^4` 量级，宿主推演 §6.5 已标注）。证据：`.analysis/myanmar/mm_frame_sim.py` §6（12 条用例） |
 | **缅甸2D费显（MM）+ 四川 ETC / 安徽 / `{` 帧族 / RLS** | RS232 链式 | **允许**：MM 首字节 `0xFF`，与 ETC `0x0A` / 安徽 `0x5A` / `{` 族 `0x7B` 首字节互斥；RLS 亦 `0xFF` 但只绑 RS485（不同槽）。MM **非 `{` 帧族 ⇒ 不定义 `g_brace_proto_guard`、无需 EIDE 目录排除**。⚠ **RLS 与本模块在「干接点引脚层」另有冲突，见下一行** |
 | **缅甸2D费显（MM）干接点输出 vs RLS 干接点输入（同一组引脚 SW1/SW2/SW3 = PE12/PE11/PE10）** | 无传输层冲突，**引脚归属互斥** | ⚠️ **同编时行为降级（2026-09-24 用户裁决；极性 2026-09-28 现场实测翻转为高有效，影响面随之更新）**：MM 初始化时把三脚接管为**高有效推挽输出**（点亮 = 输出高；`pl_gpio_release_exti` **按线**摘除 EXTI＝IMR/EMR/双边沿/PR/SYSCFG EXTICR，**不调 `HAL_NVIC_DisableIRQ`、不碰其它 EXTI 线**；详见 doc/16 §4.2）。此后 `dev_key_get_state()`（= `!pl_gpio_read`，直读 GPIO、低 = 「闭合」）读到的是**本板自驱电平**：**灯灭（输出低）→ 对应 SW 位读「闭合」**、某灯点亮（输出高）→ 该位读「未闭合」⇒ **上电默认全灭态 = 三路 SW 全读「闭合」**，`app_rls_cmd.c` 的 `rls_dry_contact_poll` 在 `PROTO=ALL` 等共存构建下约 2 个轮询拍（~200ms）后持续渲染「车道关闭」（优先级 车道关闭 > ETC专用 > ETC/人工）。**纪律：缅甸量产构建排除 RLS**——`targets.Myanmar` 继承 Debug 排除表已排除 `rls`（与云南常规/青海/山东/贵州/重庆/安徽/贵州治超/云南治超同列）；Makefile `PROTO=ALL` 开发构建下该现象为**已知预期** |
@@ -289,11 +291,11 @@ sw_app_initcall(xxx_proto_init);
 | **新疆费显（XJ）+ RLS / MM / ETC / 安徽 / `{` 族 / GZ_OL** | RS485/RS232 链式 | **允许**：XJ 第二字节强判 `0xDC`（RLS `FE` / MM `E0` 在此分道）、其余协议首字节（`0A`/`5A`/`7B`/`54`）与 `0xFF` 互斥，双向快拒成立。XJ **非 `{` 帧族 ⇒ 不定义 `g_brace_proto_guard`、无需 EIDE 目录排除** |
 | **新疆费显（XJ）+ `CH_ID_RS232_1`** | — | **禁止**（语音专用；XJ 只 bind `CH_ID_RS485` + `CH_ID_RS232`） |
 | 新疆费显（XJ）+ IAP/LDI/CQ/GZ_OL/YN_OL（网口槽） | **不同槽** | 允许：XJ 不绑任何网口通道（文档为 RS232；RS485 为现场备选） |
-| 重庆CQ + LDI | RJ45（UDP/UDP_CQ/TCP 共享） | ⚠️ **产品互斥**（Makefile `PROTO=CQ` 剔除 LDI 目录 / EIDE excludeList 目录排除）；全协议 dev 构建下二者共存于 RJ45：CQ JSON `{` 与 LDI `FF FF` 首字节互斥可分；**10011 口 12B 二进制帧（CQ 重启/搜索请求）先经 LDI probe：CQ 12B 帧 len=00 00 00 02 且 CRC16-XMODEM 恰好通过 LDI 校验，LDI probe 对 `data_len==2` 显式 FAKE 放行（2026-08-21 修复，此前沿身份校验路径 SKIP 吞帧致 CQ 12B 在 10011 无响应），CQ probe 仍认领——「LDI 先探测、FAKE 放行、CQ 收单」，无功能受限**。另：dev 共存构建 CQ 业务口固定 20103、不读 Sector1 net_cfg.udp_port（dev 构建无写入方；方案 B 2026-08-21 起 CQ 构建读 udp_port、TCP 口 port 不再被 setip 污染），见 doc/03 PartB B.11 |
+| 重庆CQ + LDI | RJ45（UDP/UDP_CQ/TCP 共享） | ⚠️ **产品互斥**（EIDE target 的 excludeList 目录排除二选一——原 Makefile `PROTO=CQ` 剔除 LDI 目录的做法已随 Makefile 移除，配方见 doc/构建开关总表.md §7）；全协议 dev 构建下二者共存于 RJ45：CQ JSON `{` 与 LDI `FF FF` 首字节互斥可分；**10011 口 12B 二进制帧（CQ 重启/搜索请求）先经 LDI probe：CQ 12B 帧 len=00 00 00 02 且 CRC16-XMODEM 恰好通过 LDI 校验，LDI probe 对 `data_len==2` 显式 FAKE 放行（2026-08-21 修复，此前沿身份校验路径 SKIP 吞帧致 CQ 12B 在 10011 无响应），CQ probe 仍认领——「LDI 先探测、FAKE 放行、CQ 收单」，无功能受限**。另：dev 共存构建 CQ 业务口固定 20103、不读 Sector1 net_cfg.udp_port（dev 构建无写入方；方案 B 2026-08-21 起 CQ 构建读 udp_port、TCP 口 port 不再被 setip 污染），见 doc/03 PartB B.11 |
 | 重庆CQ + IAP | RJ45（UDP 共享） | 允许：CQ 首字节 `{` 或 `FF FF`+12B 精确匹配，IAP 首字节 `0x5A` 快拒；CQ probe 对非匹配 `FF` 前缀 FAKE，互不误伤 |
 | 重庆CQ + `{` 帧族（QH/SD/GZ/SC_MTC） | 不同物理口（RJ45 vs RS485/RS232） | 允许：不同 RB 槽不冲突；CQ 非串口 '{' 帧族协议，**不定义** `g_brace_proto_guard`（守卫仅约束串口 '{' 帧族四协议） |
 
-> 说明：`{` 帧族互斥由编译期守卫在链接期兜底强制；excludeList 目录排除为操作层首选（编译更早失败、意图明确）。Makefile 全协议构建（`-DSTD_ALL_PROTO`）下守卫失效，共存风险按上表各行的 probe 注册序纪律管控。
+> 说明：`{` 帧族互斥由编译期守卫在链接期兜底强制；excludeList 目录排除为操作层首选（编译更早失败、意图明确）。〔历史〕原 Makefile 全协议构建（`-DSTD_ALL_PROTO`）下守卫失效，共存风险按上表各行的 probe 注册序纪律管控；**现等价物 = EIDE `DevAll` target 加 `STD_ALL_PROTO` 宏**（doc/构建开关总表.md §7）。
 
 ---
 

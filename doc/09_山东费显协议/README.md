@@ -1,5 +1,7 @@
 # 09 山东费显协议
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > **协议来源**：`39山东车道费额显示器通信协议.docx`（创迪科技生产订单与技术资料，2020-07-20）
 > **模块**：`Application/Src/ProtocolParser_ShanDong/`（`app_sd_proto.c` / `app_sd_proto_parse.c` / `app_sd_proto_cmd.c` / `app_sd_proto_default.c`）
 > **权威细节**：帧头登记 / 兼容矩阵 / queue 深度 → `doc/05`；内存账 → `doc/06-04 §6`；接入规则 → `doc/08`

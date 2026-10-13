@@ -1,5 +1,7 @@
 # 14 贵州治超屏协议（"TCLY" 帧族）
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > ⚠ **2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
 > （宿主推演 / 校验脚本 / 报告 / 证据 / 备份）**一律作废、仅作历史线索保留**，需要时用
 > `git show 069be96:<路径>` 取回（在仓库外运行）。下文脚本结果列为历史记录。
@@ -474,7 +476,7 @@ bind 必 `ERR_USE`；10011 场景 GZ_OL 仍由 `CH_ID_UDP` 承载，功能不受
 
 ### 12.5 现场纪律（本次事故的两个来源）
 
-1. **勿烧 EIDE 产物**：EIDE 构建以新 mtime 覆写 `build/Debug/` 共享产物，烧录脚本会烧到它（本次 16:02 即为 EIDE 产物：`.ccmram=5040`、链接 `dev_display_22_1703`、`du -h` = 664K；make 默认口径 hex ≈ 1020K）。**EIDE 构建后必须 `make clean && make`**；烧录前用 `arm-none-eabi-nm build/Debug/Project_STD.elf | grep -E 'dev_display_(1_263|22_1703)_init'`（**默认口径只应出现 `dev_display_1_263_init`**）+ `arm-none-eabi-size -A` 核对（默认口径含诊断 `.text=167060 .rodata=200712 .data=1672 .ccmram=37084 .bss=126400`；机制见 `doc/构建开关总表.md` §4.2）。
+1. **〔2026-10-13 更新〕烧录前必核对本次构建产物**：仓库已无 make，`build/Debug/` 的产物由 EIDE 写入（原「EIDE 与 make 互相覆写 / make 静默复用 EIDE 产物」的风险随 Makefile 移除消失；历史见记录 16:02 那次烧到 EIDE 产物：`.ccmram=5040`、链接 `dev_display_22_1703`、`du -h` = 664K）。烧录前用 `arm-none-eabi-nm build/Debug/Project_STD.elf | grep -E 'dev_display_(1_263|22_1703)_init'`（**核对本 target 该编的模组符号**）+ `arm-none-eabi-size -A` 核对段尺寸与预期口径一致。
 2. **先确认屏体几何再联调**：屏体几何决定 24/32 点阵是「完整显示」还是「只显示可见上部」——单块 32×16 台架只能看到 16 行（上部），验证完整 24/32 仍需 224×64 屏（或把 22-1703 恢复 7×4 两行宏，该文件属用户实验态）。**屏高不再是否显示的门槛**（§12.3/§12.6）。
 
 ### 12.6 裁决与生效实现（2026-09-14 晚，用户拍板）

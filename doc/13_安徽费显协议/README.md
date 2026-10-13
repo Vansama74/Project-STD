@@ -1,5 +1,7 @@
 # 13 安徽费显协议
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > 安徽费显协议（2026-S304 费显通信协议，费显标准协议，2026-09 接入）接入记录。
 > 模块：`Application/Src/ProtocolParser_Anhui/` + `Application/Inc/ProtocolParser_Anhui/`（前缀 `anhui_`，文件前缀 `app_anhui_proto_`；命名避开 `ah_`——AH_MQTT 已占用 `ah_mqtt`）。
 

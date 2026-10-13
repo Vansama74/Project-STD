@@ -1,5 +1,7 @@
 # Part B：ProtocolParser_QingHai 接入
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 **状态**：`[规划中]`
 **协议层内部架构**：**Parse/Execute + Tagged Union**（解析器 `qh_parse_frame` → 清单 `qh_parsed_cmd_t` → 执行器 `qh_execute_cmd`；同步、无额外队列，详见 B.4）
 **前置条件**：`Device/` 现有驱动已就绪；仅 `232_voice`（TTS over RS232 语音板）需在 `Device/Comm/` 新增（见 Part A）。QH 协议层直接复用 `Device/` 驱动，不引入 `dev_service` 共享层。

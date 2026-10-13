@@ -1,5 +1,7 @@
 # Part B：ProtocolParser_ChongQing 接入
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 **状态**：`[已落地]`（2026-08-20；Makefile `PROTO=CQ` 构建 + 全协议 dev 构建双通道验证）
 **协议版本**：重庆高速二代费显协议 2.0.1
 **架构决策**：Part A 服务层方案已废弃（用户决策），CQ 模块按 doc/08 惯例**直调** STD 设备接口。
@@ -44,7 +46,7 @@
 
 ### B.1.2 与 LDI 的产品关系（已确认）
 
-**编译期互斥**：重庆固件不含 LDI，LDI 固件不含重庆。编译切换通过 Makefile / `.eide` 的条件编译实现（如 `PROTO=CQ`）。
+**编译期互斥**：重庆固件不含 LDI，LDI 固件不含重庆。编译切换由 **EIDE target 的 `defineList`/`excludeList`** 实现（如加 `PROTO_CHONGQING` + 排除 LDI 目录；配方见 `doc/构建开关总表.md` §7；原「Makefile 条件编译」已随 Makefile 移除作废）。
 
 ### B.1.3 与裸机工程的关系
 
@@ -409,7 +411,7 @@ EIDE defineList）。关闭时心跳不计数、不渲染（`s_cq_sync_counter` 
 
 | 问题 | 确认结果（已落地修订） |
 |------|----------|
-| Q1. 与 LDI 的产品关系 | **编译期互斥**：`make PROTO=CQ` 剔除 LDI 目录；EIDE 按 excludeList 目录排除纪律互斥 |
+| Q1. 与 LDI 的产品关系 | **编译期互斥**：EIDE target 按 `excludeList` 目录排除二选一（CQ 加 `PROTO_CHONGQING` + 排 LDI 目录；配方见 `doc/构建开关总表.md` §7）。〔历史〕原 `make PROTO=CQ` 剔除 LDI 目录，已随 Makefile 移除 |
 | Q2. UDP 端口 | **双端口**：业务 20103（可配置，`CH_ID_UDP_CQ`）+ 搜索 10011（`CH_ID_UDP`） |
 | Q3. 语音 | **USART6 语音板 TTS**：`dev_rs232_voice_play/volume` 旁路 TX（**修正早期 CH_ID_RS232 结论**） |
 | Q4. pic1 / voice_play1 | **空实现**（stub，解析后忽略） |

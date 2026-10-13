@@ -6,7 +6,22 @@
 
 STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
-- **构建**：`make -j8`（根目录 Makefile，`TOOLCHAIN=gcc|clang`，`CONFIG=Debug|Release`，`PROTO=ALL|CQ`，**`DISP=1_263|22_1703|22_1665`**）
+> **⚠ 构建入口（2026-10-13 用户裁决，已完成态）：`Makefile` 已从仓库移除，本项目构建/链接
+> 一律「仅 EIDE」**（VSCode 的 EIDE 插件 Build / Rebuild / Clean / Flash；`git` 历史可回溯旧 Makefile）。
+> 本小节及本文件其余各节中一切**以 make 为入口**的描述（`make -j8`、`TOOLCHAIN`/`CONFIG`/`PROTO`/
+> `DISP`/`FACTORY`/`BUILD_DIR` 变量、「口径切换必然重链接」的 `.build_stamp` 机制、「构建卫生 R1~R3」、
+> `make clean`、`bear -- make` 等）**一律作废、仅作历史**（下文相关条目已就地标注）。
+>
+> - **日常构建 = EIDE**。现行 target：`Debug`（IAP + LDI + 新疆 + 显示 `dev_display_1_263.c` + 标准厂测；
+>   `-O3`、无 `-fshort-enums`）、`Myanmar`（无显示驱动 + 缅甸厂测 + 不做 `PROTO_CHONGQING`）、
+>   `Release`（**已损坏、勿用**：incList 含 12 个不存在目录、excludeList 近乎为空）。
+> - **口径目标缺口（当前没有构建入口，需要时在 EIDE GUI 新建 target，配方见 `doc/构建开关总表.md` §7）**：
+>   ① 全协议 dev 构建（原 `PROTO=ALL`）；② 重庆量产口径（原 `PROTO=CQ`）；
+>   ③ `22_1665` 屏镜像（8×4）；④ `22_1703`；⑤「带显示 + 缅甸厂测」（原 `FACTORY=MM` 带显示口径）。
+> - **本文档中的段尺寸 / 内存基线数字均为 make 时代口径**（编译参数与 EIDE 不同，不可直接对等比较）；
+>   现行 EIDE 构建的验收判据 = 链接通过 + `.ccmram ≤ 65536`、`.data + .bss + ._user_heap_stack ≤ 131072`。
+
+- **〔历史，make 时代口径选择变量；命令已作废〕构建 / 口径选择**：原 `make -j8`（根目录 Makefile，`TOOLCHAIN=gcc|clang`，`CONFIG=Debug|Release`，`PROTO=ALL|CQ`，**`DISP=1_263|22_1703|22_1665`**）——**现由 EIDE target 的 `defineList`/`excludeList` 表达同义选择**（见本节开头的 target 现状与 `doc/构建开关总表.md` §7）：
   - **`DISP ?= 1_263`**（2026-09-14 新增，2026-09-16 扩第三值，2026-09-17 第二十二轮复核）：显示模组三选一——
     `1_263`（默认，P6 32×32）、`22_1703`（P10 32×16 / 料号 2200001703，1/4 扫描）、
     **`22_1665`（16×16 红绿双色 / 4 条数据线 × 8 片 MBI5034B / 静态单扫）**：第二十四轮起**几何彻底参数化**——
@@ -144,29 +159,19 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
     `FACTORY=STD` text **176336** / rodata **203648** / data 1656 / ccmram 39652 / bss 124860 / heap_stack 2564
     （SRAM 余 **1992B**）；`FACTORY=MM` text **174944** / rodata **203616** / bss 124596（SRAM 余 **2256B**）；
     两口径零新增告警（仍 3 条既有 HAL）。
-  - GCC Debug：`make -j8`（默认，`-Og -g`）
-  - GCC Release：`make -j8 CONFIG=Release`
-  - Clang Debug：`make -j8 TOOLCHAIN=clang`
-  - Clang Release：`make -j8 TOOLCHAIN=clang CONFIG=Release`
-  - **口径切换必然重链接（2026-09-14 修复）**：elf 依赖 `$(OBJ_ALL)` + 口径指纹
-    `build/$(CONFIG)/.build_stamp`（内容 = CONFIG / TOOLCHAIN / PROTO / DISP /
-    DEFINES / CFLAGS / LDFLAGS / Makefile cksum / 源列表 `SRC_FILES`），每个 `.o` 同样
-    依赖该 stamp——**切口径（PROTO / DISP / CONFIG / TOOLCHAIN 及后续新增开关）必然
-    全量重编 + 重链接，不再需要手工删产物**；口径不变时 stamp 内容相同（`cmp` 后才改
-    写），增量构建照常（重复 `make` 零编译零链接）。机制/纪律见 `doc/构建开关总表.md` §4。
-  - **构建卫生（2026-09-14 补，R1~R3；机制见 `doc/构建开关总表.md` §4.2）**：
-    ① **EIDE 构建覆写 `build/Debug/` 共享产物**（`Project_STD.elf/.hex/.bin`，新 mtime）后，
-    同口径 `make -j8` 会 **0 编译 0 链接、静默复用 EIDE 的 elf**（口径指纹只跟踪口径内容，
-    感知不到 mtime-only 覆写）→ **EIDE 构建后必须 `make clean && make`**（或给 EIDE 独立输出
-    目录）；烧录前用 `arm-none-eabi-size -A` 核对默认口径 `.text=167752 .rodata=195776
-    .data=1656 .ccmram=39652 .bss=124768`（**2026-09-29 代码瘦身轮第二轮（RTT 底层恢复后）口径**；权威值 doc/06-04 §8.4.4）；重复 `make` 的
-    「0 编译 0 链接 + md5 不变」仅当最后一次构建确为 make 时有效。
-    ② `make -n` 干跑显示"全量过期"属预期（stamp 规则带 `FORCE`，dry-run 不执行配方即假设
-    stamp 已变；真实构建 `cmp` 相同不触碰 mtime → 仍 0 编译 0 链接），**不要用 `make -n`
-    判断是否需要重建**。③ `PROTO` **无非法值守卫**（`PROTO=bogus` 静默按 `ALL` 走，与 `DISP`
-    的 `$(error)` 不对称）——按用户裁决**保持现状**，仅作为已知行为记录，不加守卫。
-  - **头文件依赖**：`CFLAGS` 含 `-MMD -MP`，`.d` 与 `.o` 同目录、末尾 `-include` 引入——
-    头文件改动触发依赖它的 TU 重编译（不再依赖手工全量重建）
+  - **〔以下 make 时代的工具链口径 / stamp 机制 / 构建卫生 R1~R3 / 头文件依赖，全部已作废
+    （2026-10-13 Makefile 移除），仅作历史记录〕**
+    - 〔历史〕GCC/Clang × Debug/Release 四组合：`make -j8` / `CONFIG=Release` / `TOOLCHAIN=clang`
+      / `TOOLCHAIN=clang CONFIG=Release`（默认 Debug，`-Og -g`）。
+    - 〔历史〕口径切换必然重链接（2026-09-14 修复）：elf 与每个 `.o` 都依赖口径指纹
+      `build/$(CONFIG)/.build_stamp`（CONFIG / TOOLCHAIN / PROTO / DISP / DEFINES / CFLAGS /
+      LDFLAGS / Makefile cksum / 源列表 `SRC_FILES`）⇒ 切口径必然全量重编 + 重链接。
+      机制见 `doc/构建开关总表.md` §4（该节已标注作废）。
+    - 〔历史〕构建卫生 R1~R3（2026-09-14 补）：① EIDE 覆写 `build/Debug/` 共享产物（新 mtime）后，
+      同口径 `make` 会 0 编译 0 链接、静默复用 EIDE 的 elf，须 `make clean && make`；
+      ② `make -n` 干跑显示「全量过期」属预期，不能用来判断是否需重建；③ `PROTO` 无非法值守卫。
+      **R1 的共用产物风险随 make 移除而消失**；EIDE 自身增量构建以 EIDE 的依赖模型为准。
+    - 〔历史〕头文件依赖：原 Makefile `CFLAGS` 含 `-MMD -MP`，`.d` 与 `.o` 同目录、末尾 `-include` 引入。
   - **`PROTO ?= ALL`**：默认全协议 dev 构建（CQ 恒定编入，位于 LDI 源之后）。
     **`PROTO=CQ`**：重庆量产口径——从源码列表剔除 LDI 目录文件、追加
     `-DPROTO_CHONGQING`（`{` 帧族仍编入并保留 `-DSTD_ALL_PROTO` 豁免守卫。
@@ -190,7 +195,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
     `app_net_boot_apply`）；改端口仅 PROTO_CHONGQING 构建对 CQ 业务口生效
     （`_udp_cq_read_port` 读 Sector1 net_cfg.udp_port，无效/0 回退 20103），dev
     构建 CQ 业务口固定 20103（`#else` 分支）、setip 的 port 对 dev 构建任何口都
-    不生效——端口修改验证须用 `make PROTO=CQ` 或 EIDE `PROTO_CHONGQING` 目标。
+    不生效——端口修改验证须用 **EIDE 的 `PROTO_CHONGQING` 目标**（〔历史〕原为 `make PROTO=CQ`）。
     **CQ 心跳超时故障屏开关**（`app_cq_proto.h` `CQ_FAULT_SCREEN`，1 开 / 0 关，
     doc/03 PartB B.7.2，2026-08-21 新增、2026-08-24 改名单层宏）：默认跟随构建
     口径——PROTO_CHONGQING 开启、共存/其他构建（通用版多协议固件）关闭（他省
@@ -221,13 +226,13 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
   删除后四口径构建基线（**第二轮 RTT 恢复后**）与段尺寸见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.4；
   开关清单见 `doc/构建开关总表.md` §0；本轮完整记录见 `doc/17_代码瘦身轮_20260929.md`（§5 = 第二轮修正）。
   **业务行为不变**（诊断全部只读），唯一副作用 = 无 `[diag]` 输出、启动少 2.5s 体检延时（随设施删除）。
-- **`{` 帧族编译期互斥守卫**：Makefile 默认定义 `-DSTD_ALL_PROTO`（全协议共存开发构建，`g_brace_proto_guard` 守卫失效）；EIDE 量产构建不定义该宏——多个 `{` 帧族协议（青海/山东/贵州/四川MTC）同时编入即链接报 `multiple definition of 'g_brace_proto_guard'`，强制互斥。
+- **`{` 帧族编译期互斥守卫**：〔历史〕原 Makefile 默认定义 `-DSTD_ALL_PROTO`（全协议共存开发构建，`g_brace_proto_guard` 守卫失效）；**现由 EIDE `DevAll` 等价 target 加同名宏承担**（`doc/构建开关总表.md` §7）。EIDE 量产构建不定义该宏——多个 `{` 帧族协议（青海/山东/贵州/四川MTC）同时编入即链接报 `multiple definition of 'g_brace_proto_guard'`，强制互斥。
 - **EIDE 持有 eide.yml（外部编辑纪律）**：EIDE 运行时用自己的内存模型回写 `.eide/eide.yml`，会冲掉外部直接编辑（曾两次发生：CQ 文件夹收录、app_net_boot.c 收录被回写丢失，导致 EIDE 构建 undefined reference）。**外部改完 yml 后必须立刻在 EIDE 中「重新加载项目」（EIDE: Reload Project）让它读入新条目，期间不要先做任何会触发保存的 GUI 操作**；构建前先确认 EIDE 编译列表含新增源文件。
-- **编译数据库**：`bear --output build/Debug/compile_commands.json -- make -B -j8`（`-B` 强制全量重编译）
+- **编译数据库**：**EIDE 构建会直接生成** `build/Debug/compile_commands.json`（clangd 的 `.clangd` 里 `CompilationDatabase: ./build/Debug` 指向该目录）——**唯一现态入口**（旧法 `bear -- make` 随 Makefile 移除而作废）。
 - **编译开关总表**：`doc/构建开关总表.md`（2026-08-24 新增，收录 PROTO_CHONGQING / STD_ALL_PROTO / CQ_FAULT_SCREEN / g_brace_proto_guard 等全部编译期开关及各构建入口默认值）
 - **烧录**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/Project_STD.hex verify reset exit"`
 - **整片擦除**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"`
-- **J-Link 一键烧录**：`bash tool/flash_all.sh`（Bootloader + Recovery + 主固件一次 J-Link 会话烧完，**默认烧后擦除 Sector1（0x08004000~0x08007FFF）恢复出厂配置态**；`--keep-config` 保留板级配置；`--erase` 整片擦除；`--verify` 校验；`--dry-run` 预览命令不烧录）
+- **J-Link 一键烧录**：`bash tool/flash_all.sh`（Bootloader + Recovery + 主固件一次 J-Link 会话烧完，**默认烧后擦除 Sector1（0x08004000~0x08007FFF）恢复出厂配置态**；`--keep-config` 保留板级配置；`--erase` 整片擦除；`--verify` 校验；`--dry-run` 预览命令不烧录；**默认读 `build/Debug/Project_STD.hex`——非 `Debug` target 必须显式 `-a build/<Target>/Project_STD.hex`，否则烧错镜像**）
 - **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info.size/crc32` 真实值只由 Recovery 升级流程写入（`app_info.version` 由主固件启动时从 PROGRAM_CODE 落库，供 IAP 0x03 上报）。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 W25Qxx 外部 Flash 同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
 - **三固件同步烧录纪律（方案 B 布局变更，2026-08-21）**：方案 B 把 Sector1 记录从 68B 扩到 72B（`NetConfig_t` 新增 `udp_port`，`config_crc` 偏移 64→68，Bootloader/Recovery 的 `config_info.h` 已同步修改）。**设备上 Bootloader/Recovery 若仍是旧 68B 布局（未随主固件重烧）**：旧 Bootloader 按旧偏移读 `config_crc`（读到新记录的 `udp_port` 字段）→ 判 CRC 失配 → 重建**旧布局**出厂记录；主固件按 72B 读又失配 → 反复自愈改写，两布局交替重建、Sector1 永不稳定（网络配置回出厂态；残留升级中间态还可能被旧 Bootloader 条件 A/B/D 误判 → 设备陷 Recovery、主固件不运行 → UDP 10011/20103 全部无响应，LDI 搜索/CQ 业务均失效）。**纪律：方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次 J-Link 会话）**，单固件重烧后按惯例擦 Sector1。
 - **0x03 版本为空判断路径**：现场 IAP 0x03 上报 `app_info.version` 全 0 时，按序判断：
@@ -237,9 +242,10 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
   即可；有 `[fwver] write ok` 仍为空 = 应答来自 Recovery（0x03 应答 ReData[10] `update_sta`
   ==2 且 ReData[0] `size`≠0 为 Recovery 态特征，主固件态 update_sta==0）；有 `erase/write
   failed` = 擦写路径问题；② 确认烧录物为最新构建（`arm-none-eabi-strings
-  build/Debug/Project_STD.elf | grep 9K10212482`，EIDE 与 make 共用 `build/Debug` 同名产物，
+  build/Debug/Project_STD.elf | grep 9K10212482`；仓库已无 make，`build/Debug` 由 EIDE 写入，
   注意陈旧覆盖）。
-- **清理**：`make clean`（仅删除 `build/$(CONFIG)` 目录）
+- **清理**：〔已作废〕原 `make clean`（仅删除 `build/$(CONFIG)` 目录）随 Makefile 移除而失效。EIDE 的 Clean 由 EIDE 自己执行（`eide.project.clean`）；清理产物前先确认不误删 EIDE 的输出与其他 target 目录。
+- **〔历史〕make 时代与 EIDE 共用 `build/Debug` 同名产物**（`Project_STD.elf/.hex/.bin`）——现仓库已无 make，唯一写入方 = EIDE；**烧录前仍建议核对产物 mtime / `arm-none-eabi-size -A`**，确认烧的是最后一次构建的镜像。
 
 ### 构建产物
 
@@ -279,7 +285,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 > 本文件与 `doc/**` 中所有 `.analysis/**` 路径引用（含脚本名 / 报告名 / 归档名）**自本裁决起一律作废**，
 > 仅作历史叙述保留、不代表仓库现状；对应文件可取回（该目录删除前最后一版完整存在于提交 `069be96`）：
 > `git show 069be96:<.analysis 下路径>` 或 `git checkout 069be96 -- <.analysis 下路径>`。
-> **现行验证/复现手段** = EIDE / `make` + 链接期段尺寸（`arm-none-eabi-size -A`）+ 调试器；
+> **现行验证/复现手段** = **EIDE** + 链接期段尺寸（`arm-none-eabi-size -A`）+ 调试器；
 > 此前的宿主脚本设施（`verify_all.sh` / `check_*.py` / `*_frame_sim.py` / `link_variant.sh` / `heap_ledger.py` 等）**已不存在**。
 
 ## 硬件架构
@@ -562,7 +568,7 @@ pl_sys (SystemClock_Config, delay, reset)
 .sw_initcall : { KEEP(*(SORT(.sw_initcall.0))) ... KEEP(*(SORT(.sw_initcall.4))) }
 ```
 
-每个 `*_initcall(fn)` 宏生成一个 `initcall_entry_t` 常量放入对应 section。`initcall_run(start, end)` 顺序遍历调用。同层内按**链接顺序（源码收录序）**执行——`SORT()` 对同名 section 退化为 .o 链接顺序，Makefile/EIDE 源码收录序即调用序（`app_dispatch_init` 靠收录序在协议之前）。
+每个 `*_initcall(fn)` 宏生成一个 `initcall_entry_t` 常量放入对应 section。`initcall_run(start, end)` 顺序遍历调用。同层内按**链接顺序（源码收录序）**执行——`SORT()` 对同名 section 退化为 .o 链接顺序，源码收录序（现 = `.eide/eide.yml` 的文件/目录顺序）即调用序（`app_dispatch_init` 靠收录序在协议之前）。
 
 ## 中断体系
 
@@ -820,7 +826,7 @@ struct dev_display {
 
 **硬约束：显示模组互斥（`1_263` / `22_1703` / `22_1665` 三选一）**——三模组显存
 （29568 / 31648 / 1792B）+ CQ 6377 + GZ_OL 1136 + YN_OL 1152 合计超 64KB CCMRAM（且双实例先后
-`dev_display_register`，活动屏由链接序决定）→ Makefile 用 `DISP` 开关三选一
+`dev_display_register`，活动屏由链接序决定）→〔历史〕原 Makefile 用 `DISP` 开关三选一（**已随 Makefile 移除**）；**现由 EIDE target 的 `excludeList` 表达同一语义（配方见 `doc/构建开关总表.md` §7）**
 （默认 `1_263` 保持现状；非法值 `$(error)`）；EIDE 侧用 `targets.Debug.excludeList`
 表达同一语义（`dev_display_1_263.c` 与 `dev_display_22_1703.c` 当前**均在排除表内**、
 `dev_display_22_1665.c` 已收录且不在排除表内 → **EIDE Debug 编 22_1665**；

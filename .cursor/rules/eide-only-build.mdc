@@ -1,0 +1,27 @@
+---
+description: 本仓库构建/链接仅用 EIDE（无 Makefile），不得重新引入 make 构建入口
+alwaysApply: true
+---
+
+# 构建入口只允许 EIDE（2026-10-13 用户裁决）
+
+**本仓库不含 `Makefile`**（2026-10-13 按用户裁决删除）。构建 / 链接 / 烧录一律用 **EIDE**
+（VSCode 的 EIDE 插件：Build / Rebuild / Clean / Flash / Upload 命令，或 `.vscode/tasks.json`
+里对应的 `eide.project.*` 任务）。
+
+## 硬性纪律
+
+- **不得以任何方式重新引入 make 构建入口**：不新建 / 不恢复 `Makefile`，不新增以 `make` 为入口的
+  脚本、任务或文档步骤。CubeMX 将来若再生成 `Makefile`（`Project_STD.ioc` 的
+  `TargetToolchain=Makefile`），**遇到即删除并告知用户**。
+- **需要新口径时在 EIDE GUI 新建 target**：配方（复制 `Debug` 后改 `defineList` / `excludeList`）
+  见 `doc/构建开关总表.md` §7。
+- **改 EIDE 配置后必须执行 `EIDE: Reload Project`**：`.eide/eide.yml` 是 EIDE 的地盘，EIDE 会用
+  自己的内存模型回写、冲掉外部直接编辑；外部改完 yml 后立刻 Reload，期间不要先做任何会触发保存的
+  GUI 操作。
+- 输出目录固定 `build/Debug`（EIDE 输出）；临时 / 隔离产物放**仓库外**（如 `/tmp/<任务名>/`）。
+
+## 交叉引用
+
+- 口径目标现状与缺失口径清单：`doc/构建开关总表.md` §7、`doc/CLAUDE.md` 构建小节。
+- 仓库纪律（禁止 `.analysis/`）：`.cursor/rules/no-dot-analysis.mdc`。

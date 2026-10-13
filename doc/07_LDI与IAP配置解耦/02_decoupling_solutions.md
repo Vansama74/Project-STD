@@ -1,5 +1,7 @@
 # 02 解耦方案
 
+> 〔2026-10-13〕本仓库 Makefile 已移除，构建仅 EIDE；本文中以 make 为入口的命令一律作废（历史记录），口径迁移见 doc/构建开关总表.md §7。
+
 > **状态**：三处缺陷**已定案并先行修复**（2026-08-14，见 §9）；**方案 A 主体重构已落地（2026-08-14）**——抽出板级网络配置模块 `app_board_net_cfg`（`Application/Config`），LDI/IAP 迁移至 `app_board_net_cfg_*` API，`app_iap_cfg.{c,h}` 与 `Device/Inc/config_info.h` 已删除　|　2026-08-14  
 > **前提**：已读 [01_background_and_impact.md](./01_background_and_impact.md)  
 > **纪律**：本文件仅方案；**未经授权不改代码**（§9 已获授权的先行修复除外）。

@@ -19,6 +19,10 @@ Core/Src/stm32f4xx_it.c` 的 HardFault 现场变量）；确需临时打印时�
 
 **RTT 底层属基础设施，不得删除/改动**（除非用户明确要求）：
 `Middlewares/Third_Party/SEGGER_RTT/**`（三个源文件）、`Platform/Src/pl_rtt.c`、
-Makefile `SRC_RTT` 与 `-I Middlewares/Third_Party/SEGGER_RTT`、`.eide/eide.yml` 对 RTT 的收录。
+`.eide/eide.yml` 对 RTT 三源文件与 include 路径（`Middlewares/Third_Party/SEGGER_RTT`）的收录。
+（Makefile 已于 2026-10-13 从仓库移除，本项目构建仅 EIDE，见 `.cursor/rules/eide-only-build.mdc`。）
+
+若 CubeMX 将来再生成 `Makefile`（`Project_STD.ioc` 的 `TargetToolchain=Makefile`），
+**应删除它、不得作为构建入口**，并告知用户。
 
 纪律背景与清理记录见 `doc/17_代码瘦身轮_20260929.md`、`doc/18_注释规范.md`。
