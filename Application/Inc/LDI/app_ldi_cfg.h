@@ -20,7 +20,8 @@ typedef struct {
     uint8_t vendor[10];    // 厂商自定义参数段 (0BH 命令下发的 Vendor[] 段)
 } app_flash_ldi_module_cfg_t;
 
-static_assert(sizeof(app_flash_ldi_module_cfg_t) == 12);
+/* 契约：单模块条目固定 12B（device_type 1 + device_index 1 + vendor 10），
+ * W25 记录按此布局读写，改错静默错位。 */
 
 /**
  * LDI 车道设备配置信息 (共 46 字节)

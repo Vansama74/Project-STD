@@ -6,7 +6,7 @@
  * 不含任何安徽专用语义。行区域矩形由调用方给出，模块启动时以
  * dev_display_get() 实际 screen_rows（宽）/screen_cols（高）钳位。
  *
- * 语义（用户裁决 2026-09-07；2026-09-09 修订停止语义）：
+ * 语义：
  *   - 循环滚动：文本按指定方向持续滚动，收到停止才停，越过边界后从另一侧重新进入；
  *   - 停止语义：app_scroll_stop = 冻结（不清行、不提交，像素停在当前位置）；
  *     app_scroll_stop_all/_nolock = 清行（0x81/0x85 依赖，独立实现）；
@@ -58,23 +58,23 @@ bool app_scroll_start(uint8_t slot,
                       uint16_t step_ms, uint16_t stay_ms);
 
 /**
- * @brief  停止指定槽位滚动 = 冻结（用户裁决 2026-09-09，原「停止即清行」）。
+ * @brief  停止指定槽位滚动 = 冻结（不清行）。
  * @param  slot  槽位号；越界忽略。
  * @note   置槽位非活跃、不清行、不提交——像素停在当前位置静态显示
  *         （render 锁保证在途渲染完成后才返回，无半帧风险）。
- *         ⑤ 内部持 app_scroll_render_lock 与滚动渲染串行。
+ *         内部持 app_scroll_render_lock 与滚动渲染串行。
  */
 void app_scroll_stop(uint8_t slot);
 
 /**
  * @brief  停止全部槽位滚动并清行（安徽 0x81 清屏 / 0x85 静态显示前调用）。
  * @note   与 app_scroll_stop 的冻结语义独立：置非活跃 + 清行 + 矩形提交，
- *         保证 0x81/0x85 清掉滚动内容（用户裁决 2026-09-09）。
- *         ⑤ 内部持 app_scroll_render_lock 包裹全部清行提交。
+ *         保证 0x81/0x85 清掉滚动内容。
+ *         内部持 app_scroll_render_lock 包裹全部清行提交。
  */
 void app_scroll_stop_all(void);
 
-/* ---- ⑤ 渲染互斥 API（2026-09-08）---- */
+/* ---- 渲染互斥 API ---- */
 
 /**
  * @brief  获取渲染互斥锁：滚动渲染（scroll_task 渲染+commit 整段）与
@@ -91,6 +91,6 @@ void app_scroll_render_unlock(void);
  * @brief  停止全部槽位（无锁变体，清行语义）：调用方须先持 app_scroll_render_lock。
  * @note   供安徽 0x81/0x85 的「stop_all + 渲染 + commit」整段持锁场景使用，
  *         避免公共版 app_scroll_stop_all 内部重复加锁死锁。
- *         与 app_scroll_stop 的冻结语义独立（清行，用户裁决 2026-09-09）。
+ *         与 app_scroll_stop 的冻结语义独立（清行）。
  */
 void app_scroll_stop_all_nolock(void);

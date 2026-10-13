@@ -1,0 +1,30 @@
+build/xj_b1/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                168536   134480272
+.rodata              195776   134648808
+.hw_initcall            160   134844584
+.sw_initcall            216   134844744
+.ARM.extab                0   134844960
+.ARM                      8   134844960
+.preinit_array            0   134844968
+.init_array               4   134844968
+.fini_array               4   134844972
+.data                  1656   536870912
+.ccmram               39652   268435456
+.bss                 125356   536872568
+._user_heap_stack      2564   536997924
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          667910           0
+.debug_abbrev        112555           0
+.debug_loclists      240606           0
+.debug_aranges        21608           0
+.debug_rnglists       19617           0
+.debug_line          381779           0
+.debug_str           102464           0
+.debug_frame          67120           0
+.debug_line_str         474           0
+Total               2148574
+
+

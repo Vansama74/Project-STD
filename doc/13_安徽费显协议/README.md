@@ -115,7 +115,7 @@ X – 横坐标    Y - 纵坐标
 - 目录/命名：`ProtocolParser_Anhui/`，前缀 `app_anhui_proto_`（`ah_` 前缀被 AH_MQTT 占用，doc/08 命名规则下用 `anhui`）；文件拆分与青海/贵州同构（proto / proto_parse / proto_cmd / proto_voice）。
 - 注册五步：`RB_PROVIDE_WEAK`（RS485+RS232 同槽 weak 合并）→ `app_proto_acquire_buf` → `app_proto_register`（双通道各独立 mask）→ `app_proto_bind_channel`（CH_ID_RS485 + CH_ID_RS232）→ `app_proto_set_frame_queue`；`sw_app_initcall(anhui_proto_init)`。
 - probe：**长度字段定界**（对齐治超 5.3 模式）——首字节 0x5A 快拒 → 命令字预筛（提前 FAKE 掉 5A 噪声流，避免大长度字段把链式探测拖死在 WAIT）→ 数据长算整帧 → 尾字节 0xA5 校验 → READY；屏号非 01 → SKIP 整帧消费。CRC 不校验（文档注明无检验）。PURE 契约（仅 rb_peek，仅 READY/SKIP 写 `*total_len`）。
-- 队列：`ANHUI_PAYLOAD_MAX 261`（数据长 1B 上限 255 → 6+255）、`ANHUI_QUEUE_DEPTH 3`；`_Static_assert` ≤ RB 768。**队列体+控制块+任务帧缓冲为静态 SRAM（与青海/贵州/云南等协议模块一致，CQ 才是 CCMRAM 例外）**（§6、doc/06-04 记账）。
+- 队列：`ANHUI_PAYLOAD_MAX 261`（数据长 1B 上限 255 → 6+255）、`ANHUI_QUEUE_DEPTH 3`；payload ≤ RB 768（源码契约注释）。**队列体+控制块+任务帧缓冲为静态 SRAM（与青海/贵州/云南等协议模块一致，CQ 才是 CCMRAM 例外）**（§6、doc/06-04 记账）。
 - 处理任务：`anhui_handle_task` 栈 256×4；帧缓冲 static（SRAM，不入栈）；parse 纯函数 → `anhui_execute_cmd` 查表分派。
 - 应答：无（协议未定义）。
 - 波特率：无协议改波特率命令，沿用 DIP1（9600/115200）全局选择。

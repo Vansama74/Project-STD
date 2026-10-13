@@ -2,7 +2,7 @@
  * @file    app_gz_ol_proto.c
  * @brief   贵州治超屏协议 — 注册 / 探测 / 帧处理任务
  *
- * 契约一览见 app_gz_ol_proto.h 文件头（本文件实现 ② 帧头唯一性 / ④ CCM 放置）。
+ * 契约一览见 app_gz_ol_proto.h 文件头（本文件实现 ③ CCM 放置）。
  * 详见 doc/14_贵州治超屏协议/README.md §3、§4、§11、§13
  */
 
@@ -16,7 +16,7 @@
 #include "app_gz_ol_proto_parse.h"
 #include "pl_task_static.h"
 
-/* 处理任务栈 + TCB 静态落 CCMRAM（启动期创建一次、永不退出，不占 ucHeap；账见
+/* 处理任务栈 + TCB 静态落 CCMRAM（只创建一次、永不退出，不占 ucHeap；账见
  * doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8） */
 PL_TASK_STATIC_STORAGE(gz_ol_handle, 256);
 
@@ -30,7 +30,8 @@ static proto_mask_t s_gz_ol_mask_udp;     /* CH_ID_UDP 10011（RJ45 槽 RB，同
 static proto_mask_t s_gz_ol_mask_gzol;    /* CH_ID_UDP_GZOL 业务口（读 Sector1 net_cfg.port） */
 static osMessageQueueId_t s_gz_ol_queue;
 
-/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 CCMRAM（契约 ④，1136B；理由见 §6） */
+/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 CCMRAM
+ * （契约 ③，1136B；理由详见 doc/14_贵州治超屏协议/README.md §6） */
 [[gnu::section(".ccmram")]] static StaticQueue_t s_gz_ol_queue_cb;
 [[gnu::section(".ccmram")]] static uint8_t s_gz_ol_queue_buf[GZ_OL_QUEUE_DEPTH * GZ_OL_MSG_SIZE];
 static const osMessageQueueAttr_t s_gz_ol_queue_attr = {
@@ -46,7 +47,7 @@ static proto_probe_sta_t gz_ol_probe_frame(const channel_t *ch, const ring_buffe
 
 /**
  * @brief  协议注册与任务创建（`sw_app_initcall` 自注册）。
- * @note   注册五步（doc/08_协议模块接入规则）：槽 acquire → 每通道独立 mask register + bind
+ * @note   注册五步（doc/08_协议模块接入规则/01_通用规则与模块骨架.md §2）：槽 acquire → 每通道独立 mask register + bind
  *         → 四 mask 共用一静态队列 → 处理任务；网口槽无提供者时静默跳过网口绑定（串口不受影响）；
  *         `CH_ID_RS232_1`（USART6 语音 TX）禁止绑定。
  */
@@ -76,7 +77,7 @@ void gz_ol_proto_init(void)
         if (s_gz_ol_mask_udp != 0)
             app_proto_bind_channel(s_gz_ol_mask_udp, CH_ID_UDP);
 
-        /* GZ_OL 专用业务口：端口 = Sector1 `net_cfg.port`（`0x40` 改端口即改此口，契约 ③）。
+        /* GZ_OL 专用业务口：端口 = Sector1 `net_cfg.port`（`0x40` 改端口即改此口，契约 ②）；
          * 同槽 IAP/LDI/CQ 与本 probe 首字节双向快拒（证据 .analysis/9k23881580/gz_ol_udp_binding_report.md §2）。 */
         s_gz_ol_mask_gzol = app_proto_register(gz_ol_probe_frame, rb_rj45);
         if (s_gz_ol_mask_gzol != 0)
@@ -106,8 +107,8 @@ sw_app_initcall(gz_ol_proto_init);
  * @param  rb         源环形缓冲（只读）；`total_len` 在 READY 时写出整帧长。
  * @return READY / WAIT / SKIP（结构合法但 > 256B：整帧消费不入队）/ FAKE。
  * @note   判定链 = 快拒 0x54 → 引导串全匹配 → 长度字段 [17, RB-1] 与尾字节 0x00 双校验
- *         （`len > RB_SIZE_RS485-1` 必 FAKE，否则永久 WAIT 卡死链式探测）；同槽双向快拒见 §4；
- *         `ch` / `aux` 为 probe 契约参数，未使用。
+ *         （`len > RB_SIZE_RS485-1` 必 FAKE，否则永久 WAIT 卡死链式探测）；同槽双向快拒详见
+ *         doc/14_贵州治超屏协议/README.md §4；`ch` / `aux` 为 probe 契约参数，未使用。
  */
 static proto_probe_sta_t gz_ol_probe_frame(const channel_t *ch, const ring_buffer_t *rb,
                                            uint32_t *total_len, uint8_t *aux)

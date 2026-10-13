@@ -62,7 +62,7 @@ struct dev_display {
     volatile uint8_t light_level;
     volatile bool dirty;
 
-    /* ④a 脏矩形（2026-09-08）：dev_display_commit_frame_rect 提交的矩形。
+    /* 脏矩形：dev_display_commit_frame_rect 提交的矩形。
      * scan_task 消费 frame_ready 时写入本组字段，ops->prepare 读取（签名不变），
      * prepare 返回后由 scan_task 复位为 invalid。valid=false = 全量重排。 */
     uint16_t dirty_rect_x, dirty_rect_y, dirty_rect_w, dirty_rect_h;
@@ -94,12 +94,12 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
 /** @brief 叠加绘制位图: (x,y)起点, w宽h高, bitmap每行( (w+7)/8 )字节, bit=1写color, bit=0不改变原像素。
  *  如需不透明绘制(bit=0置黑), 调用方先 dev_display_fill 填充背景色
  *
- *  越界语义（2026-09-14 修订，与 fill 的截断语义对齐）：
+ *  越界语义（与 fill 的截断语义对齐）：
  *  - 起点在屏幕外（x>=screen_rows 或 y>=screen_cols）→ 整区域丢弃；
  *  - 部分越出屏幕右/下边界 → **按屏幕交集逐像素裁剪绘制（只画可见部分）**，
  *    不再整块丢弃（字号大于可用高度时字形露出可见部分；位图为 MSB-first 行打包，
  *    起点坐标无符号 → 裁剪只发生在右/下边界，位序不会错位）；
- *  - 完全在屏内 → 与旧实现逐像素等价（快路径，无额外开销）；
+ *  - 完全在屏内 → 与逐像素绘制等价（快路径，无额外开销）；
  *  - 空矩形（w=0 或 h=0）→ 不落笔。
  *
  *  坐标约定同 dev_display_set_pixel */
@@ -138,19 +138,15 @@ dev_display_t *dev_display_get(void);
  *  入口先经本函数判空：
  *      if (!dev_display_guard("ldi.e6")) return;   // 无显示 → 安全跳过/降级
  *  有显示时仅多一次判空（等价于调用方自行 `if (!d) return;`，零行为差异）；
- *  无显示时限速告警（同一调用点 ≥1s 一行，`what` 为调用点标识），
- *  避免每帧刷屏灌满 RTT 上行缓冲。
+ *  无显示时返回 false，调用方安全跳过/降级（`what` 仅作调用点标识保留）。
  *  @param what 调用点标识（静态字符串，如 "splash" / "ldi.e6" / "factory-test"）
  *  @return true = 有显示可继续；false = 无显示，调用方应立即安全跳过 */
 bool dev_display_guard(const char *what);
 
-extern volatile uint32_t g_dev_display_commit_count;
-extern volatile uint32_t g_dev_display_scan_count;
-
 /** @brief 将当前逻辑帧提交到扫描帧，供 scan_task 读取（全屏语义） */
 void dev_display_commit_frame(dev_display_t *dev);
 
-/** @brief 提交帧并携带脏矩形（④a，2026-09-08）：只重排矩形覆盖区域，
+/** @brief 提交帧并携带脏矩形：只重排矩形覆盖区域，
  *  消除滚动/行渲染场景的全屏 prepare 亮度抖。
  *
  *  与 commit_frame 同机制（osKernelLock 下记指针+标志），另记录矩形；

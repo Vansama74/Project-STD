@@ -16,3 +16,13 @@ uint8_t bit_ctz(uint32_t x)
 {
     return ctz_table[((x & -x) * 0x077CB531U) >> 27];
 }
+
+uint8_t bit_ctz64(uint64_t x)
+{
+    /* 低 32 位非零即复用 32 位表；否则高 32 位整体 +32（x==0 显式回 0，对齐 bit_ctz） */
+    if (x == 0U)
+        return 0U;
+    if ((uint32_t)x != 0U)
+        return bit_ctz((uint32_t)x);
+    return (uint8_t)(32U + (uint32_t)bit_ctz((uint32_t)(x >> 32)));
+}

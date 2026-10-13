@@ -171,7 +171,7 @@ static void _sc_etc_exec_brightness(uint8_t level) {
 
 /**
  * @brief  心跳超时渲染「ETC车道关闭，请择道行驶」（依据四川ETC费显协议 §7）。
- * @note   2026-08-17：唯一调用方 sc_etc_heartbeat_task 已 #if 0 停用，本函数
+ * @note   心跳计时任务已 #if 0 停用，本函数
  *         保留待恢复（无引用，链接期被 --gc-sections 丢弃，不占 Flash）。
  */
 void sc_etc_show_lane_closed(void) {
@@ -205,7 +205,7 @@ void sc_etc_show_lane_closed(void) {
 /**
  * @brief  黄闪 10 秒自动关闭到期回调（由心跳计时任务调用）。
  * @note   黄闪计时递减到 0 → 关闭黄闪。
- *         2026-08-17：唯一调用方（心跳计时任务）已 #if 0 停用，黄闪不再
+ *         唯一调用方（心跳计时任务）已 #if 0 停用，黄闪不再
  *         10 秒自动关闭（须 0A 39 显式关闭）；本函数保留待恢复。
  */
 void sc_etc_hs_timeout(void) { dev_io_flash_light(false); }
@@ -260,7 +260,7 @@ void sc_etc_execute_cmd(channel_t *ch, const sc_etc_parsed_cmd_t *cmd) {
     break;
   case SC_ETC_PCMD_HEARTBEAT:
     /* 心跳帧（0A 50 0D）：解析保留（无害）——仅被识别后丢弃，不回。
-     * 2026-08-17：心跳超时显示功能已停用（sc_etc_heartbeat_task #if 0），
+     * 心跳超时显示功能已停用（sc_etc_heartbeat_task #if 0），
      * 本帧不再驱动任何计时。 */
     break;
   default:

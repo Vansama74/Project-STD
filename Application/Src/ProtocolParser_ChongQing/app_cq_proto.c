@@ -18,8 +18,8 @@
  * app_default_display_show）再执行本帧命令。工厂测试激活期间暂停计数。
  *
  * probe 顺序：10011 上 LDI probe 先于本模块（源码收录序），对 CQ 12B 帧
- * `data_len==2` 显式 FAKE 放行、由本模块认领（「LDI 先探测、FAKE 放行、CQ 收单」）
- * ——来历与实态修正见 doc/03 PartB Q23。
+ * `data_len==2` 显式 FAKE 放行、由本模块认领（「LDI 先探测、FAKE 放行、CQ 收单」，
+ * 见 doc/03 PartB Q23）。
  */
 
 #include "app_cq_proto.h"
@@ -65,7 +65,8 @@ static osMessageQueueId_t s_cq_queue;
  * 队列体与任务帧缓冲置于 CCMRAM（CPU 独占访问、无 DMA，osMessageQueue 静态内存
  * 仅经 CPU memcpy 读写，安全）：SRAM 全协议构建仅余 ~1.9KB，CQ 队列 3236B 无法
  * 入 SRAM（doc/06-04 记账注明该例外）。 */
-_Static_assert(CQ_PAYLOAD_MAX <= RB_SIZE_RJ45, "CQ frame must fit RJ45 RB");
+/* 契约：payload 上限须 ≤ RJ45 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_cq_queue_cb __attribute__((section(".ccmram")));
 static uint8_t s_cq_queue_buf[CQ_QUEUE_DEPTH * CQ_MSG_SIZE] __attribute__((section(".ccmram")));
 static const osMessageQueueAttr_t s_cq_queue_attr = {
@@ -91,7 +92,7 @@ static proto_probe_sta_t cq_probe_frame(const channel_t *ch, const ring_buffer_t
  * @brief  CQ 协议模块初始化入口（sw_app_initcall 自注册）。
  * @note   cJSON 内存钩子换绑 FreeRTOS 堆必须在处理任务创建之前完成。
  * @note   网络配置应用（netif + 默认落盘）已移交中立模块 app_net_boot
- *         （app_boot.c init_task 调 app_net_boot_apply，2026-08-21 解耦），
+ *         （app_boot.c init_task 调 app_net_boot_apply），
  *         本模块不再承担网络启动职责；CQ UDP 业务口仍由 _udp_cq_read_port
  *         读 Sector1 net_cfg.port（现状保持）。
  */

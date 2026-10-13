@@ -1,0 +1,241 @@
+# 删除清单原始记录（2026-10-12 清理轮，脚本生成）
+# 时间: 2026-10-12 17:57:06
+
+## build/xj_* （15 个 A/B 抽样构建目录，apparent / disk）
+build/xj_b0                    10500164 (apparent)       12M (disk)
+build/xj_b1                    10509998 (apparent)       12M (disk)
+build/xj_b2                    10622584 (apparent)       12M (disk)
+build/xj_b2_nofault            10702722 (apparent)       12M (disk)
+build/xj_b2cq                  10305387 (apparent)       12M (disk)
+build/xj_eide_dbg               9191181 (apparent)      9.9M (disk)
+build/xj_eide_dbg_before        9129571 (apparent)      9.9M (disk)
+build/xj_eide_dbg_faulton       9270635 (apparent)       11M (disk)
+build/xj_eide_mm                9048189 (apparent)      9.8M (disk)
+build/xj_fix_all               10676178 (apparent)       12M (disk)
+build/xj_fix_cq                10326222 (apparent)       12M (disk)
+build/xj_r2_all                10700132 (apparent)       12M (disk)
+build/xj_r2_cq                 10346080 (apparent)       12M (disk)
+build/xj_r2_dbg                 8865783 (apparent)      9.5M (disk)
+build/xj_r2_dbg_nofix           8918937 (apparent)      9.6M (disk)
+
+## __pycache__
+6886	./.analysis/comment_pass_20261008/scripts/batch01b/__pycache__
+39252	./.analysis/22_1665/__pycache__
+45959	./.analysis/myanmar/__pycache__
+
+## .analysis 编译中间产物（*.o / *.d）
+     14528 .analysis/myanmar/ab_baseline/app_rls_cmd.o
+      4955 .analysis/myanmar/ab_baseline/app_rls_cmd.d
+      4840 .analysis/myanmar/ab_baseline/ah_mqtt_cmd.d
+     13260 .analysis/myanmar/ab_baseline/app_vms_ctrl.o
+     43084 .analysis/myanmar/ab_baseline/app_boot.o
+     22880 .analysis/myanmar/ab_baseline/ah_mqtt.o
+     15488 .analysis/myanmar/ab_baseline/app_test.o
+     17500 .analysis/myanmar/ab_baseline/ah_mqtt_cmd.o
+      8716 .analysis/myanmar/ab_baseline/app_default_display.o
+     29360 .analysis/myanmar/ab_baseline/app_factory_test.o
+      5621 .analysis/myanmar/ab_baseline/ah_mqtt.d
+     31660 .analysis/myanmar/ab_baseline/dev_display.o
+     23596 .analysis/myanmar/ab_baseline/app_ldi_device.o
+      7884 .analysis/myanmar/ab_baseline/dev_light_sensor.o
+      2292 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_parse.strip.o
+      9916 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_default.o
+      4955 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_parse.d
+     22320 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_cmd.o
+     10964 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_cmd.strip.o
+      2396 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_default.strip.o
+     23096 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto.o
+      5231 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_cmd.d
+      6281 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto.d
+      4488 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/batch01b/pre/app_gz_ol_proto.strip.o
+      2292 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_parse.strip.o
+      9916 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_default.o
+      4955 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_parse.d
+     22344 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_cmd.o
+     10960 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_cmd.strip.o
+      2396 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_default.strip.o
+     23092 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto.o
+      5231 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_cmd.d
+      6281 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto.d
+      4488 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/batch01b/cur/app_gz_ol_proto.strip.o
+      6156 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto.strip.o
+      5938 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto.d
+     10800 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto_cmd.o
+      2003 .analysis/comment_pass_20261008/ab/batch01c/pre/app_factory_test_mm.d
+     23332 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto.o
+     13288 .analysis/comment_pass_20261008/ab/batch01c/pre/app_factory_test_mm.o
+      3168 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto_cmd.strip.o
+       627 .analysis/comment_pass_20261008/ab/batch01c/pre/app_mm_proto_cmd.d
+      3528 .analysis/comment_pass_20261008/ab/batch01c/pre/app_factory_test_mm.strip.o
+      6156 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto.strip.o
+      5911 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto.d
+     10772 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto_cmd.o
+      1950 .analysis/comment_pass_20261008/ab/batch01c/cur/app_factory_test_mm.d
+     23300 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto.o
+     13216 .analysis/comment_pass_20261008/ab/batch01c/cur/app_factory_test_mm.o
+      3168 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto_cmd.strip.o
+       600 .analysis/comment_pass_20261008/ab/batch01c/cur/app_mm_proto_cmd.d
+      3528 .analysis/comment_pass_20261008/ab/batch01c/cur/app_factory_test_mm.strip.o
+      6156 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto.strip.o
+      6004 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto.d
+      6680 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_cmd.d
+     10896 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto_cmd.o
+      2292 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_parse.strip.o
+      2046 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_factory_test_mm.d
+      6405 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto.d
+     10024 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_default.o
+      5058 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_parse.d
+     22464 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_cmd.o
+     23428 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto.o
+      7376 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto.strip.o
+     11080 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_cmd.strip.o
+      5057 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_parse.d
+      2396 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_default.strip.o
+     10132 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_parse.o
+     41932 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_cmd.o
+     23212 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto.o
+     13340 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_factory_test_mm.o
+      5334 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_cmd.d
+     23852 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto.o
+      6406 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto.d
+     10600 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_yn_ol_proto_parse.strip.o
+      3168 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto_cmd.strip.o
+       693 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_mm_proto_cmd.d
+      4547 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_gz_ol_proto.strip.o
+      3528 .analysis/comment_pass_20261008/ab/refine_round1/pre/app_factory_test_mm.strip.o
+      6156 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto.strip.o
+      5916 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto.d
+      6578 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_cmd.d
+     10772 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto_cmd.o
+      2292 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_parse.strip.o
+      1955 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_factory_test_mm.d
+      6279 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto.d
+      9916 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_default.o
+      4960 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_parse.d
+     22324 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_cmd.o
+     23300 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto.o
+      7376 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto.strip.o
+     10960 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_cmd.strip.o
+      4955 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_parse.d
+      2396 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_default.strip.o
+     10012 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_parse.o
+     41816 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_cmd.o
+     23092 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto.o
+     13216 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_factory_test_mm.o
+      5236 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_cmd.d
+     23732 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto.o
+      6286 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto.d
+     10600 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_yn_ol_proto_parse.strip.o
+      3168 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto_cmd.strip.o
+       605 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_mm_proto_cmd.d
+      4493 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_gz_ol_proto.strip.o
+      3528 .analysis/comment_pass_20261008/ab/refine_round1/cur/app_factory_test_mm.strip.o
+      6156 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto.strip.o
+      6004 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto.d
+      6680 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_cmd.d
+     10896 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto_cmd.o
+      2292 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_parse.strip.o
+      2046 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_factory_test_mm.d
+      6405 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto.d
+     10024 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_default.o
+      5058 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_parse.d
+     22440 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_cmd.o
+     23428 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto.o
+      7376 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto.strip.o
+     11080 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_cmd.strip.o
+      5057 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_parse.d
+      2396 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_default.strip.o
+     10132 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_parse.o
+     41936 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_cmd.o
+     23212 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto.o
+     13340 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_factory_test_mm.o
+      5334 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_cmd.d
+     23852 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto.o
+      6406 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto.d
+     10600 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_yn_ol_proto_parse.strip.o
+      3168 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto_cmd.strip.o
+       693 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_mm_proto_cmd.d
+      4547 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_gz_ol_proto.strip.o
+      3528 .analysis/comment_pass_20261008/ab/refine_round2/pre/app_factory_test_mm.strip.o
+      6156 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto.strip.o
+      5916 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto.d
+      6578 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_cmd.d
+     10772 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto_cmd.o
+      2292 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_parse.strip.o
+      1955 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_factory_test_mm.d
+      6279 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto.d
+      9916 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_default.o
+      4960 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_parse.d
+     22324 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_cmd.o
+     23300 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto.o
+      7376 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto.strip.o
+     10960 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_parse.o
+      4728 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_cmd.strip.o
+      4955 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_parse.d
+      2396 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_default.strip.o
+     10012 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_parse.o
+     41816 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_cmd.o
+     23092 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto.o
+     13216 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_factory_test_mm.o
+      5236 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_cmd.d
+     23732 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto.o
+      6286 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto.d
+     10600 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_yn_ol_proto_parse.strip.o
+      3168 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto_cmd.strip.o
+       605 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_mm_proto_cmd.d
+      4493 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto_default.d
+      7364 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_gz_ol_proto.strip.o
+      3528 .analysis/comment_pass_20261008/ab/refine_round2/cur/app_factory_test_mm.strip.o
+      6578 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_cmd.d
+      6281 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto.d
+      7376 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto.strip.o
+      4955 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_parse.d
+     10016 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_parse.o
+     41820 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_cmd.o
+     23740 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto.o
+     10600 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/batch01a/pre/app_yn_ol_proto_parse.strip.o
+      6573 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_cmd.d
+      6274 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto.d
+      7376 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto.strip.o
+      4950 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_parse.d
+     10012 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_parse.o
+     41812 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_cmd.o
+     23732 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto.o
+     10600 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_cmd.strip.o
+      1984 .analysis/comment_pass_20261008/ab/batch01a/cur/app_yn_ol_proto_parse.strip.o
+     31472 .analysis/cleanup_20260929/round2_ab/reconstruct/app_cq_proto.c.cur.o
+     31600 .analysis/cleanup_20260929/round2_ab/reconstruct/app_cq_proto.c.pre.o
+      2392 .analysis/cleanup_20260929/round2_ab/reconstruct/app_cq_proto.c.pre.d
+      6596 .analysis/cleanup_20260929/round2_ab/reconstruct/app_ldi.c.pre.d
+     52636 .analysis/cleanup_20260929/round2_ab/reconstruct/dev_display_22_1703.c.pre.o
+     26248 .analysis/cleanup_20260929/round2_ab/reconstruct/app_boot.c.pre.o
+      6984 .analysis/cleanup_20260929/round2_ab/reconstruct/app_boot.c.cur.d
+     26068 .analysis/cleanup_20260929/round2_ab/reconstruct/app_boot.c.cur.o
+     39080 .analysis/cleanup_20260929/round2_ab/reconstruct/app_ldi.c.pre.o
+      4362 .analysis/cleanup_20260929/round2_ab/reconstruct/dev_display_22_1703.c.cur.d
+      6509 .analysis/cleanup_20260929/round2_ab/reconstruct/app_ldi.c.cur.d
+      4402 .analysis/cleanup_20260929/round2_ab/reconstruct/dev_display_22_1703.c.pre.d
+     38908 .analysis/cleanup_20260929/round2_ab/reconstruct/app_ldi.c.cur.o
+      7075 .analysis/cleanup_20260929/round2_ab/reconstruct/app_boot.c.pre.d
+     52508 .analysis/cleanup_20260929/round2_ab/reconstruct/dev_display_22_1703.c.cur.o
+      2329 .analysis/cleanup_20260929/round2_ab/reconstruct/app_cq_proto.c.cur.d
+     21436 .analysis/yn_ol/guard_test/yn_ol_all.o
+     18960 .analysis/yn_ol/guard_test/yn_regular_all.o
+     19164 .analysis/yn_ol/guard_test/yn_regular.o
+     21640 .analysis/yn_ol/guard_test/yn_ol.o
+     38136 .analysis/yn_ol/guard_test/merged_all.o

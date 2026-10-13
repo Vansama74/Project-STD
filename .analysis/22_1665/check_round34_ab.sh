@@ -10,10 +10,11 @@
 #   ① 逐个 section 比 md5（排除 .debug* / 符号表 / .ARM.attributes —— 注释与断言删除只改
 #      「行号表」这类工具链记账，属非代码差异）；
 #   ② `objdump -d` 反汇编逐行比对（期望 0 行差异）。
-# 另加两条源码级自证：现行 2 条 `_Static_assert`（**2026-10-08 按用户裁决恢复的
-# 2 条守卫** — 通道上限 + 本模组 ≤ 64KB；第三十四轮删掉的其余 15 条仍删）、归档恰 17 条
-# （确保比的是该比的两份）。**恢复的守卫是纯编译期对象，不产生代码** ⇒ A/B 仍期望
-# section 逐字节 + 反汇编 0 行差异（本轮实测正是 0 差异，见 `landing_20261008.md`）。
+# 另加源码级自证：**现行 0 条 `_Static_assert`**（2026-10-13 用户裁决——2026-10-08 恢复的
+# 2 条守卫再次删除，业务代码编译期断言归零）、归档恰 17 条（确保比的是该比的两份）。
+# **2026-10-08 恢复的守卫与 2026-10-13 的删除都是纯编译期对象，不产生代码** ⇒ A/B 仍期望
+# section 逐字节 + 反汇编 0 行差异（2026-10-08 与 2026-10-13 两轮实测均为 0 差异，
+# 见 `landing_20261008.md` 与 `.analysis/comment_pass_20261013/report.md` 裁决执行轮）。
 #
 # 编译命令行取「最新一份 build_round*.log」里驱动那份的实参（与固件构建逐字相同）；
 # 没有日志时退回内置等价参数（`-Og -g -std=gnu23` + 全量 -I，与 Makefile 同口径）。
@@ -41,23 +42,31 @@ if [ ! -f "$OLD" ]; then
     exit 1
 fi
 
-# ---- 源码级自证：现行 = 2 条（2026-10-08 恢复的守卫）/ 归档 = 17 条 ----
-# 只数**语句**（行首的 `_Static_assert(`）：归档里另有一处注释提及该词，不计数。
+# ---- 源码级自证：现行 = 0 条（2026-10-13 起业务代码编译期断言归零）/ 归档 = 17 条 ----
+# 只数**语句**（行首的 `_Static_assert(`）：两处注释提及该词，不计数。
 n_cur=$(grep -cE '^[[:space:]]*_Static_assert\(' "$CUR" || true)
 n_old=$(grep -cE '^[[:space:]]*_Static_assert\(' "$OLD" || true)
-if [ "$n_cur" -eq 2 ] && [ "$n_old" -eq 17 ]; then
-    echo "  [通过] 断言条数：现行 $n_cur 条（2026-10-08 恢复的 2 条守卫）/ 归档 $n_old 条（第三十四轮删除态）"
+if [ "$n_cur" -eq 0 ] && [ "$n_old" -eq 17 ]; then
+    echo "  [通过] 断言条数：现行 $n_cur 条（2026-10-13 全部移除）/ 归档 $n_old 条（第三十四轮删除态）"
     pass=$((pass + 1))
 else
-    echo "  [失败] 断言条数异常：现行 $n_cur 条（期望 2，= 2026-10-08 恢复的守卫）/ 归档 $n_old 条（期望 17）"
+    echo "  [失败] 断言条数异常：现行 $n_cur 条（期望 0，= 2026-10-13 裁决）/ 归档 $n_old 条（期望 17）"
     fail=$((fail + 1))
 fi
-# `_22_1665_CCM_BYTES` 现为守卫 ② 的载体（必须在册）；`_22_1665_BSRR_SLOTS` 仍应零残留
-if grep -q "_22_1665_CCM_BYTES" "$CUR"; then
-    echo "  [通过] 守卫 ② 载体在册：_22_1665_CCM_BYTES（sizeof 求和 ≤ 64KB）"
+# 仅断言使用的派生宏（`_22_1665_CCM_BYTES` / `_22_1665_BSRR_SLOTS`）应全部零残留；
+# 64KB 约束改由契约 ② 注释承担（`region CCMRAM overflowed` 后果 + 通式）
+if grep -qE "_22_1665_CCM_BYTES|_22_1665_BSRR_SLOTS" "$CUR"; then
+    echo "  [失败] 仅断言使用的派生宏仍残留（应随断言一并删除）"
+    fail=$((fail + 1))
+else
+    echo "  [通过] 仅断言使用的派生宏零残留：_22_1665_CCM_BYTES / _22_1665_BSRR_SLOTS"
+    pass=$((pass + 1))
+fi
+if grep -q "region CCMRAM overflowed" "$CUR"; then
+    echo "  [通过] 契约 ② 注释在册（链接期 overflow 后果 + 通式在缓冲段注释）"
     pass=$((pass + 1))
 else
-    echo "  [失败] 守卫 ② 载体缺失：_22_1665_CCM_BYTES"
+    echo "  [失败] 契约 ② 注释缺失：未找到 'region CCMRAM overflowed'"
     fail=$((fail + 1))
 fi
 for gone in _22_1665_BSRR_SLOTS; do

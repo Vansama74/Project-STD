@@ -4,8 +4,7 @@
  *
  * app_board_sys_info_t 记录 = magic(4B) | update_sta(4B) | FWInfo(40B) | NetConfig(20B) | CRC32(4B)
  * 总长 72B（18 words），按 word 写入 Flash。
- * NetConfig 字段语义（方案 B，2026-08-21）：port=TCP 业务口（LDI/IAP），
- * udp_port=CQ UDP 业务口。
+ * NetConfig 字段语义：port=TCP 业务口（LDI/IAP），udp_port=CQ UDP 业务口。
  *
  * 操作流程：
  *   读取 → 直接内存映射 (ADDR_CONFIG_SECTOR) → 空/完整性检查 → 使用
@@ -103,19 +102,18 @@ static int32_t _write(const app_board_sys_info_t *info)
 /**
  * @brief 同步设备 IP/掩码/网关/TCP 口/UDP 口 到内部 Flash（读-改-net_cfg-写）
  *
- * 分支语义（定案 Q1/Q2/Q3 先行修复 + 方案 1 细化守卫，2026-08-14）：
+ * 分支语义：
  *  - 空扇区：完整初始化，镜像老 Bootloader Init_Config_Info 首次上电语义
  *    （magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF + net_cfg + CRC32），
  *    确保 Bootloader/Recovery 能读到该 IP。
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理，完整初始化后写新配置（自愈）。
  *    Bootloader 写记录永远是完整结构，不存在「magic 无效的升级中间态」，
  *    损坏记录无保护价值，覆盖它使 0AH/4B02 可自愈。
- *  - 有效记录且 update_sta != updated（升级中间态，Bootloader 条件 A/B 写入的
- *    强制升级/崩溃过频记录）：仅更新 net_cfg（ip/mask/gw/port/udp_port），update_sta 与
- *    app_info 原样保留（Bootloader 条件 D 判定不受影响）——0AH/4B02 改 IP 在
- *    中间态同样生效，IAP 0x01 上报立即反映新值（2026-08-18 修订）。
+ *  - 有效记录且 update_sta != updated（升级中间态）：仅更新 net_cfg
+ *    （ip/mask/gw/port/udp_port），update_sta 与 app_info 原样保留（Bootloader 条件 D
+ *    判定不受影响）——改 IP 在中间态同样生效，IAP 0x01 上报立即反映新值。
  *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port/udp_port），其余字段
- *    原样保留；与现扇区 net_cfg 完全一致（含 port 与 udp_port）时跳过擦写（Q3：不做磨损均衡）。
+ *    原样保留；与现扇区 net_cfg 完全一致（含 port 与 udp_port）时跳过擦写（不做磨损均衡）。
  *
  * @return 0 成功（含同值跳过）；<0 为擦/写错误码
  */
@@ -125,23 +123,22 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
     app_board_sys_info_t info;
     app_board_net_cfg_read(&info);
 
-    /* Q3：写前快照原 net_cfg，用于同值跳过比较 */
+    /* 写前快照原 net_cfg，用于同值跳过比较 */
     app_board_net_cfg_t old_cfg;
     memcpy(&old_cfg, &info.net_cfg, sizeof(old_cfg));
 
     bool empty = _is_empty(&info);
     bool valid = !empty && _is_valid(&info);
 
-    /* 升级中间态（magic/CRC 有效但 update_sta != updated，Bootloader 条件 A/B
-     * 写入的强制升级/崩溃过频记录）：update_sta/app_info 原样保留（Bootloader
-     * 条件 D 判定依据），但 net_cfg 与升级判定无关——0AH/4B02 改 IP 仍应生效，
-     * 否则中间态下 Sector1 网络配置被冻结、IAP 0x01 上报永远返回旧值。
+    /* 升级中间态（magic/CRC 有效但 update_sta != updated）：update_sta/app_info
+     * 原样保留（Bootloader 条件 D 判定依据），但 net_cfg 与升级判定无关——
+     * 改 IP 仍应生效，否则中间态下 Sector1 网络配置被冻结、IAP 0x01 上报永远返回旧值。
      * 下方 memcpy(info.net_cfg...) 仅改网络字段，其余字段从 Flash 读出原样保留，
      * 升级流程语义不变。 */
     if (!valid) {
         /* 空/损坏扇区：完整初始化，与老 Bootloader Init_Config_Info 首次上电写入逐字节同构。
          * 注意：update_sta 必须为 updated（APP_BOARD_UPDATED），写 FAILED 会被 Bootloader
-         * 判 App 损坏 */
+         * 判 App 损坏（见 doc/07 §8/§9） */
         info.magic      = APP_BOARD_NET_CFG_MAGIC;
         info.update_sta = APP_BOARD_UPDATED;
         memset(&info.app_info, 0, sizeof(info.app_info));
@@ -175,16 +172,15 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
  * 红线：绝不改动 app_info.size / app_info.crc32 / net_cfg / update_sta 的既有值
  * （size/crc32 由 Recovery 升级流程写入，改动会触发 Bootloader 条件 D 判 App 损坏）。
  *
- * 分支语义（与 app_board_net_cfg_update 同构，2026-08-18）：
+ * 分支语义（与 app_board_net_cfg_update 同构）：
  *  - 空扇区：完整初始化（magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF +
  *    net_cfg 全 0）+ 填 version。调用点安排在 sw_board_init()（含 ldi_ctx_init 从 W25Qxx
  *    回写 net_cfg）之后，正常路径不会走到此分支；若走到（例如 ldi_ctx_init 未回写），
  *    net_cfg 会被写成 0.0.0.0/port0，需由后续 0AH / 上电同步恢复；
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理（自愈），完整初始化后填 version；
- *  - 有效记录且 update_sta != updated（升级中间态，Bootloader 条件 A/B 写入的强制升级/
- *    崩溃过频记录）：拒绝覆盖，返回 -1；
+ *  - 有效记录且 update_sta != updated（升级中间态）：拒绝覆盖，返回 -1；
  *  - 有效记录且 update_sta == updated：仅更新 app_info.version（其余字段原样保留）；与现
- *    扇区 version 一致时跳过擦写（Q3：不做磨损均衡）。
+ *    扇区 version 一致时跳过擦写（不做磨损均衡）。
  *
  * @return 0 成功（含同值跳过）；<0 失败（-1 = 升级中间态拒绝覆盖，-2 = version 过长
  *         （strlen(version) >= 32，不做截断，显式拒绝），其余为擦/写错误码）
@@ -199,15 +195,15 @@ int32_t app_board_net_cfg_fw_version_update(const char *version)
         return -2;
     }
 
-    /* Q3 同构：写前快照原 version，用于同值跳过比较 */
+    /* 写前快照原 version，用于同值跳过比较 */
     char old_version[sizeof(info.app_info.version)];
     memcpy(old_version, info.app_info.version, sizeof(old_version));
 
     bool empty = _is_empty(&info);
     bool valid = !empty && _is_valid(&info);
 
-    /* 升级中间态保护：magic/CRC 有效但 update_sta != updated 的记录
-     * （Bootloader 条件 A/B 写入，等待其条件 D 判定用），主固件不得覆盖 */
+    /* 升级中间态保护：magic/CRC 有效但 update_sta != updated 的记录，
+     * 主固件不得覆盖（等待 Bootloader 判定） */
     if (valid && info.update_sta != APP_BOARD_UPDATED) {
         return -1;
     }

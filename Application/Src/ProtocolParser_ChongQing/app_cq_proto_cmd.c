@@ -346,7 +346,7 @@ static void _cq_exec_syn1(channel_t *ch, const cq_parsed_cmd_t *cmd) {
 static void _cq_exec_setip(channel_t *ch, const cq_parsed_cmd_t *cmd) {
   (void)ch;
 
-  /* 方案 B（2026-08-21）：setip 写 CQ UDP 业务口（udp_port=命令下发端口），
+  /* setip 写 CQ UDP 业务口（udp_port=命令下发端口），
    * TCP 业务口 port 保留现值（get 失败用出厂默认 9528）——setip 不再污染 TCP
    * 口。 落盘返回值忽略、无条件复位（写失败重启后回旧配置，与裸机一致， doc/03
    * PartB B.7.1 边界语义）。 */

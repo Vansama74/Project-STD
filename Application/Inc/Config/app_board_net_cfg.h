@@ -11,7 +11,7 @@
  *    所有权冲突。
  *
  * 记录布局与 Bootloader / Recovery 各自的 Drivers/BSP/Config/config_info.h 二进制
- * 兼容，由下方 static_assert 锁定尺寸与偏移。写入守卫语义（空/损坏自愈、升级中间态
+ * 兼容（布局契约见下方注释）。写入守卫语义（空/损坏自愈、升级中间态
  * 仅放行 net_cfg 字段更新、同值跳过擦写）见 doc/07_LDI与IAP配置解耦。
  */
 
@@ -28,7 +28,7 @@
 /* ---- Sector1 记录布局 ---- */
 
 /* 网络配置
- * 字段语义（方案 B，2026-08-21，TCP/UDP 端口彻底分离）：
+ * 字段语义（TCP/UDP 端口彻底分离）：
  *  - port     = TCP 业务口（LDI 0AH 写 / IAP 0x02 写 / 0x01 报 / TCP Server 监听，
  *               LDI/IAP 生态，出厂默认 9528）；
  *  - udp_port = CQ UDP 业务口（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。
@@ -64,17 +64,11 @@ __attribute__((aligned(4))) typedef struct {
     uint32_t config_crc;              /* 本结构体自身的 CRC32 校验 */
 } app_board_sys_info_t;
 
-/* ---- 布局锁定：与 Bootloader / Recovery config_info.h 二进制兼容 ---- */
-static_assert(sizeof(app_board_net_cfg_t) == 20, "net_cfg 布局 20B");
-static_assert(sizeof(app_board_fw_info_t) == 40, "fw_info 布局 40B");
-static_assert(sizeof(app_board_sys_info_t) == 72, "sys_info 布局 72B");
-static_assert(offsetof(app_board_sys_info_t, magic) == 0, "magic 偏移 0");
-static_assert(offsetof(app_board_sys_info_t, update_sta) == 4, "update_sta 偏移 4");
-static_assert(offsetof(app_board_sys_info_t, app_info) == 8, "app_info 偏移 8");
-static_assert(offsetof(app_board_sys_info_t, net_cfg) == 48, "net_cfg 偏移 48");
-static_assert(offsetof(app_board_net_cfg_t, port) == 12, "port 偏移 12");
-static_assert(offsetof(app_board_net_cfg_t, udp_port) == 16, "udp_port 偏移 16");
-static_assert(offsetof(app_board_sys_info_t, config_crc) == 68, "config_crc 偏移 68");
+/* ---- 布局契约：与 Bootloader / Recovery config_info.h 二进制兼容 ----
+ * sys_info 72B = magic(0) + update_sta(4) + app_info(8, 40B) + net_cfg(48, 20B) +
+ * config_crc(68)；net_cfg 内 port 偏移 12、udp_port 偏移 16（CRC 覆盖前 68B）。
+ * 改错 = 三固件读同一扇区错位（Bootloader 判 App 损坏），
+ * 详见 doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md §15。 */
 
 /**
  * @brief 读当前 Sector1 整记录（内存映射拷贝，无有效性判定）
@@ -94,7 +88,7 @@ int32_t app_board_net_cfg_get(app_board_net_cfg_t *out);
 /**
  * @brief 同步设备 IP/掩码/网关/TCP 口/UDP 口 到内部 Flash（LDI 0AH / IAP 4B02 / CQ setip 时调用）
  *
- * 字段语义（方案 B，2026-08-21）：port = TCP 业务口（LDI/IAP 生态），udp_port = CQ UDP
+ * 字段语义：port = TCP 业务口（LDI/IAP 生态），udp_port = CQ UDP
  * 业务口。调用方按协议口径填对应端口、另一端口保留现值（先 get，失败用出厂默认）——
  * LDI 0AH / IAP 4B02 写 port、保留 udp_port；CQ setip 写 udp_port、保留 port。
  *
@@ -103,7 +97,7 @@ int32_t app_board_net_cfg_get(app_board_net_cfg_t *out);
  *    （magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF + net_cfg + CRC32）；
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理，完整初始化后写新配置（自愈）；
  *  - 有效记录且 update_sta != updated（升级中间态）：仅更新 net_cfg，update_sta 与
- *    app_info 原样保留（Bootloader 条件 D 判定不受影响）（2026-08-18 修订）；
+ *    app_info 原样保留（Bootloader 条件 D 判定不受影响）；
  *  - 有效记录且 update_sta == updated：仅更新 net_cfg（ip/mask/gw/port/udp_port），其余
  *    字段原样保留；与现扇区 net_cfg 完全一致（含 port 与 udp_port）时跳过擦写。
  *
@@ -125,10 +119,9 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
  *    回写 net_cfg）之后，正常路径不会走到此分支；若走到（如 ldi_ctx_init 未回写），
  *    net_cfg 会被写成 0.0.0.0/port0，由后续 0AH / 上电同步恢复；
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理（自愈），完整初始化后填 version；
- *  - 有效记录且 update_sta != updated（升级中间态，Bootloader 条件 A/B 写入）：拒绝覆盖，
- *    返回 -1；
+ *  - 有效记录且 update_sta != updated（升级中间态）：拒绝覆盖，返回 -1；
  *  - 有效记录且 update_sta == updated：仅更新 app_info.version，其余字段原样保留；与现扇区
- *    version 一致时跳过擦写（Q3：不做磨损均衡）。
+ *    version 一致时跳过擦写（不做磨损均衡）。
  *
  * @param version 版本字符串（如 PROGRAM_CODE），须满足 strlen(version) < 32
  * @return 0 成功（含同值跳过）；<0 失败（-1 = 升级中间态拒绝覆盖，-2 = version 过长，

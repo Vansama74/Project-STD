@@ -4,7 +4,7 @@
  *
  * 与标准版 `app_factory_test.c` **二选一编译**（对外符号同名 ⇒ 同编即 `multiple definition`）；
  * 选择入口 = Makefile `FACTORY=STD|MM` / EIDE `excludeList`；**不引用显示 API**（无显示构建安全）。
- * 语义与现场测试矩阵见 doc/16_缅甸2D费显协议/README.md §13
+ * 语义与现场测试矩阵详见 doc/16_缅甸2D费显协议/README.md §13
  */
 
 #include "app_factory_test.h"
@@ -53,11 +53,9 @@ static void _factory_test_init(void)
 sw_app_initcall(_factory_test_init);
 
 /**
- * @brief  业务数据到达中止钩子 —— 缅甸版空实现。
- *
- * 标准版语义 = 置中止标志让 monitor 回 IDLE；缅甸版没有会被业务数据打断的检测序列
- * （TEST 键仅切换映射、不占屏），保留空函数体纯为「同一套对外符号」契约
- *（`app_dispatch.c` 恒调用它）。
+ * @brief  业务数据到达中止钩子 —— 缅甸版空实现（同一套对外符号契约，`app_dispatch.c` 恒调用）。
+ * @note   缅甸版无会被业务数据打断的检测序列（TEST 键仅切换映射、不占屏）；标准版语义与
+ *         二选一编译契约详见 doc/16_缅甸2D费显协议/README.md §13。
  */
 void app_factory_mode_interrupt(void)
 {

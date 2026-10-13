@@ -88,7 +88,7 @@ void iap_handle_task(void *argument)
         uint8_t cmd             = (uint8_t)((frame_data->cmd) & 0xff);
 
         /* 查表越界防护：cmd 为 uint8_t 可达 255，须先校验小于表元素个数（IAP_CMD_COUNT，
-         * 与 g_iap_cmd_table[] 定义处 static_assert 保持同步）。
+         * 与 g_iap_cmd_table[] 条目数保持同步，见 app_iap_cmd.c）。
          * 越界帧静默丢弃——IAP 协议无错误应答约定，无法回 NACK。 */
         if (cmd >= IAP_CMD_COUNT)
             continue;

@@ -406,7 +406,7 @@ err_t ethernetif_init(struct netif *netif)
  * @brief   自定义 pbuf 释放回调：将 Rx 缓冲区归还内存池
  * @param   p  待释放的 pbuf
  *
- * 若此前因 Rx 池耗尽触发错误，归还缓冲区后释放 RX 信号量
+ * 若因 Rx 池耗尽触发错误，归还缓冲区后释放 RX 信号量
  * 通知 ethernetif_input 线程调用 HAL_ETH_GetRxDataBuffer 重建描述符。
  */
 void pbuf_free_custom(struct pbuf *p)

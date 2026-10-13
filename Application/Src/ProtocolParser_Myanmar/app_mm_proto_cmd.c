@@ -2,9 +2,9 @@
  * @file    app_mm_proto_cmd.c
  * @brief   缅甸 2D 费显协议 — 帧解析 + 干接点输出（唯一映射点）
  *
- * 契约一览见 app_mm_proto.h 文件头（本文件实现 ① 极性、② 上电红叉、③ 接管顺序）；
+ * 契约一览见 app_mm_proto.h 文件头（本文件实现 ① 极性/上电红叉、② 接管顺序）；
  * 改脚位/极性/驱动方式只改 `s_mm_lamp_map` + `_mm_drive()`；副作用（SW1~SW3 输入语义
- * 失效 ⇒ RLS 显示「车道关闭」）见 doc/16_缅甸2D费显协议/README.md §4.3
+ * 失效 ⇒ RLS 显示「车道关闭」）详见 doc/16_缅甸2D费显协议/README.md §4.3
  */
 
 #include "app_mm_proto.h"
@@ -27,16 +27,13 @@ typedef struct {
     bool        active_low; /**< true = 低电平有效（点亮 = 输出低）；false = 高有效（点亮 = 输出高） */
 } mm_lamp_map_t;
 
-/* 现行极性 = 高有效（active_low=false，契约 ①）：复位后红灯即亮 + PE12 实测 3.3V
- * ⇒ 3.3V = 点亮（2026-09-28 现场实测；推导见 doc/16_缅甸2D费显协议/README.md §4.1）。 */
+/* 极性 = 高有效（active_low=false，契约 ①）：3.3V = 点亮（推导见
+ * doc/16_缅甸2D费显协议/README.md §4.1）。 */
 static const mm_lamp_map_t s_mm_lamp_map[MM_LAMP_COUNT] = {
     [MM_LAMP_RED]   = {.contact = "S1", .lamp_name = "红灯",       .port = PL_PORT_E, .pin = 12, .active_low = false},
     [MM_LAMP_LEFT]  = {.contact = "S2", .lamp_name = "左下箭头灯", .port = PL_PORT_E, .pin = 11, .active_low = false},
     [MM_LAMP_RIGHT] = {.contact = "S3", .lamp_name = "右下箭头灯", .port = PL_PORT_E, .pin = 10, .active_low = false},
 };
-
-/** 影子状态（上电默认 = 红叉：红灯亮 / 两绿箭头灭，见 `mm_apply_init()`）。 */
-static bool s_mm_lamp_state[MM_LAMP_COUNT];
 
 /** 箭头落点交换开关（默认 false = 默认态：0x0A→左下 / 0x0B→右下）。
  *  由 `mm_arrow_map_toggle()` 翻转、`mm_apply_init()` 开机复位；**不持久化**。
@@ -67,14 +64,13 @@ void mm_apply_lamp(mm_lamp_t lamp, bool on)
 
     const mm_lamp_map_t *m = &s_mm_lamp_map[lamp];
     _mm_drive(m, on);
-    s_mm_lamp_state[lamp] = on;
-
 }
 
 /**
  * @brief  干接点输出层上电初始化：接管三路为推挽输出，**默认显示红叉 = 红灯 S1/PE12 点亮**。
  * @note   顺序（无毛刺）= 写灭电平（由映射表推导，不硬编码）→ 按线摘 EXTI → 切推挽输出 →
- *         点亮红灯（唯一动作点 `mm_apply_lamp()`，影子状态同步）；协议帧到达后照常按帧驱动（§14.2）。
+ *         点亮红灯（唯一动作点 `mm_apply_lamp()`）；协议帧到达后照常按帧驱动
+ *         （doc/16_缅甸2D费显协议/README.md §14.2）。
  */
 void mm_apply_init(void)
 {
@@ -91,12 +87,11 @@ void mm_apply_init(void)
         pl_gpio_release_exti(m->port, m->pin);
         /* ③ 切成推挽输出（无上下拉、低速）——此刻起真正驱动，电平 = 第 ① 步的「灭」 */
         pl_gpio_config_output(m->port, m->pin);
-        /* ④ 影子状态 = 灭 */
-        s_mm_lamp_state[i] = false;
     }
 
-    /* ⑤ 上电默认红叉：三路接管完成后点亮红灯 = 车道关闭态；只经唯一动作点
-     *    `mm_apply_lamp()`（不新增电平硬编码、不破坏无毛刺顺序，§14.2）。 */
+    /* ④ 上电默认红叉：三路接管完成后点亮红灯 = 车道关闭态；只经唯一动作点
+     *    `mm_apply_lamp()`（不新增电平硬编码、不破坏无毛刺顺序，详见
+     *    doc/16_缅甸2D费显协议/README.md §14.2）。 */
     mm_apply_lamp(MM_LAMP_RED, true);
 
 }
@@ -108,7 +103,8 @@ void mm_apply_init(void)
 /**
  * @brief  命令 → 灯位的「箭头落点交换」唯一生效点（红灯原样返回）。
  * @param  lamp  `mm_parse_frame()` 得到的灯位。
- * @return 本次应按哪个灯位驱动（默认态原样返回；交换态 LEFT ⇄ RIGHT，语义见 §13.2）。
+ * @return 本次应按哪个灯位驱动（默认态原样返回；交换态 LEFT ⇄ RIGHT，语义详见
+ *         doc/16_缅甸2D费显协议/README.md §13.2）。
  */
 static mm_lamp_t _mm_effective_lamp(mm_lamp_t lamp)
 {
@@ -139,7 +135,8 @@ bool mm_arrow_map_toggle(void)
  * ========================================================================== */
 
 /**
- * @brief  解析定长帧的字段与车道灯命令（纯函数；不校验结束码、无 XOR——文档未定义校验，§6）。
+ * @brief  解析定长帧的字段与车道灯命令（纯函数；不校验结束码、无 XOR——文档未定义校验，
+ *         详见 doc/16_缅甸2D费显协议/README.md §6）。
  */
 mm_parsed_cmd_t mm_parse_frame(const uint8_t *raw, uint16_t raw_len)
 {
@@ -176,7 +173,8 @@ mm_parsed_cmd_t mm_parse_frame(const uint8_t *raw, uint16_t raw_len)
 
 /**
  * @brief  执行解析后的车道灯命令（无应答、无显示、无语音）。
- * @note   落点先经 `_mm_effective_lamp()` 交换单点再驱动（红灯不受影响，§13）。
+ * @note   落点先经 `_mm_effective_lamp()` 交换单点再驱动（红灯不受影响，详见
+ *         doc/16_缅甸2D费显协议/README.md §13）。
  */
 void mm_execute_cmd(const mm_parsed_cmd_t *cmd)
 {

@@ -6,7 +6,7 @@
  * 协议原文：01 云南常规费显协议-云南LED费显P5（2022.7.5）。
  * 参数边界推导：协议定义 24 点阵、一行 12 ASCII / 6 汉字（=12 字节），
  * 本设备 24 点阵一行可容纳 16 ASCII / 8 汉字（=16 字节），'3' 单行文本
- * 上限按 2+16=18 字节（与贵州 3~18 实测边界一致）；非法参数置错不崩溃。
+ * 上限按 2+16=18 字节（与贵州 3~18 边界一致）；非法参数置错不崩溃。
  */
 
 #include "app_yn_proto_parse.h"
@@ -131,8 +131,8 @@ yn_parsed_cmd_t yn_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.sta = YN_PARSE_ERR_PARAM;
             break;
         case YN_PCMD_FULL_SCREEN: /* '4' 全屏可编辑：颜色 + X + Y + 文本 */
-            /* 参数 3 字节固定头 + 文本；上限 86 对齐贵州（len>71 截断 64 为
-             * 贵州设备实测行为，云南无实测，不截断——超屏由渲染引擎按边界裁剪）。 */
+            /* 参数 3 字节固定头 + 文本；上限 86 对齐贵州；len>71 时贵州设备
+             * 截断 64，云南不截断——超屏由渲染引擎按边界裁剪。 */
             if (declared_len < 4 || declared_len > 86) {
                 cmd.sta = YN_PARSE_ERR_PARAM;
                 break;

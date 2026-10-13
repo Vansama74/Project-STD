@@ -1,0 +1,30 @@
+build/xj_eide_dbg_faulton/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                135448   134480272
+.rodata              192496   134615720
+.hw_initcall            160   134808216
+.sw_initcall            128   134808376
+.ARM.extab                0   134808504
+.ARM                      8   134808504
+.preinit_array            0   134808512
+.init_array               4   134808512
+.fini_array               4   134808516
+.data                  1632   536870912
+.ccmram               18804   268435456
+.bss                 116460   536872544
+._user_heap_stack      2564   536989004
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          539111           0
+.debug_abbrev         90302           0
+.debug_loclists      201110           0
+.debug_aranges        18208           0
+.debug_rnglists       16530           0
+.debug_line          321630           0
+.debug_str            86870           0
+.debug_frame          56644           0
+.debug_line_str         474           0
+Total               1799096
+
+

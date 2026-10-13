@@ -1,0 +1,16 @@
+=== build/cmt3_after/Debug ===
+.text                171816   134480272
+.rodata              196264   134652088
+.data                  1656   536870912
+.ccmram               41324   268435456
+.bss                 125356   536872568
+._user_heap_stack      2564   536997924
+Total               2175359
+=== build/cmt3_after_cq/Debug ===
+.text                158412   134480272
+.rodata              195592   134638688
+.data                   852   536870912
+.ccmram               39068   268435456
+.bss                 121868   536871768
+._user_heap_stack      2564   536993636
+Total               2092951

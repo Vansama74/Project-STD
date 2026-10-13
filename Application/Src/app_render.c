@@ -57,7 +57,7 @@ typedef struct {
  *   readaddr = (ADDRESS_MACRO + sectoraddr [+X]) * 4096
  *            + (pageaddr [+Y]) * 256 + byteaddr [+Z]
  *
- * 验证: 逐字符地址已与01Embedded的6个读取函数交叉验证
+ * X/Y/Z 值经 01Embedded 的 6 个读取函数逐字符交叉验证
  */
 static const flash_region_t g_font_regions[] = {
     /* 16号字体 — W25Q64 无 14/20号 */
@@ -394,72 +394,6 @@ font_chip_id_t app_render_chip_current(void)
     return FONT_CHIP_W25Q64;
 }
 
-/* ================================================================
- *  字库只读观察（当前无输出消费者；保留供调试器/将来现场复用）
- *
- *  用途：`0x20` 24/32 点阵无内容时可区分三种可能——
- *    ① 字库地址越出物理容量（读取失败）→ addr_in_range=false / ret<0；
- *    ② 字库该字号区块为空（读到全 0 或全 FF）→ nonzero=0 或 =total；
- *    ③ 字库有数据（nonzero 正常）→ 问题在渲染/裁剪/屏体几何侧。
- *  **不改任何渲染行为**：仅算术 + 一次 dev_storage_read（与渲染同路径）。
- * ================================================================ */
-
-bool app_render_chip_info_get(app_render_chip_info_t *out)
-{
-    if (!out)
-        return false;
-    memset(out, 0, sizeof(*out));
-    out->name            = (s_active_config->name != nullptr) ? s_active_config->name : "?";
-    out->region_count    = s_active_config->region_count;
-    out->adaptive_count  = s_active_config->adaptive_count;
-    out->ascii_raw_code  = s_active_config->ascii_raw_code;
-    out->gbk_index_190   = s_active_config->gbk_index_190;
-    out->flash_capacity  = dev_storage_capacity(s_render_font);
-    return true;
-}
-
-uint32_t app_render_glyph_addr_for(font_chip_id_t chip, font_size_t size, font_type_t type,
-                                   font_enc_t charset, const uint8_t *ch)
-{
-    if (chip >= FONT_CHIP_CNT || ch == nullptr || size == 0)
-        return 0U;
-    if (charset != FONT_ENC_ASCII && charset != FONT_ENC_GBK)
-        return 0U;
-    return _flash_addr_cfg(&s_chip_configs[chip], size, charset, type, ch);
-}
-
-bool app_render_glyph_probe(font_size_t size, font_type_t type, font_enc_t charset,
-                            const uint8_t *ch, app_render_glyph_probe_t *out)
-{
-    if (!out || !ch || size == 0)
-        return false;
-    if (charset != FONT_ENC_ASCII && charset != FONT_ENC_GBK)
-        return false;
-
-    memset(out, 0, sizeof(*out));
-    const uint16_t bytes = _packed_glyph_bytes(size, charset);
-    out->total           = bytes;
-    out->addr            = _flash_addr(size, charset, type, ch);
-    out->capacity        = dev_storage_capacity(s_render_font);
-    out->addr_in_range   = ((uint64_t)out->addr + bytes) <= (uint64_t)out->capacity;
-
-    uint8_t buf[128]; /* 最大字形 FONT_32 GBK = 128B */
-    if (bytes > sizeof(buf))
-        return false;
-
-    out->ret = dev_storage_read(s_render_font, out->addr, buf, bytes);
-    if (out->ret < 0)
-        return true; /* 读取失败：head/nonzero 保持 0，返回值即为证据 */
-
-    for (uint16_t i = 0; i < bytes; i++) {
-        if (buf[i] != 0U)
-            out->nonzero++;
-    }
-    const uint8_t n = (bytes < sizeof(out->head)) ? (uint8_t)bytes : (uint8_t)sizeof(out->head);
-    memcpy(out->head, buf, n);
-    return true;
-}
-
 /* ---- 单字模裁剪绘制（app_scroll 滚动渲染专用；不影响既有 RENDER_TEXT 路径） ---- */
 
 uint8_t app_render_glyph_width_px(font_size_t size, font_enc_t charset)
@@ -661,7 +595,7 @@ static inline void _render_text(const render_cfg_t *cfg)
                     /* 行首已完全越出区域（cur_y >= h）→ 后续行只会更远，终止渲染；
                      * 仅下缘越界（cur_y < h <= cur_y+line_h）→ 保留本行继续绘制，
                      * 由 dev_display_draw_bitmap 按屏幕交集裁剪出可见部分。
-                     * （2026-09-14 用户裁决：字号大于可用高度时不再整行丢弃） */
+                     * （字号大于可用高度时不整行丢弃） */
                     if (cur_y >= cfg->h) return;
                 } else {
                     char_pos++;
@@ -698,7 +632,7 @@ static inline void _render_text(const render_cfg_t *cfg)
                     /* 行首已完全越出区域（cur_y >= h）→ 后续行只会更远，终止渲染；
                      * 仅下缘越界（cur_y < h <= cur_y+line_h）→ 保留本行继续绘制，
                      * 由 dev_display_draw_bitmap 按屏幕交集裁剪出可见部分。
-                     * （2026-09-14 用户裁决：字号大于可用高度时不再整行丢弃） */
+                     * （字号大于可用高度时不整行丢弃） */
                     if (cur_y >= cfg->h) return;
                 } else {
                     char_pos += 2;

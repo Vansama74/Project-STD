@@ -11,7 +11,7 @@
  *   - 渲染 = dev_display_fill 清矩形 → 逐字形 app_render_draw_glyph_clipped
  *     （逐像素裁剪到矩形+屏幕边界，字形部分越界平滑裁剪）；
  *   - 越过边界后循环（左/右滚动从另一侧重新进入，上/下同理），永不自动停
- *     （循环滚动语义，用户裁决 2026-09-07）；
+ *     （循环滚动语义）；
  *   - 每拍读 W25 字库由 dev_w25qxx.c 的 SPI 互斥锁串行保护（sw_dev_initcall 创建）。
  *
  * stay_ms（停留时间）解析并保存于槽位，v1 忽略（语义待定，见 doc/13 §8）。
@@ -19,17 +19,17 @@
  * 并发模型：槽位状态单写者（协议任务 start/stop）×单读者（scroll_task 节拍渲染），
  * 经 s_scroll_mutex 串行；渲染在持锁内完成。
  *
- * 停止语义（用户裁决 2026-09-09，原「停止即清行」）：
+ * 停止语义：
  *   - app_scroll_stop(slot) = 冻结：置槽位非活跃、不清行、不提交，像素停在
  *     当前位置静态显示（render 锁保证在途渲染完成后才返回，无半帧风险）；
  *   - app_scroll_stop_all / _nolock = 保持清行语义（0x81 清屏 / 0x85 静态显示
  *     依赖它清掉滚动内容），与冻结路径独立实现，不共用。
  *
- * ⑤ 渲染互斥（2026-09-08）：滚动渲染与安徽静态渲染（0x85 等）经 s_render_mutex
- * 串行，消除混合帧黑条——scroll_task 的「渲染+commit」整段持锁；安徽侧在
+ * 渲染互斥：滚动渲染与安徽静态渲染（0x85 等）经 s_render_mutex
+ * 串行，避免混合帧——scroll_task 的「渲染+commit」整段持锁；安徽侧在
  * 「stop_all + 渲染 + commit」整段外持同一锁（内部用无锁 stop 变体，防重入死锁）。
  *
- * ④a 脏矩形提交（2026-09-08）：tick 结束用一次 commit_frame_rect（各活跃槽矩形
+ * 脏矩形提交：tick 结束用一次 commit_frame_rect（各活跃槽矩形
  * 并集包围盒）提交，scan_task 只重排脏行而非全屏；stop_all 清行提交同样用矩形。
  * 并集只含活跃槽——冻结槽不参与，pixel_map 中冻结内容天然保留。
  */
@@ -48,8 +48,7 @@
 PL_TASK_STATIC_STORAGE(scroll, 256);
 
 /* ---- 槽位文本上限（GBK 字节）----
- * 64B = 32 汉字（FONT_16/24 费显单行均够；安徽 2026-09-09 起 FONT_24，
- * 32 汉字×24px=768px 水平满屏滚动，文本长度不因字号变短）；
+ * 64B = 32 汉字（FONT_16/24 费显单行均够，32 汉字×24px=768px 水平满屏滚动）；
  * SRAM 预算：4 槽 × 64B + 控制块 ≈ 372B（≤500B 红线）；
  * 链接若超 SRAM 再收紧 48/32B（见 doc/06-04 记账）。 */
 #define SCROLL_TEXT_MAX (64U)
@@ -131,10 +130,8 @@ static bool _ensure_engine(void)
 }
 
 /* ---- 位移推进（单步 1px；越过边界后从另一侧重新进入，循环滚动） ----
- * 回绕目标 = 对侧边缘内 1px（2026-09-08 修订）：原回绕到文本整体不可见位置
- * （左/右：off=w / -extent_w；上/下：off=h / -font_size），渲染结果 = 该行区域
- * 整行黑一拍（1×step_ms，低速时可达数百毫秒）→ 周期内可见黑闪。
- * 现在回绕直落首可见位置，消除整行黑拍，循环滚动视觉连续。 */
+ * 回绕目标 = 对侧边缘内 1px：回绕直落首可见位置，避免「回绕到文本整体不可见
+ * 位置」导致该行区域整行黑一拍（周期内可见黑闪），循环滚动视觉连续。 */
 static void _advance(scroll_slot_t *s)
 {
     switch (s->dir) {
@@ -355,7 +352,7 @@ bool app_scroll_start(uint8_t slot,
 
     /* 矩形钳位到实际屏幕（screen_rows=宽 / screen_cols=高，命名反直觉）
      * 起点越界 → 整区域不可见 → 冻结该槽返回失败（stop 语义=冻结，
-     * 用户裁决 2026-09-09；与 dev_display_fill 口径一致） */
+     * 与 dev_display_fill 口径一致） */
     if (x >= d->screen_rows || y >= d->screen_cols) {
         app_scroll_stop(slot);
         return false;
@@ -439,7 +436,7 @@ bool app_scroll_start(uint8_t slot,
 
 /* ---- 停止单槽·清行变体（无锁）：置非活跃 + 清空该行矩形 + 矩形提交。
  * 供 stop_all/_nolock（0x81/0x85 清屏路径）复用——与 app_scroll_stop 的
- * 冻结语义独立实现（用户裁决 2026-09-09）。
+ * 冻结语义独立实现。
  * 不持渲染互斥，由公共函数或持锁调用方包裹。锁序 render → slot，无死锁。 ---- */
 static void _scroll_stop_clear_nolock(uint8_t slot)
 {
@@ -461,8 +458,7 @@ static void _scroll_stop_clear_nolock(uint8_t slot)
     if (s_scroll_evt)
         osEventFlagsSet(s_scroll_evt, SCROLL_EVT_WAKE);
 
-    /* 清空该行矩形（0x81/0x85 需清掉滚动内容）；
-     * ④a 用矩形提交：scan_task 只重排该行 */
+    /* 清空该行矩形（0x81/0x85 需清掉滚动内容）；矩形提交：scan_task 只重排该行 */
     dev_display_t *d = dev_display_get();
     if (d) {
         dev_display_fill(d, x, y, w, h, COLOR_BLACK);
@@ -472,7 +468,7 @@ static void _scroll_stop_clear_nolock(uint8_t slot)
 
 /* ---- 停止单槽·冻结变体（无锁）：置非活跃，不清行、不提交。
  * 屏幕保留最后一次已提交的完整帧（render 锁保证在途渲染完成后才返回，
- * 无半帧风险）。用户裁决 2026-09-09：运态停止帧 = 冻结（不清除）。 ---- */
+ * 无半帧风险）。运态停止帧 = 冻结（不清除）。 ---- */
 static void _scroll_freeze_nolock(uint8_t slot)
 {
     bool was_active;

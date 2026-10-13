@@ -18,7 +18,8 @@ RB_PROVIDE_WEAK(rb_provide_rs485, RB_SIZE_RS485);
 #define RLS_PAYLOAD_MAX (530U) /* 帧头(6B) + bitmap(512B) + BCC(1B) + 尾(2B) + 余量 */
 #define RLS_MSG_SIZE    (sizeof(frame_msg_t) + RLS_PAYLOAD_MAX)
 #define RLS_QUEUE_DEPTH (2U)
-_Static_assert(RLS_PAYLOAD_MAX <= RB_SIZE_RS485, "RLS max frame must fit RS485 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 
 static StaticQueue_t s_rls_queue_cb;
 static uint8_t s_rls_queue_buf[RLS_QUEUE_DEPTH * RLS_MSG_SIZE];

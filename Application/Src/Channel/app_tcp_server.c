@@ -7,7 +7,7 @@
  *
  * UAF 根治：通道实例为文件级 static 单实例，生命周期内注册一次、
  * 注销仅在服务循环退出时；ch 指针恒定，dispatch 侧 app_channel_get
- * 回验兜底。原「每客户端一 conn 任务」的并发派生模式已移除。
+ * 回验兜底；不得退化为「每客户端一 conn 任务」的并发派生模式。
  */
 
 #include "app_tcp_server.h"
@@ -18,20 +18,16 @@
 
 #define TCP_SERVER_PORT 9528
 
-/* ---- TCP keepalive（accepted 连接；参数对齐 app_tcp_client.c 既有口径）----
- * 由来（2026-09-18 现场问题「连上没反应、必须重启板子」根因修复）：
- * 本通道是「accept → 阻塞 netconn_recv 服务单一客户端 → 断开 → 回 accept」的
- * 串行单客户端循环，而原先 **accepted conn 不设 keepalive**（全工程唯一的
- * keepalive 在 TCP Client 侧）。于是对端只要「不发 FIN 就消失」（拔网线 /
- * 交换机瞬断 / 上位机进程被杀 / 上位机只关 UI 不关 socket），该连接在本板永远
- * ESTABLISHED、`netconn_recv` 永远阻塞 → **服务循环被永久占死**：其后所有新连接
- * 由 LwIP 内核完成三次握手（上位机显示「连接成功」）却永远等不到应用层 accept /
- * recv → 发数据零反应，只能重启板子清空 TCP 栈。
+/* ---- TCP keepalive（accepted 连接；参数对齐 app_tcp_client.c 口径）----
+ * 必需性：本通道是「accept → 阻塞 netconn_recv 服务单一客户端 → 断开 → 回 accept」
+ * 的串行单客户端循环，对端「不发 FIN 就消失」（拔网线 / 交换机瞬断 / 进程被杀）
+ * 时若无 keepalive，该连接在本板永远 ESTABLISHED、netconn_recv 永远阻塞 →
+ * **服务循环被永久占死**：其后新连接由 LwIP 内核完成握手却永远等不到应用层
+ * accept/recv → 发数据零反应。
  * 加 keepalive 后由 LwIP 慢定时器（tcp_slowtmr，500ms 周期）探测空闲连接：
- *   对端仍在 → 回 ACK，连接保持（无副作用，不影响正常空闲的长连接）；
- *   对端已消失 → keep_cnt 次探测无响应后 abort → netconn_recv 返回非 ERR_OK
- *   → 循环回 accept，死连接自愈（≈ keep_idle + keep_cnt×keep_intvl = 16s）。
- * 参数与 app_tcp_client.c:246-253 完全一致（10s / 2s / 3 次）。 */
+ *   对端仍在 → 回 ACK，连接保持；对端已消失 → keep_cnt 次探测无响应后 abort →
+ *   netconn_recv 返回非 ERR_OK → 循环回 accept，死连接自愈（≈16s）。
+ * 参数与 app_tcp_client.c 一致（10s / 2s / 3 次）。 */
 __STATIC_INLINE void tcp_server_keepaliveinit(struct netconn *conn)
 {
     if (conn == NULL || conn->pcb.tcp == NULL)
@@ -78,9 +74,6 @@ const osThreadAttr_t tcp_server_task_attr = {
     .priority   = osPriorityNormal,
 };
 
-/* ---- 对端连接状态（volatile，供调试器/JTAG 观察）---- */
-volatile int g_tcp_server_connected;
-
 /* ---- 通道生命周期 ---- */
 static void tcp_channel_init(tcp_server_channel_t *self, void *conn, channel_t *tmpl)
 {
@@ -108,9 +101,8 @@ void tcp_server_task(void *argument)
     for (;;) {
         struct netconn *conn = netconn_new(NETCONN_TCP);
         if (conn == NULL) {
-            /* 池耗尽（MEMP_NUM_NETCONN=8）→ 500ms 后重试（控制流不变）。
-             * 现场判读：池耗尽 = 上位机连接超时/失败（listener 建不起来）；
-             * 服务循环被旧连接占死 = 连接成功但零应答（握手由内核完成）。 */
+            /* 池耗尽（MEMP_NUM_NETCONN=8）→ 500ms 后重试（控制流不变）：
+             * 表现为上位机连接超时/失败（listener 建不起来）。 */
             osDelay(500);
             continue;
         }
@@ -132,14 +124,12 @@ void tcp_server_task(void *argument)
                 break;
             }
 
-            /* keepalive：半开/孤儿连接自愈（16s 内探测到对端消失 → 回 accept）。
-             * 这是「服务循环被不可达客户端永久占死 → 需重启板子」的修复点，
-             * 详见文件头 tcp_server_keepaliveinit 的成因说明。 */
+            /* keepalive：半开/孤儿连接自愈（16s 内探测到对端消失 → 回 accept），
+             * 防止服务循环被不可达客户端永久占死（成因见文件头）。 */
             tcp_server_keepaliveinit(newconn);
 
             /* 服务该客户端直至断开 */
             tcp_channel_init(&s_tcp_ch, newconn, &g_tcp_server_channel_tmpl);
-            g_tcp_server_connected = 1;
 
             channel_t *ch = &s_tcp_ch.me;
             struct netbuf *buf;
@@ -150,13 +140,10 @@ void tcp_server_task(void *argument)
             while ((recv_err = netconn_recv(newconn, &buf)) == ERR_OK) {
                 do {
                     netbuf_data(buf, &data, &len);
-                    /* 长度判据 = `len > 0`。**修复（2026-09-17 YN_OL 联调轮）**：
-                     * 原 `len > 1` 会静默丢弃长度为 1 的 TCP 分片——上位机帧若被
-                     * TCP 栈恰好切成 1 字节片（如 `7B` 与其余字节分开到达），该字节
-                     * 永久丢失 → 调度层 RB 头部留下永远凑不齐的残帧（帧头残缺/尾部
-                     * 错位），现场表现为「首次发命令无反应、重连后只执行一次、
-                     * 此后不再受控」。UDP 路径本就以 `len > 0` 入调度（app_udp.c），
-                     * 此处对齐；单字节分片交给 probe 链按 1 字节重同步语义处理。 */
+                    /* 长度判据 = `len > 0`：TCP 单字节分片（如 `7B` 与其余字节
+                     * 分开到达）必须入调度——按 `len > 1` 丢弃会在 RB 头部留下
+                     * 永远凑不齐的残帧（帧头残缺/尾部错位）；单字节分片交给 probe
+                     * 链按 1 字节重同步语义处理（与 UDP 路径口径一致）。 */
                     if (len > 0) {
                         app_channel_dispatch(ch, (uint8_t *)data, len);
                     }
@@ -165,8 +152,6 @@ void tcp_server_task(void *argument)
             }
             (void)recv_err;
 
-
-            g_tcp_server_connected = 0;
             tcp_channel_deinit(&s_tcp_ch);
             netconn_close(newconn);
             netconn_delete(newconn);

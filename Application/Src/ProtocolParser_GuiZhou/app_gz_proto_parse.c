@@ -4,7 +4,7 @@
  *
  * 帧格式：'{' + 命令字 + 二进制长度 + 参数 + '}'。
  * 协议原文：协议文档 06 贵州常规费显协议（2020-06-17 修订）。
- * 长度边界与截断等按设备实测行为对齐，差异点见各 case 注释。
+ * 长度边界与截断等对齐设备行为，差异点见各 case 注释与 doc/10 §3。
  */
 
 #include "app_gz_proto_parse.h"
@@ -112,7 +112,7 @@ gz_parsed_cmd_t gz_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.sta = GZ_PARSE_ERR_PARAM;
             break;
         case GZ_PCMD_ONE_LINE: /* '3' 单行：颜色 + 行号 + 文本 */
-            /* 长度边界 3~18 按设备实测行为（len≤2 或 len≥19 丢弃） */
+            /* 长度边界 3~18（len≤2 或 len≥19 丢弃），对齐设备行为 */
             if (declared_len < 3 || declared_len > 18) {
                 cmd.sta = GZ_PARSE_ERR_PARAM;
                 break;
@@ -125,7 +125,7 @@ gz_parsed_cmd_t gz_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.sta = GZ_PARSE_ERR_PARAM;
             break;
         case GZ_PCMD_FULL_SCREEN: /* '4' 全屏可编辑：颜色 + X + Y + 文本 */
-            /* 长度边界 4~86 按设备实测行为（len≤3 或 len≥87 丢弃） */
+            /* 长度边界 4~86（len≤3 或 len≥87 丢弃），对齐设备行为 */
             if (declared_len < 4 || declared_len > 86) {
                 cmd.sta = GZ_PARSE_ERR_PARAM;
                 break;
@@ -135,7 +135,7 @@ gz_parsed_cmd_t gz_parse_frame(const uint8_t *raw, uint16_t raw_len)
             cmd.p.full_screen.y        = cmd.data[2];
             cmd.p.full_screen.text     = &cmd.data[3];
             cmd.p.full_screen.text_len = declared_len - 3;
-            /* len>71 时文本截断为 64 字节渲染（按设备实测行为） */
+            /* len>71 时文本截断为 64 字节渲染（对齐设备行为） */
             if (declared_len > 71)
                 cmd.p.full_screen.text_len = 64;
             if (cmd.p.full_screen.color > 2)
@@ -148,7 +148,7 @@ gz_parsed_cmd_t gz_parse_frame(const uint8_t *raw, uint16_t raw_len)
             }
             break;
         case GZ_PCMD_FIXED_FORMAT: /* '6' 固定格式：颜色 + 客货 + '|' 分隔 5 字段 */
-            /* 长度边界 3~90 按设备实测行为 */
+            /* 长度边界 3~90（对齐设备行为） */
             if (declared_len < 3 || declared_len > 90) {
                 cmd.sta = GZ_PARSE_ERR_PARAM;
                 break;
@@ -202,7 +202,7 @@ gz_parsed_cmd_t gz_parse_frame(const uint8_t *raw, uint16_t raw_len)
             cmd.p.fee.amount_fen = gz_amount_to_fen(cmd.data, declared_len);
             break;
         case GZ_PCMD_FILL_ALL: /* 0x01 全屏点亮：参数 1B 二进制 01红/02绿/03黄 */
-            /* 03=黄色按协议文档原文；设备实测行为为蓝色，不沿袭 */
+            /* 03=黄色按协议文档原文（设备为蓝色，不沿袭；见 doc/10 §3） */
             if (declared_len != 1 || cmd.data[0] < 1 || cmd.data[0] > 3) {
                 cmd.sta = GZ_PARSE_ERR_PARAM;
                 break;

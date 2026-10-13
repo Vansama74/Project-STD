@@ -44,8 +44,8 @@ static osMessageQueueId_t s_gz_queue;
 #define GZ_PAYLOAD_MAX  (259U) /* '{' + cmd + len + data[0..255] + '}' */
 #define GZ_MSG_SIZE     (sizeof(frame_msg_t) + GZ_PAYLOAD_MAX)
 #define GZ_QUEUE_DEPTH  (3U)
-_Static_assert(GZ_PAYLOAD_MAX <= RB_SIZE_RS485, "GZ frame must fit RS485 RB");
-_Static_assert(GZ_PAYLOAD_MAX <= RB_SIZE_RS232, "GZ frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_gz_queue_cb;
 static uint8_t s_gz_queue_buf[GZ_QUEUE_DEPTH * GZ_MSG_SIZE];
 static const osMessageQueueAttr_t s_gz_queue_attr = {

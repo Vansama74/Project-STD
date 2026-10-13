@@ -118,6 +118,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | 重庆CQ | 3 | 3156 | 新增（payload 1044，JSON `{` 定界 + 12B 二进制）；**队列体+任务帧缓冲+JSON/文本缓冲置 CCMRAM**（SRAM 全协议构建仅余 ~1.9KB；CPU 独占访问无 DMA，见文末修订） | ✅ 编入（CCM） |
 | 贵州治超 | 3 | 792 | 新增（"TCLY" 帧族，payload 256）；**队列体+cb+任务帧缓冲 1136B 置 CCMRAM**（ALL 口径 SRAM 余量仅 496B，CPU 独占访问无 DMA） | — EIDE 排除 |
 | 云南治超 | 3 | 801 | 新增（YN_1.3.0 `{` 帧族，payload 255 = 参数区 1B 长度上限、帧 ≤259，与云南常规同构；'6'/'7'/'9' 文档明示治超屏不开发 → probe 快拒）；**队列体+cb+任务帧缓冲置 CCMRAM**（1152B = queue_buf 801 + cb 80 + 帧缓冲 267 + 对齐）；属 `{` 帧族 → 定义 `g_brace_proto_guard` 守卫，量产与其它 `{` 族目录二选一 | — EIDE 排除 |
+| 新疆费显 XJ | 3 | 246 | 新增（协议文档「费额显示器通讯协议 2024年」，`FF DC` + 长度 = 整帧总长 + 命令 + BCC；payload 74 = 'T' 文本 4 行上限 10+4×16；9 命令最小集，`'D'`/彩色行不实现）；**队列体+cb+任务帧缓冲 + 任务栈/TCB 置 CCMRAM**（实测增量 1544B = queue_buf 246 + cb 80 + 帧缓冲 82 + 栈 1024 + TCB 100 + 对齐）；**只 acquire 不 provide RB**（RS485/RS232 槽体由既有协议提供）；SRAM 侧 32B（mask×2/句柄/心跳时刻/标志） | — EIDE 未收录（待用户裁决） |
 
 > **重庆CQ 内存例外（2026-08-20）**：CQ 队列 `s_cq_queue_buf` 3156B + `s_cq_queue_cb` 80B +
 > 任务帧缓冲 1052B + JSON 缓冲 1045B + 文本缓冲 1044B = **6377B 置 `.ccmram`**。
@@ -602,7 +603,8 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
   `app_tcp_client.c` 新增门控通道日志（`TCP_SRV_RTT_DIAG` / `TCP_CLI_RTT_DIAG`）、`app_dispatch.c` 新增
   `{` 帧 probe 决策日志（`PROBE_DBG_MIN_MS` 限速）并把通道通知投递改为「立即 + `DISPATCH_NOTIFY_RETRY_MS`
   （20ms）重试 → 仍失败 `notify_drop++` + 门控告警」（新增 `app_dispatch_notify_drops()` getter，
-  `app_boot` post-boot 行打印基线）。**不新增任务/队列/动态对象 ⇒ §8.3 ucHeap 预算表不变**；
+  `app_boot` post-boot 行打印基线）。〔2026-10-13 裁决清理：门控日志已于 2026-09-29 删除；`notify_drop` 计数 / getter /
+  post-boot 体检行随本轮清理 —— 重试修复保留（详见 `.analysis/comment_pass_20261013/report.md` 裁决执行轮与 §8.4.7）。〕**不新增任务/队列/动态对象 ⇒ §8.3 ucHeap 预算表不变**；
   默认口径同口径再采 `PROTO=ALL` `DISP=1_263` = text **174996** / rodata **204848** / data 1680 /
   bss 124772 / ccmram 38332 / heap_stack 2564（SRAM 合计 129016B，**余 2056B**；上一轮联调基线为
   text 173556 / rodata 203840 / bss 124732 / 余 2104B），`APP_DIAG=0` 对照 = text 169124 / rodata 198672 /
@@ -833,9 +835,9 @@ CCM 侧合法性与任务栈同源（只被 CPU 读写、不经 DMA；`.ccmram` 
 
 **CCM 侧成本核算**：23 任务 = 22×1024 + 512（栈）+ 23×100（`StaticTask_t`）= **25340B**；
 加空闲/定时器 **1736B** = **27076B**；`.ccmram` 全片实测见 §8.4（ALL/1_263 **38332B / 65536B**，余 **27204B**）。
-`.ccmram` 上限守卫：**第三十四轮起驱动内无任何编译期守卫**（22_1665 的 17 条 `_Static_assert` 全删，
-含「本模组数组 ≤ 整片 CCMRAM 区域 64KB」——见 §8.4.3），**只剩链接期溢出兜底**
-（`region .ccmram overflowed by N bytes`）；**新增下沉前先看剩余量**。
+`.ccmram` 上限约束：**2026-10-13 起驱动与全项目业务代码均无编译期断言**（22_1665 的 17 条 `_Static_assert`
+第三十四轮全删、2026-10-08 恢复 2 条、2026-10-13 按用户裁决再删；见 §8.4.3 与 §8.4.7），
+**只剩链接期溢出兜底**（`region .ccmram overflowed by N bytes`）；**新增下沉前先看剩余量**。
 
 ### §8.3 修复后启动期堆预算表（PROTO=ALL 全协议 dev 构建，单位 B）
 
@@ -1064,6 +1066,108 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
   「重建改动前源码 vs 现行源码」同 flags 重编 ⇒ section（排除 `.debug_*`）**逐字节一致** +
   反汇编**逐行一致**（105 段 / 1801 行）——见 `.analysis/cleanup_20260929/round2_ab_compare.sh`。
 * 完整记录：`.analysis/cleanup_20260929/round2_report.md`、`doc/17` §5。
+
+### §8.4.5 2026-10-12 复采（新疆费显协议接入 + 调度框架掩码 32→64）
+
+采样口径：`make -j8 BUILD_DIR=build/xj_b{0,1,2}`（各自独立目录全量构建，不触碰 `build/Debug/`），
+`PROTO=ALL DISP=1_263 FACTORY=STD`（CQ 与 nofault 另测）；零新增告警（仍 3 条既有 HAL
+`stm32f4xx_hal_flash_ex.c -Wunused-parameter`）。
+〔注（2026-10-12 工作区清理轮）：`build/xj_*` 各抽样目录属中间产物，已 `rm -rf build/xj_*` 删除
+（§8.4.6 同）；本表数字的归档证据 = `.analysis/xinjiang/size_b*.txt` / `build_b*.log`，按上列命令重跑即可重建目录。〕
+
+| 口径 | `.text` | `.rodata` | `.data` | `.ccmram` | `.bss` | `._user_heap_stack` | SRAM 合计 / 余 | CCM 余 |
+|---|---|---|---|---|---|---|---|---|
+| **B0** 工作区基线（未改代码） | 167944 | 195776 | 1656 | 39652 | 124768 | 2560 | 128984 / **2088B** | 25884B |
+| **B1** = B0 + 掩码扩容 32→64 | 168536 | 195776 | 1656 | 39652 | 125356 | 2564 | 129576 / **1496B** | 25884B |
+| **B2** = B1 + 新疆模块 + Makefile 收录 | 170392 | 196024 | 1656 | **41196** | 125388 | 2564 | 129608 / **1464B** | 24340B |
+| B1−B0（掩码归因） | +592 | ±0 | ±0 | ±0 | +588 | +4 | +592 | — |
+| B2−B1（新疆归因） | +1856 | +248 | ±0 | **+1544** | +32 | ±0 | +32 | −1544 |
+
+* **掩码扩容归因**：`g_dispatch` 488 → 912B（三个 64 项指针表 +384、`registered_mask` 4→8、
+  `ch_proto_map[9]` 36→72）；35 个协议模块的 `s_*_mask` 静态量各 4→8B（+140）；余为对齐。
+  `.text` 增量来自 64 位 ctz/掩码运算（`frame_dispatch_task +110`、`app_channel_dispatch +40`、
+  `app_proto_register +36`、新增 `bit_ctz64 +32` 等）。`app_channel_dispatch` 栈帧 140 → **64B**
+  （RB 去重表按缓冲池槽数 `RB_CNT_MAX` 开表；按 64 指针开表会到 268B）。
+* **新疆模块归因（B2−B1）**：`.ccmram +1544` = 队列体 246 + `StaticQueue_t` 80 + 任务帧缓冲 82 +
+  任务栈 1024 + `StaticTask_t` 100 + 对齐 12；`.bss +32` = mask×2 16 + 队列句柄 8 + 心跳时刻 4 +
+  两个标志 + 对齐；`.rodata +248` = 文案/查表/attr；`.text +1856` = probe/解析/执行/任务/init。
+* **`PROTO=CQ`（B2-CQ，全量重编）**：`.text 157004 / .rodata 195360 / .data 852 / .ccmram 38940 /
+  .bss 121900 / ._user_heap_stack 2564` ⇒ SRAM 合计 **125316B（余 5756B）**、CCM 余 26596B；
+  链接通过、零新增告警。
+* **`XJ_FAULT_SCREEN=0` 对照（B2-nofault，`DEFINES` 透传）**：`.text 170104 / .rodata 196008 /
+  .data 1656 / .ccmram 41196 / .bss 125380 / heap 2564` ⇒ 相对 B2 **text −288 / rodata −16 / bss −8**
+  （心跳函数体、维护屏渲染与文案、两个心跳静态量随 `--gc-sections` 整体消失），印证「开关 0 时
+  无计数、无渲染」。
+* 宿主推演 `.analysis/xinjiang/xj_frame_sim.py` **247/247**（2026-10-12 复核修正：probe 读长
+  `XJ_LEN_OFFSET`→`XJ_LEN_OFFSET + 1U`，消除 `head[2]` 未初始化读；新增覆盖回归断言）；
+  结构脚本 `check_channel_gate.py` **15/15**、
+  `check_display_guards.py` **16/16 + 100/100**。完整记录见 `doc/19_新疆费显协议/README.md` §6 与
+  `.analysis/xinjiang/implementation_report.md`。
+
+### §8.4.6 2026-10-12 第二轮复采（PDF 全文命令面 + 帧长 74→106 + 新疆模块自备串口 RB）
+
+采样口径：`make -j8 PROTO=ALL DISP=1_263 FACTORY=STD BUILD_DIR=build/xj_r2_all` 与
+`make -j8 PROTO=CQ DISP=1_263 FACTORY=STD BUILD_DIR=build/xj_r2_cq`（各自独立目录全量重编，不触碰
+`build/Debug/`）；零新增告警（仍 3 条既有 HAL `stm32f4xx_hal_flash_ex.c -Wunused-parameter`）。
+〔注（2026-10-12 工作区清理轮）：本节 `build/xj_r2_*` / `build/xj_r2_dbg*` 抽样目录已删除（中间产物）；
+归档证据 = `.analysis/xinjiang/r2_evidence/`（`size_*.txt` / `build_*.log` / `nm_*.txt` / `Debug.r2.mk`），
+按上列命令重跑即可重建目录。〕
+
+| 口径 | `.text` | `.rodata` | `.data` | `.ccmram` | `.bss` | heap | SRAM 合计 / 余 | CCM 余 |
+|---|---|---|---|---|---|---|---|---|
+| **R2-ALL**（ALL / 1_263 / STD） | **172056** | **196264** | 1656 | **41324** | 125388 | 2564 | 129608 / **1464B** | 24212B |
+| **R2-CQ**（CQ / 1_263 / STD） | **158652** | **195592** | 852 | **39068** | 121900 | 2564 | 125316 / **5756B** | 26468B |
+| R2-ALL − §8.4.5 B2 | +1664 | +240 | ±0 | **+128** | **±0** | ±0 | ±0 | −128 |
+
+* **归因**：`.text/.rodata` = PDF 全文命令面扩面（白名单 9→14、`'S'` 四形态报价、`'D'/'C'/'Z'/'P'` 5B 应答、
+  8 条 ETC 文案）+ 帧长口径 74→106（'T' N≤6、'D' 全屏 7+16N），其中**本轮「模块自备 RB」的 getter 仅 +16B text**；
+  `.ccmram +128` = 队列 `3×(82→114) = +96` 与任务帧缓冲 `82→114 = +32`；
+  **`.bss` 两口径都 ±0** —— 新疆模块新增的两槽 `RB_PROVIDE_WEAK` 定义被同槽他协议 weak 合并，
+  其 static 缓冲随 `--gc-sections` 丢弃，**多协议口径无额外 SRAM 代价**。
+* **新疆模块 `.ccmram` 跨度（`nm` 符号级）**：任务帧缓冲 114 + 队列体 342 + `StaticQueue_t` 80 +
+  任务栈 1024 + `StaticTask_t` 100 = **1660**（+对齐 8）= **1668B**（§8.4.5 记的 1544B 为 payload=74 口径）。
+* **同一目标口径 A/B（等价 EIDE Debug = IAP + LDI + 新疆，用户现场口径）**：
+  `check_eide_targets.py --target Debug --emit-make` 生成等价 Makefile，`BUILD_DIR=build/xj_r2_dbg`（改后）
+  与 `build/xj_r2_dbg_nofix`（临时摘掉两行 `RB_PROVIDE_WEAK` 的改前对照）：
+
+| 段 | 改前（无提供者） | 改后（自备） | Δ |
+|---|---|---|---|
+| `.text` | 130584 | 130600 | **+16** |
+| `.data` | 1592 | 1624 | **+32** |
+| `.bss` | 112372 | 113908 | **+1536**（768+768 槽体） |
+| `.ccmram` | 15548 | 15548 | 0 |
+| SRAM 合计 | 116528 | 118096 | **+1568** ⇒ 余 **12976B** |
+
+  改后 `rb_provide_rs485/rs232` 符号在册、`g_rb_provide` 表 `{RJ45, RS485, RS232}` 三槽全非空
+  （改前为 `791c0408 00000000 00000000`）。**这是用户现场「发帧零反应」的根因修复**（旧目标
+  「IAP+LDI+新疆」无任何串口协议提供槽体 ⇒ 新疆模块不注册 + 串口通道被门控跳过），
+  详见 `.analysis/xinjiang/round2_pdf_fulltext_and_rb.md` §③/§④。
+
+### §8.4.7 2026-10-13 复采（用户裁决执行轮：编译期断言清零 + 只读观察 API / 调试冻结清理）
+
+采样口径：`make -j16 BUILD_DIR=build/cmt3_after/Debug` 与 `... PROTO=CQ`（各自独立目录全量重编，
+不触碰 `build/Debug/`）；零新增告警（仍 3 条既有 HAL `stm32f4xx_hal_flash_ex.c -Wunused-parameter`）。
+
+| 口径 | `.text` | `.rodata` | `.data` | `.ccmram` | `.bss` | heap | 相对 §8.4.6 |
+|---|---|---|---|---|---|---|---|
+| **R3-ALL**（ALL / 1_263 / STD） | **171832** | 196264 | 1656 | 41324 | **125364** | 2564 | text **−224** / bss **−24**，其余段 ±0 |
+| **R3-CQ**（CQ / 1_263 / STD） | **158444** | 195592 | 852 | 39068 | **121876** | 2564 | text **−208** / bss **−24**，其余段 ±0 |
+
+* **归因（逐对象期望清单 `ab_round3_objects.py` 7/7 全绿 + 断言隔离 A/B `ab_round3_asserts.py` 2/2）**：
+  - **编译期断言删除 = 0 codegen**：6 条断言（22_1665 2 条 + `app_dispatch.c` 4 条）逐字插回后同 flags 复编
+    ⇒ `dev_display_22_1665.c` 21/21 段、`app_dispatch.c` 33/33 段逐字节一致 + 反汇编逐行一致 + strip-debug md5 相同；
+  - **未引用的观察 API 函数体 = 0 差异**（`app_render_chip_info_get` / `app_render_glyph_probe` /
+    `app_render_glyph_addr_for`、`app_dispatch_qfull_drops/resync_count/notify_drops`、
+    `app_udp_gzol_bind_status(_str)`——早已被 `--gc-sections` 丢弃，其 rodata 字符串同样未进镜像）；
+  - **实际差值来自活代码**（两口径逐对象差值相同）：`pl_tim_dbg_freeze` −32 + `dev_display_init` 两处调用 −20 +
+    `udp_gzol_task` 三处绑定结果记录 −56 + `tcp_server_task` 两处标志写 −16 + `mm_apply_lamp` / `mm_apply_init`
+    −12 / −12 + `frame_dispatch_task` 三处计数自增 −52 + `app_channel_dispatch` 重试计数 −16 = **216B**
+    （+链接对齐 ⇒ ALL −224 / CQ −208）；
+  - **`.bss −24`** = 6 个观察变量删除：`g_dispatch` 三个 uint32 域 −8（原含 4B 尾对齐）/ `g_tcp_server_connected` −4 /
+    `s_mm_lamp_state` −3 / GZOL `s_udp_gzol_bind_sta` −1 + `bind_err` −2 + `bind_ok_cnt` −4（共 −22）+ 对齐 −2。
+* **行为面**：删除的均为「只读观察状态 / 调试冻结」——重试路径、通道门控、协议行为、`0x40` 改端口语义等
+  全部保留；`check_guard_disasm.py` 的「原操作零丢失」判据已按删除点补 reviewed 条目
+  （`.analysis/myanmar/check_guard_disasm.py`，见 `.analysis/comment_pass_20261013/report.md` 裁决执行轮）。
 
 ### §8.5 永久诊断与错误处理（**设施已随 2026-09-29 瘦身轮删除；RTT 底层保留**）
 

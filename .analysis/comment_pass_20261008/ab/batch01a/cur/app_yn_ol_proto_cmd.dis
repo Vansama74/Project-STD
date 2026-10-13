@@ -1,0 +1,963 @@
+
+
+
+Disassembly of section .text.__NVIC_SystemReset:
+
+00000000 <__NVIC_SystemReset>:
+   0:	f3bf 8f4f 	dsb	sy
+   4:	4905      	ldr	r1, [pc, #20]	@ (1c <__NVIC_SystemReset+0x1c>)
+   6:	68ca      	ldr	r2, [r1, #12]
+   8:	f402 62e0 	and.w	r2, r2, #1792	@ 0x700
+   c:	4b04      	ldr	r3, [pc, #16]	@ (20 <__NVIC_SystemReset+0x20>)
+   e:	4313      	orrs	r3, r2
+  10:	60cb      	str	r3, [r1, #12]
+  12:	f3bf 8f4f 	dsb	sy
+  16:	bf00      	nop
+  18:	e7fd      	b.n	16 <__NVIC_SystemReset+0x16>
+  1a:	bf00      	nop
+  1c:	e000ed00 	.word	0xe000ed00
+  20:	05fa0004 	.word	0x05fa0004
+
+Disassembly of section .text.dev_storage_read:
+
+00000000 <dev_storage_read>:
+   0:	b140      	cbz	r0, 14 <dev_storage_read+0x14>
+   2:	4684      	mov	ip, r0
+   4:	6800      	ldr	r0, [r0, #0]
+   6:	b140      	cbz	r0, 1a <dev_storage_read+0x1a>
+   8:	b510      	push	{r4, lr}
+   a:	6844      	ldr	r4, [r0, #4]
+   c:	b144      	cbz	r4, 20 <dev_storage_read+0x20>
+   e:	4660      	mov	r0, ip
+  10:	47a0      	blx	r4
+  12:	bd10      	pop	{r4, pc}
+  14:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  18:	4770      	bx	lr
+  1a:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  1e:	4770      	bx	lr
+  20:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  24:	e7f5      	b.n	12 <dev_storage_read+0x12>
+
+Disassembly of section .text.dev_storage_write:
+
+00000000 <dev_storage_write>:
+   0:	b140      	cbz	r0, 14 <dev_storage_write+0x14>
+   2:	4684      	mov	ip, r0
+   4:	6800      	ldr	r0, [r0, #0]
+   6:	b140      	cbz	r0, 1a <dev_storage_write+0x1a>
+   8:	b510      	push	{r4, lr}
+   a:	6884      	ldr	r4, [r0, #8]
+   c:	b144      	cbz	r4, 20 <dev_storage_write+0x20>
+   e:	4660      	mov	r0, ip
+  10:	47a0      	blx	r4
+  12:	bd10      	pop	{r4, pc}
+  14:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  18:	4770      	bx	lr
+  1a:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  1e:	4770      	bx	lr
+  20:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  24:	e7f5      	b.n	12 <dev_storage_write+0x12>
+
+Disassembly of section .text.dev_storage_capacity:
+
+00000000 <dev_storage_capacity>:
+   0:	b148      	cbz	r0, 16 <dev_storage_capacity+0x16>
+   2:	b508      	push	{r3, lr}
+   4:	4603      	mov	r3, r0
+   6:	6802      	ldr	r2, [r0, #0]
+   8:	b11a      	cbz	r2, 12 <dev_storage_capacity+0x12>
+   a:	6912      	ldr	r2, [r2, #16]
+   c:	b10a      	cbz	r2, 12 <dev_storage_capacity+0x12>
+   e:	4790      	blx	r2
+  10:	e000      	b.n	14 <dev_storage_capacity+0x14>
+  12:	6858      	ldr	r0, [r3, #4]
+  14:	bd08      	pop	{r3, pc}
+  16:	4770      	bx	lr
+
+Disassembly of section .text._yn_ol_cfg_addr:
+
+00000000 <_yn_ol_cfg_addr>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <_yn_ol_cfg_addr>
+   6:	f5a0 5040 	sub.w	r0, r0, #12288	@ 0x3000
+   a:	bd08      	pop	{r3, pc}
+
+Disassembly of section .text._yn_ol_cfg_fields_valid:
+
+00000000 <_yn_ol_cfg_fields_valid>:
+   0:	2803      	cmp	r0, #3
+   2:	d80d      	bhi.n	20 <_yn_ol_cfg_fields_valid+0x20>
+   4:	2910      	cmp	r1, #16
+   6:	d007      	beq.n	18 <_yn_ol_cfg_fields_valid+0x18>
+   8:	2918      	cmp	r1, #24
+   a:	d007      	beq.n	1c <_yn_ol_cfg_fields_valid+0x1c>
+   c:	2920      	cmp	r1, #32
+   e:	d001      	beq.n	14 <_yn_ol_cfg_fields_valid+0x14>
+  10:	2000      	movs	r0, #0
+  12:	4770      	bx	lr
+  14:	2001      	movs	r0, #1
+  16:	4770      	bx	lr
+  18:	2001      	movs	r0, #1
+  1a:	4770      	bx	lr
+  1c:	2001      	movs	r0, #1
+  1e:	4770      	bx	lr
+  20:	2000      	movs	r0, #0
+  22:	4770      	bx	lr
+
+Disassembly of section .text._yn_ol_map_color:
+
+00000000 <_yn_ol_map_color>:
+   0:	2801      	cmp	r0, #1
+   2:	d003      	beq.n	c <_yn_ol_map_color+0xc>
+   4:	2802      	cmp	r0, #2
+   6:	d103      	bne.n	10 <_yn_ol_map_color+0x10>
+   8:	2003      	movs	r0, #3
+   a:	4770      	bx	lr
+   c:	2002      	movs	r0, #2
+   e:	4770      	bx	lr
+  10:	2001      	movs	r0, #1
+  12:	4770      	bx	lr
+
+Disassembly of section .text._yn_ol_send_frame:
+
+00000000 <_yn_ol_send_frame>:
+   0:	2b0e      	cmp	r3, #14
+   2:	d821      	bhi.n	48 <_yn_ol_send_frame+0x48>
+   4:	b530      	push	{r4, r5, lr}
+   6:	b087      	sub	sp, #28
+   8:	4605      	mov	r5, r0
+   a:	4610      	mov	r0, r2
+   c:	461c      	mov	r4, r3
+   e:	237b      	movs	r3, #123	@ 0x7b
+  10:	f88d 3004 	strb.w	r3, [sp, #4]
+  14:	f88d 1005 	strb.w	r1, [sp, #5]
+  18:	f88d 4006 	strb.w	r4, [sp, #6]
+  1c:	b134      	cbz	r4, 2c <_yn_ol_send_frame+0x2c>
+  1e:	b12a      	cbz	r2, 2c <_yn_ol_send_frame+0x2c>
+  20:	4622      	mov	r2, r4
+  22:	4601      	mov	r1, r0
+  24:	f10d 0007 	add.w	r0, sp, #7
+  28:	f7ff fffe 	bl	0 <memcpy>
+  2c:	f104 031b 	add.w	r3, r4, #27
+  30:	446b      	add	r3, sp
+  32:	227d      	movs	r2, #125	@ 0x7d
+  34:	f803 2c14 	strb.w	r2, [r3, #-20]
+  38:	1d22      	adds	r2, r4, #4
+  3a:	b292      	uxth	r2, r2
+  3c:	a901      	add	r1, sp, #4
+  3e:	4628      	mov	r0, r5
+  40:	f7ff fffe 	bl	0 <channel_send>
+  44:	b007      	add	sp, #28
+  46:	bd30      	pop	{r4, r5, pc}
+  48:	4770      	bx	lr
+
+Disassembly of section .text._yn_ol_exec_host_query:
+
+00000000 <_yn_ol_exec_host_query>:
+   0:	b510      	push	{r4, lr}
+   2:	b082      	sub	sp, #8
+   4:	2400      	movs	r4, #0
+   6:	f88d 4004 	strb.w	r4, [sp, #4]
+   a:	2301      	movs	r3, #1
+   c:	aa01      	add	r2, sp, #4
+   e:	2131      	movs	r1, #49	@ 0x31
+  10:	f7ff fffe 	bl	0 <_yn_ol_exec_host_query>
+  14:	4620      	mov	r0, r4
+  16:	b002      	add	sp, #8
+  18:	bd10      	pop	{r4, pc}
+
+Disassembly of section .text._yn_ol_exec_self_check:
+
+00000000 <_yn_ol_exec_self_check>:
+   0:	b508      	push	{r3, lr}
+   2:	4b0a      	ldr	r3, [pc, #40]	@ (2c <_yn_ol_exec_self_check+0x2c>)
+   4:	781b      	ldrb	r3, [r3, #0]
+   6:	b10b      	cbz	r3, c <_yn_ol_exec_self_check+0xc>
+   8:	2000      	movs	r0, #0
+   a:	bd08      	pop	{r3, pc}
+   c:	4b07      	ldr	r3, [pc, #28]	@ (2c <_yn_ol_exec_self_check+0x2c>)
+   e:	2201      	movs	r2, #1
+  10:	701a      	strb	r2, [r3, #0]
+  12:	2100      	movs	r1, #0
+  14:	4b06      	ldr	r3, [pc, #24]	@ (30 <_yn_ol_exec_self_check+0x30>)
+  16:	7019      	strb	r1, [r3, #0]
+  18:	4a06      	ldr	r2, [pc, #24]	@ (34 <_yn_ol_exec_self_check+0x34>)
+  1a:	4807      	ldr	r0, [pc, #28]	@ (38 <_yn_ol_exec_self_check+0x38>)
+  1c:	f7ff fffe 	bl	0 <osThreadNew>
+  20:	2800      	cmp	r0, #0
+  22:	d1f1      	bne.n	8 <_yn_ol_exec_self_check+0x8>
+  24:	4b01      	ldr	r3, [pc, #4]	@ (2c <_yn_ol_exec_self_check+0x2c>)
+  26:	7018      	strb	r0, [r3, #0]
+  28:	e7ee      	b.n	8 <_yn_ol_exec_self_check+0x8>
+  2a:	bf00      	nop
+	...
+
+Disassembly of section .text._yn_ol_row_black:
+
+00000000 <_yn_ol_row_black>:
+   0:	b500      	push	{lr}
+   2:	b083      	sub	sp, #12
+   4:	468c      	mov	ip, r1
+   6:	4b06      	ldr	r3, [pc, #24]	@ (20 <_yn_ol_row_black+0x20>)
+   8:	781a      	ldrb	r2, [r3, #0]
+   a:	8943      	ldrh	r3, [r0, #10]
+   c:	2100      	movs	r1, #0
+   e:	9101      	str	r1, [sp, #4]
+  10:	9200      	str	r2, [sp, #0]
+  12:	fb0c f202 	mul.w	r2, ip, r2
+  16:	f7ff fffe 	bl	0 <dev_display_fill>
+  1a:	b003      	add	sp, #12
+  1c:	bd00      	pop	{pc}
+  1e:	bf00      	nop
+  20:	00000000 	.word	0x00000000
+
+Disassembly of section .text._yn_ol_exec_one_line:
+
+00000000 <_yn_ol_exec_one_line>:
+   0:	e92d 41f0 	stmdb	sp!, {r4, r5, r6, r7, r8, lr}
+   4:	b088      	sub	sp, #32
+   6:	4604      	mov	r4, r0
+   8:	f7ff fffe 	bl	0 <dev_display_get>
+   c:	2800      	cmp	r0, #0
+   e:	d03f      	beq.n	90 <_yn_ol_exec_one_line+0x90>
+  10:	4680      	mov	r8, r0
+  12:	4d21      	ldr	r5, [pc, #132]	@ (98 <_yn_ol_exec_one_line+0x98>)
+  14:	782e      	ldrb	r6, [r5, #0]
+  16:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  1a:	7861      	ldrb	r1, [r4, #1]
+  1c:	4640      	mov	r0, r8
+  1e:	f7ff fffe 	bl	0 <_yn_ol_exec_one_line>
+  22:	2700      	movs	r7, #0
+  24:	f8ad 7004 	strh.w	r7, [sp, #4]
+  28:	7863      	ldrb	r3, [r4, #1]
+  2a:	fb06 f303 	mul.w	r3, r6, r3
+  2e:	f8ad 3006 	strh.w	r3, [sp, #6]
+  32:	f8b8 300a 	ldrh.w	r3, [r8, #10]
+  36:	f8ad 3008 	strh.w	r3, [sp, #8]
+  3a:	f8ad 600a 	strh.w	r6, [sp, #10]
+  3e:	7820      	ldrb	r0, [r4, #0]
+  40:	f7ff fffe 	bl	0 <_yn_ol_exec_one_line>
+  44:	f88d 000c 	strb.w	r0, [sp, #12]
+  48:	f04f 0300 	mov.w	r3, #0
+  4c:	f88d 300d 	strb.w	r3, [sp, #13]
+  50:	6863      	ldr	r3, [r4, #4]
+  52:	9304      	str	r3, [sp, #16]
+  54:	8923      	ldrh	r3, [r4, #8]
+  56:	f8ad 3014 	strh.w	r3, [sp, #20]
+  5a:	782b      	ldrb	r3, [r5, #0]
+  5c:	f88d 3016 	strb.w	r3, [sp, #22]
+  60:	4b0e      	ldr	r3, [pc, #56]	@ (9c <_yn_ol_exec_one_line+0x9c>)
+  62:	781b      	ldrb	r3, [r3, #0]
+  64:	f88d 3017 	strb.w	r3, [sp, #23]
+  68:	f88d 7000 	strb.w	r7, [sp]
+  6c:	f88d 7001 	strb.w	r7, [sp, #1]
+  70:	f88d 7002 	strb.w	r7, [sp, #2]
+  74:	f8cd d018 	str.w	sp, [sp, #24]
+  78:	2301      	movs	r3, #1
+  7a:	f88d 301c 	strb.w	r3, [sp, #28]
+  7e:	a801      	add	r0, sp, #4
+  80:	f7ff fffe 	bl	0 <app_render>
+  84:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  88:	4638      	mov	r0, r7
+  8a:	b008      	add	sp, #32
+  8c:	e8bd 81f0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, pc}
+  90:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  94:	e7f9      	b.n	8a <_yn_ol_exec_one_line+0x8a>
+  96:	bf00      	nop
+	...
+
+Disassembly of section .text._yn_ol_selftest_task:
+
+00000000 <_yn_ol_selftest_task>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b08c      	sub	sp, #48	@ 0x30
+   4:	f7ff fffe 	bl	0 <dev_display_get>
+   8:	4604      	mov	r4, r0
+   a:	2601      	movs	r6, #1
+   c:	e014      	b.n	38 <_yn_ol_selftest_task+0x38>
+   e:	2064      	movs	r0, #100	@ 0x64
+  10:	f7ff fffe 	bl	0 <osDelay>
+  14:	3564      	adds	r5, #100	@ 0x64
+  16:	f5b5 7ffa 	cmp.w	r5, #500	@ 0x1f4
+  1a:	d203      	bcs.n	24 <_yn_ol_selftest_task+0x24>
+  1c:	4b2c      	ldr	r3, [pc, #176]	@ (d0 <_yn_ol_selftest_task+0xd0>)
+  1e:	781b      	ldrb	r3, [r3, #0]
+  20:	2b00      	cmp	r3, #0
+  22:	d0f4      	beq.n	e <_yn_ol_selftest_task+0xe>
+  24:	4b2b      	ldr	r3, [pc, #172]	@ (d4 <_yn_ol_selftest_task+0xd4>)
+  26:	fba3 2306 	umull	r2, r3, r3, r6
+  2a:	085b      	lsrs	r3, r3, #1
+  2c:	eb03 03c3 	add.w	r3, r3, r3, lsl #3
+  30:	1af3      	subs	r3, r6, r3
+  32:	b2db      	uxtb	r3, r3
+  34:	3301      	adds	r3, #1
+  36:	b2de      	uxtb	r6, r3
+  38:	4b25      	ldr	r3, [pc, #148]	@ (d0 <_yn_ol_selftest_task+0xd0>)
+  3a:	781b      	ldrb	r3, [r3, #0]
+  3c:	2b00      	cmp	r3, #0
+  3e:	d140      	bne.n	c2 <_yn_ol_selftest_task+0xc2>
+  40:	2c00      	cmp	r4, #0
+  42:	d03c      	beq.n	be <_yn_ol_selftest_task+0xbe>
+  44:	f106 0330 	add.w	r3, r6, #48	@ 0x30
+  48:	f88d 300c 	strb.w	r3, [sp, #12]
+  4c:	2500      	movs	r5, #0
+  4e:	f88d 500d 	strb.w	r5, [sp, #13]
+  52:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  56:	8963      	ldrh	r3, [r4, #10]
+  58:	9501      	str	r5, [sp, #4]
+  5a:	89a2      	ldrh	r2, [r4, #12]
+  5c:	9200      	str	r2, [sp, #0]
+  5e:	462a      	mov	r2, r5
+  60:	4629      	mov	r1, r5
+  62:	4620      	mov	r0, r4
+  64:	f7ff fffe 	bl	0 <dev_display_fill>
+  68:	f04f 0200 	mov.w	r2, #0
+  6c:	f8ad 5014 	strh.w	r5, [sp, #20]
+  70:	f8ad 5016 	strh.w	r5, [sp, #22]
+  74:	8963      	ldrh	r3, [r4, #10]
+  76:	f8ad 3018 	strh.w	r3, [sp, #24]
+  7a:	89a3      	ldrh	r3, [r4, #12]
+  7c:	f8ad 301a 	strh.w	r3, [sp, #26]
+  80:	2301      	movs	r3, #1
+  82:	f88d 301c 	strb.w	r3, [sp, #28]
+  86:	f88d 201d 	strb.w	r2, [sp, #29]
+  8a:	a903      	add	r1, sp, #12
+  8c:	9108      	str	r1, [sp, #32]
+  8e:	f8ad 3024 	strh.w	r3, [sp, #36]	@ 0x24
+  92:	f88d 2026 	strb.w	r2, [sp, #38]	@ 0x26
+  96:	4b10      	ldr	r3, [pc, #64]	@ (d8 <_yn_ol_selftest_task+0xd8>)
+  98:	781b      	ldrb	r3, [r3, #0]
+  9a:	f88d 3027 	strb.w	r3, [sp, #39]	@ 0x27
+  9e:	4b0f      	ldr	r3, [pc, #60]	@ (dc <_yn_ol_selftest_task+0xdc>)
+  a0:	681b      	ldr	r3, [r3, #0]
+  a2:	f8ad 3010 	strh.w	r3, [sp, #16]
+  a6:	0c1b      	lsrs	r3, r3, #16
+  a8:	f88d 3012 	strb.w	r3, [sp, #18]
+  ac:	ab04      	add	r3, sp, #16
+  ae:	930a      	str	r3, [sp, #40]	@ 0x28
+  b0:	f88d 202c 	strb.w	r2, [sp, #44]	@ 0x2c
+  b4:	a805      	add	r0, sp, #20
+  b6:	f7ff fffe 	bl	0 <app_render>
+  ba:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  be:	2500      	movs	r5, #0
+  c0:	e7a9      	b.n	16 <_yn_ol_selftest_task+0x16>
+  c2:	2300      	movs	r3, #0
+  c4:	4a06      	ldr	r2, [pc, #24]	@ (e0 <_yn_ol_selftest_task+0xe0>)
+  c6:	7013      	strb	r3, [r2, #0]
+  c8:	4a01      	ldr	r2, [pc, #4]	@ (d0 <_yn_ol_selftest_task+0xd0>)
+  ca:	7013      	strb	r3, [r2, #0]
+  cc:	f7ff fffe 	bl	0 <osThreadExit>
+  d0:	00000000 	.word	0x00000000
+  d4:	38e38e39 	.word	0x38e38e39
+	...
+
+Disassembly of section .text._yn_ol_exec_full_screen:
+
+00000000 <_yn_ol_exec_full_screen>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b08b      	sub	sp, #44	@ 0x2c
+   4:	4604      	mov	r4, r0
+   6:	f7ff fffe 	bl	0 <dev_display_get>
+   a:	2800      	cmp	r0, #0
+   c:	d04e      	beq.n	ac <_yn_ol_exec_full_screen+0xac>
+   e:	4605      	mov	r5, r0
+  10:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  14:	896b      	ldrh	r3, [r5, #10]
+  16:	2100      	movs	r1, #0
+  18:	9101      	str	r1, [sp, #4]
+  1a:	89aa      	ldrh	r2, [r5, #12]
+  1c:	9200      	str	r2, [sp, #0]
+  1e:	460a      	mov	r2, r1
+  20:	4628      	mov	r0, r5
+  22:	f7ff fffe 	bl	0 <dev_display_fill>
+  26:	7861      	ldrb	r1, [r4, #1]
+  28:	896b      	ldrh	r3, [r5, #10]
+  2a:	4299      	cmp	r1, r3
+  2c:	d203      	bcs.n	36 <_yn_ol_exec_full_screen+0x36>
+  2e:	78a0      	ldrb	r0, [r4, #2]
+  30:	89aa      	ldrh	r2, [r5, #12]
+  32:	4290      	cmp	r0, r2
+  34:	d307      	bcc.n	46 <_yn_ol_exec_full_screen+0x46>
+  36:	4628      	mov	r0, r5
+  38:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  3c:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  40:	2000      	movs	r0, #0
+  42:	b00b      	add	sp, #44	@ 0x2c
+  44:	bd30      	pop	{r4, r5, pc}
+  46:	f8ad 100c 	strh.w	r1, [sp, #12]
+  4a:	f8ad 000e 	strh.w	r0, [sp, #14]
+  4e:	7861      	ldrb	r1, [r4, #1]
+  50:	1a5b      	subs	r3, r3, r1
+  52:	f8ad 3010 	strh.w	r3, [sp, #16]
+  56:	78a3      	ldrb	r3, [r4, #2]
+  58:	1ad2      	subs	r2, r2, r3
+  5a:	f8ad 2012 	strh.w	r2, [sp, #18]
+  5e:	7820      	ldrb	r0, [r4, #0]
+  60:	f7ff fffe 	bl	0 <_yn_ol_exec_full_screen>
+  64:	f88d 0014 	strb.w	r0, [sp, #20]
+  68:	2500      	movs	r5, #0
+  6a:	f88d 5015 	strb.w	r5, [sp, #21]
+  6e:	6863      	ldr	r3, [r4, #4]
+  70:	9306      	str	r3, [sp, #24]
+  72:	8923      	ldrh	r3, [r4, #8]
+  74:	f8ad 301c 	strh.w	r3, [sp, #28]
+  78:	4b0e      	ldr	r3, [pc, #56]	@ (b4 <_yn_ol_exec_full_screen+0xb4>)
+  7a:	781b      	ldrb	r3, [r3, #0]
+  7c:	f88d 301e 	strb.w	r3, [sp, #30]
+  80:	4b0d      	ldr	r3, [pc, #52]	@ (b8 <_yn_ol_exec_full_screen+0xb8>)
+  82:	781b      	ldrb	r3, [r3, #0]
+  84:	f88d 301f 	strb.w	r3, [sp, #31]
+  88:	f88d 5008 	strb.w	r5, [sp, #8]
+  8c:	f88d 5009 	strb.w	r5, [sp, #9]
+  90:	2301      	movs	r3, #1
+  92:	f88d 300a 	strb.w	r3, [sp, #10]
+  96:	aa02      	add	r2, sp, #8
+  98:	9208      	str	r2, [sp, #32]
+  9a:	f88d 3024 	strb.w	r3, [sp, #36]	@ 0x24
+  9e:	a803      	add	r0, sp, #12
+  a0:	f7ff fffe 	bl	0 <app_render>
+  a4:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  a8:	4628      	mov	r0, r5
+  aa:	e7ca      	b.n	42 <_yn_ol_exec_full_screen+0x42>
+  ac:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  b0:	e7c7      	b.n	42 <_yn_ol_exec_full_screen+0x42>
+  b2:	bf00      	nop
+	...
+
+Disassembly of section .text._yn_ol_clear_screen:
+
+00000000 <_yn_ol_clear_screen>:
+   0:	b510      	push	{r4, lr}
+   2:	b082      	sub	sp, #8
+   4:	4604      	mov	r4, r0
+   6:	2100      	movs	r1, #0
+   8:	9101      	str	r1, [sp, #4]
+   a:	8983      	ldrh	r3, [r0, #12]
+   c:	9300      	str	r3, [sp, #0]
+   e:	8943      	ldrh	r3, [r0, #10]
+  10:	460a      	mov	r2, r1
+  12:	f7ff fffe 	bl	0 <dev_display_fill>
+  16:	4620      	mov	r0, r4
+  18:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  1c:	b002      	add	sp, #8
+  1e:	bd10      	pop	{r4, pc}
+
+Disassembly of section .text._yn_ol_exec_clear:
+
+00000000 <_yn_ol_exec_clear>:
+   0:	b510      	push	{r4, lr}
+   2:	f7ff fffe 	bl	0 <dev_display_get>
+   6:	b148      	cbz	r0, 1c <_yn_ol_exec_clear+0x1c>
+   8:	4604      	mov	r4, r0
+   a:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+   e:	4620      	mov	r0, r4
+  10:	f7ff fffe 	bl	0 <_yn_ol_exec_clear>
+  14:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  18:	2000      	movs	r0, #0
+  1a:	bd10      	pop	{r4, pc}
+  1c:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  20:	e7fb      	b.n	1a <_yn_ol_exec_clear+0x1a>
+
+Disassembly of section .text._yn_ol_exec_clear_row:
+
+00000000 <_yn_ol_exec_clear_row>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4605      	mov	r5, r0
+   4:	f7ff fffe 	bl	0 <dev_display_get>
+   8:	b168      	cbz	r0, 26 <_yn_ol_exec_clear_row+0x26>
+   a:	4604      	mov	r4, r0
+   c:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  10:	4629      	mov	r1, r5
+  12:	4620      	mov	r0, r4
+  14:	f7ff fffe 	bl	0 <_yn_ol_exec_clear_row>
+  18:	4620      	mov	r0, r4
+  1a:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  1e:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  22:	2000      	movs	r0, #0
+  24:	bd38      	pop	{r3, r4, r5, pc}
+  26:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  2a:	e7fb      	b.n	24 <_yn_ol_exec_clear_row+0x24>
+
+Disassembly of section .text._yn_ol_exec_fill_all:
+
+00000000 <_yn_ol_exec_fill_all>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b083      	sub	sp, #12
+   4:	4604      	mov	r4, r0
+   6:	f7ff fffe 	bl	0 <dev_display_get>
+   a:	b1b8      	cbz	r0, 3c <_yn_ol_exec_fill_all+0x3c>
+   c:	4605      	mov	r5, r0
+   e:	1e63      	subs	r3, r4, #1
+  10:	b2db      	uxtb	r3, r3
+  12:	2b06      	cmp	r3, #6
+  14:	d815      	bhi.n	42 <_yn_ol_exec_fill_all+0x42>
+  16:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  1a:	896b      	ldrh	r3, [r5, #10]
+  1c:	9401      	str	r4, [sp, #4]
+  1e:	89aa      	ldrh	r2, [r5, #12]
+  20:	9200      	str	r2, [sp, #0]
+  22:	2200      	movs	r2, #0
+  24:	4611      	mov	r1, r2
+  26:	4628      	mov	r0, r5
+  28:	f7ff fffe 	bl	0 <dev_display_fill>
+  2c:	4628      	mov	r0, r5
+  2e:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  32:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  36:	2000      	movs	r0, #0
+  38:	b003      	add	sp, #12
+  3a:	bd30      	pop	{r4, r5, pc}
+  3c:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  40:	e7fa      	b.n	38 <_yn_ol_exec_fill_all+0x38>
+  42:	f06f 0001 	mvn.w	r0, #1
+  46:	e7f7      	b.n	38 <_yn_ol_exec_fill_all+0x38>
+
+Disassembly of section .text._yn_ol_exec_brightness:
+
+00000000 <_yn_ol_exec_brightness>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	4604      	mov	r4, r0
+   4:	f7ff fffe 	bl	0 <dev_display_get>
+   8:	b1a8      	cbz	r0, 36 <_yn_ol_exec_brightness+0x36>
+   a:	4605      	mov	r5, r0
+   c:	b164      	cbz	r4, 28 <_yn_ol_exec_brightness+0x28>
+   e:	2c08      	cmp	r4, #8
+  10:	d814      	bhi.n	3c <_yn_ol_exec_brightness+0x3c>
+  12:	4b0c      	ldr	r3, [pc, #48]	@ (44 <_yn_ol_exec_brightness+0x44>)
+  14:	6818      	ldr	r0, [r3, #0]
+  16:	b108      	cbz	r0, 1c <_yn_ol_exec_brightness+0x1c>
+  18:	f7ff fffe 	bl	0 <osThreadSuspend>
+  1c:	4621      	mov	r1, r4
+  1e:	4628      	mov	r0, r5
+  20:	f7ff fffe 	bl	0 <dev_display_set_brightness>
+  24:	2000      	movs	r0, #0
+  26:	bd38      	pop	{r3, r4, r5, pc}
+  28:	4b06      	ldr	r3, [pc, #24]	@ (44 <_yn_ol_exec_brightness+0x44>)
+  2a:	6818      	ldr	r0, [r3, #0]
+  2c:	b108      	cbz	r0, 32 <_yn_ol_exec_brightness+0x32>
+  2e:	f7ff fffe 	bl	0 <osThreadResume>
+  32:	2000      	movs	r0, #0
+  34:	e7f7      	b.n	26 <_yn_ol_exec_brightness+0x26>
+  36:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  3a:	e7f4      	b.n	26 <_yn_ol_exec_brightness+0x26>
+  3c:	f06f 0001 	mvn.w	r0, #1
+  40:	e7f1      	b.n	26 <_yn_ol_exec_brightness+0x26>
+  42:	bf00      	nop
+  44:	00000000 	.word	0x00000000
+
+Disassembly of section .text._yn_ol_exec_peripheral:
+
+00000000 <_yn_ol_exec_peripheral>:
+   0:	b510      	push	{r4, lr}
+   2:	f3c0 0280 	ubfx	r2, r0, #2, #1
+   6:	4614      	mov	r4, r2
+   8:	f010 0f02 	tst.w	r0, #2
+   c:	d107      	bne.n	1e <_yn_ol_exec_peripheral+0x1e>
+   e:	f000 0301 	and.w	r3, r0, #1
+  12:	b943      	cbnz	r3, 26 <_yn_ol_exec_peripheral+0x26>
+  14:	4620      	mov	r0, r4
+  16:	f7ff fffe 	bl	0 <dev_io_flash_light>
+  1a:	2000      	movs	r0, #0
+  1c:	bd10      	pop	{r4, pc}
+  1e:	2000      	movs	r0, #0
+  20:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  24:	e7f6      	b.n	14 <_yn_ol_exec_peripheral+0x14>
+  26:	2001      	movs	r0, #1
+  28:	f7ff fffe 	bl	0 <dev_io_lane_light>
+  2c:	e7f2      	b.n	14 <_yn_ol_exec_peripheral+0x14>
+
+Disassembly of section .text._yn_ol_net_payload:
+
+00000000 <_yn_ol_net_payload>:
+   0:	b510      	push	{r4, lr}
+   2:	b086      	sub	sp, #24
+   4:	4604      	mov	r4, r0
+   6:	a801      	add	r0, sp, #4
+   8:	f7ff fffe 	bl	0 <app_board_net_cfg_get>
+   c:	b968      	cbnz	r0, 2a <_yn_ol_net_payload+0x2a>
+   e:	9b01      	ldr	r3, [sp, #4]
+  10:	6023      	str	r3, [r4, #0]
+  12:	9b02      	ldr	r3, [sp, #8]
+  14:	6063      	str	r3, [r4, #4]
+  16:	9b03      	ldr	r3, [sp, #12]
+  18:	60a3      	str	r3, [r4, #8]
+  1a:	9b04      	ldr	r3, [sp, #16]
+  1c:	f3c3 2207 	ubfx	r2, r3, #8, #8
+  20:	7322      	strb	r2, [r4, #12]
+  22:	7363      	strb	r3, [r4, #13]
+  24:	2001      	movs	r0, #1
+  26:	b006      	add	sp, #24
+  28:	bd10      	pop	{r4, pc}
+  2a:	2000      	movs	r0, #0
+  2c:	e7fb      	b.n	26 <_yn_ol_net_payload+0x26>
+
+Disassembly of section .text._yn_ol_exec_get_ip:
+
+00000000 <_yn_ol_exec_get_ip>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b084      	sub	sp, #16
+   4:	4606      	mov	r6, r0
+   6:	2400      	movs	r4, #0
+   8:	9400      	str	r4, [sp, #0]
+   a:	9401      	str	r4, [sp, #4]
+   c:	9402      	str	r4, [sp, #8]
+   e:	f8ad 400c 	strh.w	r4, [sp, #12]
+  12:	4668      	mov	r0, sp
+  14:	f7ff fffe 	bl	0 <_yn_ol_exec_get_ip>
+  18:	230e      	movs	r3, #14
+  1a:	466a      	mov	r2, sp
+  1c:	2151      	movs	r1, #81	@ 0x51
+  1e:	4630      	mov	r0, r6
+  20:	f7ff fffe 	bl	0 <_yn_ol_exec_get_ip>
+  24:	4620      	mov	r0, r4
+  26:	b004      	add	sp, #16
+  28:	bd70      	pop	{r4, r5, r6, pc}
+
+Disassembly of section .text._yn_ol_exec_set_ip:
+
+00000000 <_yn_ol_exec_set_ip>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b08d      	sub	sp, #52	@ 0x34
+   4:	4605      	mov	r5, r0
+   6:	460c      	mov	r4, r1
+   8:	a807      	add	r0, sp, #28
+   a:	f7ff fffe 	bl	0 <app_board_net_cfg_get>
+   e:	bb08      	cbnz	r0, 54 <_yn_ol_exec_set_ip+0x54>
+  10:	9b0b      	ldr	r3, [sp, #44]	@ 0x2c
+  12:	9300      	str	r3, [sp, #0]
+  14:	8aa3      	ldrh	r3, [r4, #20]
+  16:	f104 0210 	add.w	r2, r4, #16
+  1a:	f104 010c 	add.w	r1, r4, #12
+  1e:	f104 0008 	add.w	r0, r4, #8
+  22:	f7ff fffe 	bl	0 <app_board_net_cfg_update>
+  26:	68a3      	ldr	r3, [r4, #8]
+  28:	9303      	str	r3, [sp, #12]
+  2a:	68e3      	ldr	r3, [r4, #12]
+  2c:	9304      	str	r3, [sp, #16]
+  2e:	6923      	ldr	r3, [r4, #16]
+  30:	9305      	str	r3, [sp, #20]
+  32:	8aa3      	ldrh	r3, [r4, #20]
+  34:	0a1a      	lsrs	r2, r3, #8
+  36:	f88d 2018 	strb.w	r2, [sp, #24]
+  3a:	f88d 3019 	strb.w	r3, [sp, #25]
+  3e:	230e      	movs	r3, #14
+  40:	aa03      	add	r2, sp, #12
+  42:	2151      	movs	r1, #81	@ 0x51
+  44:	4628      	mov	r0, r5
+  46:	f7ff fffe 	bl	0 <_yn_ol_exec_set_ip>
+  4a:	2064      	movs	r0, #100	@ 0x64
+  4c:	f7ff fffe 	bl	0 <osDelay>
+  50:	f7ff fffe 	bl	0 <_yn_ol_exec_set_ip>
+  54:	f644 6387 	movw	r3, #20103	@ 0x4e87
+  58:	e7db      	b.n	12 <_yn_ol_exec_set_ip+0x12>
+
+Disassembly of section .text._yn_ol_exec_version:
+
+00000000 <_yn_ol_exec_version>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b09a      	sub	sp, #104	@ 0x68
+   4:	220a      	movs	r2, #10
+   6:	4926      	ldr	r1, [pc, #152]	@ (a0 <_yn_ol_exec_version+0xa0>)
+   8:	f7ff fffe 	bl	0 <channel_send>
+   c:	f7ff fffe 	bl	0 <dev_display_get>
+  10:	2800      	cmp	r0, #0
+  12:	d042      	beq.n	9a <_yn_ol_exec_version+0x9a>
+  14:	4605      	mov	r5, r0
+  16:	ae02      	add	r6, sp, #8
+  18:	4b21      	ldr	r3, [pc, #132]	@ (a0 <_yn_ol_exec_version+0xa0>)
+  1a:	4a22      	ldr	r2, [pc, #136]	@ (a4 <_yn_ol_exec_version+0xa4>)
+  1c:	2140      	movs	r1, #64	@ 0x40
+  1e:	4630      	mov	r0, r6
+  20:	f7ff fffe 	bl	0 <snprintf>
+  24:	f7ff fffe 	bl	0 <app_scroll_render_lock>
+  28:	896b      	ldrh	r3, [r5, #10]
+  2a:	2400      	movs	r4, #0
+  2c:	9401      	str	r4, [sp, #4]
+  2e:	89aa      	ldrh	r2, [r5, #12]
+  30:	9200      	str	r2, [sp, #0]
+  32:	4622      	mov	r2, r4
+  34:	4621      	mov	r1, r4
+  36:	4628      	mov	r0, r5
+  38:	f7ff fffe 	bl	0 <dev_display_fill>
+  3c:	f04f 0300 	mov.w	r3, #0
+  40:	f8ad 404c 	strh.w	r4, [sp, #76]	@ 0x4c
+  44:	f8ad 404e 	strh.w	r4, [sp, #78]	@ 0x4e
+  48:	896a      	ldrh	r2, [r5, #10]
+  4a:	f8ad 2050 	strh.w	r2, [sp, #80]	@ 0x50
+  4e:	89aa      	ldrh	r2, [r5, #12]
+  50:	f8ad 2052 	strh.w	r2, [sp, #82]	@ 0x52
+  54:	2201      	movs	r2, #1
+  56:	f88d 2054 	strb.w	r2, [sp, #84]	@ 0x54
+  5a:	f88d 3055 	strb.w	r3, [sp, #85]	@ 0x55
+  5e:	9616      	str	r6, [sp, #88]	@ 0x58
+  60:	2211      	movs	r2, #17
+  62:	f8ad 205c 	strh.w	r2, [sp, #92]	@ 0x5c
+  66:	f88d 305e 	strb.w	r3, [sp, #94]	@ 0x5e
+  6a:	4b0f      	ldr	r3, [pc, #60]	@ (a8 <_yn_ol_exec_version+0xa8>)
+  6c:	781b      	ldrb	r3, [r3, #0]
+  6e:	f88d 305f 	strb.w	r3, [sp, #95]	@ 0x5f
+  72:	4b0e      	ldr	r3, [pc, #56]	@ (ac <_yn_ol_exec_version+0xac>)
+  74:	681b      	ldr	r3, [r3, #0]
+  76:	f8ad 3048 	strh.w	r3, [sp, #72]	@ 0x48
+  7a:	0c1b      	lsrs	r3, r3, #16
+  7c:	f88d 304a 	strb.w	r3, [sp, #74]	@ 0x4a
+  80:	ab12      	add	r3, sp, #72	@ 0x48
+  82:	9318      	str	r3, [sp, #96]	@ 0x60
+  84:	2302      	movs	r3, #2
+  86:	f88d 3064 	strb.w	r3, [sp, #100]	@ 0x64
+  8a:	a813      	add	r0, sp, #76	@ 0x4c
+  8c:	f7ff fffe 	bl	0 <app_render>
+  90:	f7ff fffe 	bl	0 <app_scroll_render_unlock>
+  94:	4620      	mov	r0, r4
+  96:	b01a      	add	sp, #104	@ 0x68
+  98:	bd70      	pop	{r4, r5, r6, pc}
+  9a:	f04f 30ff 	mov.w	r0, #4294967295	@ 0xffffffff
+  9e:	e7fa      	b.n	96 <_yn_ol_exec_version+0x96>
+  a0:	00000000 	.word	0x00000000
+  a4:	0000000c 	.word	0x0000000c
+	...
+
+Disassembly of section .text.yn_ol_screen_cfg_load:
+
+00000000 <yn_ol_screen_cfg_load>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	f7ff fffe 	bl	0 <dev_w25qxx_get>
+   6:	2800      	cmp	r0, #0
+   8:	d03d      	beq.n	86 <yn_ol_screen_cfg_load+0x86>
+   a:	4605      	mov	r5, r0
+   c:	4c20      	ldr	r4, [pc, #128]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+   e:	2300      	movs	r3, #0
+  10:	6023      	str	r3, [r4, #0]
+  12:	6063      	str	r3, [r4, #4]
+  14:	60a3      	str	r3, [r4, #8]
+  16:	f7ff fffe 	bl	0 <yn_ol_screen_cfg_load>
+  1a:	4601      	mov	r1, r0
+  1c:	230c      	movs	r3, #12
+  1e:	4622      	mov	r2, r4
+  20:	4628      	mov	r0, r5
+  22:	f7ff fffe 	bl	0 <yn_ol_screen_cfg_load>
+  26:	2800      	cmp	r0, #0
+  28:	db2f      	blt.n	8a <yn_ol_screen_cfg_load+0x8a>
+  2a:	6823      	ldr	r3, [r4, #0]
+  2c:	f1b3 3fff 	cmp.w	r3, #4294967295	@ 0xffffffff
+  30:	d010      	beq.n	54 <yn_ol_screen_cfg_load+0x54>
+  32:	4a18      	ldr	r2, [pc, #96]	@ (94 <yn_ol_screen_cfg_load+0x94>)
+  34:	4293      	cmp	r3, r2
+  36:	d10a      	bne.n	4e <yn_ol_screen_cfg_load+0x4e>
+  38:	4b15      	ldr	r3, [pc, #84]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+  3a:	889b      	ldrh	r3, [r3, #4]
+  3c:	2b01      	cmp	r3, #1
+  3e:	d106      	bne.n	4e <yn_ol_screen_cfg_load+0x4e>
+  40:	4b13      	ldr	r3, [pc, #76]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+  42:	79d9      	ldrb	r1, [r3, #7]
+  44:	7998      	ldrb	r0, [r3, #6]
+  46:	f7ff fffe 	bl	0 <yn_ol_screen_cfg_load>
+  4a:	4604      	mov	r4, r0
+  4c:	b940      	cbnz	r0, 60 <yn_ol_screen_cfg_load+0x60>
+  4e:	2400      	movs	r4, #0
+  50:	4620      	mov	r0, r4
+  52:	bd38      	pop	{r3, r4, r5, pc}
+  54:	68a2      	ldr	r2, [r4, #8]
+  56:	f1b2 3fff 	cmp.w	r2, #4294967295	@ 0xffffffff
+  5a:	d1ea      	bne.n	32 <yn_ol_screen_cfg_load+0x32>
+  5c:	2400      	movs	r4, #0
+  5e:	e7f7      	b.n	50 <yn_ol_screen_cfg_load+0x50>
+  60:	4b0b      	ldr	r3, [pc, #44]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+  62:	689b      	ldr	r3, [r3, #8]
+  64:	461d      	mov	r5, r3
+  66:	f7ff fffe 	bl	0 <pl_crc_get_handle>
+  6a:	2208      	movs	r2, #8
+  6c:	4908      	ldr	r1, [pc, #32]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+  6e:	f7ff fffe 	bl	0 <pl_crc32_calc>
+  72:	4285      	cmp	r5, r0
+  74:	d1eb      	bne.n	4e <yn_ol_screen_cfg_load+0x4e>
+  76:	4b06      	ldr	r3, [pc, #24]	@ (90 <yn_ol_screen_cfg_load+0x90>)
+  78:	7999      	ldrb	r1, [r3, #6]
+  7a:	4a07      	ldr	r2, [pc, #28]	@ (98 <yn_ol_screen_cfg_load+0x98>)
+  7c:	7011      	strb	r1, [r2, #0]
+  7e:	79da      	ldrb	r2, [r3, #7]
+  80:	4b06      	ldr	r3, [pc, #24]	@ (9c <yn_ol_screen_cfg_load+0x9c>)
+  82:	701a      	strb	r2, [r3, #0]
+  84:	e7e4      	b.n	50 <yn_ol_screen_cfg_load+0x50>
+  86:	4604      	mov	r4, r0
+  88:	e7e2      	b.n	50 <yn_ol_screen_cfg_load+0x50>
+  8a:	2400      	movs	r4, #0
+  8c:	e7e0      	b.n	50 <yn_ol_screen_cfg_load+0x50>
+  8e:	bf00      	nop
+  90:	00000000 	.word	0x00000000
+  94:	594e4f4c 	.word	0x594e4f4c
+	...
+
+Disassembly of section .text.yn_ol_screen_cfg_save:
+
+00000000 <yn_ol_screen_cfg_save>:
+   0:	b538      	push	{r3, r4, r5, lr}
+   2:	f7ff fffe 	bl	0 <dev_w25qxx_get>
+   6:	b1f0      	cbz	r0, 46 <yn_ol_screen_cfg_save+0x46>
+   8:	4605      	mov	r5, r0
+   a:	4c0f      	ldr	r4, [pc, #60]	@ (48 <yn_ol_screen_cfg_save+0x48>)
+   c:	4b0f      	ldr	r3, [pc, #60]	@ (4c <yn_ol_screen_cfg_save+0x4c>)
+   e:	6023      	str	r3, [r4, #0]
+  10:	2301      	movs	r3, #1
+  12:	80a3      	strh	r3, [r4, #4]
+  14:	4b0e      	ldr	r3, [pc, #56]	@ (50 <yn_ol_screen_cfg_save+0x50>)
+  16:	781b      	ldrb	r3, [r3, #0]
+  18:	71a3      	strb	r3, [r4, #6]
+  1a:	4b0e      	ldr	r3, [pc, #56]	@ (54 <yn_ol_screen_cfg_save+0x54>)
+  1c:	781b      	ldrb	r3, [r3, #0]
+  1e:	71e3      	strb	r3, [r4, #7]
+  20:	f7ff fffe 	bl	0 <pl_crc_get_handle>
+  24:	2208      	movs	r2, #8
+  26:	4621      	mov	r1, r4
+  28:	f7ff fffe 	bl	0 <pl_crc32_calc>
+  2c:	60a0      	str	r0, [r4, #8]
+  2e:	4628      	mov	r0, r5
+  30:	f7ff fffe 	bl	0 <yn_ol_screen_cfg_save>
+  34:	4601      	mov	r1, r0
+  36:	230c      	movs	r3, #12
+  38:	4622      	mov	r2, r4
+  3a:	4628      	mov	r0, r5
+  3c:	f7ff fffe 	bl	0 <yn_ol_screen_cfg_save>
+  40:	fab0 f080 	clz	r0, r0
+  44:	0940      	lsrs	r0, r0, #5
+  46:	bd38      	pop	{r3, r4, r5, pc}
+  48:	00000000 	.word	0x00000000
+  4c:	594e4f4c 	.word	0x594e4f4c
+	...
+
+Disassembly of section .text._yn_ol_exec_screen_param:
+
+00000000 <_yn_ol_exec_screen_param>:
+   0:	b508      	push	{r3, lr}
+   2:	7802      	ldrb	r2, [r0, #0]
+   4:	4b04      	ldr	r3, [pc, #16]	@ (18 <_yn_ol_exec_screen_param+0x18>)
+   6:	701a      	strb	r2, [r3, #0]
+   8:	7842      	ldrb	r2, [r0, #1]
+   a:	4b04      	ldr	r3, [pc, #16]	@ (1c <_yn_ol_exec_screen_param+0x1c>)
+   c:	701a      	strb	r2, [r3, #0]
+   e:	f7ff fffe 	bl	0 <_yn_ol_exec_screen_param>
+  12:	2000      	movs	r0, #0
+  14:	bd08      	pop	{r3, pc}
+  16:	bf00      	nop
+	...
+
+Disassembly of section .text.yn_ol_current_font_size:
+
+00000000 <yn_ol_current_font_size>:
+   0:	4b01      	ldr	r3, [pc, #4]	@ (8 <yn_ol_current_font_size+0x8>)
+   2:	7818      	ldrb	r0, [r3, #0]
+   4:	4770      	bx	lr
+   6:	bf00      	nop
+   8:	00000000 	.word	0x00000000
+
+Disassembly of section .text.yn_ol_current_font_type:
+
+00000000 <yn_ol_current_font_type>:
+   0:	4b01      	ldr	r3, [pc, #4]	@ (8 <yn_ol_current_font_type+0x8>)
+   2:	7818      	ldrb	r0, [r3, #0]
+   4:	4770      	bx	lr
+   6:	bf00      	nop
+   8:	00000000 	.word	0x00000000
+
+Disassembly of section .text.yn_ol_execute_cmd:
+
+00000000 <yn_ol_execute_cmd>:
+   0:	2900      	cmp	r1, #0
+   2:	d06d      	beq.n	e0 <yn_ol_execute_cmd+0xe0>
+   4:	b508      	push	{r3, lr}
+   6:	460a      	mov	r2, r1
+   8:	784b      	ldrb	r3, [r1, #1]
+   a:	2b00      	cmp	r3, #0
+   c:	d16b      	bne.n	e6 <yn_ol_execute_cmd+0xe6>
+   e:	4b39      	ldr	r3, [pc, #228]	@ (f4 <yn_ol_execute_cmd+0xf4>)
+  10:	781b      	ldrb	r3, [r3, #0]
+  12:	b12b      	cbz	r3, 20 <yn_ol_execute_cmd+0x20>
+  14:	780b      	ldrb	r3, [r1, #0]
+  16:	2b32      	cmp	r3, #50	@ 0x32
+  18:	d002      	beq.n	20 <yn_ol_execute_cmd+0x20>
+  1a:	4b37      	ldr	r3, [pc, #220]	@ (f8 <yn_ol_execute_cmd+0xf8>)
+  1c:	2101      	movs	r1, #1
+  1e:	7019      	strb	r1, [r3, #0]
+  20:	7813      	ldrb	r3, [r2, #0]
+  22:	2b35      	cmp	r3, #53	@ 0x35
+  24:	d04a      	beq.n	bc <yn_ol_execute_cmd+0xbc>
+  26:	d81b      	bhi.n	60 <yn_ol_execute_cmd+0x60>
+  28:	2b32      	cmp	r3, #50	@ 0x32
+  2a:	d03f      	beq.n	ac <yn_ol_execute_cmd+0xac>
+  2c:	d80c      	bhi.n	48 <yn_ol_execute_cmd+0x48>
+  2e:	2b02      	cmp	r3, #2
+  30:	d053      	beq.n	da <yn_ol_execute_cmd+0xda>
+  32:	2b31      	cmp	r3, #49	@ 0x31
+  34:	d037      	beq.n	a6 <yn_ol_execute_cmd+0xa6>
+  36:	2b01      	cmp	r3, #1
+  38:	d103      	bne.n	42 <yn_ol_execute_cmd+0x42>
+  3a:	7a10      	ldrb	r0, [r2, #8]
+  3c:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  40:	e033      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  42:	f06f 0003 	mvn.w	r0, #3
+  46:	e030      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  48:	2b33      	cmp	r3, #51	@ 0x33
+  4a:	d032      	beq.n	b2 <yn_ol_execute_cmd+0xb2>
+  4c:	2b34      	cmp	r3, #52	@ 0x34
+  4e:	d104      	bne.n	5a <yn_ol_execute_cmd+0x5a>
+  50:	f102 0008 	add.w	r0, r2, #8
+  54:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  58:	e027      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  5a:	f06f 0003 	mvn.w	r0, #3
+  5e:	e024      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  60:	2b47      	cmp	r3, #71	@ 0x47
+  62:	d032      	beq.n	ca <yn_ol_execute_cmd+0xca>
+  64:	d908      	bls.n	78 <yn_ol_execute_cmd+0x78>
+  66:	2b49      	cmp	r3, #73	@ 0x49
+  68:	d032      	beq.n	d0 <yn_ol_execute_cmd+0xd0>
+  6a:	2b50      	cmp	r3, #80	@ 0x50
+  6c:	d014      	beq.n	98 <yn_ol_execute_cmd+0x98>
+  6e:	2b48      	cmp	r3, #72	@ 0x48
+  70:	d116      	bne.n	a0 <yn_ol_execute_cmd+0xa0>
+  72:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  76:	e018      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  78:	2b41      	cmp	r3, #65	@ 0x41
+  7a:	d022      	beq.n	c2 <yn_ol_execute_cmd+0xc2>
+  7c:	d808      	bhi.n	90 <yn_ol_execute_cmd+0x90>
+  7e:	2b38      	cmp	r3, #56	@ 0x38
+  80:	d103      	bne.n	8a <yn_ol_execute_cmd+0x8a>
+  82:	7a10      	ldrb	r0, [r2, #8]
+  84:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  88:	e00f      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  8a:	f06f 0003 	mvn.w	r0, #3
+  8e:	e00c      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  90:	3b42      	subs	r3, #66	@ 0x42
+  92:	b2db      	uxtb	r3, r3
+  94:	2b04      	cmp	r3, #4
+  96:	d829      	bhi.n	ec <yn_ol_execute_cmd+0xec>
+  98:	7a10      	ldrb	r0, [r2, #8]
+  9a:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  9e:	e004      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  a0:	f06f 0003 	mvn.w	r0, #3
+  a4:	e001      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  a6:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  aa:	bd08      	pop	{r3, pc}
+  ac:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  b0:	e7fb      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  b2:	f102 0008 	add.w	r0, r2, #8
+  b6:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  ba:	e7f6      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  bc:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  c0:	e7f3      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  c2:	7a10      	ldrb	r0, [r2, #8]
+  c4:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  c8:	e7ef      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  ca:	4611      	mov	r1, r2
+  cc:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  d0:	f102 0008 	add.w	r0, r2, #8
+  d4:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  d8:	e7e7      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  da:	f7ff fffe 	bl	0 <yn_ol_execute_cmd>
+  de:	e7e4      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  e0:	f06f 0002 	mvn.w	r0, #2
+  e4:	4770      	bx	lr
+  e6:	f06f 0002 	mvn.w	r0, #2
+  ea:	e7de      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  ec:	f06f 0003 	mvn.w	r0, #3
+  f0:	e7db      	b.n	aa <yn_ol_execute_cmd+0xaa>
+  f2:	bf00      	nop
+	...

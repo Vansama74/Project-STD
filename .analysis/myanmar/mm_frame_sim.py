@@ -414,7 +414,11 @@ def run_source_assertions() -> None:
     has(hdr, r"MM_CMD_LANE_RED\s*=\s*0x90", "0x90 红灯命令字")
     has(hdr, r"MM_CMD_LANE_LEFT\s*=\s*0x0A", "0x0A 左下箭头命令字")
     has(hdr, r"MM_CMD_LANE_RIGHT\s*=\s*0x0B", "0x0B 右下箭头命令字")
-    has(hdr, r"_Static_assert\(MM_FRAME_LEN == 20U", "定长 20 字节编译期断言")
+    # 2026-10-13 全仓编译期断言清理（用户裁决）：原 `_Static_assert(MM_FRAME_LEN == 20U)`
+    # 存在性检查改为「契约注释存在」+「宿主侧复算」。
+    has(hdr, r"契约：帧定长 20B（协议文档固定）且 ≤ RS232 RB 容量",
+        "定长 20 字节契约注释（原编译期断言）")
+    case("[源码] MM_FRAME_LEN == 20（宿主侧复算）", MM_FRAME_LEN, 20)
     # 只绑 RS232；不得出现其它通道的 bind
     binds = re.findall(r"app_proto_bind_channel\([^,]+,\s*([A-Z_0-9]+)\)", proto_code)
     case("[源码] 唯一 bind 通道 = CH_ID_RS232", binds, ["CH_ID_RS232"])

@@ -44,9 +44,9 @@ static bool anhui_is_ascii_digit(uint8_t c)
  * @param  raw      原始帧数据。
  * @param  raw_len  原始帧长度。
  * @return 解析后的命令结构体；状态字段 sta 标识解析结果。
- * @note   坐标上限以模组驱动实际屏幕尺寸为准（用户裁决 2026-09-04）：
- *         协议文档的 128×64 不作为标准，parse 层不做坐标范围校验，
- *         越界由执行层按 dev_display_get() 的 screen_rows/screen_cols 判界丢弃。
+ * @note   坐标上限以模组驱动实际屏幕尺寸为准：协议文档的 128×64 不作为标准，
+ *         parse 层不做坐标范围校验，越界由执行层按 dev_display_get() 的
+ *         screen_rows/screen_cols 判界丢弃。
  */
 anhui_parsed_cmd_t anhui_parse_frame(const uint8_t *raw, uint16_t raw_len)
 {
@@ -81,8 +81,8 @@ anhui_parsed_cmd_t anhui_parse_frame(const uint8_t *raw, uint16_t raw_len)
         case ANHUI_PCMD_PIXEL_ON:
         case ANHUI_PCMD_PIXEL_OFF:
             /* 显示点/关闭点：X(1B) + Y(1B)；
-             * 坐标不在此校验（用户裁决 2026-09-04）：范围以模组驱动实际屏幕
-             * 尺寸为准，越界坐标由执行层 dev_display_set_pixel 边界检查丢弃 */
+             * 坐标不在此校验：范围以模组驱动实际屏幕尺寸为准，越界坐标由
+             * 执行层 dev_display_set_pixel 边界检查丢弃 */
             if (declared != 2) {
                 cmd.sta = ANHUI_PARSE_ERR_PARAM;
                 break;
@@ -93,13 +93,11 @@ anhui_parsed_cmd_t anhui_parse_frame(const uint8_t *raw, uint16_t raw_len)
 
         case ANHUI_PCMD_STATIC_TEXT:
             /* 静态显示：X(1B) + Y(1B) + 文本（GBK）；数据长 = 2 + 文本长度。
-             * 坐标语义（2026-09-15 终裁，doc/13 §1.2）：x = data[0]、y = data[1]，
-             * 均直接作为像素坐标渲染（与 0x82/0x83 点命令完全同构、与文档表头
-             * 「（X、Y）」X 在前一致）；固件不做任何行号换算——显示位置 (0,16)
-             * 就从 (0,16) 开始显示。此前「行号换算 row=Y/16→pixel_y=row×24」
-             * 与「data[0]/data[1] 对调」两轮口径均已撤销（用户裁决 2026-09-15）。
-             * 坐标不在此校验（用户裁决 2026-09-04）：范围以模组驱动实际屏幕
-             * 尺寸为准，起点越界由执行层 _anhui_exec_static_text 早退丢弃 */
+             * 坐标语义（doc/13 §1.2）：x = data[0]、y = data[1]，均直接作为像素
+             * 坐标渲染（与 0x82/0x83 点命令完全同构、与文档表头「（X、Y）」X 在前
+             * 一致）；固件不做行号换算——显示位置 (0,16) 就从 (0,16) 开始显示。
+             * 坐标不在此校验：范围以模组驱动实际屏幕尺寸为准，起点越界由执行层
+             * _anhui_exec_static_text 早退丢弃 */
             if (declared < 2) {
                 cmd.sta = ANHUI_PARSE_ERR_PARAM;
                 break;
@@ -114,13 +112,13 @@ anhui_parsed_cmd_t anhui_parse_frame(const uint8_t *raw, uint16_t raw_len)
         case ANHUI_PCMD_SCROLL_2:
         case ANHUI_PCMD_SCROLL_3:
         case ANHUI_PCMD_SCROLL_4: {
-            /* 动态显示（2026-S304 权威 .doc 第 8 节，2026-09-08 核对）：
+            /* 动态显示（doc/13 §1.1）：
              *   数据长 = 运动模式至文本区 = 运动模式(1B) + 速度(1B，×2ms) +
              *   停留时间(2B，×100ms，大端——文档示例「00 10」=16×100ms=1.6s) + 文本(ANSI)；
              * 动态停止（文档第 9 节「运态停止」）= 数据长 4 且四字节全 0：
              *   「5A 01 86 04 00 00 00 00 00 A5」，命令 86~89 对应第 1~4 行。
              * 运动模式取值含义文档未定义（仅示例值 01），mode 1~4 方向映射在
-             * 执行层按用户拍板约定转换（doc/13 §8，待联调校准）。 */
+             * 执行层按工程约定转换（doc/13 §8，待联调校准）。 */
             if (declared < 4) {
                 cmd.sta = ANHUI_PARSE_ERR_PARAM;
                 break;
@@ -134,8 +132,8 @@ anhui_parsed_cmd_t anhui_parse_frame(const uint8_t *raw, uint16_t raw_len)
                 cmd.p.scroll.text     = nullptr;
                 cmd.p.scroll.text_len = 0;
             } else if (declared == 4) {
-                /* 防御（2026-09-04）：数据长恰为 4 但非停止帧（mode/speed/stay 占满
-                 * 全部数据区）——无文本字节，&data[4] 会指向数据区之外（CRC 字节）。
+                /* 防御：数据长恰为 4 但非停止帧（mode/speed/stay 占满全部数据区）——
+                 * 无文本字节，&data[4] 会指向数据区之外（CRC 字节）。
                  * 置空后执行层按停止处理（文档未定义该形态，防御口径）。 */
                 cmd.p.scroll.text     = nullptr;
                 cmd.p.scroll.text_len = 0;

@@ -71,7 +71,7 @@ int  board_net_cfg_set(const uint8_t ip[4], const uint8_t mask[4], const uint8_t
 2. `app_iap_cfg.h` 可薄包装 `#include "app_board_net_cfg.h"` + deprecated 别名（过渡一期）。  
 3. LDI：`#include "app_board_net_cfg.h"`，替换 **4 处**调用（`app_ldi.c:100/104/108`、`app_ldi_cmd.c:431`）为 `board_net_cfg_*`。  
 4. IAP 协议：`app_iap_cmd.c:94/110/143` 三处裸读改经 `board_net_cfg` API，消除裸转换；升级状态 / FWInfo 继续用同一头文件（若 FWInfo 仍在同结构，可同模块或再拆 `app_board_fw_meta`）。  
-5. **布局锁定**：在 `app_board_net_cfg.h`（唯一归属）用 `static_assert` 锁死 `sizeof` / `offsetof` 与 magic 值，保证 0x08004000 布局与 Boot/Recovery **二进制兼容**；同步收敛/删除其余 3 处独立定义（`Device/Inc/config_info.h` 死代码直接删）。  
+5. **布局锁定**：在 `app_board_net_cfg.h`（唯一归属）以 §15 布局表 + 头文件契约注释锁死 `sizeof` / `offsetof` 与 magic 值，保证 0x08004000 布局与 Boot/Recovery **二进制兼容**；同步收敛/删除其余 3 处独立定义（`Device/Inc/config_info.h` 死代码直接删）。  
 6. **顺带修复（已定案并先行落地，见 §9）**：空 Sector1 写路径补 magic 初始化（[01 §3.4](./01_background_and_impact.md)）；写/擦除返回值上抛与失败处理（§8）。  
 7. EIDE/Makefile：`Config` 或 `board_net_cfg` 列为 **公共必选**；`IAP/` 协议目录可选。  
 8. 更新本目录 README 状态 → 已落地；补回归清单。
@@ -482,7 +482,7 @@ TCP 通道」表述与代码不符）。2026-08-24 起 TCP 口应用同步两口
 读，出厂默认 20103）。共存构建下两套口并存；ip/mask/gw 共享（setip 与 0AH 都写，
 现状不变）。
 
-**记录布局（三固件二进制兼容，各自 static_assert 锁定）**：
+**记录布局（三固件二进制兼容；本表为唯一口径，源码留契约注释）**：
 
 | 字段 | 偏移 | 大小 | 语义 |
 |------|------|------|------|

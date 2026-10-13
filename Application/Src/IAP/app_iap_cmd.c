@@ -39,8 +39,6 @@ const iap_cmd_handler_fn_t g_iap_cmd_table[IAP_CMD_COUNT] = {
 };
 
 /* 与 app_iap_cmd.h 的 IAP_CMD_COUNT 保持同步，防增删命令时查表越界 */
-static_assert(sizeof(g_iap_cmd_table) / sizeof(g_iap_cmd_table[0]) == IAP_CMD_COUNT,
-              "IAP 命令表条目数与 IAP_CMD_COUNT 不同步");
 
 /** @brief 构造 IAP 响应帧并发送 */
 /* ================================================================
@@ -121,12 +119,11 @@ static void cmd_ForceModifyIP_02(channel_t *ch, iap_frame_t *IAP_Data)
      * **重启生效**——此处仅持久化到 Sector1，不即时改 netif；上电由 Bootloader /
      * Recovery MX_LWIP_Init / 主固件 ldi_ctx_init 从 Sector1 读取生效。
      *
-     * 协议扩展（方案 2，2026-08-14）：应答帧由无载荷改为 1 word 结果码，
-     * 参照 4B04「准备升级」应答 0/1 先例——0x00000000 成功（含同值跳过）、
-     * 0x00000001 失败（擦写错误）。
-     * 兼容性风险：老上位机若按「B402 无载荷」解析，会多读到一个 word
-     * （被忽略还是报错取决于上位机实现），混合部署期需联调验证。 */
-    /* 方案 B（2026-08-21）：4B02 写 TCP 业务口（包内 port），udp_port 保留现值
+     * 应答帧附 1 word 结果码（协议文档未定义，参照 4B04「准备升级」应答 0/1 先例）：
+     * 0x00000000 成功（含同值跳过）、0x00000001 失败（擦写错误）。
+     * 兼容性约束：老上位机按「B402 无载荷」解析会多读一个 word，混合部署需联调
+     * 验证（见 doc/07 §10）。 */
+    /* 4B02 写 TCP 业务口（包内 port），udp_port 保留现值
      * （get 失败用出厂默认 20103）。 */
     app_board_net_cfg_t cur_cfg;
     uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;

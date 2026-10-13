@@ -8,7 +8,7 @@
  *       创迪发现口：LDI 21H/12H 搜索；IAP 升级：0x5A5A5A5A 帧。
  *   - CQ 业务口（CH_ID_UDP_CQ）：PROTO_CHONGQING 读 Sector1 `net_cfg.udp_port`
  *     默认 20103，dev 共存构建固定 20103（见 _udp_cq_read_port）。
- *   - 贵州治超业务口（CH_ID_UDP_GZOL，2026-09-14 用户裁决）：读 Sector1
+ *   - 贵州治超业务口（CH_ID_UDP_GZOL）：读 Sector1
  *     `net_cfg.port`（与 TCP 业务口同号、不同协议栈）→ GZ_OL `0x40` 改端口生效
  *     （见 _udp_gzol_read_port；不占用 CQ 专有 udp_port、不改 Sector1 布局）。
  */
@@ -49,20 +49,18 @@ static const osThreadAttr_t udp_connect_attr = {
     .priority   = osPriorityNormal,
 };
 
-/* ---- 文件级单实例通道：UAF 根治 ----
- * 连接任务退出后栈上通道实例悬垂是历史 UAF 根源。通道实例提为文件级
- * static，ch 指针生命周期恒定；连接任务重入时复用同一实例（init 重新
- * 拷贝模板重置状态）。已注销/未注册的旧通知由 dispatch 侧
- * app_channel_get 回验丢弃（app_dispatch.c）。 */
+/* ---- 文件级单实例通道（防 UAF）----
+ * 通道实例必须为文件级 static——放连接任务栈上会随任务退出悬垂，ch 指针
+ * 生命周期须恒定；连接任务重入时复用同一实例（init 重新拷贝模板重置状态）。
+ * 已注销/未注册的旧通知由 dispatch 侧 app_channel_get 回验丢弃（app_dispatch.c）。 */
 static udp_channel_t s_udp_ch;
 
-/* ---- 广播发送（2026-08-21 修复 LDI 搜索广播丢包）----
+/* ---- 广播发送 ----
  * 优先复用常驻通道 conn（udp_task 创建后已 ip_set_option(SOF_BROADCAST) 并
- * netconn_bind 驻留），不占 netconn 池——dev 共存构建 baseline 4 netconn
- * 已满（UDP 10011 + UDP 20103 + TCP Server listener + TCP Client），旧实现
- * 每次广播临时 netconn_new 必然 NULL → 静默丢包（LDI 12H 搜索应答 50-75%
- * 无响应）。常驻 conn 未就绪（断链重建窗口，deinit 已置 conn=NULL）时回退
- * 临时 conn 路径（池满时 netconn_new 仍可能 NULL → 静默，与旧行为一致）。
+ * netconn_bind 驻留），不占 netconn 池——dev 共存构建 netconn 池已满
+ * （UDP 10011 + UDP 20103 + TCP Server listener + TCP Client），临时
+ * netconn_new 必然 NULL → 静默丢包。常驻 conn 未就绪（断链重建窗口，deinit
+ * 已置 conn=NULL）时回退临时 conn 路径（池满时仍可能 NULL → 静默）。
  * netconn API 经 tcpip 线程 mailbox 投递，任务上下文调用安全；发送与断链
  * deinit/netconn_delete 的并发窗口与 channel_send 现状一致（已知限制）。 */
 static err_t _udp_broadcast_send(struct netconn *conn, const uint8_t *data, uint16_t len, uint16_t port)
@@ -227,13 +225,12 @@ void udp_connect_task(void *argument)
  *  CQ 业务口 UDP 通道（CH_ID_UDP_CQ）
  *
  *  完全镜像 10011 通道的 netconn 收发 / 断链重建模式。
- *  端口语义（见 _udp_cq_read_port，方案 B 2026-08-21）：
+ *  端口语义（见 _udp_cq_read_port）：
  *    - PROTO_CHONGQING（CQ 量产构建）：读 Sector1 net_cfg.udp_port（CQ UDP
  *      业务口专有字段，CQ setip 写入；空扇区由 app_net_boot 写 20103 出厂
  *      默认），有效（1~65535）即用，无效/0 回退 UDP_CQ_DEFAULT_PORT(20103)；
  *    - 其余（dev 共存构建，LDI 编入）：固定 20103——net_cfg.udp_port 在 dev
- *      构建无写入方（CQ setip 双构建语义见 doc/03 PartB B.7.1），固定
- *      20103 保证与 CQ 量产口径一致。
+ *      构建无写入方（见 doc/03 PartB B.7.1），固定 20103 保证与 CQ 量产口径一致。
  *  业务口承载 CQ JSON 业务 + 12B 二进制重启/搜索请求。
  * ================================================================ */
 
@@ -269,7 +266,7 @@ static const osThreadAttr_t udp_cq_connect_attr = {
 /* ---- 文件级单实例通道（UAF 根治，与 10011 通道同模式）---- */
 static udp_channel_t s_udp_cq_ch;
 
-/* 常驻 conn 复用广播（2026-08-21，语义同 app_udp_broadcast 见上）：
+/* 常驻 conn 复用广播（语义同 app_udp_broadcast 见上）：
  * udp_cq_task 创建常驻 conn 时已设 SOF_BROADCAST；常驻未就绪回退临时 conn。 */
 void app_udp_cq_broadcast(const uint8_t *data, uint16_t len)
 {
@@ -322,8 +319,8 @@ const osThreadAttr_t udp_cq_task_attr = {
 /** @brief 确定 CQ 业务口端口（udp_cq_task 每轮重建前调用，setip 重启后生效）。
  *
  *  PROTO_CHONGQING（CQ 量产构建）：读 Sector1 net_cfg.udp_port——CQ UDP 业务口
- *  专有字段（方案 B 2026-08-21，CQ setip 写入；空扇区由 app_net_boot 写 20103
- *  出厂默认），有效（1~65535）即用，无效/0 回退 UDP_CQ_DEFAULT_PORT(20103)。
+ *  专有字段（CQ setip 写入；空扇区由 app_net_boot 写 20103 出厂默认），
+ *  有效（1~65535）即用，无效/0 回退 UDP_CQ_DEFAULT_PORT(20103)。
  *
  *  其余构建（dev 共存，LDI 编入）：固定 UDP_CQ_DEFAULT_PORT，不读 net_cfg.udp_port
  *  ——dev 构建 udp_port 无写入方，读残留记录会与 CQ 量产口径不一致。
@@ -433,10 +430,9 @@ void udp_cq_connect_task(void *argument)
 /* ================================================================
  *  贵州治超业务口 UDP 通道（CH_ID_UDP_GZOL）
  *
- *  用户裁决（2026-09-14，见 doc/14 §13）：GZ_OL `0x40` 修改端口的字段语义
- *  忠实复现——服务口从 Sector1 `net_cfg.port` 读取（与 TCP 业务口同号、不同
- *  协议栈，互不冲突）；`0x40` 仍只写 `net_cfg.port`，不占用 CQ 专有
- *  `udp_port`、不改 Sector1 记录布局、不动 10011 发现口。
+ *  GZ_OL `0x40` 修改端口的字段语义（见 doc/14 §13）：服务口从 Sector1
+ *  `net_cfg.port` 读取（与 TCP 业务口同号、不同协议栈，互不冲突）；`0x40` 仍只写
+ *  `net_cfg.port`，不占用 CQ 专有 `udp_port`、不改 Sector1 记录布局、不动 10011 发现口。
  *
  *  端口来源与回退（_udp_gzol_read_port，每轮重建前重读）：
  *    - `net_cfg.port` 合法（1~65535）→ 采纳（`0x40` 落盘值，重启后生效）；
@@ -461,28 +457,6 @@ uint16_t app_udp_gzol_get_port(void)
     return g_udp_gzol_port;
 }
 
-/* ---- 绑定结果（只读观察：「0x40 改端口是否真的落到服务口」）---- */
-static volatile app_udp_gzol_bind_sta_t s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_UNKNOWN;
-static volatile int16_t s_udp_gzol_bind_err;      /* 最近一次 netconn_bind 错误码 */
-static volatile uint32_t s_udp_gzol_bind_ok_cnt;  /* 绑定成功次数（每次重建 +1） */
-
-app_udp_gzol_bind_sta_t app_udp_gzol_bind_status(void)
-{
-    return s_udp_gzol_bind_sta;
-}
-
-const char *app_udp_gzol_bind_status_str(void)
-{
-    switch (s_udp_gzol_bind_sta) {
-        case APP_UDP_GZOL_BIND_OK: return "OK";
-        case APP_UDP_GZOL_BIND_FALLBACK: return "FALLBACK(9528, net_cfg.port invalid)";
-        case APP_UDP_GZOL_BIND_SKIPPED: return "SKIPPED(port busy with 10011/CQ)";
-        case APP_UDP_GZOL_BIND_FAIL: return "FAIL(bind err)";
-        case APP_UDP_GZOL_BIND_UNKNOWN:
-        default: return "UNKNOWN(not started)";
-    }
-}
-
 /* ---- 信号量资源 ---- */
 static osSemaphoreId_t udp_gzol_disconnect_sem;
 
@@ -505,8 +479,6 @@ static const osThreadAttr_t udp_gzol_connect_attr = {
 
 /* ---- 文件级单实例通道（UAF 根治，与 10011 / CQ 实例同模式）---- */
 static udp_channel_t s_udp_gzol_ch;
-
-/* ---- 告警闩锁：同一异常端口值只打印一次（避免 2s 周期刷屏） ---- */
 
 static int32_t udp_gzol_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
 {
@@ -574,15 +546,12 @@ void udp_gzol_task(void *argument)
 
         if (!cfg_ok || busy) {
             /* cfg 无效 → 回退值 9528；与常驻口同号 → 跳过绑定（每 2s 重试一轮） */
-            s_udp_gzol_bind_sta = cfg_ok ? APP_UDP_GZOL_BIND_SKIPPED : APP_UDP_GZOL_BIND_FALLBACK;
             osDelay(2000);
             continue;
         }
 
         struct netconn *conn = netconn_new(NETCONN_UDP);
         if (conn == NULL) {
-            s_udp_gzol_bind_sta   = APP_UDP_GZOL_BIND_FAIL;
-            s_udp_gzol_bind_err   = -1; /* netconn 池耗尽（区别于 bind 错误码） */
             osDelay(2000);
             continue;
         }
@@ -591,9 +560,6 @@ void udp_gzol_task(void *argument)
         err_t err = netconn_bind(conn, IP_ADDR_ANY, g_udp_gzol_port);
 
         if (err == ERR_OK) {
-            s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_OK;
-            s_udp_gzol_bind_ok_cnt++;
-
             /* 清空残留断开信号，避免刚起来就误退 */
             while (osSemaphoreAcquire(udp_gzol_disconnect_sem, 0) == osOK);
 
@@ -605,9 +571,6 @@ void udp_gzol_task(void *argument)
                 /* 链路断开 / recv 失败后由 connect_task 释放信号量 */
                 osSemaphoreAcquire(udp_gzol_disconnect_sem, osWaitForever);
             }
-        } else {
-            s_udp_gzol_bind_sta = APP_UDP_GZOL_BIND_FAIL;
-            s_udp_gzol_bind_err = (int16_t)err;
         }
 
         /* 每次循环新建 netconn：delete 后不可再 bind 旧句柄 */

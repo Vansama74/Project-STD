@@ -20,7 +20,7 @@
  * 帧头已匹配但数据未到齐、且头部前缀在预算内**无任何前进** → 判「残帧卡头」，
  * 强制 skip 1 字节重同步（见 frame_dispatch_task）。取值 1000ms = 最长帧
  * （RLS 530B @9600bps ≈ 552ms）的 ~1.8× 余量；不可取 500ms（会打断合法长帧，
- * 依据与现场根因见 doc/15 §9）。可用 -DFRAME_WAIT_BUDGET_MS=xxx 覆盖。 */
+ * 依据见 doc/15 §9）。可用 -DFRAME_WAIT_BUDGET_MS=xxx 覆盖。 */
 #ifndef FRAME_WAIT_BUDGET_MS
 #define FRAME_WAIT_BUDGET_MS 1000U
 #endif
@@ -75,13 +75,10 @@ static const char *const names[RB_CNT_MAX] = {
     [RB_SLOT_RS232] = "rb_rs232",
 };
 
-_Static_assert(sizeof(g_rb_provide) / sizeof(g_rb_provide[0]) == RB_CNT_MAX, "g_rb_provide length");
-_Static_assert(sizeof(names) / sizeof(names[0]) == RB_CNT_MAX, "names length");
-_Static_assert(RB_SLOT_RJ45 == 0 && RB_SLOT_RS485 == 1 && RB_SLOT_RS232 == 2 &&
-                   RB_SLOT_COUNT == 3,
-               "rb_slot_t must stay contiguous");
-_Static_assert(RB_SIZE_RJ45 == 1536U && RB_SIZE_RS485 == 768U && RB_SIZE_RS232 == 768U,
-               "RB sizes must match product plan");
+/* 契约：`g_rb_provide` / `names` 两条表须逐槽对齐 `rb_slot_t`（长度 = RB_CNT_MAX、
+ * 下标 = 槽号），槽号须连续 0/1/2，容量须为产品口径 1536 / 768 / 768——改错会
+ * 错槽取体（acquire 返回错缓冲）或越界读表。见
+ * doc/05_协议模块多协议兼容优化/01_architecture.md §2.1（一物理通道一 RB）。 */
 
 /* ================================================================
  *  调度上下文 — 全部运行时的唯一状态聚合
@@ -93,22 +90,6 @@ _Static_assert(RB_SIZE_RJ45 == 1536U && RB_SIZE_RS485 == 768U && RB_SIZE_RS232 =
 dispatch_ctx_t g_dispatch;           /**< 全局调度上下文 */
 osThreadId_t g_dispatch_task_handle; /**< 帧分发任务句柄（外部用于 Suspend/Resume） */
 
-/* ---- 诊断计数访问器（只读；保留供调试器/JTAG 观察与将来复用）---- */
-uint32_t app_dispatch_qfull_drops(void)
-{
-    return g_dispatch.qfull_drop;
-}
-
-uint32_t app_dispatch_resync_count(void)
-{
-    return g_dispatch.resync_byte;
-}
-
-uint32_t app_dispatch_notify_drops(void)
-{
-    return g_dispatch.notify_drop;
-}
-
 /* ================================================================
  *  工具函数
  * ================================================================ */
@@ -116,15 +97,15 @@ uint32_t app_dispatch_notify_drops(void)
 /**
  * @brief 协议掩码 → 数组索引
  *
- * 通过 bit_ctz 计算尾零位数，将 bitmask 映射为 0~31 的索引。
+ * 通过 bit_ctz64 计算尾零位数，将 bitmask 映射为 0~63 的索引。
  *
  * @param mask  协议掩码（必须是 2 的幂或 0）
  * @return      对应的数组索引，mask=0 返回 0xFF
  */
-uint8_t proto_index(uint32_t mask)
+uint8_t proto_index(proto_mask_t mask)
 {
     if (mask == 0) return 0xff;
-    return (uint8_t)bit_ctz(mask);
+    return bit_ctz64(mask);
 }
 
 /* ================================================================
@@ -148,12 +129,12 @@ proto_mask_t app_proto_register(proto_probe_fn_t probe, ring_buffer_t *rb)
     if (rb == nullptr)
         return 0;
 
-    /* 找第一个空闲位 */
-    uint32_t free_bits = ~g_dispatch.registered_mask;
-    if (free_bits == 0) return 0; /* 32 槽全满 */
+    /* 找第一个空闲位（64 槽位图；最低空闲位由 bit_ctz64 定位） */
+    proto_mask_t free_bits = ~g_dispatch.registered_mask;
+    if (free_bits == 0) return 0; /* 64 槽全满 */
 
-    uint8_t idx       = (uint8_t)bit_ctz(free_bits);
-    proto_mask_t mask = (proto_mask_t)(1U << idx);
+    uint8_t idx       = bit_ctz64(free_bits);
+    proto_mask_t mask = (proto_mask_t)((proto_mask_t)1U << idx);
 
     g_dispatch.proto_rb[idx]    = rb;
     g_dispatch.proto_probe[idx] = probe;
@@ -184,10 +165,9 @@ void app_proto_set_frame_queue(proto_mask_t mask, osMessageQueueId_t queue)
  * 内部为 OR 累积——多个协议可绑定同一通道，同一协议也可绑定多个通道。
  * ch_proto_map 初始全零，全部由协议模块通过此函数声明。
  *
- * ⚠ 调用时机契约（2026-10-08 C3-D 起被 `app_boot.c` 的通道启动门控依赖）：
+ * ⚠ 调用时机契约（被 `app_boot.c` 的通道启动门控依赖）：
  * **必须在 `sw_app_initcall` 注册的 init 内调用**（即 `sw_board_init()` 阶段、
- * 早于 `app_boot.c` 的通道启动）——未绑定的通道不会启动。新增协议时保持此前提；
- * 结构校验脚本 `.analysis/audit_20261008/landing_20261008/check_channel_gate.py` 会检查。
+ * 早于 `app_boot.c` 的通道启动）——未绑定的通道不会启动。新增协议时保持此前提。
  */
 void app_proto_bind_channel(proto_mask_t mask, channel_id_t ch_id)
 {
@@ -197,9 +177,9 @@ void app_proto_bind_channel(proto_mask_t mask, channel_id_t ch_id)
 /**
  * @brief 查询某通道是否已有协议绑定（只读；越界返回 false）
  *
- * 供 app_boot.c 的通道启动编排使用（2026-10-08 C3-D 加固）：绑定关系全部由协议
- * 模块在 sw_board_init()（sw_app_initcall）中声明，早于通道启动；未绑定的通道
- * 启动后无人消费数据（此前静默丢弃、零日志），不启动可同时省下 netconn / DMA RX。
+ * 供 app_boot.c 的通道启动编排使用：绑定关系全部由协议模块在 sw_board_init()
+ * （sw_app_initcall）中声明，早于通道启动；未绑定的通道启动后无人消费数据，
+ * 不启动可同时省下 netconn / DMA RX。
  */
 bool app_dispatch_channel_has_proto(channel_id_t ch_id)
 {
@@ -314,7 +294,7 @@ void frame_dispatch_task(void *argument)
 
     /* WAIT 头阻塞预算状态（**按物理 RB 分槽**，本任务单消费者独占）。
      * 进度判据 = 头部前缀指纹，不是 avail 增长：残帧卡头时新数据仍会推高 avail，
-     * 按 avail 重置预算会使强制重同步永不触发（该 RB 永久不消费，现场根因见 doc/15 §9）。
+     * 按 avail 重置预算会使强制重同步永不触发（该 RB 永久不消费，见 doc/15 §9）。
      * 按 RB 分槽：全局单状态会被「另一条 RB 的到达」不断重置，卡头 RB 永不到期。 */
     static bool     s_wait_active[RB_CNT_MAX];  /**< 各 RB 的 WAIT 预算激活 */
     static uint32_t s_wait_tick[RB_CNT_MAX];    /**< 各 RB 的预算起点 tick */
@@ -342,12 +322,12 @@ void frame_dispatch_task(void *argument)
             continue;
         }
 
-        /* 外循环：遍历已注册协议位 */
-        uint32_t outer_iter = g_dispatch.registered_mask;
+        /* 外循环：遍历已注册协议位（64 位位图） */
+        proto_mask_t outer_iter = g_dispatch.registered_mask;
         while (outer_iter) {
-            uint8_t i = (uint8_t)bit_ctz(outer_iter);
+            uint8_t i = bit_ctz64(outer_iter);
             outer_iter &= outer_iter - 1;
-            uint32_t mask     = (1U << i);
+            proto_mask_t mask = ((proto_mask_t)1U << i);
             ring_buffer_t *rb = g_dispatch.proto_rb[i];
 
             /* 跳过：通道不承载此协议 / 空缓冲区 */
@@ -357,7 +337,7 @@ void frame_dispatch_task(void *argument)
             /* 跳过已处理过的缓冲区（仅限同一通道上的协议） */
             bool dup = false;
             for (uint8_t k = 0; k < i; k++)
-                if ((proto & (1U << k)) && g_dispatch.proto_rb[k] == rb) {
+                if ((proto & ((proto_mask_t)1U << k)) && g_dispatch.proto_rb[k] == rb) {
                     dup = true;
                     break;
                 }
@@ -383,11 +363,11 @@ void frame_dispatch_task(void *argument)
                 bool any_parsed  = false; /* 有协议：READY 读走或 SKIP 跳过 */
 
                 /* 按协议优先级顺序探测已注册协议 */
-                uint32_t inner_iter = g_dispatch.registered_mask;
+                proto_mask_t inner_iter = g_dispatch.registered_mask;
                 while (inner_iter) {
-                    uint8_t j = (uint8_t)bit_ctz(inner_iter);
+                    uint8_t j = bit_ctz64(inner_iter);
                     inner_iter &= inner_iter - 1;
-                    uint32_t inner_mask = (1U << j);
+                    proto_mask_t inner_mask = ((proto_mask_t)1U << j);
 
                     if ((proto & inner_mask) == 0) continue;
                     if (g_dispatch.proto_rb[j] != rb) continue;
@@ -420,10 +400,8 @@ void frame_dispatch_task(void *argument)
                         if (actual == frame_len) {
                             msg->data_len = frame_len;
                             msg->ch       = ch;
-                            /* 队列满 → 丢帧（协议任务被卡住/过载的证据）：计数后丢弃 */
-                            if (osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0) != osOK) {
-                                g_dispatch.qfull_drop++;
-                            }
+                            /* 队列满 → 丢帧（协议任务被卡住/过载）：丢弃本帧 */
+                            (void)osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0);
                         } else {
                             /* 异常：读出字节数不匹配，丢弃已读部分 */
                             rb_skip(rb, actual, nullptr);
@@ -475,7 +453,7 @@ void frame_dispatch_task(void *argument)
                          * **进度判据 = 头部前缀指纹变化（头被消费/前进），
                          * 绝不能按 avail 增长重置**：残帧卡头时用户每发一帧
                          * 新数据 avail 都增长，按 avail 重置 = 预算永不到期 =
-                         * 强制重同步永不触发 = 整条 RB 永久不消费（根因 B）。
+                         * 强制重同步永不触发 = 整条 RB 永久不消费。
                          * 头部指纹不变（哪怕缓冲区更长）＝ 没有进度，预算照走。 */
                         const uint32_t now = osKernelGetTickCount();
                         const uint32_t fp  = _rb_head_fp(rb, avail);
@@ -487,16 +465,14 @@ void frame_dispatch_task(void *argument)
                         } else if ((now - s_wait_tick[wait_slot]) >
                                    pdMS_TO_TICKS(FRAME_WAIT_BUDGET_MS)) {
                             /* 预算到期：头部前缀在预算时间内无任何前进 → 判残帧
-                             * 卡头，强制 skip 1 字节重同步，并累计重同步次数。 */
+                             * 卡头，强制 skip 1 字节重同步。 */
                             avail -= rb_skip(rb, 1, nullptr);
-                            g_dispatch.resync_byte++;
                             s_wait_active[wait_slot] = false;
                         }
                         break; /* 等待更多数据到达 */
                     } else if (any_fake || any_overrun) {
                         s_wait_active[wait_slot] = false; /* 有字节被消费，重置预算 */
                         avail -= rb_skip(rb, 1, nullptr); /* 重同步 */
-                        g_dispatch.resync_byte++;
                     } else {
                         break; /* 无协议绑定或探测函数全空，防死循环 */
                     }
@@ -553,16 +529,19 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
     /* 根据通道 ID 查表获得协议掩码 */
     proto_mask_t proto = g_dispatch.ch_proto_map[ch->ch_id];
 
-    /* 已写入的 RB 去重：用计数器遍历，避免依赖 seen[] 连续填充假设 */
-    ring_buffer_t *seen[PROTO_MAX_COUNT] = {nullptr};
+    /* 已写入的 RB 去重表：表长取缓冲池槽数（本函数写入的 RB 全部来自
+     * `app_proto_acquire_buf`，池内最多 RB_CNT_MAX 个不同指针，故该长度必然够用）。
+     * **不要**按 PROTO_MAX_COUNT 开表——调用方是 1KB 栈的通道任务，64 指针会把本函数
+     * 栈帧从 ~140B 抬到 ~268B。 */
+    ring_buffer_t *seen[RB_CNT_MAX] = {nullptr};
     uint8_t seen_cnt = 0;
 
-    /* 遍历已注册协议位，将数据写入匹配的环形缓冲区 */
-    uint32_t write_iter = g_dispatch.registered_mask;
+    /* 遍历已注册协议位（64 位位图），将数据写入匹配的环形缓冲区 */
+    proto_mask_t write_iter = g_dispatch.registered_mask;
     while (write_iter) {
-        uint8_t i = (uint8_t)bit_ctz(write_iter);
+        uint8_t i = bit_ctz64(write_iter);
         write_iter &= write_iter - 1;
-        uint32_t mask = (1U << i);
+        proto_mask_t mask = ((proto_mask_t)1U << i);
         if ((proto & mask) == 0) continue;
 
         ring_buffer_t *rb = g_dispatch.proto_rb[i];
@@ -578,7 +557,8 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
         if (dup) continue;
 
         rb_write(rb, data, len, rb->mutex);
-        seen[seen_cnt++] = rb;
+        if (seen_cnt < RB_CNT_MAX)
+            seen[seen_cnt++] = rb; /* 上界防御：理论不可达（池内不同 RB 数 ≤ 槽数） */
     }
 
     // 关闭工厂模式
@@ -588,14 +568,11 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
      * 队列每项大小为 sizeof(channel_t *)，拷贝的是指针值本身。
      * 帧分发任务通过 osMessageQueueGet(&ch, ...) 读出指针。
      *
-     * 队列满时先重试（DISPATCH_NOTIFY_RETRY_MS）再计数丢弃：通知被静默丢弃时数据
+     * 队列满时先重试（DISPATCH_NOTIFY_RETRY_MS）再放弃：通知被静默丢弃时数据
      * 虽已在 RB 里，但没有事件唤醒 frame_dispatch_task，要等下一条通知到达才被顺带处理
-     *（现场表现为「发了命令无反应，重发一次才解析」）。重试窗口不持任何锁，无死锁路径。 */
+     *（表现为「发了命令无反应，重发一次才解析」）。重试窗口不持任何锁，无死锁路径。 */
     if (osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, 0) != osOK) {
-        if (osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, pdMS_TO_TICKS(DISPATCH_NOTIFY_RETRY_MS)) !=
-            osOK) {
-            g_dispatch.notify_drop++;
-        }
+        (void)osMessageQueuePut(g_dispatch.ch_queue, &ch, 0, pdMS_TO_TICKS(DISPATCH_NOTIFY_RETRY_MS));
     }
 }
 

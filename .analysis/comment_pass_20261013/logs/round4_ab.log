@@ -1,0 +1,89 @@
+== Part 1：dev_display.o 真实 A/B（归档改动前 vs 现行产物）==
+  [通过] all_1263：段差异 = {'.bss.g_dev_display_commit_count': None, '.text.dev_display_commit_frame': -12, '.text.dev_display_commit_frame_rect': -12}
+  [通过] all_1263：函数数 14/14，逐行一致 12 个，差异函数 = ['dev_display_commit_frame', 'dev_display_commit_frame_rect']
+  ---- 差异函数的指令级比对（before → after）----
+    · dev_display_commit_frame（20 → 16 条）
+        -b198      	cbz	r0, 2a <dev_display_commit_frame+0x2a>
+        +b178      	cbz	r0, 22 <dev_display_commit_frame+0x22>
+        -4b07      	ldr	r3, [pc, #28]	@ (2c <dev_display_commit_frame+0x2c>)
+        +4b05      	ldr	r3, [pc, #20]	@ (24 <dev_display_commit_frame+0x24>)
+        -4b07      	ldr	r3, [pc, #28]	@ (30 <dev_display_commit_frame+0x30>)
+        +4b05      	ldr	r3, [pc, #20]	@ (28 <dev_display_commit_frame+0x28>)
+        -4b07      	ldr	r3, [pc, #28]	@ (34 <dev_display_commit_frame+0x34>)
+        +4b05      	ldr	r3, [pc, #20]	@ (2c <dev_display_commit_frame+0x2c>)
+        -4a06      	ldr	r2, [pc, #24]	@ (38 <dev_display_commit_frame+0x38>)
+        -6813      	ldr	r3, [r2, #0]
+        -3301      	adds	r3, #1
+        -6013      	str	r3, [r2, #0]
+    · dev_display_commit_frame_rect（127 → 123 条）
+        -4b31      	ldr	r3, [pc, #196]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        +4b2f      	ldr	r3, [pc, #188]	@ (110 <dev_display_commit_frame_rect+0x110>)
+        -4b30      	ldr	r3, [pc, #192]	@ (11c <dev_display_commit_frame_rect+0x11c>)
+        +4b2e      	ldr	r3, [pc, #184]	@ (114 <dev_display_commit_frame_rect+0x114>)
+        -4b2d      	ldr	r3, [pc, #180]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        +4b2b      	ldr	r3, [pc, #172]	@ (110 <dev_display_commit_frame_rect+0x110>)
+        -d047      	beq.n	f8 <dev_display_commit_frame_rect+0xf8>
+        -4e2d      	ldr	r6, [pc, #180]	@ (120 <dev_display_commit_frame_rect+0x120>)
+        +d043      	beq.n	f0 <dev_display_commit_frame_rect+0xf0>
+        +4e2b      	ldr	r6, [pc, #172]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        -4b2d      	ldr	r3, [pc, #180]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        +4b2b      	ldr	r3, [pc, #172]	@ (11c <dev_display_commit_frame_rect+0x11c>)
+        -4f2c      	ldr	r7, [pc, #176]	@ (128 <dev_display_commit_frame_rect+0x128>)
+        +4f2a      	ldr	r7, [pc, #168]	@ (120 <dev_display_commit_frame_rect+0x120>)
+        -492c      	ldr	r1, [pc, #176]	@ (12c <dev_display_commit_frame_rect+0x12c>)
+        +492a      	ldr	r1, [pc, #168]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        -4e1f      	ldr	r6, [pc, #124]	@ (120 <dev_display_commit_frame_rect+0x120>)
+        +4e1d      	ldr	r6, [pc, #116]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        -d91b      	bls.n	e8 <dev_display_commit_frame_rect+0xe8>
+        +d917      	bls.n	e0 <dev_display_commit_frame_rect+0xe0>
+        -491b      	ldr	r1, [pc, #108]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        +4919      	ldr	r1, [pc, #100]	@ (11c <dev_display_commit_frame_rect+0x11c>)
+        -d916      	bls.n	f0 <dev_display_commit_frame_rect+0xf0>
+        +d912      	bls.n	e8 <dev_display_commit_frame_rect+0xe8>
+        -4a18      	ldr	r2, [pc, #96]	@ (12c <dev_display_commit_frame_rect+0x12c>)
+        +4a16      	ldr	r2, [pc, #88]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        -4b17      	ldr	r3, [pc, #92]	@ (130 <dev_display_commit_frame_rect+0x130>)
+        +4b15      	ldr	r3, [pc, #84]	@ (128 <dev_display_commit_frame_rect+0x128>)
+        -4b10      	ldr	r3, [pc, #64]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        +4b0e      	ldr	r3, [pc, #56]	@ (110 <dev_display_commit_frame_rect+0x110>)
+        -4a16      	ldr	r2, [pc, #88]	@ (134 <dev_display_commit_frame_rect+0x134>)
+        -6813      	ldr	r3, [r2, #0]
+        -3301      	adds	r3, #1
+        -6013      	str	r3, [r2, #0]
+        -e7af      	b.n	48 <dev_display_commit_frame_rect+0x48>
+        +e7b3      	b.n	48 <dev_display_commit_frame_rect+0x48>
+        -e7e0      	b.n	b2 <dev_display_commit_frame_rect+0xb2>
+        +e7e4      	b.n	b2 <dev_display_commit_frame_rect+0xb2>
+        -e7e6      	b.n	c6 <dev_display_commit_frame_rect+0xc6>
+        -4b09      	ldr	r3, [pc, #36]	@ (120 <dev_display_commit_frame_rect+0x120>)
+        +e7ea      	b.n	c6 <dev_display_commit_frame_rect+0xc6>
+        +4b09      	ldr	r3, [pc, #36]	@ (118 <dev_display_commit_frame_rect+0x118>)
+        -4b0a      	ldr	r3, [pc, #40]	@ (128 <dev_display_commit_frame_rect+0x128>)
+        +4b0a      	ldr	r3, [pc, #40]	@ (120 <dev_display_commit_frame_rect+0x120>)
+        -4b07      	ldr	r3, [pc, #28]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        +4b07      	ldr	r3, [pc, #28]	@ (11c <dev_display_commit_frame_rect+0x11c>)
+        -4b08      	ldr	r3, [pc, #32]	@ (12c <dev_display_commit_frame_rect+0x12c>)
+        +4b08      	ldr	r3, [pc, #32]	@ (124 <dev_display_commit_frame_rect+0x124>)
+        -4b03      	ldr	r3, [pc, #12]	@ (11c <dev_display_commit_frame_rect+0x11c>)
+        +4b03      	ldr	r3, [pc, #12]	@ (114 <dev_display_commit_frame_rect+0x114>)
+        -e7da      	b.n	cc <dev_display_commit_frame_rect+0xcc>
+        +e7de      	b.n	cc <dev_display_commit_frame_rect+0xcc>
+  [通过] cq_1263：段差异 = {'.bss.g_dev_display_commit_count': None, '.text.dev_display_commit_frame': -12, '.text.dev_display_commit_frame_rect': -12}
+  [通过] cq_1263：函数数 14/14，逐行一致 12 个，差异函数 = ['dev_display_commit_frame', 'dev_display_commit_frame_rect']
+
+== Part 2：重建改动前状态，逐 TU 隔离证明（strip-debug 零差异）==
+  [通过] 重建可信度：dev_display.c before 变体 vs 归档改动前对象 —— strip-debug md5 相同 / 反汇编逐行一致 / 机器码段差异 无 / 调试段差异 ['.debug_info', '.debug_line', '.debug_str']（⊆ .debug*）/ 临时路径字符串在对象内 是
+  [通过] 隔离证明：35 个重编 TU —— codegen 差异 0 个（须 0）
+        现网实测（改前基线 vs 本轮构建）：md5 变化 21 个 / 不变 14 个
+        隔离复算：strip-debug 后逐字节相同 32 个（差异全部落在 ['.debug_info', '.debug_line']，= 行号位移 21 个 + 重建路径字符串 11 个） / 逐字节相同 3 个
+        （仅 .debug* 差异的原因 = dev_display.h 删 1 行 ⇒ 其后函数原型声明的 DWARF decl_line 前移 1；无宏/无内联/无类型变化 ⇒ codegen 不变）
+
+== Part 3：链接期归因（归档 before 对象重链 vs 现行 elf）==
+  [通过] all_1263：重建改动前 elf .text = 171832（基线 171832）
+        符号地址位移：1975 个符号，位移值集合 = [-24, -16, -12, -8, -4]（同一位移 = 代码段整体收缩，无其它改动）
+        after elf .text = 171816 ⇒ 镜像级 -16B（对象级 −24B = 2×−12B；差额由链接期对齐/填充吸收）
+  [通过] cq_1263：重建改动前 elf .text = 158444（基线 158444）
+        符号地址位移：1838 个符号，位移值集合 = [-32, -24, -12, -8, -4]（同一位移 = 代码段整体收缩，无其它改动）
+        after elf .text = 158412 ⇒ 镜像级 -32B（对象级 −24B = 2×−12B；差额由链接期对齐/填充吸收）
+
+第四轮 A/B：全绿

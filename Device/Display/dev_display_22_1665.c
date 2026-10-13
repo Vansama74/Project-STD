@@ -10,12 +10,12 @@
  * （组 g = 兄弟驱动通道对 2g / 2g+1 的 R/G 脚，各组并行、每帧 128 × MODULE_ROWS 时钟）；
  * **改屏体尺寸只改「模组参数」一节的 MODULE_ROWS / MODULE_COLS 两个宏**（其余全派生）。
  *
- * 物理约束：`MODULE_COLS ≤ 5`（HUB75 通道对上限，超限会越界读 `_22_1665_lines`）与本模组
- * 数组 ≤ 整片 CCMRAM 64KB 两条为**编译期守卫**（`_Static_assert`，2026-10-08 恢复）；
- * 像素数 / 帧位数 ≤ 65535（uint16 落点偏移与 scan 上界）等仍为注释契约；
+ * 物理约束（全为契约注释，业务代码无编译期断言——2026-10-13 用户裁决）：
+ * `MODULE_COLS ≤ 5`（HUB75 通道对上限，超限会越界读 `_22_1665_lines`）与本模组
+ * 数组 ≤ 整片 CCMRAM 64KB；像素数 / 帧位数 ≤ 65535（uint16 落点偏移与 scan 上界）；
  * 整片 CCMRAM（含 CQ / 治超队列 + 静态任务栈）是否装得下由链接期兜底。
  *
- * 详细说明（几何 / 接线与技术史 / 数据流 / 落点规则 / CCM 组成 / 选编 / 标定与历史轮次）
+ * 详细说明（几何 / 接线 / 数据流 / 落点规则 / CCM 组成 / 选编）
  * 见 `doc/01_显示系统/22-1665模组驱动分析与迁移记录.md` §0；宿主脚本索引见
  * `.analysis/22_1665/README.md`。
  */
@@ -89,20 +89,18 @@
  *  · 每行的 role/half 模式恒 {RED,0}/{GREEN,0}/{RED,1}/{GREEN,1}（与模块数、组号无关）
  *  · 表按通道表上限预声明 5 组（HUB75_CHANNEL_MAX / 2），不用满 5 组是常态
  *
- *  现场定标（2026-09-17 逐脚实测）：组 0 = R1/G1/R2/G2（PG9/PG10/PG15/PB6）、
+ *  现场逐脚定标：组 0 = R1/G1/R2/G2（PG9/PG10/PG15/PB6）、
  *  组 1 = R3/G3/R4/G4（PB8/PB9/PE1/PE2）；B1/B2/A/B/C/D 六根实测无链，不占用。
  * ================================================================ */
 #define _22_1665_ROLE_RED   (0U)
 #define _22_1665_ROLE_GREEN (1U)
 #define _22_1665_GROUP_MAX  (HUB75_CHANNEL_MAX / 2U)
 
-/* ---- 编译期守卫 ①（2026-10-08 恢复）：通道表物理上限 ----
+/* ---- 契约 ①：通道表物理上限 ----
  * 组 g 占 HUB75 通道对 2g / 2g+1，`_22_1665_lines` 只预声明 HUB75_CHANNEL_MAX / 2 = 5 组；
- * MODULE_COLS ≥ 6 时 prepare / init 会**越界读**该表（-O3 下 gcc 报 UB 告警、-fsyntax-only 静默），
- * 故在编译期拦下。 */
-_Static_assert(2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX,
-               "22_1665: per-column wiring needs 2 channels per module column"
-               " (2 x MODULE_COLS <= HUB75_CHANNEL_MAX = 10)");
+ * 契约：`2 × MODULE_COLS ≤ HUB75_CHANNEL_MAX`（⇔ MODULE_COLS ≤ 5）——越限（COLS ≥ 6）时
+ * prepare / init 会**越界读**该表（-O3 下 gcc 报 UB 告警、-fsyntax-only 静默）。改错静默错口径，
+ * 见 doc/01_显示系统/22-1665模组驱动分析与迁移记录.md §0.3。 */
 
 typedef struct {
     const char *name;        /* 线名（文档 / 烧录物身份用，不参与逻辑） */
@@ -161,18 +159,11 @@ typedef struct {
     _22_1665_bsrr_tab[_22_1665_GROUP_COUNT][_22_1665_GROUP_PORT_MAX][_22_1665_STATES];
 static uint8_t _22_1665_bsrr_slot_cnt[_22_1665_GROUP_COUNT]; /* 各组件实际参与输出的端口数（≤ 2） */
 
-/** 本模组 CCMRAM 占用 = 4 个 `.ccmram` 数组之和（通式 1408·M + 256·MODULE_COLS；
- *  1×1 = 1664B、1×2 = 3328B、8×4 = 46080B） */
-#define _22_1665_CCM_BYTES                                                                     \
-    (sizeof(_22_1665_chain_dst) + sizeof(_22_1665_pixel_map) +                                 \
-     sizeof(_22_1665_frame_state) + sizeof(_22_1665_bsrr_tab))
-
-/* ---- 编译期守卫 ②（2026-10-08 恢复）：本模组数组 ≤ 整片 CCMRAM 区域 ----
- * 芯片事实 / 链接脚本 `CCMRAM (xrw) LENGTH = 64K`：本模组自身不超 64KB（**不是自设预算**，
- * 几何无自设上限）；整片与其他消费者（CQ 6377B / 治超队列 / 静态任务栈）是否装得下，
- * 仍由链接器按实际占用兜底。 */
-_Static_assert(_22_1665_CCM_BYTES <= 64U * 1024U,
-               "22_1665: arrays exceed CCMRAM region (64KB; reduce MODULE_ROWS/MODULE_COLS)");
+/* ---- 契约 ②：本模组数组 ≤ 整片 CCMRAM 区域 ----
+ * 芯片事实 / 链接脚本 `CCMRAM (xrw) LENGTH = 64K`：本模组占用（通式 1408·M + 256·COLS，
+ * 见上方缓冲段注释）须 ≤ 64KB（**不是自设预算**）；越限后果 = **链接期**
+ * `region CCMRAM overflowed by N bytes`——整片与其他消费者（CQ 6377B / 治超队列 / 静态任务栈）
+ * 是否装得下同由链接期兜底。见 doc/01_显示系统/22-1665模组驱动分析与迁移记录.md §0.3。 */
 
 static dev_display_22_1665_t g_22_1665 = {
     .me = {
@@ -208,7 +199,7 @@ dev_display_t *dev_display_22_1665_get(void)
  *  数据线在该时钟位的电平（恒 4 位 / 16 状态）。链段 (m, j) 的像素来源 = 落点表。
  *  脏矩形只用来判「有无变化」：任何一次提交都整帧重算。
  * ================================================================ */
-/** 颜色 → 该线是否点亮（[角色][颜色索引]；双色屏无蓝 die：蓝分量并入红绿，现场已验证） */
+/** 颜色 → 该线是否点亮（[角色][颜色索引]；双色屏无蓝 die：蓝分量并入红绿） */
 static const uint8_t _22_1665_role_bit[2][8] = {
     /* RED   */ {0U, 1U, 0U, 1U, 1U, 1U, 1U, 1U}, /* 黑/红/绿/黄/蓝/紫/青/白 */
     /* GREEN */ {0U, 0U, 1U, 1U, 1U, 1U, 1U, 1U},
@@ -337,7 +328,7 @@ static void _22_1665_build_chain_dst(void)
 }
 
 /** @brief 建合并写表：逐组把 4 根线按 GPIO 端口分组，预计算「状态 → 端口 BSRR 字」
- *  （状态 bit = 1 表示该线点亮；数据 1 → 置位、0 → 复位，MBI 恒流下沉口径，现场已验证） */
+ *  （状态 bit = 1 表示该线点亮；数据 1 → 置位、0 → 复位，MBI 恒流下沉口径） */
 static void _22_1665_build_bsrr_table(void)
 {
     for (uint8_t g = 0U; g < _22_1665_GROUP_COUNT; g++) {

@@ -1,0 +1,304 @@
+
+
+
+Disassembly of section .text._gz_ol_guide_match:
+
+00000000 <_gz_ol_guide_match>:
+   0:	7803      	ldrb	r3, [r0, #0]
+   2:	2b54      	cmp	r3, #84	@ 0x54
+   4:	d001      	beq.n	a <_gz_ol_guide_match+0xa>
+   6:	2000      	movs	r0, #0
+   8:	4770      	bx	lr
+   a:	7843      	ldrb	r3, [r0, #1]
+   c:	2b43      	cmp	r3, #67	@ 0x43
+   e:	d001      	beq.n	14 <_gz_ol_guide_match+0x14>
+  10:	2000      	movs	r0, #0
+  12:	4770      	bx	lr
+  14:	7883      	ldrb	r3, [r0, #2]
+  16:	2b4c      	cmp	r3, #76	@ 0x4c
+  18:	d001      	beq.n	1e <_gz_ol_guide_match+0x1e>
+  1a:	2000      	movs	r0, #0
+  1c:	4770      	bx	lr
+  1e:	78c3      	ldrb	r3, [r0, #3]
+  20:	2b59      	cmp	r3, #89	@ 0x59
+  22:	d001      	beq.n	28 <_gz_ol_guide_match+0x28>
+  24:	2000      	movs	r0, #0
+  26:	4770      	bx	lr
+  28:	2001      	movs	r0, #1
+  2a:	4770      	bx	lr
+
+Disassembly of section .text._gz_ol_font_size:
+
+00000000 <_gz_ol_font_size>:
+   0:	4288      	cmp	r0, r1
+   2:	d111      	bne.n	28 <_gz_ol_font_size+0x28>
+   4:	2818      	cmp	r0, #24
+   6:	d007      	beq.n	18 <_gz_ol_font_size+0x18>
+   8:	2820      	cmp	r0, #32
+   a:	d009      	beq.n	20 <_gz_ol_font_size+0x20>
+   c:	2810      	cmp	r0, #16
+   e:	d10d      	bne.n	2c <_gz_ol_font_size+0x2c>
+  10:	2310      	movs	r3, #16
+  12:	7013      	strb	r3, [r2, #0]
+  14:	2001      	movs	r0, #1
+  16:	4770      	bx	lr
+  18:	2318      	movs	r3, #24
+  1a:	7013      	strb	r3, [r2, #0]
+  1c:	2001      	movs	r0, #1
+  1e:	4770      	bx	lr
+  20:	2320      	movs	r3, #32
+  22:	7013      	strb	r3, [r2, #0]
+  24:	2001      	movs	r0, #1
+  26:	4770      	bx	lr
+  28:	2000      	movs	r0, #0
+  2a:	4770      	bx	lr
+  2c:	2000      	movs	r0, #0
+  2e:	4770      	bx	lr
+
+Disassembly of section .text._gz_ol_color:
+
+00000000 <_gz_ol_color>:
+   0:	7803      	ldrb	r3, [r0, #0]
+   2:	2bff      	cmp	r3, #255	@ 0xff
+   4:	d00b      	beq.n	1e <_gz_ol_color+0x1e>
+   6:	b913      	cbnz	r3, e <_gz_ol_color+0xe>
+   8:	7842      	ldrb	r2, [r0, #1]
+   a:	2aff      	cmp	r2, #255	@ 0xff
+   c:	d00f      	beq.n	2e <_gz_ol_color+0x2e>
+   e:	b99b      	cbnz	r3, 38 <_gz_ol_color+0x38>
+  10:	7843      	ldrb	r3, [r0, #1]
+  12:	b99b      	cbnz	r3, 3c <_gz_ol_color+0x3c>
+  14:	7883      	ldrb	r3, [r0, #2]
+  16:	2bff      	cmp	r3, #255	@ 0xff
+  18:	d012      	beq.n	40 <_gz_ol_color+0x40>
+  1a:	2001      	movs	r0, #1
+  1c:	4770      	bx	lr
+  1e:	7842      	ldrb	r2, [r0, #1]
+  20:	2a00      	cmp	r2, #0
+  22:	d1f0      	bne.n	6 <_gz_ol_color+0x6>
+  24:	7882      	ldrb	r2, [r0, #2]
+  26:	2a00      	cmp	r2, #0
+  28:	d1ed      	bne.n	6 <_gz_ol_color+0x6>
+  2a:	2001      	movs	r0, #1
+  2c:	4770      	bx	lr
+  2e:	7882      	ldrb	r2, [r0, #2]
+  30:	2a00      	cmp	r2, #0
+  32:	d1ec      	bne.n	e <_gz_ol_color+0xe>
+  34:	2002      	movs	r0, #2
+  36:	4770      	bx	lr
+  38:	2001      	movs	r0, #1
+  3a:	4770      	bx	lr
+  3c:	2001      	movs	r0, #1
+  3e:	4770      	bx	lr
+  40:	2003      	movs	r0, #3
+  42:	4770      	bx	lr
+
+Disassembly of section .text._gz_ol_cmd:
+
+00000000 <_gz_ol_cmd>:
+   0:	2850      	cmp	r0, #80	@ 0x50
+   2:	d013      	beq.n	2c <_gz_ol_cmd+0x2c>
+   4:	d80c      	bhi.n	20 <_gz_ol_cmd+0x20>
+   6:	2830      	cmp	r0, #48	@ 0x30
+   8:	d010      	beq.n	2c <_gz_ol_cmd+0x2c>
+   a:	d805      	bhi.n	18 <_gz_ol_cmd+0x18>
+   c:	2810      	cmp	r0, #16
+   e:	d00d      	beq.n	2c <_gz_ol_cmd+0x2c>
+  10:	2820      	cmp	r0, #32
+  12:	d00b      	beq.n	2c <_gz_ol_cmd+0x2c>
+  14:	20ff      	movs	r0, #255	@ 0xff
+  16:	4770      	bx	lr
+  18:	2840      	cmp	r0, #64	@ 0x40
+  1a:	d007      	beq.n	2c <_gz_ol_cmd+0x2c>
+  1c:	20ff      	movs	r0, #255	@ 0xff
+  1e:	4770      	bx	lr
+  20:	2870      	cmp	r0, #112	@ 0x70
+  22:	d003      	beq.n	2c <_gz_ol_cmd+0x2c>
+  24:	2880      	cmp	r0, #128	@ 0x80
+  26:	d001      	beq.n	2c <_gz_ol_cmd+0x2c>
+  28:	2860      	cmp	r0, #96	@ 0x60
+  2a:	d100      	bne.n	2e <_gz_ol_cmd+0x2e>
+  2c:	4770      	bx	lr
+  2e:	20ff      	movs	r0, #255	@ 0xff
+  30:	e7fc      	b.n	2c <_gz_ol_cmd+0x2c>
+
+Disassembly of section .text._gz_ol_font_type:
+
+00000000 <_gz_ol_font_type>:
+   0:	b510      	push	{r4, lr}
+   2:	4604      	mov	r4, r0
+   4:	2204      	movs	r2, #4
+   6:	490f      	ldr	r1, [pc, #60]	@ (44 <_gz_ol_font_type+0x44>)
+   8:	f7ff fffe 	bl	0 <memcmp>
+   c:	b190      	cbz	r0, 34 <_gz_ol_font_type+0x34>
+   e:	2204      	movs	r2, #4
+  10:	490d      	ldr	r1, [pc, #52]	@ (48 <_gz_ol_font_type+0x48>)
+  12:	4620      	mov	r0, r4
+  14:	f7ff fffe 	bl	0 <memcmp>
+  18:	b168      	cbz	r0, 36 <_gz_ol_font_type+0x36>
+  1a:	2204      	movs	r2, #4
+  1c:	490b      	ldr	r1, [pc, #44]	@ (4c <_gz_ol_font_type+0x4c>)
+  1e:	4620      	mov	r0, r4
+  20:	f7ff fffe 	bl	0 <memcmp>
+  24:	b148      	cbz	r0, 3a <_gz_ol_font_type+0x3a>
+  26:	2204      	movs	r2, #4
+  28:	4909      	ldr	r1, [pc, #36]	@ (50 <_gz_ol_font_type+0x50>)
+  2a:	4620      	mov	r0, r4
+  2c:	f7ff fffe 	bl	0 <memcmp>
+  30:	b128      	cbz	r0, 3e <_gz_ol_font_type+0x3e>
+  32:	2000      	movs	r0, #0
+  34:	bd10      	pop	{r4, pc}
+  36:	2001      	movs	r0, #1
+  38:	e7fc      	b.n	34 <_gz_ol_font_type+0x34>
+  3a:	2002      	movs	r0, #2
+  3c:	e7fa      	b.n	34 <_gz_ol_font_type+0x34>
+  3e:	2003      	movs	r0, #3
+  40:	e7f8      	b.n	34 <_gz_ol_font_type+0x34>
+  42:	bf00      	nop
+  44:	00000000 	.word	0x00000000
+  48:	00000008 	.word	0x00000008
+  4c:	00000010 	.word	0x00000010
+  50:	00000018 	.word	0x00000018
+
+Disassembly of section .text.gz_ol_parse_frame:
+
+00000000 <gz_ol_parse_frame>:
+   0:	e92d 41f0 	stmdb	sp!, {r4, r5, r6, r7, r8, lr}
+   4:	b082      	sub	sp, #8
+   6:	4604      	mov	r4, r0
+   8:	2300      	movs	r3, #0
+   a:	6003      	str	r3, [r0, #0]
+   c:	6043      	str	r3, [r0, #4]
+   e:	6083      	str	r3, [r0, #8]
+  10:	60c3      	str	r3, [r0, #12]
+  12:	6103      	str	r3, [r0, #16]
+  14:	6143      	str	r3, [r0, #20]
+  16:	2301      	movs	r3, #1
+  18:	7043      	strb	r3, [r0, #1]
+  1a:	b381      	cbz	r1, 7e <gz_ol_parse_frame+0x7e>
+  1c:	4615      	mov	r5, r2
+  1e:	4617      	mov	r7, r2
+  20:	460e      	mov	r6, r1
+  22:	2a10      	cmp	r2, #16
+  24:	d92b      	bls.n	7e <gz_ol_parse_frame+0x7e>
+  26:	f5b2 7f80 	cmp.w	r2, #256	@ 0x100
+  2a:	d828      	bhi.n	7e <gz_ol_parse_frame+0x7e>
+  2c:	4608      	mov	r0, r1
+  2e:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  32:	b320      	cbz	r0, 7e <gz_ol_parse_frame+0x7e>
+  34:	7a33      	ldrb	r3, [r6, #8]
+  36:	7a72      	ldrb	r2, [r6, #9]
+  38:	ea43 2302 	orr.w	r3, r3, r2, lsl #8
+  3c:	429d      	cmp	r5, r3
+  3e:	d11e      	bne.n	7e <gz_ol_parse_frame+0x7e>
+  40:	1e6b      	subs	r3, r5, #1
+  42:	5cf3      	ldrb	r3, [r6, r3]
+  44:	b9db      	cbnz	r3, 7e <gz_ol_parse_frame+0x7e>
+  46:	7b30      	ldrb	r0, [r6, #12]
+  48:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  4c:	7020      	strb	r0, [r4, #0]
+  4e:	f106 0310 	add.w	r3, r6, #16
+  52:	4698      	mov	r8, r3
+  54:	6063      	str	r3, [r4, #4]
+  56:	f1a5 0311 	sub.w	r3, r5, #17
+  5a:	b29b      	uxth	r3, r3
+  5c:	8063      	strh	r3, [r4, #2]
+  5e:	28ff      	cmp	r0, #255	@ 0xff
+  60:	d00b      	beq.n	7a <gz_ol_parse_frame+0x7a>
+  62:	2840      	cmp	r0, #64	@ 0x40
+  64:	d050      	beq.n	108 <gz_ol_parse_frame+0x108>
+  66:	d80e      	bhi.n	86 <gz_ol_parse_frame+0x86>
+  68:	2820      	cmp	r0, #32
+  6a:	d016      	beq.n	9a <gz_ol_parse_frame+0x9a>
+  6c:	2830      	cmp	r0, #48	@ 0x30
+  6e:	d011      	beq.n	94 <gz_ol_parse_frame+0x94>
+  70:	2810      	cmp	r0, #16
+  72:	d00f      	beq.n	94 <gz_ol_parse_frame+0x94>
+  74:	2302      	movs	r3, #2
+  76:	7063      	strb	r3, [r4, #1]
+  78:	e001      	b.n	7e <gz_ol_parse_frame+0x7e>
+  7a:	2302      	movs	r3, #2
+  7c:	7063      	strb	r3, [r4, #1]
+  7e:	4620      	mov	r0, r4
+  80:	b002      	add	sp, #8
+  82:	e8bd 81f0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, pc}
+  86:	2880      	cmp	r0, #128	@ 0x80
+  88:	d055      	beq.n	136 <gz_ol_parse_frame+0x136>
+  8a:	d8f3      	bhi.n	74 <gz_ol_parse_frame+0x74>
+  8c:	2850      	cmp	r0, #80	@ 0x50
+  8e:	d001      	beq.n	94 <gz_ol_parse_frame+0x94>
+  90:	2860      	cmp	r0, #96	@ 0x60
+  92:	d1ef      	bne.n	74 <gz_ol_parse_frame+0x74>
+  94:	2300      	movs	r3, #0
+  96:	7063      	strb	r3, [r4, #1]
+  98:	e7f1      	b.n	7e <gz_ol_parse_frame+0x7e>
+  9a:	2b10      	cmp	r3, #16
+  9c:	d802      	bhi.n	a4 <gz_ol_parse_frame+0xa4>
+  9e:	2303      	movs	r3, #3
+  a0:	7063      	strb	r3, [r4, #1]
+  a2:	e7ec      	b.n	7e <gz_ol_parse_frame+0x7e>
+  a4:	2310      	movs	r3, #16
+  a6:	f88d 3007 	strb.w	r3, [sp, #7]
+  aa:	f10d 0207 	add.w	r2, sp, #7
+  ae:	f898 100d 	ldrb.w	r1, [r8, #13]
+  b2:	f898 000c 	ldrb.w	r0, [r8, #12]
+  b6:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  ba:	b910      	cbnz	r0, c2 <gz_ol_parse_frame+0xc2>
+  bc:	2303      	movs	r3, #3
+  be:	7063      	strb	r3, [r4, #1]
+  c0:	e7dd      	b.n	7e <gz_ol_parse_frame+0x7e>
+  c2:	7c33      	ldrb	r3, [r6, #16]
+  c4:	f898 2001 	ldrb.w	r2, [r8, #1]
+  c8:	ea43 2302 	orr.w	r3, r3, r2, lsl #8
+  cc:	8123      	strh	r3, [r4, #8]
+  ce:	f898 3002 	ldrb.w	r3, [r8, #2]
+  d2:	f898 2003 	ldrb.w	r2, [r8, #3]
+  d6:	ea43 2302 	orr.w	r3, r3, r2, lsl #8
+  da:	8163      	strh	r3, [r4, #10]
+  dc:	f106 0018 	add.w	r0, r6, #24
+  e0:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  e4:	74e0      	strb	r0, [r4, #19]
+  e6:	f89d 3007 	ldrb.w	r3, [sp, #7]
+  ea:	74a3      	strb	r3, [r4, #18]
+  ec:	f106 001e 	add.w	r0, r6, #30
+  f0:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  f4:	7520      	strb	r0, [r4, #20]
+  f6:	f106 0321 	add.w	r3, r6, #33	@ 0x21
+  fa:	60e3      	str	r3, [r4, #12]
+  fc:	f1a7 0322 	sub.w	r3, r7, #34	@ 0x22
+ 100:	8223      	strh	r3, [r4, #16]
+ 102:	2300      	movs	r3, #0
+ 104:	7063      	strb	r3, [r4, #1]
+ 106:	e7ba      	b.n	7e <gz_ol_parse_frame+0x7e>
+ 108:	2b0d      	cmp	r3, #13
+ 10a:	d802      	bhi.n	112 <gz_ol_parse_frame+0x112>
+ 10c:	2303      	movs	r3, #3
+ 10e:	7063      	strb	r3, [r4, #1]
+ 110:	e7b5      	b.n	7e <gz_ol_parse_frame+0x7e>
+ 112:	6933      	ldr	r3, [r6, #16]
+ 114:	60a3      	str	r3, [r4, #8]
+ 116:	f8d8 3004 	ldr.w	r3, [r8, #4]
+ 11a:	60e3      	str	r3, [r4, #12]
+ 11c:	f8d8 3008 	ldr.w	r3, [r8, #8]
+ 120:	6123      	str	r3, [r4, #16]
+ 122:	f898 200c 	ldrb.w	r2, [r8, #12]
+ 126:	f898 300d 	ldrb.w	r3, [r8, #13]
+ 12a:	ea43 2302 	orr.w	r3, r3, r2, lsl #8
+ 12e:	82a3      	strh	r3, [r4, #20]
+ 130:	2300      	movs	r3, #0
+ 132:	7063      	strb	r3, [r4, #1]
+ 134:	e7a3      	b.n	7e <gz_ol_parse_frame+0x7e>
+ 136:	2b02      	cmp	r3, #2
+ 138:	d802      	bhi.n	140 <gz_ol_parse_frame+0x140>
+ 13a:	2303      	movs	r3, #3
+ 13c:	7063      	strb	r3, [r4, #1]
+ 13e:	e79e      	b.n	7e <gz_ol_parse_frame+0x7e>
+ 140:	7c33      	ldrb	r3, [r6, #16]
+ 142:	7223      	strb	r3, [r4, #8]
+ 144:	f898 3001 	ldrb.w	r3, [r8, #1]
+ 148:	7263      	strb	r3, [r4, #9]
+ 14a:	f898 3002 	ldrb.w	r3, [r8, #2]
+ 14e:	72a3      	strb	r3, [r4, #10]
+ 150:	2300      	movs	r3, #0
+ 152:	7063      	strb	r3, [r4, #1]
+ 154:	e793      	b.n	7e <gz_ol_parse_frame+0x7e>

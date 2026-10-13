@@ -19,7 +19,7 @@ void pl_delay_ms(uint32_t ms);
 /* ---- 系统复位：软件复位 MCU ---- */
 void pl_system_reset(void);
 
-/* ---- 复位原因（RCC->CSR 复位标志解码；2026-09-18 YN_OL TCP 现场取证）----
+/* ---- 复位原因（RCC->CSR 复位标志解码）----
  *
  * 用途：开机横幅打印「上一次复位是谁造成的」，用于区分
  *   ① 固件死机（IWDG 看门狗超时复位，`iwdg`）
@@ -27,7 +27,7 @@ void pl_system_reset(void);
  *   ③ 外部复位（NRST 引脚：烧录器、按键、外部看门狗，`pin`）
  *   ④ 电源事件（上电/掉电 `por`、欠压 `bor`）
  * RCC->CSR 的复位标志只由「写 RMVF」或上电清除，本工程全链路无清除点 ⇒
- * 开机第一现场可读；现场「板子自己重启」与「有人重烧了板子」由此可分。
+ * 开机第一现场可读（用于区分「板子自己重启」与「有人重烧了板子」）。
  * 必须在任何可能写 RCC->CSR 的代码之前调用（本工程在 init_task 横幅处调用）。 */
 typedef struct {
     uint32_t raw; /**< RCC->CSR 原值（含 LSION/LSIRDY 等非复位位） */

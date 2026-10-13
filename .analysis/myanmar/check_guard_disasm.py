@@ -133,6 +133,15 @@ REVIEWED_CODEGEN = {
 }
 
 
+# 2026-10-13 用户裁决轮：`dev_display_init` 的 2 处调试冻结调用被整体删除
+# （`pl_tim_dbg_freeze` API 一并移除；debug-only 设施，发布运行路径零影响）。
+# 注：本脚本的对象来源 = `build/Debug`（与 EIDE 共用、本裁决轮未重建）⇒ 若以「含该删除的
+# 构建」重跑，本条目把 dev_display_init 的原操作减少记为「已复核」而不是 LOST；
+# 机器级证据见 `.analysis/comment_pass_20261013/ab_round3_objects.py`（逐对象期望清单）。
+ROUND3_REMOVED_CALLS = {
+    ("Device/Display/dev_display.o", "dev_display_init"):
+        "2026-10-13 裁决：删除 pl_tim_dbg_freeze(TIM3/TIM4) 调试冻结调用（debug-only）",
+}
 # 2026-09-29 代码瘦身轮：随 RTT 调试设施删除而**整体消失的函数**（改动后不存在）。
 # 逐条已人工复核：全部为只读诊断函数（打印/取参），业务路径零调用者。
 RTT_ROUND_DELETED = {
@@ -216,6 +225,11 @@ def main() -> int:
                 reviewed += 1
                 detail.append(f"    已复核 {fn}: RTT 瘦身轮删除的诊断指令 = {dict(lost_c)} / "
                               f"新增 {dict(extra_c)} —— {RTT_ROUND_REVIEWED[(rel, fn)]}")
+                continue
+            if lost_c and (rel, fn) in ROUND3_REMOVED_CALLS:
+                reviewed += 1
+                detail.append(f"    已复核 {fn}: 原操作减少 = {dict(lost_c)} / 新增 {dict(extra_c)}"
+                              f" —— {ROUND3_REMOVED_CALLS[(rel, fn)]}")
                 continue
             if lost_c and (rel, fn) in REVIEWED_CODEGEN:
                 reviewed += 1

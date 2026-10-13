@@ -14,9 +14,11 @@
 #     （2026-10-08 实测 17700B；CQ 15444B；预存状态）——故本脚本在**没有**合格产物时把该项记为
 #     「跳过（前置不满足）」并打印原因，不静默算通过、也不算失败；
 #     **日常构建以 EIDE 为主**（现行 Debug 选择 + 8×4 实测 `.ccmram 60844B` 链接通过）。
-#   · 2026-10-08：驱动恢复 2 条编译期守卫（通道上限 / 本模组 ≤ 64KB）——
-#     `check_driver.py` / `check_eide_command.sh` / `check_compile_matrix.sh` 的期望值已同步
-#     （COLS=6 与 ROWS=47 由「静默编过 / 链接期报错」改回「编译期断言拦下」）。
+#   · 2026-10-08：驱动恢复 2 条编译期守卫（通道上限 / 本模组 ≤ 64KB）；
+#     **2026-10-13 用户裁决：业务代码编译期断言全部移除（含这 2 条）** ⇒
+#     `check_driver.py` / `check_eide_command.sh` / `check_compile_matrix.sh` 的期望值同步改为
+#     「契约注释在册 + 越限后果」：COLS=6 = `-O3` 越界 UB 告警、ROWS=47 = 对象编过 +
+#     链接期 `region CCMRAM overflowed`（`check_compile_matrix.sh` C 节负向对照）。
 #   · `link_variant.sh` 需要一份**最新**的构建日志（`build_round*.log`，由 `make DISP=22_1665`
 #      或 `make PROTO=CQ DISP=22_1665` 生成；它从最新日志里抓驱动编译/链接命令）。
 #

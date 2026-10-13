@@ -49,7 +49,7 @@ static bool _tcp_cli_remote_configured(void)
 }
 
 /* ---- 连接期通道实例：文件级 static 单实例（UAF 根治） ----
- * 连接任务退出后栈上通道实例悬垂是历史 UAF 根源。实例提为文件级 static，
+ * 通道实例必须为文件级 static（放栈上会随连接任务退出悬垂），
  * ch 指针生命周期恒定；重连时复用同一实例（init 重新拷贝模板重置状态）。
  * 已注销的旧通知由 dispatch 侧 app_channel_get 回验丢弃（app_dispatch.c）。 */
 static tcp_client_channel_t s_tcp_client_conn_ch;
@@ -184,9 +184,8 @@ void tcp_client_conn_task(void *argument)
     while ((err = netconn_recv(conn, &buf)) == ERR_OK) {
         do {
             netbuf_data(buf, &data, &len);
-            /* 长度判据 = `len > 0`（**2026-09-17 修复**，同 app_tcp_server.c）：
-             * 原 `len > 1` 丢弃 1 字节分片 → RB 残帧永不可消费。本协议
-             * （YN_OL 等）TCP Client 通道同样承载 '{' 帧族。 */
+            /* 长度判据 = `len > 0`（同 app_tcp_server.c）：
+             * 按 `len > 1` 丢弃 1 字节分片 → RB 残帧永不可消费。 */
             if (len > 0) {
                 app_channel_dispatch(ch, (uint8_t *)data, len);
             }

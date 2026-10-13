@@ -6,14 +6,12 @@
  * 与 LDI / CQ 协议模块解耦：
  *  - ldi_ctx_init（sw_board_init 内）只负责 Sector1/W25 自愈与 LDI 设备配置
  *    装载，不再调用 pl_net_set_ip / app_tcp_server_set_port；
- *  - TCP Server 口两口径统一应用 net_cfg.port（2026-08-24 修订）：TCP Server/
- *    Client 通道由 app_boot.c 无条件启动（无口径裁剪），故端口应用也不得按
- *    PROTO_CHONGQING 裁剪——否则「PROTO_CHONGQING 与 LDI 共存」的混合构建
- *    （如 EIDE Debug 口径错配）中 TCP 口恒为编译期默认 9528，与 LDI 12H /
- *    IAP 0x01 上报的 Sector1 net_cfg.port（0AH/4B02 已改值）矛盾；
+ *  - TCP Server 口两口径统一应用 net_cfg.port：TCP Server/Client 通道由
+ *    app_boot.c 无条件启动（无口径裁剪），故端口应用也不得按 PROTO_CHONGQING
+ *    裁剪——否则混编构建中 TCP 口恒为编译期默认 9528，与 LDI 12H / IAP 0x01
+ *    上报的 Sector1 net_cfg.port 矛盾；
  *  - CQ UDP 业务口由 _udp_cq_read_port 直接读 Sector1 net_cfg.udp_port
- *    （方案 B，2026-08-21：CQ setip 只改 udp_port，TCP 口 port 不受污染——
- *    setip 端口语义不因本修订改变）。
+ *    （CQ setip 只改 udp_port，TCP 口 port 不受污染）。
  *
  * accept_write（两口径统一）：Sector1 空/损坏/非法（IP 全 0 或 port 不在
  * 1~65535）→ 写本构建默认记录落盘并应用：
@@ -47,8 +45,8 @@ void app_net_boot_apply(void)
          * 0x40 帧把 IP 字段写成 0.0.0.0（magic/CRC 有效但 IP 全 0），本分支会把 IP 与
          * port 一起改回默认；IP 全 0 / port=0 即触发（doc/14 §13.5）。 */
         /* accept_write：Sector1 空/损坏/非法 → 写本构建默认记录落盘并应用。
-         * 方案 B（2026-08-21）：port（TCP 业务口）两口径默认均 9528；udp_port
-         * （CQ UDP 业务口）默认 20103——两字段完整落盘保持记录自洽。 */
+         * port（TCP 业务口）两口径默认均 9528；udp_port（CQ UDP 业务口）默认 20103
+         * ——两字段完整落盘保持记录自洽。 */
 #ifdef PROTO_CHONGQING
         static const uint8_t d_ip[4]   = {192, 168, 1, 5};
         static const uint8_t d_mask[4] = {255, 255, 255, 0};
@@ -66,9 +64,9 @@ void app_net_boot_apply(void)
         return;
     }
 
-    /* Sector1 有效：应用 netif + TCP Server 口（两口径统一，2026-08-24 修订：
-     * TCP 口恒与 LDI 12H / IAP 0x01 上报的 net_cfg.port 一致；CQ UDP 业务口
-     * 由 _udp_cq_read_port 读 cfg.udp_port，与本处无涉） */
+    /* Sector1 有效：应用 netif + TCP Server 口（TCP 口恒与 LDI 12H / IAP 0x01
+     * 上报的 net_cfg.port 一致；CQ UDP 业务口由 _udp_cq_read_port 读 cfg.udp_port，
+     * 与本处无涉） */
     pl_net_set_ip(cfg.ip, cfg.mask, cfg.gw);
     app_tcp_server_set_port((uint16_t)cfg.port);
 }

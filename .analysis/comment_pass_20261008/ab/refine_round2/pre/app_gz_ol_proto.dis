@@ -1,0 +1,231 @@
+
+
+
+Disassembly of section .text.gz_ol_proto_init:
+
+00000000 <gz_ol_proto_init>:
+   0:	b510      	push	{r4, lr}
+   2:	f44f 7140 	mov.w	r1, #768	@ 0x300
+   6:	2001      	movs	r0, #1
+   8:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+   c:	b130      	cbz	r0, 1c <gz_ol_proto_init+0x1c>
+   e:	4601      	mov	r1, r0
+  10:	4831      	ldr	r0, [pc, #196]	@ (d8 <gz_ol_proto_init+0xd8>)
+  12:	f7ff fffe 	bl	0 <app_proto_register>
+  16:	4b31      	ldr	r3, [pc, #196]	@ (dc <gz_ol_proto_init+0xdc>)
+  18:	6018      	str	r0, [r3, #0]
+  1a:	b900      	cbnz	r0, 1e <gz_ol_proto_init+0x1e>
+  1c:	bd10      	pop	{r4, pc}
+  1e:	2100      	movs	r1, #0
+  20:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  24:	f44f 7140 	mov.w	r1, #768	@ 0x300
+  28:	2002      	movs	r0, #2
+  2a:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+  2e:	4601      	mov	r1, r0
+  30:	b130      	cbz	r0, 40 <gz_ol_proto_init+0x40>
+  32:	4829      	ldr	r0, [pc, #164]	@ (d8 <gz_ol_proto_init+0xd8>)
+  34:	f7ff fffe 	bl	0 <app_proto_register>
+  38:	4b29      	ldr	r3, [pc, #164]	@ (e0 <gz_ol_proto_init+0xe0>)
+  3a:	6018      	str	r0, [r3, #0]
+  3c:	2800      	cmp	r0, #0
+  3e:	d130      	bne.n	a2 <gz_ol_proto_init+0xa2>
+  40:	f44f 61c0 	mov.w	r1, #1536	@ 0x600
+  44:	2000      	movs	r0, #0
+  46:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+  4a:	4601      	mov	r1, r0
+  4c:	4604      	mov	r4, r0
+  4e:	b160      	cbz	r0, 6a <gz_ol_proto_init+0x6a>
+  50:	4821      	ldr	r0, [pc, #132]	@ (d8 <gz_ol_proto_init+0xd8>)
+  52:	f7ff fffe 	bl	0 <app_proto_register>
+  56:	4b23      	ldr	r3, [pc, #140]	@ (e4 <gz_ol_proto_init+0xe4>)
+  58:	6018      	str	r0, [r3, #0]
+  5a:	bb30      	cbnz	r0, aa <gz_ol_proto_init+0xaa>
+  5c:	4621      	mov	r1, r4
+  5e:	481e      	ldr	r0, [pc, #120]	@ (d8 <gz_ol_proto_init+0xd8>)
+  60:	f7ff fffe 	bl	0 <app_proto_register>
+  64:	4b20      	ldr	r3, [pc, #128]	@ (e8 <gz_ol_proto_init+0xe8>)
+  66:	6018      	str	r0, [r3, #0]
+  68:	bb18      	cbnz	r0, b2 <gz_ol_proto_init+0xb2>
+  6a:	4a20      	ldr	r2, [pc, #128]	@ (ec <gz_ol_proto_init+0xec>)
+  6c:	f44f 7184 	mov.w	r1, #264	@ 0x108
+  70:	2003      	movs	r0, #3
+  72:	f7ff fffe 	bl	0 <osMessageQueueNew>
+  76:	4601      	mov	r1, r0
+  78:	4b1d      	ldr	r3, [pc, #116]	@ (f0 <gz_ol_proto_init+0xf0>)
+  7a:	6018      	str	r0, [r3, #0]
+  7c:	4b17      	ldr	r3, [pc, #92]	@ (dc <gz_ol_proto_init+0xdc>)
+  7e:	6818      	ldr	r0, [r3, #0]
+  80:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  84:	4b16      	ldr	r3, [pc, #88]	@ (e0 <gz_ol_proto_init+0xe0>)
+  86:	6818      	ldr	r0, [r3, #0]
+  88:	b9b8      	cbnz	r0, ba <gz_ol_proto_init+0xba>
+  8a:	4b16      	ldr	r3, [pc, #88]	@ (e4 <gz_ol_proto_init+0xe4>)
+  8c:	6818      	ldr	r0, [r3, #0]
+  8e:	b9c8      	cbnz	r0, c4 <gz_ol_proto_init+0xc4>
+  90:	4b15      	ldr	r3, [pc, #84]	@ (e8 <gz_ol_proto_init+0xe8>)
+  92:	6818      	ldr	r0, [r3, #0]
+  94:	b9d8      	cbnz	r0, ce <gz_ol_proto_init+0xce>
+  96:	4a17      	ldr	r2, [pc, #92]	@ (f4 <gz_ol_proto_init+0xf4>)
+  98:	2100      	movs	r1, #0
+  9a:	4817      	ldr	r0, [pc, #92]	@ (f8 <gz_ol_proto_init+0xf8>)
+  9c:	f7ff fffe 	bl	0 <osThreadNew>
+  a0:	e7bc      	b.n	1c <gz_ol_proto_init+0x1c>
+  a2:	2101      	movs	r1, #1
+  a4:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  a8:	e7ca      	b.n	40 <gz_ol_proto_init+0x40>
+  aa:	2104      	movs	r1, #4
+  ac:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  b0:	e7d4      	b.n	5c <gz_ol_proto_init+0x5c>
+  b2:	2108      	movs	r1, #8
+  b4:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  b8:	e7d7      	b.n	6a <gz_ol_proto_init+0x6a>
+  ba:	4b0d      	ldr	r3, [pc, #52]	@ (f0 <gz_ol_proto_init+0xf0>)
+  bc:	6819      	ldr	r1, [r3, #0]
+  be:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  c2:	e7e2      	b.n	8a <gz_ol_proto_init+0x8a>
+  c4:	4b0a      	ldr	r3, [pc, #40]	@ (f0 <gz_ol_proto_init+0xf0>)
+  c6:	6819      	ldr	r1, [r3, #0]
+  c8:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  cc:	e7e0      	b.n	90 <gz_ol_proto_init+0x90>
+  ce:	4b08      	ldr	r3, [pc, #32]	@ (f0 <gz_ol_proto_init+0xf0>)
+  d0:	6819      	ldr	r1, [r3, #0]
+  d2:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  d6:	e7de      	b.n	96 <gz_ol_proto_init+0x96>
+	...
+
+Disassembly of section .text.gz_ol_probe_frame:
+
+00000000 <gz_ol_probe_frame>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b086      	sub	sp, #24
+   4:	460d      	mov	r5, r1
+   6:	4616      	mov	r6, r2
+   8:	2100      	movs	r1, #0
+   a:	4628      	mov	r0, r5
+   c:	f7ff fffe 	bl	0 <rb_avail>
+  10:	2800      	cmp	r0, #0
+  12:	d052      	beq.n	ba <gz_ol_probe_frame+0xba>
+  14:	4604      	mov	r4, r0
+  16:	2100      	movs	r1, #0
+  18:	9100      	str	r1, [sp, #0]
+  1a:	2301      	movs	r3, #1
+  1c:	f10d 0217 	add.w	r2, sp, #23
+  20:	4628      	mov	r0, r5
+  22:	f7ff fffe 	bl	0 <rb_peek>
+  26:	f89d 3017 	ldrb.w	r3, [sp, #23]
+  2a:	2b54      	cmp	r3, #84	@ 0x54
+  2c:	d148      	bne.n	c0 <gz_ol_probe_frame+0xc0>
+  2e:	2c03      	cmp	r4, #3
+  30:	d801      	bhi.n	36 <gz_ol_probe_frame+0x36>
+  32:	2001      	movs	r0, #1
+  34:	e042      	b.n	bc <gz_ol_probe_frame+0xbc>
+  36:	2100      	movs	r1, #0
+  38:	9100      	str	r1, [sp, #0]
+  3a:	2304      	movs	r3, #4
+  3c:	aa04      	add	r2, sp, #16
+  3e:	4628      	mov	r0, r5
+  40:	f7ff fffe 	bl	0 <rb_peek>
+  44:	f89d 3011 	ldrb.w	r3, [sp, #17]
+  48:	2b43      	cmp	r3, #67	@ 0x43
+  4a:	d13b      	bne.n	c4 <gz_ol_probe_frame+0xc4>
+  4c:	f89d 3012 	ldrb.w	r3, [sp, #18]
+  50:	2b4c      	cmp	r3, #76	@ 0x4c
+  52:	d139      	bne.n	c8 <gz_ol_probe_frame+0xc8>
+  54:	f89d 3013 	ldrb.w	r3, [sp, #19]
+  58:	2b59      	cmp	r3, #89	@ 0x59
+  5a:	d137      	bne.n	cc <gz_ol_probe_frame+0xcc>
+  5c:	2c09      	cmp	r4, #9
+  5e:	d801      	bhi.n	64 <gz_ol_probe_frame+0x64>
+  60:	2001      	movs	r0, #1
+  62:	e02b      	b.n	bc <gz_ol_probe_frame+0xbc>
+  64:	2300      	movs	r3, #0
+  66:	9300      	str	r3, [sp, #0]
+  68:	2302      	movs	r3, #2
+  6a:	aa03      	add	r2, sp, #12
+  6c:	2108      	movs	r1, #8
+  6e:	4628      	mov	r0, r5
+  70:	f7ff fffe 	bl	0 <rb_peek>
+  74:	f89d 300c 	ldrb.w	r3, [sp, #12]
+  78:	f89d 200d 	ldrb.w	r2, [sp, #13]
+  7c:	ea43 2302 	orr.w	r3, r3, r2, lsl #8
+  80:	2b10      	cmp	r3, #16
+  82:	d925      	bls.n	d0 <gz_ol_probe_frame+0xd0>
+  84:	f5b3 7f40 	cmp.w	r3, #768	@ 0x300
+  88:	d224      	bcs.n	d4 <gz_ol_probe_frame+0xd4>
+  8a:	429c      	cmp	r4, r3
+  8c:	d201      	bcs.n	92 <gz_ol_probe_frame+0x92>
+  8e:	2001      	movs	r0, #1
+  90:	e014      	b.n	bc <gz_ol_probe_frame+0xbc>
+  92:	461c      	mov	r4, r3
+  94:	1e59      	subs	r1, r3, #1
+  96:	2300      	movs	r3, #0
+  98:	9300      	str	r3, [sp, #0]
+  9a:	2301      	movs	r3, #1
+  9c:	f10d 020b 	add.w	r2, sp, #11
+  a0:	b289      	uxth	r1, r1
+  a2:	4628      	mov	r0, r5
+  a4:	f7ff fffe 	bl	0 <rb_peek>
+  a8:	f89d 000b 	ldrb.w	r0, [sp, #11]
+  ac:	b9a0      	cbnz	r0, d8 <gz_ol_probe_frame+0xd8>
+  ae:	6034      	str	r4, [r6, #0]
+  b0:	f5b4 7f80 	cmp.w	r4, #256	@ 0x100
+  b4:	d902      	bls.n	bc <gz_ol_probe_frame+0xbc>
+  b6:	2003      	movs	r0, #3
+  b8:	e000      	b.n	bc <gz_ol_probe_frame+0xbc>
+  ba:	2002      	movs	r0, #2
+  bc:	b006      	add	sp, #24
+  be:	bd70      	pop	{r4, r5, r6, pc}
+  c0:	2002      	movs	r0, #2
+  c2:	e7fb      	b.n	bc <gz_ol_probe_frame+0xbc>
+  c4:	2002      	movs	r0, #2
+  c6:	e7f9      	b.n	bc <gz_ol_probe_frame+0xbc>
+  c8:	2002      	movs	r0, #2
+  ca:	e7f7      	b.n	bc <gz_ol_probe_frame+0xbc>
+  cc:	2002      	movs	r0, #2
+  ce:	e7f5      	b.n	bc <gz_ol_probe_frame+0xbc>
+  d0:	2002      	movs	r0, #2
+  d2:	e7f3      	b.n	bc <gz_ol_probe_frame+0xbc>
+  d4:	2002      	movs	r0, #2
+  d6:	e7f1      	b.n	bc <gz_ol_probe_frame+0xbc>
+  d8:	2002      	movs	r0, #2
+  da:	e7ef      	b.n	bc <gz_ol_probe_frame+0xbc>
+
+Disassembly of section .text.gz_ol_proto_handle_task:
+
+00000000 <gz_ol_proto_handle_task>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b087      	sub	sp, #28
+   4:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
+   8:	2200      	movs	r2, #0
+   a:	490a      	ldr	r1, [pc, #40]	@ (34 <gz_ol_proto_handle_task+0x34>)
+   c:	480a      	ldr	r0, [pc, #40]	@ (38 <gz_ol_proto_handle_task+0x38>)
+   e:	6800      	ldr	r0, [r0, #0]
+  10:	f7ff fffe 	bl	0 <osMessageQueueGet>
+  14:	2800      	cmp	r0, #0
+  16:	d1f5      	bne.n	4 <gz_ol_proto_handle_task+0x4>
+  18:	f7ff fffe 	bl	0 <gz_ol_resume_auto_dim>
+  1c:	4c05      	ldr	r4, [pc, #20]	@ (34 <gz_ol_proto_handle_task+0x34>)
+  1e:	88a2      	ldrh	r2, [r4, #4]
+  20:	1da1      	adds	r1, r4, #6
+  22:	4668      	mov	r0, sp
+  24:	f7ff fffe 	bl	0 <gz_ol_parse_frame>
+  28:	4669      	mov	r1, sp
+  2a:	6820      	ldr	r0, [r4, #0]
+  2c:	f7ff fffe 	bl	0 <gz_ol_execute_cmd>
+  30:	e7e8      	b.n	4 <gz_ol_proto_handle_task+0x4>
+  32:	bf00      	nop
+	...
+
+Disassembly of section .text.rb_provide_rs485:
+
+00000000 <rb_provide_rs485>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rs485+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000
+
+Disassembly of section .text.rb_provide_rs232:
+
+00000000 <rb_provide_rs232>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rs232+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000

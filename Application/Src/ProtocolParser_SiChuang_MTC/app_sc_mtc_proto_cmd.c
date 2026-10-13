@@ -162,8 +162,7 @@ static void _sc_mtc_exec_one_line(const sc_mtc_one_line_t *p)
  * @note   先清屏再渲染（字库引擎按屏宽自动排版）。对齐四川 ETC 全屏与
  *         治超 80 全屏先例：w=screen_rows（屏宽）、h=screen_cols（整屏高）、
  *         word_wrap=true，由渲染引擎按当前字号（7B 41 可改）自动折行。
- *         旧实现按 16B/行固定切分 ≤4 行且单行 word_wrap=false：第一行超宽时
- *         溢出被裁、总文本超 64B 被丢弃，故弃用。
+ *         不得按 16B/行固定切分：第一行超宽会被裁掉、总文本超 64B 会被丢弃。
  */
 static void _sc_mtc_exec_full_screen(const sc_mtc_full_screen_t *p)
 {
@@ -207,8 +206,8 @@ static void _sc_mtc_exec_full_screen(const sc_mtc_full_screen_t *p)
  *   第一行「总重：X1X2X3.X4X5吨」；第二行「金额：X6X7X8X9X10元」；
  *   第三行「余额：X11X12X13X14X15元」；第四行「超重：X16X17X18.X19X20吨」。
  *
- * @note   文档货车示例存在两处笔误（"X1X12X13" 应为 "X1X2X3"；第四行 "总重" 应为
- *         "超重"），本实现按字段说明修正。
+ * @note   文档货车示例存在两处笔误（"X1X12X13" 应为 "X1X2X3"；"总重" 应为
+ *         "超重"），本实现按字段说明执行。
  */
 static void _sc_mtc_exec_fixed(const sc_mtc_fixed_t *p)
 {
@@ -236,8 +235,8 @@ static void _sc_mtc_exec_fixed(const sc_mtc_fixed_t *p)
     uint16_t buf_len[4] = {0};
     uint8_t line_count  = 0;
 
-    /* p->raw 由 parse 定位在 X1 起（X1 为首参数字节）；
-     * 此前实现误再偏移一位导致各字段整体错位 */
+    /* p->raw 由 parse 定位在 X1 起（X1 为首参数字节）；不得再偏移一位
+     * （再偏移会使各字段整体错位） */
     const uint8_t *dta = p->raw; /* X1 起 */
 
     if (p->type == 0U) {

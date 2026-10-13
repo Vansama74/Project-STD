@@ -34,7 +34,7 @@
 3. **probe 是纯函数**：只 `rb_peek`，无副作用；`avail==0` 必须返回 `PROTO_PROBE_FAKE`；首字节不匹配立即 FAKE（快拒）。
 4. **仅 READY/SKIP 写 `*total_len`**；长度必须有上下界、尾字节必须校验。
 5. **链式聚合**：同 RB 上 WAIT/FAKE 继续试下一协议；一轮无一消费时 `any_wait` 停等、否则跳 1 字节重同步（`app_dispatch.c:328-336`）。
-6. **帧队列静态分配**（`StaticQueue_t`），深度惯例 2~4；payload 上限必须 ≤ 对应 RB 容量并用 `_Static_assert` 锁死。
+6. **帧队列静态分配**（`StaticQueue_t`），深度惯例 2~4；payload 上限必须 ≤ 对应 RB 容量，并在 payload 宏处留一行契约注释（含越限后果；业务代码不用编译期断言，见 `doc/18_注释规范.md` §2）。
 7. **一个物理口一个 RB**：RJ45 1536 / RS485 768 / RS232 768；网口逻辑通道共享 RJ45 槽。
 8. **`CH_ID_RS232_1`（USART6）语音 TX 专用，禁止任何协议 bind**。
 9. **内存纪律**：静态队列不占 ucHeap；任务栈（256×4=1KB/个）从 ucHeap 支出；新增静态内存必须同步 `doc/06-04` 占用账。

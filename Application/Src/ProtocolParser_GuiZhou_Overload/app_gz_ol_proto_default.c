@@ -4,7 +4,7 @@
  *
  * `app_default_display_register` 单槽、首个注册生效：全协议构建与山东等注册者竞争
  * （归属由 initcall 链接序决定），量产单协议构建无竞争；文案含前导空格（勿删），
- * 字号/字型见 doc/14_贵州治超屏协议/README.md §7
+ * 字号/字型详见 doc/14_贵州治超屏协议/README.md §7
  */
 
 #include <stdint.h>

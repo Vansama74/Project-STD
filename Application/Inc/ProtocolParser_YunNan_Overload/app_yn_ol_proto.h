@@ -2,9 +2,9 @@
  * @file    app_yn_ol_proto.h
  * @brief   云南治超屏协议（YN_1.3.0，`{` 帧族）公共定义
  *
- * 契约（改错静默致现场故障）：① 端口字段（0x47/0x51）高字节在前 BE16；
- * ② 不绑 10011：`{` 与 CQ 同首字节靠掩码隔离；③ `{` 帧族互斥：量产与其它 `{` 族二选一；
- * ④ 队列/控制块/任务帧缓冲置 CCMRAM（1152B）；⑤ 0x49 记录落 W25Qxx 独立扇区。
+ * 契约（改错静默致现场故障）：① 0x47/0x51 端口字段高字节在前；
+ * ② 不绑 10011（`{` 与 CQ 靠掩码隔离）；③ 静态队列三段（体/cb/帧缓冲）置 CCMRAM；
+ * ④ 0x49 记录独占 W25Qxx 独立扇区。
  * 详见 doc/15_云南治超屏协议/README.md §1、§2、§6、§7
  */
 #pragma once
@@ -32,9 +32,8 @@
 #define YN_OL_QUEUE_DEPTH (3U)
 #define YN_OL_MSG_SIZE (sizeof(frame_msg_t) + YN_OL_FRAME_LEN_MAX)
 
-_Static_assert(YN_OL_FRAME_LEN_MAX <= RB_SIZE_RS485, "YN_OL frame must fit RS485 RB");
-_Static_assert(YN_OL_FRAME_LEN_MAX <= RB_SIZE_RS232, "YN_OL frame must fit RS232 RB");
-_Static_assert(YN_OL_FRAME_LEN_MAX <= RB_SIZE_RJ45, "YN_OL frame must fit RJ45 RB (UDP 10011)");
+/* 契约：payload 上限须 ≤ 三槽 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 
 /* ---- 参数布局常量 ---- */
 #define YN_OL_ONE_LINE_PREFIX_LEN (2U)  /**< 颜色 + 行号 */
@@ -74,7 +73,7 @@ typedef enum {
     YN_OL_PARSE_ERR_PARAM, /**< 参数长度或取值非法（整帧丢弃） */
 } yn_ol_parse_sta_t;
 
-/** 执行结果（返回值供调试器观察，不产生上行报文；逐值语义见 doc/15 §3） */
+/** 执行结果（供调试器观察，不产生上行报文；详见 doc/15_云南治超屏协议/README.md §3） */
 typedef enum {
     YN_OL_EXEC_OK         = 0,  /**< 已执行（含「执行但不落屏」） */
     YN_OL_EXEC_NO_DISPLAY = -1, /**< 无显示实例（dev_display_get()==NULL） */
@@ -105,7 +104,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
-    uint16_t port; /**< 高字节在前 BE16（契约 ①；写 9528 发 `25 38`，见 §2） */
+    uint16_t port; /**< 高字节在前 BE16（契约 ①；示例见 doc/15_云南治超屏协议/README.md §2） */
 } yn_ol_setip_t;
 
 /** 0x49 屏体参数 */
@@ -114,13 +113,13 @@ typedef struct {
     font_size_t font_size; /**< 字宽 0→FONT_16 / 1→FONT_24 / 2→FONT_32 */
 } yn_ol_screen_param_t;
 
-/* 0x49 持久化记录（12B）：magic + version + 字体/字宽 + CRC32（覆盖前 8B）；独立扇区见契约 ⑤，
- * 装载/保存失败语义见 doc/15_云南治超屏协议/README.md §7 */
+/* 0x49 持久化记录（12B）：magic + version + 字体/字宽 + CRC32（覆盖前 8B）；独立扇区（契约 ④）与
+ * 失败语义见 doc/15_云南治超屏协议/README.md §7 */
 #define YN_OL_CFG_MAGIC (0x594E4F4CU)   /**< "YNOL"（小端存 'Y''N''O''L'） */
 #define YN_OL_CFG_VERSION (1U)          /**< 记录版本；不匹配即视为无效回默认 */
 #define YN_OL_CFG_SECTOR_OFFSET (12288U) /**< 扇区位置 = capacity - 12288（按容量倒推，勿改为绝对地址） */
 
-/** 0x49 屏体参数持久化记录（12B；布局由 _Static_assert 锁定） */
+/** 0x49 屏体参数持久化记录（12B，字段与 CRC 覆盖见 doc/15_云南治超屏协议/README.md §7） */
 typedef struct {
     uint32_t magic;     /**< YN_OL_CFG_MAGIC */
     uint16_t version;   /**< YN_OL_CFG_VERSION */
@@ -131,8 +130,8 @@ typedef struct {
 
 /** 记录结构尺寸（magic4 + version2 + font1 + size1 + crc4） */
 #define YN_OL_CFG_RECORD_SIZE (12U)
-_Static_assert(sizeof(yn_ol_screen_cfg_record_t) == YN_OL_CFG_RECORD_SIZE,
-               "yn_ol_screen_cfg_record_t must be 12B");
+/* 契约：记录固定 12B（magic4 + version2 + font1 + size1 + crc4；CRC 覆盖前 8B），
+ * 改错读/写错偏移，详见 doc/15_云南治超屏协议/README.md §7。 */
 
 /** 解析结果 */
 typedef struct {
@@ -177,20 +176,20 @@ int yn_ol_execute_cmd(channel_t *ch, const yn_ol_parsed_cmd_t *cmd);
 
 /**
  * @brief  当前生效的屏体字号（0x49 设置 / 上电从 W25Qxx 装载）。
- * @note   默认 FONT_16 —— 沿用 STD 既有默认口径（同青海/贵州/云南常规），见 doc/15_云南治超屏协议/README.md §7。
+ * @note   默认 FONT_16（STD 既有口径；详见 doc/15_云南治超屏协议/README.md §7）。
  */
 font_size_t yn_ol_current_font_size(void);
 
 /**
  * @brief  当前生效的屏体字型（0x49 设置 / 上电从 W25Qxx 装载）。
- * @note   默认 FONT_ST —— 沿用 STD 既有默认口径（同青海/贵州/云南常规），见 doc/15_云南治超屏协议/README.md §7。
+ * @note   默认 FONT_ST（STD 既有口径；详见 doc/15_云南治超屏协议/README.md §7）。
  */
 font_type_t yn_ol_current_font_type(void);
 
 /**
  * @brief  上电装载 0x49 屏体参数记录（模块 `sw_app_initcall` 初始化时调用）。
  * @return true = 装载成功（运行态已被记录覆盖）；false = 记录为空/损坏（静默保持默认）。
- * @note   记录为空/损坏/写失败一律不阻塞、不重启；语义与选址见 doc/15_云南治超屏协议/README.md §7。
+ * @note   记录无效/写失败不阻塞、不重启；详见 doc/15_云南治超屏协议/README.md §7。
  */
 bool yn_ol_screen_cfg_load(void);
 

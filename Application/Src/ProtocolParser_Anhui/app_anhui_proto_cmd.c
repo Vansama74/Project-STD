@@ -3,7 +3,7 @@
  * @brief   安徽费显协议命令执行（渲染、GPIO、语音）
  *
  * 协议文档未定义应答 → 全部命令单向不回。
- * 动态显示（0x86~0x89 滚动）已接入通用滚动模块 app_scroll（2026-09-07）。
+ * 动态显示（0x86~0x89 滚动）经通用滚动模块 app_scroll 实现（见 doc/13 §1.1）。
  * 录制语音（0x96/0x97）依赖语音板段号接口，当前占位（见 _anhui_exec_voice_seg）。
  */
 
@@ -24,9 +24,9 @@
 
 /**
  * @brief  执行清屏（0x81）。
- * @note   ⑤ 渲染互斥（2026-09-08）：「停止全部动态 + 清屏 + 提交」整段持
- *         app_scroll_render_lock，与 scroll_task 渲染串行，消除混合帧黑条；
- *         锁内 stop 用无锁变体 app_scroll_stop_all_nolock 防重入死锁。
+ * @note   渲染互斥：「停止全部动态 + 清屏 + 提交」整段持 app_scroll_render_lock，
+ *         与 scroll_task 渲染串行，避免混合帧；锁内 stop 用无锁变体
+ *         app_scroll_stop_all_nolock 防重入死锁（见 doc/13 §5）。
  */
 static void _anhui_exec_clear(void)
 {
@@ -44,10 +44,9 @@ static void _anhui_exec_clear(void)
  * @brief  执行显示点（0x82）/关闭点（0x83）。
  * @param  p     坐标参数。
  * @param  color 写入颜色（关闭点 = COLOR_BLACK）。
- * @note   坐标上限以模组驱动实际屏幕尺寸为准（screen_rows 宽/screen_cols 高，
- *         用户裁决 2026-09-04）：越界坐标由 dev_display_set_pixel 内部边界
- *         检查丢弃（执行但不落屏）。
- *         ⑤ 写 pixel_map + commit 整段持渲染互斥（与滚动渲染串行）。
+ * @note   坐标上限以模组驱动实际屏幕尺寸为准（screen_rows 宽/screen_cols 高）：
+ *         越界坐标由 dev_display_set_pixel 内部边界检查丢弃（执行但不落屏）。
+ *         写 pixel_map + commit 整段持渲染互斥（与滚动渲染串行）。
  */
 static void _anhui_exec_pixel(const anhui_point_t *p, display_color_t color)
 {
@@ -63,18 +62,15 @@ static void _anhui_exec_pixel(const anhui_point_t *p, display_color_t color)
 /**
  * @brief  执行静态显示（0x85）。
  * @param  p  静态显示参数（X/Y + GBK 文本；x=data[0]、y=data[1] 均为直接像素
- *            坐标，2026-09-15 终裁，见 parse 层与 doc/13 §1.2）。
- * @note   坐标直用（2026-09-15 用户终裁）：显示位置是 (0,16) 就从 (0,16)
- *         开始渲染，固件不做任何行号换算——此前「row=Y/16 → pixel_y=row×24」
- *         与「data[0]/data[1] 对调」两轮口径均已撤销。
- *         按 FONT_24 渲染（用户裁决 2026-09-09，原 FONT_16），单行不换行、
- *         超宽截断（整字丢弃，非逐像素裁剪）；文本前不清行（文档未要求）。
+ *            坐标，见 doc/13 §1.2）。
+ * @note   坐标直用：显示位置是 (0,16) 就从 (0,16) 开始渲染，固件不做行号换算。
+ *         按 FONT_24 渲染，单行不换行、超宽截断（整字丢弃，非逐像素裁剪）；
+ *         文本前不清行（文档未要求）。
  *         字形框越屏由 dev_display_draw_bitmap 按屏幕交集裁剪绘制可见部分。
- *         坐标上限以实际屏幕尺寸为准（用户裁决 2026-09-04）：起点越界
- *         整区域不可见不落屏，渲染宽度截断到屏宽（screen_rows - x）。
- *         ⑤ 渲染互斥（2026-09-08）：「停止全部动态 + 渲染 + 提交」整段持
- *         app_scroll_render_lock（app_render 内部提交帧），与滚动渲染串行；
- *         锁内 stop 用无锁变体防重入死锁。
+ *         坐标上限以实际屏幕尺寸为准：起点越界整区域不可见不落屏，渲染宽度
+ *         截断到屏宽（screen_rows - x）。
+ *         渲染互斥：「停止全部动态 + 渲染 + 提交」整段持 app_scroll_render_lock
+ *         （app_render 内部提交帧），与滚动渲染串行；锁内 stop 用无锁变体防重入死锁。
  */
 static void _anhui_exec_static_text(const anhui_static_text_t *p)
 {
@@ -111,25 +107,23 @@ static void _anhui_exec_static_text(const anhui_static_text_t *p)
  * @brief  执行动态显示（0x86~0x89）/动态停止。
  * @param  p  动态显示参数（row 0~3 对应命令 86~89）。
  *
- * 已接入通用滚动模块 app_scroll（2026-09-07，此前留空）。
- * 权威文档核对（2026-09-08，2026-S304 费显通信协议.doc 第 8/9 节）——以下均与
- * 文档一致：命令 86/87/88/89=第 1/2/3/4 行；数据长=运动模式至文本区；速度 1B
- * ×2ms；停留时间 2B ×100ms 大端（示例「00 10」=1.6s）；停止帧=数据长 4 全 0
+ * 经通用滚动模块 app_scroll 实现。帧数据布局与权威文档核对见 doc/13 §1.1：
+ * 命令 86/87/88/89=第 1/2/3/4 行；数据长=运动模式至文本区；速度 1B ×2ms；
+ * 停留时间 2B ×100ms 大端（示例「00 10」=1.6s）；停止帧=数据长 4 全 0
  * （5A 01 86 04 00 00 00 00 00 A5）。文档未定义「运动模式」取值表与「停留」
- * 行为——mode 1~4 方向映射与循环滚动语义均为用户拍板约定，待联调校准（doc/13 §8）。
+ * 行为——mode 1~4 方向映射与循环滚动语义为工程约定，待联调校准（doc/13 §8）。
  *
- * 字号口径（用户裁决 2026-09-09，原 FONT_16）：动态显示改用 24 点阵——
- * 四行行首 Y = 00/18/30/48（row×24，协议文档 00/10/20/30 为 16 点阵口径，
- * 24 点阵行距按字号推导为假设，待联调确认，doc/13 §8）、行高 24（FONT_24）。
+ * 字号口径：动态显示用 24 点阵——四行行首 Y = 00/18/30/48（row×24，协议文档
+ * 00/10/20/30 为 16 点阵口径，24 点阵行距为按字号推导的假设，待联调确认，doc/13 §8）。
  *
- *   - 运动模式 → 方向映射（用户拍板约定：01=从右往左、02=从左往右、03=从下往上、
- *     04=从上往下；枚举值对齐模式字节，零转换）：
+ *   - 运动模式 → 方向映射（01=从右往左、02=从左往右、03=从下往上、04=从上往下；
+ *     枚举值对齐模式字节，零转换）：
  *        1 → SCROLL_DIR_LEFT、2 → SCROLL_DIR_RIGHT、3 → SCROLL_DIR_UP、4 → SCROLL_DIR_DOWN；
  *   - mode==0 或全 0 帧（parse 已置 text 空）→ app_scroll_stop(row) 冻结该行——
- *     像素停在当前位置静态显示、不清除（用户裁决 2026-09-09，原「停止即清行」）；
+ *     像素停在当前位置静态显示、不清除；
  *   - 循环滚动：文本持续滚动，收到停止帧才停；stay_ms（×100ms）解析保存、v1 忽略
- *     （待定，见 doc/13 §8）；
- *   - 行区域：Y = row×24（24 点阵行首 00/18/30/48，假设待联调）、x=0、w=实际屏宽
+ *     （见 doc/13 §8）；
+ *   - 行区域：Y = row×24（行首 00/18/30/48，假设待联调）、x=0、w=实际屏宽
  *     （dev_display_get()->screen_rows）、h=24（FONT_24），app_scroll 内部钳位；
  *   - 速度 speed×2ms → step_ms（最小 2ms）；文本 64B 截断（app_scroll 槽位上限）。
  */
@@ -179,8 +173,8 @@ static void _anhui_exec_scroll(const anhui_scroll_t *p)
 /**
  * @brief  执行设置亮度（0x92）。
  * @param  value  亮度参数两字节（大端，0~999）。
- * @note   用户裁决（2026-09-04）：0 = 恢复光敏自动调光（恢复光敏任务），
- *         1~999 均匀映射 8 档亮度 light_level 1..8（8 = OE 100% 常亮）：
+ * @note   0 = 恢复光敏自动调光（恢复光敏任务），1~999 均匀映射 8 档亮度
+ *         light_level 1..8（8 = OE 100% 常亮）：
  *             level = 1 + value*7/999
  *         底层 8 档已具备（DEV_DISPLAY_BRIGHTNESS_MAX=8，TIM4 PWM 1/8 粒度），
  *         映射结果恒落在 1..8 内，无需再钳制。
@@ -192,7 +186,7 @@ static void _anhui_exec_brightness(uint16_t value)
         return;
 
     if (value == 0) {
-        /* 自动亮度：恢复光敏任务（此前可能被手动档挂起） */
+        /* 自动亮度：恢复光敏任务（可能被手动档挂起） */
         if (g_light_sensor_task_handle != nullptr)
             osThreadResume(g_light_sensor_task_handle);
         return;
@@ -225,8 +219,7 @@ static void _anhui_exec_io_ctrl(const anhui_io_ctrl_t *p)
  * @brief  执行播放声音（0x95）。
  * @param  p  语音参数（编号 01~15 + 音量 0~9 + 变长参数）。
  * @note   音量文档定义 0~9 共 10 级：解析层仍按协议接受该字节（字段保留），
- *         执行层忽略——语音板不支持协议调音量，不再调用 dev_rs232_voice_volume
- *         （用户裁决 2026-09-04）；编号 01~14 模板句构造见
+ *         执行层忽略——语音板不支持协议调音量；编号 01~14 模板句构造见
  *         app_anhui_proto_voice.c；编号 15 参数区为全部播报内容（GBK 自由文本），
  *         经 dev_rs232_voice_play 直送语音板（232_2 = USART6 语音口，路径不变）。
  */

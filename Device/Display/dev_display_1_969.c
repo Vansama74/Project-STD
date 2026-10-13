@@ -119,7 +119,7 @@ static void _1_969_prepare(dev_display_t *dev)
     const uint8_t *pixel_map   = dev->pixel_map;
     uint8_t *hub75_buff        = dev->hub75_buff;
 
-    /* ④a 脏矩形行子集（2026-09-08）：prepare 按逻辑行整行拷贝，有效脏矩形
+    /* 脏矩形行子集：prepare 按逻辑行整行拷贝，有效脏矩形
      * → 只重排矩形覆盖的 y 行范围；矩形无效 → 全量路径（保守回退）。 */
     uint16_t row_begin = 0;
     uint16_t row_end   = screen_cols;

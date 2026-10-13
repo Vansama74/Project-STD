@@ -1,0 +1,102 @@
+== 改前源码（归档 = c61c895）md5 ==
+230bd66345df7d051377329081c8621e  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c
+d34202f66d13153ad558c1343944260f  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.c
+361b1c8ad16b7054a453bf6f531ca2e6  Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.c
+871a4a6c13d5c9a9974935cf6b6052b7  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.h
+edc494f8f696534b6882953cc88951c6  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto.h
+34fd69602a5cd451d6d213c07c7ffbd8  Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.h
+ec8ba1d6bd35b7eae1f22e7e441cf8a9  Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c
+df4d61118ae9086be180d219f98934ba  Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c
+440d78047cca872b8a5ab7b58d592b9f  Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c
+68b241505678be2bbf4905825b71c638  Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c
+f751d984f44b120935dab87e7bd8cdb6  Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.h
+29b2f5f4e8dbebecf344d7fa5f31b63a  Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h
+2330ce8036715a38b125c2e43cfc2bf1  Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.h
+25c8107516ad48763ac665b09d73e178  Application/Src/ProtocolParser_Myanmar/app_mm_proto.c
+d5574e132a268503fc18c3a497b4baeb  Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c
+79c74118e4b773c3be63ab5c7e126e96  Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h
+e65abe8a99e53fcd0573d61128dabef8  Application/Src/app_factory_test_mm.c
+
+== 编译改前（影子头文件）/ 改后（仓库现行）==
+  [yn] app_yn_ol_proto.c            pre_warn=0 cur_warn=0
+  [yn] app_yn_ol_proto_cmd.c        pre_warn=0 cur_warn=0
+  [yn] app_yn_ol_proto_parse.c      pre_warn=0 cur_warn=0
+  [gz] app_gz_ol_proto.c            pre_warn=0 cur_warn=0
+  [gz] app_gz_ol_proto_cmd.c        pre_warn=0 cur_warn=0
+  [gz] app_gz_ol_proto_default.c    pre_warn=0 cur_warn=0
+  [gz] app_gz_ol_proto_parse.c      pre_warn=0 cur_warn=0
+  [mm] app_mm_proto.c               pre_warn=0 cur_warn=0
+  [mm] app_mm_proto_cmd.c           pre_warn=0 cur_warn=0
+  [mm] app_factory_test_mm.c        pre_warn=0 cur_warn=0
+
+######## app_factory_test_mm
+  整对象 md5（含 .debug*）：pre=7c3a7559894460eb405738cf697b962e cur=1ff68ad427863ff266aa16abb1b62e20
+  ✔ strip-debug 对象逐字节一致（md5=0ca905f64f7cf2b7e0b62a2144c4da3e）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 13）
+  ✔ 反汇编逐行一致（75 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_gz_ol_proto_cmd
+  整对象 md5（含 .debug*）：pre=be75d9238a124fbf7ca167c9ebdd6130 cur=4f8e26816d2a3682de78f47b6d33f6b0
+  ✔ strip-debug 对象逐字节一致（md5=19084126acc354ecb5e06a81a806d3b9）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 17）
+  ✔ 反汇编逐行一致（454 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_gz_ol_proto_default
+  整对象 md5（含 .debug*）：pre=abbdb947dec91b9750a8e08c56371c57 cur=951acafac9eeb740b87e36aa3a7f9098
+  ✔ strip-debug 对象逐字节一致（md5=03beed9e942924ff6c257f72713eccfa）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 11）
+  ✔ 反汇编逐行一致（87 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_gz_ol_proto
+  整对象 md5（含 .debug*）：pre=33abe08b3723fca3b548e4cc656c0944 cur=d9130aea75c9bb4b4fd7e125158a80f5
+  ✔ strip-debug 对象逐字节一致（md5=71d6e9af45269ddc75aec445ca1012ea）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 22）
+  ✔ 反汇编逐行一致（231 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_gz_ol_proto_parse
+  整对象 md5（含 .debug*）：pre=e81afa4a092aaf60ed7052bfc0306787 cur=d04f70f572482924a157ffb2f85e0bb1
+  ✔ strip-debug 对象逐字节一致（md5=26da1d26e60151c1005b3da4842be3d7）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 10）
+  ✔ 反汇编逐行一致（304 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_mm_proto_cmd
+  整对象 md5（含 .debug*）：pre=f447ce53b692e30ce8139f626503af60 cur=e771bf3f6afb6e06f14736459f5564e1
+  ✔ strip-debug 对象逐字节一致（md5=182090b56f9e261f225d71907614f5c8）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 15）
+  ✔ 反汇编逐行一致（185 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_mm_proto
+  整对象 md5（含 .debug*）：pre=3d01ad813d6fb7a9a5be89dc436c909a cur=c25040fc7e73a3a1dc299d58fda8d77b
+  ✔ strip-debug 对象逐字节一致（md5=3005b165acce0fe84679349f06ab0db3）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 19）
+  ✔ 反汇编逐行一致（265 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_yn_ol_proto_cmd
+  整对象 md5（含 .debug*）：pre=49b9bf48c848293abbe6626f320f30c5 cur=7ad4b519ad5fb3a04b98b14e2040ef63
+  ✔ strip-debug 对象逐字节一致（md5=68c35618e10332f88faffef7b6ceb6e8）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 42）
+  ✔ 反汇编逐行一致（963 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_yn_ol_proto
+  整对象 md5（含 .debug*）：pre=e3cc3b0d2998a2d5587ff7daa99e98de cur=e9acf76ed20ea4397b683b16713c0c0d
+  ✔ strip-debug 对象逐字节一致（md5=0ed06b47ee624d9ff5338d3b8976fbf0）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 22）
+  ✔ 反汇编逐行一致（203 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## app_yn_ol_proto_parse
+  整对象 md5（含 .debug*）：pre=cda08b73de3deddb62c47b31a3b16c95 cur=c9d8af235f23423be5a1714dd0a1a05c
+  ✔ strip-debug 对象逐字节一致（md5=0470abe17547cf3dcc183018f5299d6b）
+  ✔ 段级逐字节一致（.debug*/.comment/.ARM.attributes 除外；对照段数 = 7）
+  ✔ 反汇编逐行一致（395 行）
+  ✔ 非调试段无源码路径串（无 __FILE__/assert_param 消费者，注释行号变动安全）
+
+######## 结果：refine_round2 全部一致（注释收敛零机器码影响）

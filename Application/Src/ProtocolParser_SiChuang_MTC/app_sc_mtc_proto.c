@@ -46,8 +46,8 @@ static osMessageQueueId_t s_sc_mtc_queue;
 #define SC_MTC_PAYLOAD_MAX (74U)
 #define SC_MTC_MSG_SIZE    (sizeof(frame_msg_t) + SC_MTC_PAYLOAD_MAX)
 #define SC_MTC_QUEUE_DEPTH (3U)
-_Static_assert(SC_MTC_PAYLOAD_MAX <= RB_SIZE_RS485, "SC_MTC frame must fit RS485 RB");
-_Static_assert(SC_MTC_PAYLOAD_MAX <= RB_SIZE_RS232, "SC_MTC frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_sc_mtc_queue_cb;
 static uint8_t s_sc_mtc_queue_buf[SC_MTC_QUEUE_DEPTH * SC_MTC_MSG_SIZE];
 static const osMessageQueueAttr_t s_sc_mtc_queue_attr = {

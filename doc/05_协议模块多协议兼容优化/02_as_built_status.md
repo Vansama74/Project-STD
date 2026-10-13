@@ -40,7 +40,7 @@
 
 | 文件 | 要点 |
 |------|------|
-| `app_dispatch.c` | provide 表、acquire 判空、写去重、链式分发；`_Static_assert` 尺寸 1536/768/768 |
+| `app_dispatch.c` | provide 表、acquire 判空、写去重、链式分发；尺寸 1536/768/768（源码契约注释，2026-10-13 起无编译期断言） |
 | `ring_buffer.h` | `RB_PROVIDE_WEAK`；可用容量 = size−1 |
 | `app_iap.c` | provide RJ45；**仅 UDP**；`IAP_QUEUE_DEPTH=2` |
 | `app_ldi.c` | provide RJ45；**无 485/232**；`LDI_QUEUE_DEPTH=4` |
@@ -94,7 +94,7 @@
 
 ## 4. DoD（本目录：多协议共享 RB）
 
-1. [x] `RB_CNT_MAX==3`，尺寸 **1536/768/768**，`_Static_assert` 在册  
+1. [x] `RB_CNT_MAX==3`，尺寸 **1536/768/768**，契约注释在册（2026-10-13 起无编译期断言）  
 2. [x] 无调度路径 `RB_DEFINE_CCM(g_rb*)` 八槽池  
 3. [x] IAP 无 `CH_ID_RS485`；LDI 无 RS485/RS232 bind  
 4. [x] 无协议 bind `CH_ID_RS232_1`  

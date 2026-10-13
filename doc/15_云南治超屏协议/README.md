@@ -3,8 +3,8 @@
 > ⚠ **2026-09-29 代码瘦身轮：RTT 调试输出已整体移除**——本文件中的 `[gz_ol]`/`[diag]`/`[yn_ol]`/`[disp]`
 > 日志样例、`*_RTT_DIAG` 门控与「按 RTT 判读」的现场步骤**不再可用**（`Platform/Src/pl_rtt.c`、
 > `Application/Inc/app_diag.h` 与全部 SEGGER RTT 打印已删除；第三方源码仍在磁盘但不参与编译）。
-> 现场判读改用：端口/绑定结果只读 getter（`app_udp_gzol_bind_status()` 等）经调试器读、
-> IAP 0x03 版本号与 `arm-none-eabi-size -A`/elf md5、以及协议层实发实收验证。
+> 现场判读改用：0x70 搜索应答的端口字段 + 对新端口实发实收（端口/绑定结果只读 getter 已于
+> 2026-10-13 裁决清理）、IAP 0x03 版本号与 `arm-none-eabi-size -A`/elf md5、以及协议层实发实收验证。
 > 含 RTT 字样的段落**保留为历史记录**（其中「无 `[diag]` 横幅 = 旧镜像」一类判据已失效）。
 
 > 协议接入记录。协议文档：`/home/yystation/Desktop/22云南治超屏协议YN_1.3.0.doc`
@@ -110,7 +110,7 @@
 | 4 | '8' 亮度档位 | `'0'`~`'5'`（5 最亮；0 自动） | 接受超集：`0x00`/`'0'` = 自动；`'1'`~`'8'` = 手动档（与云南常规/硬件 8 档一致），见 §8 Q3 |
 | 5 | `0x01` 颜色 | 01红/02绿/03黄（三色） | 接受 01~07（`display_color_t` 枚举直通，与云南常规扩展口径一致） |
 | 6 | `0x02` 版本号串 | 示例 `YN_ZCP_P10_3.0`（源固件私有串） | 回编译期常量 **PROGRAM_CODE** + 屏显「版本:<PROGRAM_CODE>」（云南常规/贵州常规既有裁决口径） |
-| 7 | 端口字段字节序 | **未写** | **高字节在前 BE16**（写 9528 发 `25 38`）——**已裁决**（2026-09-17 Q1 结论，对齐同厂 GZ_OL doc/14 §13.5.1 与本固件 LDI/IAP 既有口径；协议文档未写字节序） |
+| 7 | 端口字段字节序 | **未写** | **高字节在前 BE16**（写 9528 发 `25 38`）——**已裁决**（2026-09-17 Q1 结论，对齐同厂 GZ_OL `doc/14_贵州治超屏协议/README.md` §13.5.1 与本固件 LDI/IAP 既有口径；协议文档未写字节序） |
 | 8 | `0x47` 应答与复位 | **未写** | 借 `0x51` 作「已写入」回执 + `osDelay(100)` 后软复位（STD 改 IP 统一重启生效）——**已裁决维持**（Q2） |
 | 9 | `0x49` 持久化 | **未写** | **持久化**：W25Qxx 独立 4KB 扇区 12B 记录（magic + version + 字体/字宽 + CRC32），上电装载并生效——**已裁决**（Q5），见 §7 |
 | 10 | '2' 自检文案 | 「固定汉字信息及数字 1~9 交替显示」 | 只实现**数字 1~9 交替**（汉字内容文档未给）；**本次 8 条裁决未涉及 → 维持现状**（§8 余项） |
@@ -366,7 +366,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 | 裁决# | 原 Q# | 事项 | 结论 | 落地方式与证据 |
 |---|---|---|---|---|
 | 1 | Q6 | 是否需要网口控制 | **需要，注册 TCP** | 在 RS485 + RS232 之外**新增 `CH_ID_TCP_SERVER` + `CH_ID_TCP_CLIENT`**（四 mask 共用一队列，§3）。竞争处理**不靠源码收录序，而靠通道掩码隔离**：`app_dispatch.c:252/:303` 按 `ch_proto_map[ch->ch_id]` 过滤 → CQ 只绑 UDP/UDP_CQ，**TCP 链上 CQ probe 根本不被调用**；本模块**不绑 10011** → CQ 行为零削弱。反向安全：CQ JSON 第二字节 `'"'` 不在本 probe 白名单 → FAKE；半帧/粘包由 dispatcher「WAIT 继续下一协议」语义保证不卡链。证据：全仓绑定静态扫描 + 宿主推演 §9（9.1~9.32，含**反事实取证**：若绑 10011 本协议帧会被 CQ 抢走）。**未触碰 CQ 源码，无需确认项** |
-| 2 | Q1 | `0x47`/`0x51` 端口字段字节序 | **维持高位在前 BE16，转正为已裁决** | 实现未变（写 9528 发 `25 38`）；本文档与头文件注释中「推断」措辞已改为「已裁决」；依据 = 同厂 GZ_OL（doc/14 §13.5.1）+ 本固件 LDI 12H/IAP 0x01 既有口径 |
+| 2 | Q1 | `0x47`/`0x51` 端口字段字节序 | **维持高位在前 BE16，转正为已裁决** | 实现未变（写 9528 发 `25 38`）；本文档与头文件注释中「推断」措辞已改为「已裁决」；依据 = 同厂 GZ_OL（`doc/14_贵州治超屏协议/README.md` §13.5.1）+ 本固件 LDI 12H/IAP 0x01 既有口径 |
 | 3 | Q2 | `0x47` 应答与复位 | **维持当前策略，不改** | 回 `0x51`（14B 回显）→ `osDelay(100)` → `NVIC_SystemReset()`（对齐 GZ_OL `0x40`）；STD 约定「改 IP/端口重启生效」，唯一生效路径 |
 | 4 | Q3 | `'8'` 亮度档位 | **维持当前策略，不改** | `0x00`/`'0'` = 恢复光敏自动；`'1'`~`'8'` = 挂起光敏 + 硬件 8 档恒等映射（文档口径 `'0'`~`'5'` 的超集） |
 | 5 | Q5 | `0x49` 屏体参数是否持久化 | **需要持久化** | 新增 W25Qxx 独立 4KB 扇区（`capacity - 12288`）12B 记录 + 上电装载；选址与①/②候选的排除依据见 **§7**。失败/损坏 → 回退默认 〔原 RTT 告警已删〕，不阻塞不重启 |
@@ -545,7 +545,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 |---|---|---|---|
 | **A** | `Application/Src/Channel/app_tcp_server.c`、`app_tcp_client.c` | 新增门控日志（`TCP_SRV_RTT_DIAG` / `TCP_CLI_RTT_DIAG`，默认跟随 `APP_DIAG_BANNER`）：listen / bind FAIL / accept（对端 `ip:port`）/ recv（`len` + ≤16B hex）/ close（`reason=`） | `[tcp_srv] …` / `[tcp_cli] …`；单行 ≤96B，recv 循环里**每段一条**（不逐字节）；客户端连接失败同错误码只打一行 |
 | **B** | `Application/Src/app_dispatch.c` `frame_dispatch_task` | 新增「`{`（0x7B）帧本轮**无任何协议消费**且判 WAIT/FAKE」时的决策日志，限速 = 三元组变化 + ≥ `PROBE_DBG_MIN_MS`（200ms），任何字节被消费即失效 | `[disp] probe idx=… sta=WAIT/FAKE(…) avail=… head8=… -> …`（probe 本身仍**纯函数**，日志在调度侧） |
-| **C** | `Application/Src/app_dispatch.c` `app_channel_dispatch` | 通知投递由「`timeout=0` + 忽略返回值」改为「立即投递失败 → `DISPATCH_NOTIFY_RETRY_MS`（20ms）重试一次 → 仍失败 `g_dispatch.notify_drop++` + 门控告警」；新增 `app_dispatch_notify_drops()` getter，post-boot 体检行追加 `notify_drop=%u` | `[disp] notify queue FULL -> drop ch=… notify_drop=…`；`[diag] dispatch qfull=… resync=… notify_drop=…` |
+| **C** | `Application/Src/app_dispatch.c` `app_channel_dispatch` | 通知投递由「`timeout=0` + 忽略返回值」改为「立即投递失败 → `DISPATCH_NOTIFY_RETRY_MS`（20ms）重试一次再放弃」（原 `g_dispatch.notify_drop++` 计数 + getter + post-boot 体检行已于 2026-10-13 裁决清理） | `[disp] notify queue FULL -> drop ch=… notify_drop=…`；`[diag] dispatch qfull=… resync=… notify_drop=…` |
 
 **纪律遵守**：通道掩码/过滤语义未动；probe 契约与 READY/SKIP/FAKE/WAIT 语义未动；未改 git 配置、未提交。
 
@@ -666,6 +666,13 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 ## 13. 修订记录
 
+- 2026-10-13 **裁决执行轮（应用层清理，协议零改动）**：① `app_dispatch` 的 `notify_drop` 计数 /
+  `app_dispatch_qfull_drops` / `app_dispatch_resync_count` / `app_dispatch_notify_drops` getter 与
+  post-boot 体检行**删除**（§11 联调二轮的「通知投递重试」路径本身保留）；② 端口/绑定结果只读 getter
+  `app_udp_gzol_bind_status(_str)` 删除——判读改用 0x70 应答 + 新端口实发；③ `pl_tim_dbg_freeze` /
+  `g_tcp_server_connected` 等观察/调试设施删除。本模块协议代码零改动；全量重编
+  （`PROTO=ALL` `.text −224 / .bss −24`）见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.7。
+
 - 2026-09-18 **TCP Client 未配置不连（通道层治理，非协议改动）**：`app_tcp_client` 默认远端改为
   `0.0.0.0:0`，任务仍启动但空转；排除 LDI 后不再对硬编码地址 1Hz SYN/ARP。YN_OL 仍绑
   `CH_ID_TCP_CLIENT`，`0x47` 仍只改设备自身 `net_cfg`。详见 `doc/CLAUDE.md` 网络子系统、
@@ -676,8 +683,8 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
   **A** 通道层日志（`app_tcp_server.c`/`app_tcp_client.c`：listen/bind FAIL/accept/recv/close，门控
   `TCP_SRV_RTT_DIAG`/`TCP_CLI_RTT_DIAG`）；**B** 调度层 probe 决策日志（`{` 帧无协议消费时 `[disp] probe …`
   限速打印，`PROBE_DBG_MIN_MS=200`，probe 仍为纯函数）；**C** 通知投递缺陷修复（`app_channel_dispatch`：
-  立即 + `DISPATCH_NOTIFY_RETRY_MS=20ms` 重试 → 仍失败 `notify_drop++` + 门控告警 + `app_dispatch_notify_drops()`
-  + post-boot 体检行），**该修复非诊断、常开**（+48B text / +4B bss）。同步 §11.2 判读表（新增 12 行）、
+  立即 + `DISPATCH_NOTIFY_RETRY_MS=20ms` 重试一次再放弃；原 `notify_drop++` 计数 / `app_dispatch_notify_drops()`
+  getter / post-boot 体检行已于 2026-10-13 裁决清理），**该重试修复非诊断、常开**。同步 §11.2 判读表（新增 12 行）、
   §11.3 现场步骤（改为含「两次连接」复现的 8 步）、**§11.4 三段判据**（含 0x47 专项行）、§11.5 改动与增量。
   0x47 链路复核结论：probe 白名单 → `declared ≥ 14` → BE16 解析 → 执行入口两条 `[yn_ol] 0x47 …` 日志
   → 写 Sector1 → 回 0x51 → `osDelay(100)` + `NVIC_SystemReset()`，**全路径均有日志、无需改代码**。

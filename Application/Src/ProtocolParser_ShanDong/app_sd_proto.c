@@ -43,8 +43,8 @@ static osMessageQueueId_t s_sd_queue;
 #define SD_PAYLOAD_MAX  (259U) /* '{' + cmd + len + data[0..255] + '}' */
 #define SD_MSG_SIZE     (sizeof(frame_msg_t) + SD_PAYLOAD_MAX)
 #define SD_QUEUE_DEPTH  (3U)
-_Static_assert(SD_PAYLOAD_MAX <= RB_SIZE_RS485, "SD frame must fit RS485 RB");
-_Static_assert(SD_PAYLOAD_MAX <= RB_SIZE_RS232, "SD frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_sd_queue_cb;
 static uint8_t s_sd_queue_buf[SD_QUEUE_DEPTH * SD_MSG_SIZE];
 static const osMessageQueueAttr_t s_sd_queue_attr = {

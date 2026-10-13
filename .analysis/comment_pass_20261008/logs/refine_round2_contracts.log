@@ -1,0 +1,23 @@
+== YN_OL（Application/Inc/ProtocolParser_YunNan_Overload/app_yn_ol_proto.h）契约 4 条（期望 4）
+   1. [19 字] 0x47/0x51 端口字段高字节在前
+   2. [24 字] 不绑 10011（`{` 与 CQ 靠掩码隔离）
+   3. [24 字] 静态队列三段（体/cb/帧缓冲）置 CCMRAM
+   4. [21 字] 0x49 记录独占 W25Qxx 独立扇区
+   （文件头 9 行）
+== GZ_OL（Application/Inc/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.h）契约 5 条（期望 5）
+   1. [24 字] 0x40/0x50/0x70 端口字段高字节在前
+   2. [26 字] `port` 字段被 TCP 与专用 UDP 口共读
+   3. [24 字] 静态队列三段（体/cb/帧缓冲）置 CCMRAM
+   4. [26 字] 字面 `\n` 转 0x0A 须按 GBK 结构行走
+   5. [22 字] 9600 8N1：现场 DIP1 置 OFF
+   （文件头 10 行）
+== MM（Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h）契约 7 条（期望 7）
+   1. [24 字] 干接点高有效（点亮 = 输出高）；上电默认红灯亮
+   2. [27 字] 接管顺序固定；按线摘 EXTI（禁整条 IRQ 禁用）
+   3. [19 字] 非本模块命令须结束码正签名才 SKIP
+   4. [25 字] 只绑 CH_ID_RS232，禁绑 RS232_1
+   5. [18 字] 队列/帧缓冲/任务栈置 CCMRAM
+   6. [ 8 字] 箭头交换仅运行态
+   7. [23 字] 9600 8N1（现场 DIP1 置 OFF）
+   （文件头 10 行）
+######## 契约核查：全部符合（条数/字数/无日期理由/引用一致）

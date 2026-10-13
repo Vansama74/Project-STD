@@ -29,9 +29,6 @@ void pl_tim_start_it(pl_tim_handle_t h);
 void pl_tim_irq_disable(uint8_t irq);
 void pl_tim_irq_enable(uint8_t irq);
 
-/** @brief 调试冻结定时器（仅 TIM3，其他 timer 为安全空操作） */
-void pl_tim_dbg_freeze(pl_tim_handle_t h);
-
 /** @brief TIM 周期回调函数类型 */
 typedef void (*pl_tim_period_cb_t)(void);
 

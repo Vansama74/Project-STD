@@ -21,8 +21,7 @@
 #include <stdint.h>
 #include "app_dispatch.h"
 
-/* 0x02 版本号应答：回固件 PROGRAM_CODE（app_boot.h 编译期常量），
- * 不再使用硬编码 "YN_FX_P5_1.0"（用户决定 7，2026-08-24 修订）。 */
+/* 0x02 版本号应答：回固件 PROGRAM_CODE（app_boot.h 编译期常量）。 */
 
 /**
  * @brief 云南协议支持的命令类型。
@@ -82,7 +81,7 @@ typedef struct { uint8_t row; } yn_clear_row_t;
 
 /**
  * @brief 亮度设置参数（'8' 命令）。
- * @note  level 取值（用户决定 5，2026-08-24 修订）：
+ * @note  level 取值：
  *        0 = 自动亮度（协议参数 NUL 字节 0x00 → 恢复光敏自动调光）；
  *        1~8 = 手动亮度档（协议参数 ASCII '1'~'8' = 0x31~0x38，8 最亮）。
  */

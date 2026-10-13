@@ -1,0 +1,4 @@
+Platform/Src/pl_rtt.c:6:#include "SEGGER_RTT.h"
+Platform/Src/pl_rtt.c:9:void pl_rtt_init(void)
+Platform/Src/pl_rtt.c:11:    SEGGER_RTT_Init();
+Platform/Src/pl_rtt.c:13:hw_pl_initcall(pl_rtt_init);

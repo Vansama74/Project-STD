@@ -28,13 +28,10 @@ static uint8_t *s_frame_back;
 static volatile uint8_t *s_pending_frame;
 static volatile uint8_t s_frame_ready;
 
-/* ④a 脏矩形（2026-09-08）：commit_frame_rect 记录的待消费矩形。
+/* 脏矩形：commit_frame_rect 记录的待消费矩形。
  * 仅在 osKernelLock 保护下访问；未消费前多次提交合并为包围盒。 */
 static uint16_t s_pending_rect_x, s_pending_rect_y, s_pending_rect_w, s_pending_rect_h;
 static bool s_pending_rect_valid;
-
-volatile uint32_t g_dev_display_commit_count;
-volatile uint32_t g_dev_display_scan_count;
 
 /* ---- 实例注册（由派生模组的 hw_dev_initcall 调用）---- */
 void dev_display_register(dev_display_t *dev) { s_active_display = dev; }
@@ -46,7 +43,7 @@ dev_display_t *dev_display_get(void) { return s_active_display; }
  * 显示模组驱动未编入的构建（EIDE Myanmar 目标 = Device/Display 下无
  * dev_display_*.c）里 s_active_display 恒为 nullptr：显存/查表/扫描任务全都不存在。
  * 凡「必须显示才能完成」的入口先经本函数判空 → 安全跳过或降级。
- * （`what` = 调用点标签，保留供调试器观察；原有 RTT 限速告警随本轮移除。） */
+ * （`what` = 调用点标签，保留供调试器观察。） */
 bool dev_display_guard(const char *what)
 {
     (void)what;
@@ -62,7 +59,6 @@ void dev_display_commit_frame(dev_display_t *dev)
     s_pending_frame      = dev->pixel_map;
     s_frame_ready        = 1U;
     s_pending_rect_valid = false; /* 全屏语义：矩形失效 → prepare 全量重排 */
-    g_dev_display_commit_count++;
     osKernelUnlock();
 }
 
@@ -106,7 +102,6 @@ void dev_display_commit_frame_rect(dev_display_t *dev, uint16_t x, uint16_t y, u
     }
     s_pending_frame = dev->pixel_map;
     s_frame_ready   = 1U;
-    g_dev_display_commit_count++;
     osKernelUnlock();
 }
 
@@ -117,8 +112,6 @@ static void _on_tim4_period(void);
 /* ---- 硬件初始化（所有模组通用）---- */
 void dev_display_init(void)
 {
-    pl_tim_dbg_freeze(pl_tim_get_handle(PL_TIM3));
-    pl_tim_dbg_freeze(pl_tim_get_handle(PL_TIM4));
     pl_hub75_init();
     pl_tim_register_period_cb(PL_TIM3, _on_tim3_period);
     pl_tim_register_period_cb(PL_TIM4, _on_tim4_period);
@@ -174,7 +167,6 @@ static void scan_task(void *arg)
         }
 
         /* 模组专用扫描输出 */
-        g_dev_display_scan_count++;
         dev->ops->scan(dev, scan_line);
 
         /* OE/LAT 原子窗口（所有模组通用） */
@@ -244,7 +236,7 @@ void dev_display_fill(dev_display_t *dev, uint16_t x, uint16_t y, uint16_t w, ui
     if (x >= dev->screen_rows || y >= dev->screen_cols)
         return;
     /* 截断判断用 32 位运算：右对齐下溢 cur_x≈0xFFF0 时，x+w 的 uint16 加法回绕成
-     * 小值绕过判界，改为 (uint32_t)x + w 后正确识别越界并截断 */
+     * 小值会绕过判界，故用 (uint32_t)x + w 相加后识别越界并截断 */
     if ((uint32_t)x + w > dev->screen_rows) w = dev->screen_rows - x;
     if ((uint32_t)y + h > dev->screen_cols) h = dev->screen_cols - y;
 
@@ -262,7 +254,7 @@ void dev_display_draw_bitmap(dev_display_t *dev, uint16_t x, uint16_t y, uint16_
     if (x >= dev->screen_rows || y >= dev->screen_cols)
         return;
 
-    /* 越界裁剪绘制（2026-09-14，用户裁决）：位图矩形与屏幕取交集，只画可见部分——
+    /* 越界裁剪绘制：位图矩形与屏幕取交集，只画可见部分——
      * 字形框（字号 × 字号）高于可用屏高时画出其可见部分，而不是整块丢弃
      * （贵州治超 0x20 在单模组 32×16 台架需 24/32 点阵露出上半部分；224×64 整机
      * 字形全在屏内，走等价快路径、现有表现零变化）。完全无交集（w/h=0）不落笔。

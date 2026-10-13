@@ -136,7 +136,7 @@ static bool _udp_gzol_read_port(void)
 | `app_boot.c:192-215` `app_diag_boot_late()`（`:268-270`，延时 2.5s） | 同上 | 通道实测：`chan udp10011=UP/DOWN port=`、`chan gzol=? port=? bind=OK/FALLBACK/SKIPPED/FAIL`、`chan tcp_srv= port=`、`netcfg readback port/udp_port` |
 | `app_gz_ol_proto_cmd.c:109-330` | `GZ_OL_RTT_DIAG`（默认跟随 `APP_DIAG_BANNER`，`:118-120`） | `0x20` 每帧：载荷 dump / 解析结果 / 传给渲染的 `x y w h` / `glyph_visible=WxH of WxH` 越屏判定 / **字库 16-24-32 三档实读**（`font-probe` 段：`addr`/`inCAP`/`rd`/`nz`/`head` + 另一套布局的纯算术地址）/ 渲染后显存非黑像素数 |
 | `app_gz_ol_proto_cmd.c:386-435` | 同上 | `0x40` 每帧：写前快照 / 请求值 / **落库返回值** / **写后 read-back** / 「ack 不是证据」提示 |
-| `Device/Display/dev_display.c:29,46,90` | 无条件 | `g_dev_display_commit_count` 提交计数（`0x20` post-render 行引用） |
+| `Device/Display/dev_display.c:29,46,90` | 无条件 | `g_dev_display_commit_count` 提交计数（`0x20` post-render 行引用）〔**2026-10-13**：该计数已随小项裁决删除（`dev_display.c` 定义 + 2 处自增、`dev_display.h` extern 全清），报告 `.analysis/comment_pass_20261013/report.md` §⑩；本表为 2026-09-14 现场快照，其余诊断设施状态见该轮后续记录〕 |
 | `Application/Inc/app_render.h:147` `app_render_chip_info_get()` | 无条件 | 字库芯片名/区块数/自适应档/编码口径/DIP2（横幅引用） |
 
 **覆盖面核对（任务书要求 → 现有设施）**：镜像身份 ✅（`fw`+`built`+`tree`+口径四元组；EIDE 构建无 Makefile 指纹时打印占位 `no-fingerprint`/`?`，仍可判几何与端口）；屏体几何 ✅（`display screen=WxH` + `module=` + `driver linked?`）；网络配置 ✅；各 UDP 服务口 ✅（10011 / CQ / GZ_OL 三者的缓存端口 + 实测绑定结果与 bind 状态）。

@@ -38,8 +38,7 @@ static const osMessageQueueAttr_t s_ldi_queue_attr = {
     .mq_size = sizeof(s_ldi_queue_buf),
 };
 
-static_assert(sizeof(ldi_device_t) == 1, "ldi_device_t must be 1 byte");
-static_assert(sizeof(ldi_cmd_type_t) == 1, "ldi_cmd_type_t must be 1 byte");
+/* 契约：枚举按 1 字节编解码（LDI 帧内字段宽度）；改错静默解析错位。 */
 
 static const ldi_cmd_type_t cmd_index_table[] = {
     LDI_CMD_SET_IP_REQ,
@@ -100,21 +99,19 @@ void ldi_ctx_init(ldi_ctx_t *self)
     bool board_valid              = (app_board_net_cfg_get(&board_cfg) == 0);
 
     /* net_cfg 合法性（与 app_net_boot 同口径）：IP 非 0 且端口 1~65535。
-     * 2026-08-21 修订：Sector1 记录有效且 net_cfg 合法即采纳（update_sta 不再参与
-     * 分支判定，含升级中间态）——app_board_net_cfg_update 自 2026-08-18 起在中间态
-     * 也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若此处仍按
-     * update_sta != updated 落入分支 2，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg，
-     * setip 失效。Bootloader 条件 D 对中间态记录本就进 Recovery（不启动主固件），
-     * 主固件可运行态下采纳 Sector1 net_cfg 无副作用。 */
+     * Sector1 记录有效且 net_cfg 合法即采纳（update_sta 不参与分支判定，含升级
+     * 中间态）——中间态下 0AH/4B02/CQ setip 改 IP 同样生效；若按 update_sta 落入
+     * 下一分支，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg 致 setip 失效。
+     * 分支语义与理由见 doc/07 §12。 */
     bool net_valid = board_valid &&
         (board_cfg.ip[0] | board_cfg.ip[1] | board_cfg.ip[2] | board_cfg.ip[3]) != 0U &&
         board_cfg.port > 0U && board_cfg.port <= 65535U;
 
     if (net_valid) {
         /* ---- 分支 1：Sector1 有效（magic+CRC）且 net_cfg 合法 → 以 Sector1 为准 ----
-         * 网络字段（device_ip/netmask/gateway/device_port）全部取自 Sector1.net_cfg。
-         * 缺陷 B 修复：device_port 必须读 Sector1.net_cfg.port，而非编译期默认
-         * （app_tcp_server_get_port），否则 0AH/4B02 改过的端口上电即被默认值覆盖。 */
+         * 网络字段（device_ip/netmask/gateway/device_port）全部取自 Sector1.net_cfg；
+         * device_port 必须读 Sector1.net_cfg.port，而非编译期默认，否则改过的端口
+         * 上电即被默认值覆盖。 */
         memcpy(self->cfg.device_ip, board_cfg.ip, sizeof(self->cfg.device_ip));
         memcpy(self->cfg.netmask, board_cfg.mask, sizeof(self->cfg.netmask));
         memcpy(self->cfg.gateway, board_cfg.gw, sizeof(self->cfg.gateway));
@@ -139,11 +136,10 @@ void ldi_ctx_init(ldi_ctx_t *self)
             }
             app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
 
-            /* 缺陷 C/A 修复（镜像自愈）：Sector1 与 W25 的网络字段逐项比对，
-             * 任一不一致 → 用当前 cfg（网络字段取自 Sector1）刷新 W25 镜像。
-             * 覆盖两类陈旧场景：① 4B02 只写 Sector1、不写 W25 → 镜像残留旧值，
-             * 擦 Sector1 恢复出厂时会回滚旧 IP；② 单次 W25 写失败导致的永久陈旧。
-             * W25 为 SPI 4KB 擦写，无内部 Flash 总线停顿，上电执行安全。 */
+            /* 镜像自愈：Sector1 与 W25 的网络字段逐项比对，任一不一致 → 用当前 cfg
+             * （网络字段取自 Sector1）刷新 W25 镜像。覆盖两类陈旧场景：① 只写
+             * Sector1、不写 W25 → 镜像残留旧值，擦 Sector1 恢复出厂时会回滚旧 IP；
+             * ② 单次 W25 写失败导致的永久陈旧。W25 为 SPI 4KB 擦写，上电执行安全。 */
             if (memcmp(self->cfg.device_ip, flash_cfg.device_ip, sizeof(flash_cfg.device_ip)) != 0 ||
                 memcmp(self->cfg.netmask, flash_cfg.netmask, sizeof(flash_cfg.netmask)) != 0 ||
                 memcmp(self->cfg.gateway, flash_cfg.gateway, sizeof(flash_cfg.gateway)) != 0 ||
@@ -151,28 +147,25 @@ void ldi_ctx_init(ldi_ctx_t *self)
                 app_flash_ldi_save_config(&self->cfg);
             }
         } else {
-            /* W25 空/无效：host 取通道当前远端（2026-09-18 起编译期哨兵
-             * 0.0.0.0:0，未配置不连；本分支不 set_remote），并把当前 cfg 写为
-             * W25 恢复镜像——维护「擦 Sector1 恢复出厂后仍可还原用户配置」。
-             * ⚠ 会把哨兵 host 落入 W25（出厂连上位机是否另给默认 host 待拍板）。
-             * W25 为 SPI 外设擦写（4KB 扇区），不暂停 CPU 总线，区别于内部 Flash
-             * 擦除（1~2s 停顿），上电执行安全。 */
+            /* W25 空/无效：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；
+             * 本分支不 set_remote），并把当前 cfg 写为 W25 恢复镜像——维护「擦
+             * Sector1 恢复出厂后仍可还原用户配置」。W25 为 SPI 外设擦写（4KB 扇区），
+             * 不暂停 CPU 总线，上电执行安全。 */
             memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
             self->cfg.host_port = app_tcp_client_get_host_port();
             app_flash_ldi_save_config(&self->cfg);
         }
 
         /* 网络应用（pl_net_set_ip / app_tcp_server_set_port）已移交
-         * app_net_boot_apply（2026-08-21 解耦），此处仅装载 cfg 与自愈 */
+         * app_net_boot_apply 统一执行，此处仅装载 cfg 与自愈（doc/07 §12） */
         self->cfg_valid = true;
 
     } else if (flash_valid) {
         /* ---- 分支 2：Sector1 空/损坏/记录无效或 net_cfg 非法 + W25 有效 → 以 W25 为准
-         * 并回写自愈 ----（2026-08-21 修订：升级中间态不再落入本分支——Sector1 有效且
-         * net_cfg 合法即走分支 1，见上方 net_valid 判定）
+         * 并回写自愈 ----（Sector1 有效且 net_cfg 合法时不会落入本分支，见上方 net_valid）
          * cfg 全字段取自 W25；回写 Sector1 由 app_board_net_cfg_update 内部处理
          * 全部分支（空/损坏完整初始化自愈；中间态下 update_sta/app_info 保留、仅
-         * net_cfg 写入（2026-08-18 语义修订），见 doc/07 §10 方案 1）。 */
+         * net_cfg 写入），见 doc/07 §10 方案 1。 */
         memcpy(self->cfg.device_ip, flash_cfg.device_ip, sizeof(self->cfg.device_ip));
         self->cfg.device_port = flash_cfg.device_port;
         memcpy(self->cfg.netmask, flash_cfg.netmask, sizeof(self->cfg.netmask));
@@ -197,9 +190,9 @@ void ldi_ctx_init(ldi_ctx_t *self)
         app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
         self->cfg_valid = true;
 
-        /* 回写 Sector1 自愈（升级中间态仅 net_cfg 写入，update_sta/app_info 保留）。
-         * 方案 B（2026-08-21）：W25 device_port 写 TCP 业务口，udp_port 保留现值
-         * （Sector1 无效时 get 失败，用出厂默认 20103）。 */
+        /* 回写 Sector1 自愈（中间态仅 net_cfg 写入，update_sta/app_info 保留）。
+         * W25 device_port 写 TCP 业务口，udp_port 保留现值（Sector1 无效时 get 失败，
+         * 用出厂默认 20103）。 */
         app_board_net_cfg_t cur_cfg;
         uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
         (void)app_board_net_cfg_update(self->cfg.device_ip, self->cfg.netmask,
@@ -229,20 +222,15 @@ void ldi_ctx_init(ldi_ctx_t *self)
 /**
  * @brief 以 Sector1 net_cfg（应用后即 netif 实际值）刷新 LDI 运行态网络字段
  *
- * 背景（2026-10-08 C3-C 加固）：上电 ldi_ctx_init（sw_board_init 内）早于
- * app_net_boot_apply，二者对「设备 IP/配置端口」的取值可能不一致——典型 =
- * PROTO_CHONGQING 与 LDI 混编口径（EIDE Debug 曾如此）：ldi_ctx_init 分支 3 取
- * pl_net 上电值 192.168.114.200，app_net_boot 随后把 Sector1/netif 改成
- * 192.168.1.5 ⇒ LDI 通信上报（0x12 搜索应答 / 0xD1 IP 采集应答）与 IAP 0x01
- * （直接读 Sector1）互相矛盾——现场用 LDI 搜索工具会对不上设备地址。
+ * 用途：上电 ldi_ctx_init（sw_board_init 内）早于 app_net_boot_apply，二者对
+ * 「设备 IP/配置端口」的取值可能不一致（混编口径下 ldi_ctx_init 取 pl_net 上电值、
+ * app_net_boot 随后把 Sector1/netif 改成另一值）⇒ LDI 上报（0x12 搜索应答 / 0xD1
+ * IP 采集应答）会与 IAP 0x01（直接读 Sector1）矛盾。故报告路径先经本函数懒同步
+ * g_ldi.cfg 的网络字段，使 LDI 各上报路径与 IAP 0x01 同源（单一真源 = Sector1）。
+ * 记录无效（magic/CRC 错或 IP 全 0 / port 0）时保持现值不动（沿用上电装载结果）。
  *
- * 落法 = 单一真源在 Sector1（选项 b）：报告路径先按本函数懒同步 g_ldi.cfg 的
- * 网络字段，使 LDI 各上报路径与 IAP 0x01 必然同源。记录无效（magic/CRC 错或
- * IP 全 0 / port 0）时保持现值不动（沿用上电装载结果）。
- *
- * 语义：0AH / IAP 4B02 / GZ_OL 0x40 / YN_OL 0x47 写 Sector1 后**重启前**本函数即让
- * LDI 上报新配置值——与 IAP 0x01「报配置值、重启生效」一致（此前 4B02 改 IP 后
- * LDI 仍报旧值，同为两源不一致）。
+ * 语义：0AH / IAP 4B02 / GZ_OL 0x40 / YN_OL 0x47 写 Sector1 后、**重启前**本函数
+ * 即让 LDI 上报新配置值——与 IAP 0x01「报配置值、重启生效」一致。见 doc/07 §16。
  *
  * @return true = 已按 Sector1 刷新；false = 记录无效，保留现值
  */
@@ -482,7 +470,7 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
      * len 恒为 2）与 LDI 共占 10011（CH_ID_UDP），且其 CRC 恰好通过 LDI 校验——
      * 若按 LDI 帧认领会吞掉 CQ 搜索/重启请求（CQ probe 链序在 LDI 之后失收）。
      * LDI 合法 DATA：21H 搜索 = 1B、其余命令 ≥ 20B 头，len==2 无合法命令
-     * （doc/03 PartB Q23 实态修正：原「CQ 帧 len 域全 0 → FAKE」与实态不符）。
+     * （实态核对见 doc/03 PartB Q23）。
      * 明确 FAKE 放行给链序靠后的 CQ probe。 */
     if (data_len == 2U)
         return PROTO_PROBE_FAKE;

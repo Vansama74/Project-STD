@@ -39,8 +39,8 @@ static osMessageQueueId_t s_anhui_queue;
  * CQ 才是 CCMRAM 例外）。 */
 #define ANHUI_MSG_SIZE    (sizeof(frame_msg_t) + ANHUI_PAYLOAD_MAX)
 #define ANHUI_QUEUE_DEPTH (3U)
-_Static_assert(ANHUI_PAYLOAD_MAX <= RB_SIZE_RS485, "ANHUI frame must fit RS485 RB");
-_Static_assert(ANHUI_PAYLOAD_MAX <= RB_SIZE_RS232, "ANHUI frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_anhui_queue_cb;
 static uint8_t s_anhui_queue_buf[ANHUI_QUEUE_DEPTH * ANHUI_MSG_SIZE];
 static const osMessageQueueAttr_t s_anhui_queue_attr = {

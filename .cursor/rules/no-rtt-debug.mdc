@@ -1,0 +1,24 @@
+---
+description: 业务代码默认禁止新增 RTT 调试代码（打印/诊断宏/探针），临时观察须先征得用户同意
+alwaysApply: true
+---
+
+# 业务代码禁止新增 RTT 调试（默认）
+
+用户未明确要求时，**不得**在业务代码（`Application/**`、`Device/**`、`Platform/**`、`Kernel/**`、
+`Core/**`、`Compiler/**` 的 .c/.h）中新增任何 RTT 调试代码，包括：
+
+- `SEGGER_RTT_*` 调用（`SEGGER_RTT_Write` / `SEGGER_RTT_printf` 等）与 `#include "SEGGER_RTT.h"`；
+- 自行封装的 `pl_rtt` 打印辅助函数、`*_RTT_DIAG` / `APP_DIAG` / `[diag]` / `[xxx]` 前缀诊断打印、
+  限速告警宏等诊断设施；
+- 仅为调试新增的 dump / 探针 / 自检打印函数，以及仅为调试而加的 include。
+
+需要临时观察运行时状态时，优先改用**调试器**（Watch 窗口读全局变量、断点、`
+Core/Src/stm32f4xx_it.c` 的 HardFault 现场变量）；确需临时打印时，
+**先征得用户明确同意**，并在代码/回复中说明回退方式（改完即删或标注回退点）。
+
+**RTT 底层属基础设施，不得删除/改动**（除非用户明确要求）：
+`Middlewares/Third_Party/SEGGER_RTT/**`（三个源文件）、`Platform/Src/pl_rtt.c`、
+Makefile `SRC_RTT` 与 `-I Middlewares/Third_Party/SEGGER_RTT`、`.eide/eide.yml` 对 RTT 的收录。
+
+纪律背景与清理记录见 `doc/17_代码瘦身轮_20260929.md`、`doc/18_注释规范.md`。

@@ -1,0 +1,31 @@
+# 实际删除动作记录 2026-10-12 17:57:13
+
+===== 1) build/xj_* =====
+  deleted build/xj_b0  (12M, 489 files)
+  deleted build/xj_b1  (12M, 489 files)
+  deleted build/xj_b2  (12M, 495 files)
+  deleted build/xj_b2_nofault  (12M, 495 files)
+  deleted build/xj_b2cq  (12M, 485 files)
+  deleted build/xj_eide_dbg  (9.9M, 423 files)
+  deleted build/xj_eide_dbg_before  (9.9M, 417 files)
+  deleted build/xj_eide_dbg_faulton  (11M, 423 files)
+  deleted build/xj_eide_mm  (9.8M, 419 files)
+  deleted build/xj_fix_all  (12M, 495 files)
+  deleted build/xj_fix_cq  (12M, 485 files)
+  deleted build/xj_r2_all  (12M, 495 files)
+  deleted build/xj_r2_cq  (12M, 485 files)
+  deleted build/xj_r2_dbg  (9.5M, 403 files)
+  deleted build/xj_r2_dbg_nofix  (9.6M, 403 files)
+
+===== 2) __pycache__ =====
+  deleted ./.analysis/comment_pass_20261008/scripts/batch01b/__pycache__
+  deleted ./.analysis/22_1665/__pycache__
+  deleted ./.analysis/myanmar/__pycache__
+
+===== 3) .analysis 编译中间产物 *.o/*.d =====
+  .analysis/myanmar/ab_baseline : 删除 14 files 237.7 KB，残留 .o/.d = 0
+  .analysis/comment_pass_20261008/ab : 删除 180 files 1680.2 KB，残留 .o/.d = 0
+  .analysis/cleanup_20260929/round2_ab/reconstruct : 删除 16 files 331.2 KB，残留 .o/.d = 0
+  .analysis/yn_ol/guard_test : 删除 5 files 116.5 KB，残留 .o/.d = 0
+
+DONE

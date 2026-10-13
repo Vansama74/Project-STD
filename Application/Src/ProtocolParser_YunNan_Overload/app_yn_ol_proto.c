@@ -2,7 +2,7 @@
  * @file    app_yn_ol_proto.c
  * @brief   云南治超屏协议 — 注册 / 探测 / 帧处理任务
  *
- * 契约一览见 app_yn_ol_proto.h 文件头（本文件实现 ② 掩码隔离 / ③ 互斥守卫 / ④ CCM 放置）。
+ * 契约一览见 app_yn_ol_proto.h 文件头（本文件实现 ② 掩码隔离 / ③ CCM 放置）。
  * 详见 doc/15_云南治超屏协议/README.md §3、§4、§6
  */
 
@@ -18,11 +18,12 @@
 #include "app_yn_ol_proto_parse.h"
 #include "pl_task_static.h"
 
-/* 处理任务栈 + TCB 静态落 CCMRAM（启动期创建一次、永不退出；账见 doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8）。
- * 自检任务会被反复创建/退出，保持动态（见 app_yn_ol_proto_cmd.c）。 */
+/* 处理任务栈 + TCB 静态落 CCMRAM（只创建一次、永不退出；自检任务保持动态，见
+ * app_yn_ol_proto_cmd.c；账见 doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8） */
 PL_TASK_STATIC_STORAGE(yn_ol_handle, 256);
 
-/* `{` 帧族互斥守卫（契约 ③）：多编 → 链接期 multiple definition；STD_ALL_PROTO 开发构建豁免 */
+/* `{` 帧族互斥守卫：多编 → 链接期 multiple definition；STD_ALL_PROTO 豁免
+ * （doc/15_云南治超屏协议/README.md §4） */
 #ifndef STD_ALL_PROTO
 __attribute__((used)) char g_brace_proto_guard;
 #endif
@@ -37,7 +38,8 @@ static proto_mask_t s_yn_ol_mask_tcp_server; /* CH_ID_TCP_SERVER（RJ45 槽 RB�
 static proto_mask_t s_yn_ol_mask_tcp_client; /* CH_ID_TCP_CLIENT（RJ45 槽 RB） */
 static osMessageQueueId_t s_yn_ol_queue;
 
-/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 CCMRAM（契约 ④，1152B；理由见 §6） */
+/* 静态队列（四 mask 共用）：队列体 + 控制块 + 任务帧缓冲置 CCMRAM
+ * （契约 ③，1152B；理由详见 doc/15_云南治超屏协议/README.md §6） */
 [[gnu::section(".ccmram")]] static StaticQueue_t s_yn_ol_queue_cb;
 [[gnu::section(".ccmram")]] static uint8_t s_yn_ol_queue_buf[YN_OL_QUEUE_DEPTH * YN_OL_MSG_SIZE];
 static const osMessageQueueAttr_t s_yn_ol_queue_attr = {
@@ -53,7 +55,7 @@ static proto_probe_sta_t yn_ol_probe_frame(const channel_t *ch, const ring_buffe
 
 /**
  * @brief  云南治超屏协议模块初始化（sw_app_initcall 自注册）。
- * @note   注册五步 × 四通道（doc/08_协议模块接入规则）：槽 acquire → 每通道独立 mask
+ * @note   注册五步 × 四通道（doc/08_协议模块接入规则/01_通用规则与模块骨架.md §2）：槽 acquire → 每通道独立 mask
  *         register + bind → 四 mask 共用一静态队列 → 处理任务；末尾装载 0x49 持久化参数
  *         （要求 dev_w25qxx 已初始化，与任务/队列无耦合）。
  */
@@ -117,7 +119,7 @@ sw_app_initcall(yn_ol_proto_init);
  * @param  total_len  READY 时写出整帧长（= 长度字段 + 4）。
  * @return READY / WAIT / FAKE；命令字白名单复用 `yn_ol_cmd_from_byte()`（单一真源）。
  * @note   7 步判定链（首字节快拒 → 命令字白名单 → 长度/尾字节校验）与 CQ 兼容路径
- *         见 doc/15_云南治超屏协议/README.md §3；`ch` / `aux` 为 probe 契约参数，未使用。
+ *         详见 doc/15_云南治超屏协议/README.md §3；`ch` / `aux` 为 probe 契约参数，未使用。
  */
 static proto_probe_sta_t yn_ol_probe_frame(const channel_t *ch, const ring_buffer_t *rb,
                                            uint32_t *total_len, uint8_t *aux)

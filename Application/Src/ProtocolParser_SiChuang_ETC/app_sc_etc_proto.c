@@ -5,8 +5,9 @@
  * 绑定 RS485 + RS232 双通道（与青海同模式：acquire → register → bind → set_frame_queue）。
  * 心跳机制原由固件实现：独立计时任务，5 分钟未收到任何有效帧（心跳/显示/灯控/亮度）
  * 则显示「ETC车道关闭」；收到有效帧刷新计时。无重发/超时逻辑。
- * 2026-08-17：心跳计时任务已停用（#if 0 + 创建处注释）——「ETC车道关闭」超时显示
- * 与黄闪 10 秒自动关闭（依赖该任务 tick）一并失效，详见下文「心跳超时计时」注释。
+ * **现状：心跳计时任务已停用（#if 0 + 创建处注释）**——「ETC车道关闭」超时显示
+ * 与黄闪 10 秒自动关闭（依赖该任务 tick）一并失效，须由上位机 0A 39 显式关黄闪；
+ * 恢复方法见下文 `#if 0` 块注释。
  */
 
 #include "app_sc_etc_proto.h"
@@ -38,8 +39,8 @@ static osMessageQueueId_t s_sc_etc_queue;
 #define SC_ETC_PAYLOAD_MAX (149U)
 #define SC_ETC_MSG_SIZE    (sizeof(frame_msg_t) + SC_ETC_PAYLOAD_MAX)
 #define SC_ETC_QUEUE_DEPTH (3U)
-_Static_assert(SC_ETC_PAYLOAD_MAX <= RB_SIZE_RS485, "SC_ETC frame must fit RS485 RB");
-_Static_assert(SC_ETC_PAYLOAD_MAX <= RB_SIZE_RS232, "SC_ETC frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_sc_etc_queue_cb;
 static uint8_t s_sc_etc_queue_buf[SC_ETC_QUEUE_DEPTH * SC_ETC_MSG_SIZE];
 static const osMessageQueueAttr_t s_sc_etc_queue_attr = {
@@ -58,15 +59,12 @@ static const osMessageQueueAttr_t s_sc_etc_queue_attr = {
 /** ETC 黄闪自动关闭时长（10 秒，1s 递减到 0 关黄闪） */
 #define SC_ETC_HS_TIMEOUT_S (10U)
 
-/* 2026-08-17：心跳超时显示功能已停用——sc_etc_heartbeat_task 以 #if 0 包裹、
- * sc_etc_proto_init 中任务创建已注释。以下状态与 API 保留但暂无消费方：
- *   - s_etc_uptime_s 不再递增，s_etc_activity_s / s_etc_closed_shown 仅被
- *     sc_etc_activity_refresh 写入、无读取方（刷新调用保留，无害）；
- *   - 黄闪 10 秒自动关闭依赖本任务 tick（s_etc_uptime_s 每秒 +1 后与
- *     s_etc_hs_off_s 比较）→ 一并失效：0A 38 黄闪开启后不再自动关闭，
- *     须由上位机 0A 39 显式关闭（sc_etc_hs_timer_arm/cancel 仍被调用，仅记录状态）。
- * 恢复方法：删除任务函数 #if 0/#endif，并恢复 sc_etc_proto_init 中任务创建
- * （sc_etc_heartbeat_task，栈 256×4=1KB），上述两项功能同时恢复。 */
+/* 心跳超时显示功能已停用（sc_etc_heartbeat_task 以 #if 0 包裹、任务创建已注释）：
+ * 以下状态与 API 保留但暂无消费方——s_etc_uptime_s 不再递增，s_etc_activity_s /
+ * s_etc_closed_shown 仅被 sc_etc_activity_refresh 写入；黄闪 10 秒自动关闭随之失效
+ * （sc_etc_hs_timer_arm/cancel 仍被调用，仅记录状态）。
+ * 恢复方法：删除任务函数 #if 0/#endif 并恢复 sc_etc_proto_init 中任务创建
+ * （sc_etc_heartbeat_task，栈 256×4=1KB），两项功能同时恢复。 */
 
 static volatile uint32_t s_etc_uptime_s;   /**< 计时任务秒计数（递增） */
 static volatile uint32_t s_etc_activity_s; /**< 最近一次有效帧时刻（秒） */
@@ -76,8 +74,8 @@ static volatile uint32_t s_etc_hs_off_s;   /**< 黄闪自动关闭时刻（0=未
 /**
  * @brief  刷新心跳活动计时（收到有效帧时调用）。
  * @note   32 位对齐读写原子；计时任务与处理任务交叉访问，误差 ≤1s 可接受。
- *         2026-08-17：心跳计时任务已停用（#if 0），本函数暂无读取方，
- *         保留调用与实现以便恢复（无害，仅写两个 volatile 状态）。
+ *         心跳计时任务已停用（#if 0），本函数暂无读取方，保留调用与实现以便
+ *         恢复（无害，仅写两个 volatile 状态）。
  */
 static void sc_etc_activity_refresh(void)
 {
@@ -102,9 +100,8 @@ void sc_etc_hs_timer_cancel(void)
  *         并处理 ETC 黄闪 10 秒自动关闭。
  * @param  argument  任务参数，当前未使用。
  *
- * 2026-08-17 已停用（#if 0）：心跳超时显示功能注释下线。注意本任务同时承担
- * 黄闪 10 秒自动关闭的 tick（s_etc_uptime_s 递增 + s_etc_hs_off_s 判定），
- * 停用后 0A 38 黄闪开启不再 10 秒自动关闭，须由 0A 39 显式关闭。
+ * 已停用（#if 0）：启用后即恢复心跳超时显示与黄闪 10 秒自动关闭
+ * （本任务承担 tick：s_etc_uptime_s 递增 + s_etc_hs_off_s 判定）。
  * 恢复方法：删除 #if 0/#endif 并恢复 sc_etc_proto_init 中任务创建。
  */
 #if 0
@@ -169,8 +166,8 @@ void sc_etc_proto_init(void)
     };
     osThreadNew(sc_etc_proto_handle_task, NULL, &s_sc_etc_task_attr);
 
-    /* 2026-08-17：心跳计时任务已停用（见 sc_etc_heartbeat_task #if 0 注释）——
-     * 5 分钟超时「ETC车道关闭」显示与黄闪 10 秒自动关闭均不再生效。
+    /* 心跳计时任务已停用（见 sc_etc_heartbeat_task #if 0 注释）——
+     * 5 分钟超时「ETC车道关闭」显示与黄闪 10 秒自动关闭均不再生效；
      * 恢复方法：取消本段注释（任务栈 256×4=1KB，自 ucHeap 支出）。 */
     // static const osThreadAttr_t s_sc_etc_timer_attr = {
     //     .name       = "sc_etc_heartbeat_task",

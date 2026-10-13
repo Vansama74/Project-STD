@@ -5,17 +5,16 @@
  * 显示内容映射到 app_render（协议文本 GBK 直通渲染，24 点阵 FONT_24 行高 24px——
  * 协议原文 24 点阵、一行 12 ASCII / 6 汉字，本设备 24 点阵一行可容纳
  * 16 ASCII / 8 汉字，超宽由渲染引擎截断；行号 '1'~'5' 全按协议接受，
- * 行 5 在 96px 屏高下「执行但不落屏」，见用户决定 2）；
+ * 行 5 在 96px 屏高下「执行但不落屏」）；
  * 灯控映射到 dev_io_lane_light / dev_io_flash_light（红优先，与贵州裁决一致）；
- * 亮度 0x00=恢复光敏自动调光、'1'~'8'=挂起光敏 + 硬件档恒等映射
- * （8 最亮，用户决定 5）；
+ * 亮度 0x00=恢复光敏自动调光、'1'~'8'=挂起光敏 + 硬件档恒等映射（8 最亮）；
  * 自检 '2' 复用出厂测试「老化循环显示」序列 + 每 5s 播报「系统正在自检」，
- * 可被下一帧命令打断（用户决定 3）；
- * 0x01 全屏点亮支持 01红/02绿/03黄/04蓝/05紫/06青/07白（用户决定 10）；
- * 音量 '1'~'5' 映射语音板音量 {1,3,5,7,9}（沿贵州实测映射，同一语音板）；
+ * 可被下一帧命令打断；
+ * 0x01 全屏点亮支持 01红/02绿/03黄/04蓝/05紫/06青/07白；
+ * 音量 '1'~'5' 映射语音板音量 {1,3,5,7,9}（同一语音板口径）；
  * 语音经 dev_rs232_voice 旁路 USART6。
- * 上行应答：'1' 主机查询回「正常」帧、0x02 版本号回裸 ASCII PROGRAM_CODE
- * （用户决定 7），其余命令单向不回。
+ * 上行应答：'1' 主机查询回「正常」帧、0x02 版本号回裸 ASCII PROGRAM_CODE，
+ * 其余命令单向不回。裁决记录见 doc/11 §8。
  */
 
 #include "app_yn_proto_cmd.h"
@@ -46,21 +45,19 @@ static const display_color_t s_yn_color_map[] = {
     [2] = COLOR_YELLOW,
 };
 
-/* 协议音量 1~5 → 语音板音量值 {1,3,5,7,9}（沿贵州实测映射：语音板音量非线性档位，
- * STD dev_rs232_voice_volume 直通发送音量值） */
+/* 协议音量 1~5 → 语音板音量值 {1,3,5,7,9}（语音板音量非线性档位，
+ * dev_rs232_voice_volume 直通发送音量值） */
 static const uint8_t s_yn_volume_map[] = {1, 3, 5, 7, 9};
 
 /** @brief 自检任务运行标志（防重复触发，任务内自清） */
 static volatile bool s_yn_selftest_running = false;
 
-/** @brief 自检中止标志：下一帧命令到达时置位，自检任务检测后退出（用户决定 3） */
+/** @brief 自检中止标志：下一帧命令到达时置位，自检任务检测后退出 */
 static volatile bool s_yn_selftest_abort = false;
 
-/* ---- 老化循环显示序列复用（用户决定 3，2026-08-24 修订）----
- * 复用 Application/Src/app_factory_test.c 263-299 行「老化循环显示」逻辑的
- * 显示序列与实现方式：整屏单字居中全屏显示（清黑 + 渲染 + commit），
- * 字号 {FONT_16, FONT_24, FONT_32} × 字体 {ST, FS, KT, HT} 循环推进，
- * 文本逐字显示「重庆创迪科技发展有限公司设备老化测试」，循环直至被打断。
+/* ---- 老化循环显示序列（复用出厂测试同款显示方式）----
+ * 整屏单字居中全屏显示（清黑 + 渲染 + commit），字号 {FONT_16, FONT_24, FONT_32}
+ * × 字体 {ST, FS, KT, HT} 循环推进，文本逐字显示，循环直至被打断。
  * 与出厂测试的差异：不切换车道灯（避免污染 'A' 外设命令的灯状态）、
  * 不做按键等待（固定步进延时 + 中止标志分片检查）、循环而非单轮；
  * 出厂测试自身的任务/状态（monitor、中止标志、老化亮度）完全不动。 */
@@ -224,7 +221,7 @@ static void _yn_exec_self_check(void)
         .stack_size = 256 * 4,
         .priority   = osPriorityNormal,
     };
-    /* 判空 + RTT；创建失败必须回退防重入标志——否则「自检」被永久锁死（后续 '2' 全被忽略）。
+    /* 判空：创建失败必须回退防重入标志——否则「自检」被永久锁死（后续 '2' 全被忽略）。
      * 本任务**故意保持动态分配**：它在末尾先清 running 再 osThreadExit()，清标志与真正
      * 退出之间仍可能被下一帧插入，复用同一份静态栈会栈踩踏（见 pl_task_static.h 约束）。 */
     osThreadId_t tid =
@@ -260,10 +257,9 @@ static void _yn_clear_screen(void)
  * @brief  清空第 row 行区域（行高 YN_ROW_PX=24）。
  * @param  d    显示设备实例。
  * @param  row  行号（0 起）。
- * @note   用户决定 2（2026-08-24 修订）：行号 '1'~'5' 全按协议执行，
- *         不丢弃、不拒绝。行高 24px 下 96px 屏高只容纳 4 行——
- *         行 5（row 4，y=96）越界时 dev_display_fill 起点越界早退
- *         （安全无副作用），即「执行但不落屏」。
+ * @note   行号 '1'~'5' 全按协议执行，不丢弃、不拒绝。行高 24px 下 96px 屏高
+ *         只容纳 4 行——行 5（row 4，y=96）越界时 dev_display_fill 起点越界
+ *         早退（安全无副作用），即「执行但不落屏」。
  */
 static void _yn_clear_row(dev_display_t *d, uint8_t row)
 {
@@ -287,7 +283,7 @@ static void _yn_exec_host_query(channel_t *ch)
  * @param  p  单行显示参数。
  * @note   先整行清黑再渲染收到内容（文本短于行宽时旧内容残留必须清除）；
  *         FONT_24 渲染、GBK 直通、超出行宽截断。
- *         用户决定 2（2026-08-24 修订）：行 5（row 4，y=96）渲染调用照常
+ *         行 5（row 4，y=96）渲染调用照常
  *         发出——渲染层 dev_display_fill / dev_display_draw_bitmap 起点越界
  *         早退，天然不落屏（安全无副作用），命令本身不丢弃、不拒绝。
  */
@@ -379,8 +375,8 @@ static void _yn_exec_fill_all(uint8_t color)
 /**
  * @brief  执行获取版本号（0x02 命令）：回裸 ASCII 固件 PROGRAM_CODE。
  * @param  ch  源通道。
- * @note   用户决定 7（2026-08-24 修订）：不再回硬编码 "YN_FX_P5_1.0"，
- *         与山东/贵州同模式回编译期常量 PROGRAM_CODE（app_boot.h）。
+ * @note   回编译期常量 PROGRAM_CODE（app_boot.h），与山东/贵州同模式
+ *         （不回硬编码协议版本串）。
  */
 static void _yn_exec_version(channel_t *ch)
 {
@@ -388,11 +384,10 @@ static void _yn_exec_version(channel_t *ch)
 }
 
 /**
- * @brief  执行亮度设定（'8' 命令，用户决定 5，2026-08-24 修订）。
+ * @brief  执行亮度设定（'8' 命令）。
  * @param  level  0 = 自动亮度（协议参数 NUL 字节 0x00）；
  *                1~8 = 手动亮度档（协议参数 ASCII '1'~'8'，8 最亮）。
- * @note   0x00 → 恢复光敏任务自动调光（osThreadResume，替代此前
- *         「恢复自动调光需复位」的临时方案）；
+ * @note   0x00 → 恢复光敏任务自动调光（osThreadResume）；
  *         1~8 → 挂起光敏任务（防 1s 周期自动调光覆盖手动档）+
  *         硬件档恒等映射（DEV_DISPLAY_BRIGHTNESS_MAX=8）。
  */
@@ -403,7 +398,7 @@ static void _yn_exec_brightness(uint8_t level)
         return;
 
     if (level == 0) {
-        /* 自动亮度：恢复光敏任务（此前可能被手动档挂起） */
+        /* 自动亮度：恢复光敏任务（可能被手动档挂起） */
         if (g_light_sensor_task_handle != nullptr)
             osThreadResume(g_light_sensor_task_handle);
         return;
@@ -419,7 +414,7 @@ static void _yn_exec_brightness(uint8_t level)
 /**
  * @brief  执行语音音量设定（'9' 命令：'1'~'5' 档）。
  * @param  level  协议音量档位（1~5）。
- * @note   档位映射沿贵州实测：协议 '1'~'5' → 语音板音量值 1/3/5/7/9。
+ * @note   档位映射：协议 '1'~'5' → 语音板音量值 1/3/5/7/9。
  */
 static void _yn_exec_volume(uint8_t level)
 {
@@ -469,9 +464,9 @@ void yn_execute_cmd(channel_t *ch, const yn_parsed_cmd_t *cmd)
     if (!cmd || cmd->sta != YN_PARSE_OK)
         return;
 
-    /* 自检打断（用户决定 3，2026-08-24 修订）：自检进行中收到其他有效命令 →
-     * 置中止标志，自检任务在下一分片（≤100ms）检测到后退出且不清屏，
-     * 屏幕交给本命令；'2' 自检本身不打断（防重入由 _yn_exec_self_check 处理）。 */
+    /* 自检打断：自检进行中收到其他有效命令 → 置中止标志，自检任务在下一分片
+     * （≤100ms）检测到后退出且不清屏，屏幕交给本命令；'2' 自检本身不打断
+     * （防重入由 _yn_exec_self_check 处理）。 */
     if (s_yn_selftest_running && cmd->cmd != YN_PCMD_SELF_CHECK)
         s_yn_selftest_abort = true;
 

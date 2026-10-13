@@ -117,6 +117,7 @@ INC_DIRS = \
 	-I Application/Inc/ProtocolParser_ChongQing \
 	-I Application/Inc/ProtocolParser_Anhui \
 	-I Application/Inc/ProtocolParser_Myanmar \
+	-I Application/Inc/ProtocolParser_XinJiang \
 	-I Application/Inc/AH_MQTT \
 	-I Application/Inc/RLS \
 	-I Application/Inc/Channel \
@@ -439,7 +440,10 @@ SRC_APPLICATION = \
 	Application/Src/Channel/app_tcp_client.c \
 	Application/Src/Channel/app_mqtt.c \
 	Application/Src/Channel/app_rs232.c \
-	Application/Src/Channel/app_rs485.c
+	Application/Src/Channel/app_rs485.c \
+	Application/Src/ProtocolParser_XinJiang/app_xj_proto.c \
+	Application/Src/ProtocolParser_XinJiang/app_xj_proto_parse.c \
+	Application/Src/ProtocolParser_XinJiang/app_xj_proto_cmd.c
 
 # PROTO=CQ：剔除 LDI 目录文件（网络配置应用由中立模块 app_net_boot 承担）
 ifeq ($(PROTO),CQ)

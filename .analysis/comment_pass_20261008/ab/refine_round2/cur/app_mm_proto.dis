@@ -1,0 +1,265 @@
+
+
+
+Disassembly of section .text.mm_probe_frame:
+
+00000000 <mm_probe_frame>:
+   0:	b570      	push	{r4, r5, r6, lr}
+   2:	b084      	sub	sp, #16
+   4:	460d      	mov	r5, r1
+   6:	4616      	mov	r6, r2
+   8:	2100      	movs	r1, #0
+   a:	4628      	mov	r0, r5
+   c:	f7ff fffe 	bl	0 <rb_avail>
+  10:	2800      	cmp	r0, #0
+  12:	d054      	beq.n	be <mm_probe_frame+0xbe>
+  14:	4604      	mov	r4, r0
+  16:	2100      	movs	r1, #0
+  18:	9100      	str	r1, [sp, #0]
+  1a:	2301      	movs	r3, #1
+  1c:	f10d 020f 	add.w	r2, sp, #15
+  20:	4628      	mov	r0, r5
+  22:	f7ff fffe 	bl	0 <rb_peek>
+  26:	f89d 300f 	ldrb.w	r3, [sp, #15]
+  2a:	2bff      	cmp	r3, #255	@ 0xff
+  2c:	d14a      	bne.n	c4 <mm_probe_frame+0xc4>
+  2e:	2c01      	cmp	r4, #1
+  30:	d94a      	bls.n	c8 <mm_probe_frame+0xc8>
+  32:	2300      	movs	r3, #0
+  34:	9300      	str	r3, [sp, #0]
+  36:	2301      	movs	r3, #1
+  38:	f10d 020e 	add.w	r2, sp, #14
+  3c:	4619      	mov	r1, r3
+  3e:	4628      	mov	r0, r5
+  40:	f7ff fffe 	bl	0 <rb_peek>
+  44:	f89d 300e 	ldrb.w	r3, [sp, #14]
+  48:	2be0      	cmp	r3, #224	@ 0xe0
+  4a:	d13f      	bne.n	cc <mm_probe_frame+0xcc>
+  4c:	2c13      	cmp	r4, #19
+  4e:	d801      	bhi.n	54 <mm_probe_frame+0x54>
+  50:	2001      	movs	r0, #1
+  52:	e035      	b.n	c0 <mm_probe_frame+0xc0>
+  54:	2300      	movs	r3, #0
+  56:	9300      	str	r3, [sp, #0]
+  58:	2302      	movs	r3, #2
+  5a:	aa03      	add	r2, sp, #12
+  5c:	4619      	mov	r1, r3
+  5e:	4628      	mov	r0, r5
+  60:	f7ff fffe 	bl	0 <rb_peek>
+  64:	f89d 300c 	ldrb.w	r3, [sp, #12]
+  68:	2b90      	cmp	r3, #144	@ 0x90
+  6a:	d003      	beq.n	74 <mm_probe_frame+0x74>
+  6c:	2b0a      	cmp	r3, #10
+  6e:	d001      	beq.n	74 <mm_probe_frame+0x74>
+  70:	2b0b      	cmp	r3, #11
+  72:	d107      	bne.n	84 <mm_probe_frame+0x84>
+  74:	f89d 300d 	ldrb.w	r3, [sp, #13]
+  78:	2b01      	cmp	r3, #1
+  7a:	d81c      	bhi.n	b6 <mm_probe_frame+0xb6>
+  7c:	2314      	movs	r3, #20
+  7e:	6033      	str	r3, [r6, #0]
+  80:	2000      	movs	r0, #0
+  82:	e01d      	b.n	c0 <mm_probe_frame+0xc0>
+  84:	2300      	movs	r3, #0
+  86:	9300      	str	r3, [sp, #0]
+  88:	2304      	movs	r3, #4
+  8a:	aa02      	add	r2, sp, #8
+  8c:	210f      	movs	r1, #15
+  8e:	4628      	mov	r0, r5
+  90:	f7ff fffe 	bl	0 <rb_peek>
+  94:	2300      	movs	r3, #0
+  96:	2b03      	cmp	r3, #3
+  98:	d807      	bhi.n	aa <mm_probe_frame+0xaa>
+  9a:	f103 0210 	add.w	r2, r3, #16
+  9e:	446a      	add	r2, sp
+  a0:	f812 2c08 	ldrb.w	r2, [r2, #-8]
+  a4:	b92a      	cbnz	r2, b2 <mm_probe_frame+0xb2>
+  a6:	3301      	adds	r3, #1
+  a8:	e7f5      	b.n	96 <mm_probe_frame+0x96>
+  aa:	2314      	movs	r3, #20
+  ac:	6033      	str	r3, [r6, #0]
+  ae:	2003      	movs	r0, #3
+  b0:	e006      	b.n	c0 <mm_probe_frame+0xc0>
+  b2:	2002      	movs	r0, #2
+  b4:	e004      	b.n	c0 <mm_probe_frame+0xc0>
+  b6:	2314      	movs	r3, #20
+  b8:	6033      	str	r3, [r6, #0]
+  ba:	2003      	movs	r0, #3
+  bc:	e000      	b.n	c0 <mm_probe_frame+0xc0>
+  be:	2002      	movs	r0, #2
+  c0:	b004      	add	sp, #16
+  c2:	bd70      	pop	{r4, r5, r6, pc}
+  c4:	2002      	movs	r0, #2
+  c6:	e7fb      	b.n	c0 <mm_probe_frame+0xc0>
+  c8:	2001      	movs	r0, #1
+  ca:	e7f9      	b.n	c0 <mm_probe_frame+0xc0>
+  cc:	2002      	movs	r0, #2
+  ce:	e7f7      	b.n	c0 <mm_probe_frame+0xc0>
+
+Disassembly of section .text._mm_default_display_init:
+
+00000000 <_mm_default_display_init>:
+   0:	b508      	push	{r3, lr}
+   2:	f7ff fffe 	bl	0 <dev_display_get>
+   6:	b110      	cbz	r0, e <_mm_default_display_init+0xe>
+   8:	4801      	ldr	r0, [pc, #4]	@ (10 <_mm_default_display_init+0x10>)
+   a:	f7ff fffe 	bl	0 <app_default_display_register>
+   e:	bd08      	pop	{r3, pc}
+  10:	00000000 	.word	0x00000000
+
+Disassembly of section .text.mm_proto_init:
+
+00000000 <mm_proto_init>:
+   0:	b508      	push	{r3, lr}
+   2:	f44f 7140 	mov.w	r1, #768	@ 0x300
+   6:	2002      	movs	r0, #2
+   8:	f7ff fffe 	bl	0 <app_proto_acquire_buf>
+   c:	b130      	cbz	r0, 1c <mm_proto_init+0x1c>
+   e:	4601      	mov	r1, r0
+  10:	480f      	ldr	r0, [pc, #60]	@ (50 <mm_proto_init+0x50>)
+  12:	f7ff fffe 	bl	0 <app_proto_register>
+  16:	4b0f      	ldr	r3, [pc, #60]	@ (54 <mm_proto_init+0x54>)
+  18:	6018      	str	r0, [r3, #0]
+  1a:	b900      	cbnz	r0, 1e <mm_proto_init+0x1e>
+  1c:	bd08      	pop	{r3, pc}
+  1e:	2101      	movs	r1, #1
+  20:	f7ff fffe 	bl	0 <app_proto_bind_channel>
+  24:	f7ff fffe 	bl	0 <mm_proto_init>
+  28:	f7ff fffe 	bl	0 <mm_apply_init>
+  2c:	4a0a      	ldr	r2, [pc, #40]	@ (58 <mm_proto_init+0x58>)
+  2e:	211c      	movs	r1, #28
+  30:	2003      	movs	r0, #3
+  32:	f7ff fffe 	bl	0 <osMessageQueueNew>
+  36:	4601      	mov	r1, r0
+  38:	4b08      	ldr	r3, [pc, #32]	@ (5c <mm_proto_init+0x5c>)
+  3a:	6018      	str	r0, [r3, #0]
+  3c:	4b05      	ldr	r3, [pc, #20]	@ (54 <mm_proto_init+0x54>)
+  3e:	6818      	ldr	r0, [r3, #0]
+  40:	f7ff fffe 	bl	0 <app_proto_set_frame_queue>
+  44:	4a06      	ldr	r2, [pc, #24]	@ (60 <mm_proto_init+0x60>)
+  46:	2100      	movs	r1, #0
+  48:	4806      	ldr	r0, [pc, #24]	@ (64 <mm_proto_init+0x64>)
+  4a:	f7ff fffe 	bl	0 <osThreadNew>
+  4e:	e7e5      	b.n	1c <mm_proto_init+0x1c>
+	...
+
+Disassembly of section .text._mm_cross_px:
+
+00000000 <_mm_cross_px>:
+   0:	4694      	mov	ip, r2
+   2:	428a      	cmp	r2, r1
+   4:	d300      	bcc.n	8 <_mm_cross_px+0x8>
+   6:	4770      	bx	lr
+   8:	b508      	push	{r3, lr}
+   a:	461a      	mov	r2, r3
+   c:	2301      	movs	r3, #1
+   e:	4661      	mov	r1, ip
+  10:	f7ff fffe 	bl	0 <dev_display_set_pixel>
+  14:	bd08      	pop	{r3, pc}
+
+Disassembly of section .text._mm_default_red_cross:
+
+00000000 <_mm_default_red_cross>:
+   0:	e92d 4ff0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}
+   4:	b085      	sub	sp, #20
+   6:	f7ff fffe 	bl	0 <dev_display_get>
+   a:	2800      	cmp	r0, #0
+   c:	d04e      	beq.n	ac <_mm_default_red_cross+0xac>
+   e:	4606      	mov	r6, r0
+  10:	8947      	ldrh	r7, [r0, #10]
+  12:	8982      	ldrh	r2, [r0, #12]
+  14:	9202      	str	r2, [sp, #8]
+  16:	2f01      	cmp	r7, #1
+  18:	d948      	bls.n	ac <_mm_default_red_cross+0xac>
+  1a:	2a01      	cmp	r2, #1
+  1c:	d946      	bls.n	ac <_mm_default_red_cross+0xac>
+  1e:	4b25      	ldr	r3, [pc, #148]	@ (b4 <_mm_default_red_cross+0xb4>)
+  20:	fba3 3802 	umull	r3, r8, r3, r2
+  24:	ea4f 1818 	mov.w	r8, r8, lsr #4
+  28:	2a2f      	cmp	r2, #47	@ 0x2f
+  2a:	d801      	bhi.n	30 <_mm_default_red_cross+0x30>
+  2c:	f04f 0802 	mov.w	r8, #2
+  30:	2400      	movs	r4, #0
+  32:	9401      	str	r4, [sp, #4]
+  34:	9d02      	ldr	r5, [sp, #8]
+  36:	9500      	str	r5, [sp, #0]
+  38:	463b      	mov	r3, r7
+  3a:	4622      	mov	r2, r4
+  3c:	4621      	mov	r1, r4
+  3e:	4630      	mov	r0, r6
+  40:	f7ff fffe 	bl	0 <dev_display_fill>
+  44:	1e79      	subs	r1, r7, #1
+  46:	fa1f fa81 	uxth.w	sl, r1
+  4a:	1e6b      	subs	r3, r5, #1
+  4c:	b29b      	uxth	r3, r3
+  4e:	9303      	str	r3, [sp, #12]
+  50:	46a3      	mov	fp, r4
+  52:	e019      	b.n	88 <_mm_default_red_cross+0x88>
+  54:	1b2a      	subs	r2, r5, r4
+  56:	465b      	mov	r3, fp
+  58:	b292      	uxth	r2, r2
+  5a:	4639      	mov	r1, r7
+  5c:	4630      	mov	r0, r6
+  5e:	f7ff fffe 	bl	0 <_mm_default_red_cross>
+  62:	3401      	adds	r4, #1
+  64:	b2a4      	uxth	r4, r4
+  66:	45a0      	cmp	r8, r4
+  68:	d90a      	bls.n	80 <_mm_default_red_cross+0x80>
+  6a:	eb04 0209 	add.w	r2, r4, r9
+  6e:	465b      	mov	r3, fp
+  70:	b292      	uxth	r2, r2
+  72:	4639      	mov	r1, r7
+  74:	4630      	mov	r0, r6
+  76:	f7ff fffe 	bl	0 <_mm_default_red_cross>
+  7a:	42ac      	cmp	r4, r5
+  7c:	d8f1      	bhi.n	62 <_mm_default_red_cross+0x62>
+  7e:	e7e9      	b.n	54 <_mm_default_red_cross+0x54>
+  80:	f10b 0b01 	add.w	fp, fp, #1
+  84:	fa1f fb8b 	uxth.w	fp, fp
+  88:	9b02      	ldr	r3, [sp, #8]
+  8a:	459b      	cmp	fp, r3
+  8c:	d20b      	bcs.n	a6 <_mm_default_red_cross+0xa6>
+  8e:	fb0b f30a 	mul.w	r3, fp, sl
+  92:	9a03      	ldr	r2, [sp, #12]
+  94:	fbb3 f3f2 	udiv	r3, r3, r2
+  98:	fa1f f983 	uxth.w	r9, r3
+  9c:	ebaa 0509 	sub.w	r5, sl, r9
+  a0:	b2ad      	uxth	r5, r5
+  a2:	2400      	movs	r4, #0
+  a4:	e7df      	b.n	66 <_mm_default_red_cross+0x66>
+  a6:	4630      	mov	r0, r6
+  a8:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  ac:	b005      	add	sp, #20
+  ae:	e8bd 8ff0 	ldmia.w	sp!, {r4, r5, r6, r7, r8, r9, sl, fp, pc}
+  b2:	bf00      	nop
+  b4:	aaaaaaab 	.word	0xaaaaaaab
+
+Disassembly of section .text.mm_proto_handle_task:
+
+00000000 <mm_proto_handle_task>:
+   0:	b500      	push	{lr}
+   2:	b083      	sub	sp, #12
+   4:	f04f 33ff 	mov.w	r3, #4294967295	@ 0xffffffff
+   8:	2200      	movs	r2, #0
+   a:	4908      	ldr	r1, [pc, #32]	@ (2c <mm_proto_handle_task+0x2c>)
+   c:	4808      	ldr	r0, [pc, #32]	@ (30 <mm_proto_handle_task+0x30>)
+   e:	6800      	ldr	r0, [r0, #0]
+  10:	f7ff fffe 	bl	0 <osMessageQueueGet>
+  14:	2800      	cmp	r0, #0
+  16:	d1f5      	bne.n	4 <mm_proto_handle_task+0x4>
+  18:	4804      	ldr	r0, [pc, #16]	@ (2c <mm_proto_handle_task+0x2c>)
+  1a:	8881      	ldrh	r1, [r0, #4]
+  1c:	3006      	adds	r0, #6
+  1e:	f7ff fffe 	bl	0 <mm_parse_frame>
+  22:	9001      	str	r0, [sp, #4]
+  24:	a801      	add	r0, sp, #4
+  26:	f7ff fffe 	bl	0 <mm_execute_cmd>
+  2a:	e7eb      	b.n	4 <mm_proto_handle_task+0x4>
+	...
+
+Disassembly of section .text.rb_provide_rs232:
+
+00000000 <rb_provide_rs232>:
+   0:	4800      	ldr	r0, [pc, #0]	@ (4 <rb_provide_rs232+0x4>)
+   2:	4770      	bx	lr
+   4:	00000000 	.word	0x00000000

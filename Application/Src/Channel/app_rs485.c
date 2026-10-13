@@ -108,7 +108,7 @@ osThreadId_t app_rs485_start(void)
     self->rx_block_size = RS485_BUF_SIZE;
     self->rx_buf_size   = 2U * RS485_BUF_SIZE; /* 乒乓双块：640→1280B */
 
-    /* 静态栈 + TCB（CCMRAM）→ 创建不会因堆耗尽失败；判空仅作防御 + RTT 报告 */
+    /* 静态栈 + TCB（CCMRAM）→ 创建不会因堆耗尽失败；判空属防御性冗余 */
     static const osThreadAttr_t rs485_task_attr = {
         .name       = "rs485_task",
         .priority   = osPriorityNormal,

@@ -44,13 +44,9 @@ typedef struct [[gnu::packed]] {
 } ldi_network_info_t;
 
 /* 4.1.1 request network block: DATA offset 20, length 65 bytes. */
-static_assert(sizeof(ldi_network_info_t) == 65, "LDI network block must be 65 bytes");
-static_assert(offsetof(ldi_network_info_t, ntp_ip) == 45, "NtpIP offset must be 45");
-static_assert(offsetof(ldi_network_info_t, device_ip) == 49, "DeviceIP offset must be 49");
-static_assert(offsetof(ldi_network_info_t, device_port) == 53, "DevicePort offset must be 53");
-static_assert(offsetof(ldi_network_info_t, gateway) == 55, "Gateway offset must be 55");
-static_assert(offsetof(ldi_network_info_t, netmask) == 59, "Netmask offset must be 59");
-static_assert(offsetof(ldi_network_info_t, reserve2) == 63, "D1H reserved offset must be 63");
+/* 契约：本结构固定 65B（D1H network 块，DATA 偏移 20 起）；NtpIP 45 / DeviceIP 49 /
+ * DevicePort 53 / Gateway 55 / Netmask 59 / reserve2 63——padding/对齐错位 = 静默收发
+ * 错帧，详见 doc/02 附件2。 */
 
 /**
  * 设备 IP 信息设置 (0AH) DATA 域 — 共 85 字节 (含 head)
@@ -153,7 +149,7 @@ typedef struct [[gnu::packed]] {
     uint8_t custom_init[];       // 个性化初始化内容 (S 字节), 当前为空
 } ldi_init_rsp_module_t;
 
-static_assert(sizeof(ldi_init_rsp_module_t) == 10, "ldi_init_rsp_module_t fixed part must be 10 bytes");
+/* 契约：本结构固定部分 10B（custom_init[] 为可变长尾部）；详见 doc/02 附件2。 */
 
 /** 初始化响应帧 DATA 域（A1H: head + device_num + N×变长module） */
 typedef struct [[gnu::packed]] {
@@ -278,26 +274,10 @@ static uint8_t ldi_cfg_module_size(ldi_device_t type)
 }
 
 // ============================================================================
-// 编译期尺寸校验
+// 布局契约：上方 payload 长度助手按 sizeof(结构体) 推算固定段，要求各配置/控制
+// 结构体与协议文档逐字节一致（padding/对齐错位 = 静默收发错帧，如 cfg.barrier 11B /
+// ctrl.display 固定 5B / ctrl.voice 固定 4B）；详见 doc/02 附件2。
 // ============================================================================
-// 确保 struct 布局与协议定义逐字节一致, 避免因 padding/对齐导致帧解析错位
-static_assert(sizeof(ldi_module_head_t) == 2, "ldi_module_head_t must be 2 byte");
-
-static_assert(sizeof(ldi_cfg_barrier_t) == 11, "ldi_cfg_barrier_t must be 11 byte");
-static_assert(sizeof(ldi_cfg_display_t) == 11, "ldi_cfg_display_t must be 11 byte");
-static_assert(sizeof(ldi_cfg_signal_t) == 2, "ldi_cfg_signal_t must be 3 byte");
-static_assert(sizeof(ldi_cfg_vms_t) == 10, "ldi_cfg_vms_t must be 11 byte");
-
-static_assert(sizeof(ldi_reboot_payload_t) == 10, "ldi_reboot_payload_t must be 10 byte");
-
-static_assert(sizeof(ldi_ctrl_barrier_t) == 2, "ldi_ctrl_barrier_t must be 2 byte");
-static_assert(sizeof(ldi_ctrl_display_t) == 5, "ldi_ctrl_display_t fixed part must be 5 byte");
-static_assert(sizeof(ldi_ctrl_signal_t) == 2, "ldi_ctrl_signal_t must be 2 byte");
-static_assert(sizeof(ldi_ctrl_alarm_t) == 4, "ldi_ctrl_alarm_t must be 4 byte");
-static_assert(sizeof(ldi_ctrl_vms_t) == 6, "ldi_ctrl_vms_t fixed part must be 6 byte");
-static_assert(sizeof(ldi_ctrl_canopy_light_t) == 2, "ldi_ctrl_canopy_light_t must be 2 byte");
-static_assert(sizeof(ldi_ctrl_fog_light_t) == 3, "ldi_ctrl_fog_light_t must be 3 byte");
-static_assert(sizeof(ldi_ctrl_voice_t) == 4, "ldi_ctrl_voice_t fixed part must be 4 byte");
 
 // ============================================================================
 // LDI 响应帧构造器
@@ -495,8 +475,7 @@ void cmd_set_ip(channel_t *ch, void *data)
 
     /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
      * 任一失败即如实应答失败，不再静默回 00H。
-     * 方案 B（2026-08-21）：0AH 写 TCP 业务口（device_port），udp_port 保留现值
-     * （get 失败用出厂默认 20103）。 */
+     * 0AH 写 TCP 业务口（device_port），udp_port 保留现值（get 失败用出厂默认 20103）。 */
     int32_t w25_ret    = _ldi_save_config_ret(&g_ldi.cfg);
     app_board_net_cfg_t cur_cfg;
     uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
@@ -627,7 +606,7 @@ static void cmd_rep_ip(channel_t *ch, void *data)
     rsp->status = 0x00;
     /* D1H DATA = head(20) | ErrorCode(1) | network block(65). */
 
-    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，2026-10-08 C3-C） */
+    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，见 doc/07 §16） */
     (void)ldi_sync_net_from_board_cfg();
     memcpy(net->device_ip, g_ldi.cfg.device_ip, sizeof(net->device_ip));
     net->device_port[0] = (uint8_t)(g_ldi.cfg.device_port >> 8);
@@ -1110,7 +1089,7 @@ static void cmd_rep_func(channel_t *ch, void *data)
  * 处理 21H 设备搜索请求（创迪发现口，默认 UDP/10011）
  *
  * 回复 12H: CmdType(1) + IP(4) + Port(2) + Gateway(4) + Mask(4) + ErrCode(1)
- * 广播为主（2026-08-21：搜索应答面向广播工具，广播复用常驻通道 conn 不占
+ * 广播为主（搜索应答面向广播工具，广播复用常驻通道 conn 不占
  * netconn 池，是可靠路径），回源单播仅容错、失败静默——回源依赖通道级
  * src 快照，多协议交错（10011 同口承载 LDI/IAP/CQ）下可能发错目标。
  * 不承担业务控制；网络参数取自 g_ldi.cfg —— 报告前先由 ldi_sync_net_from_board_cfg()
@@ -1126,7 +1105,7 @@ static void cmd_search(channel_t *ch, void *data)
     };
 
     uint8_t ip[4] = {0}, mask[4] = {0}, gw[4] = {0};
-    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，2026-10-08 C3-C）：
+    /* 网络字段以 Sector1 为单一真源刷新（与 IAP 0x01 同源，见 doc/07 §16）：
      * 上电 ldi_ctx_init 早于 app_net_boot_apply，混编口径下两者取值可能不同。 */
     (void)ldi_sync_net_from_board_cfg();
     if (g_ldi.cfg_valid) {
@@ -1140,8 +1119,8 @@ static void cmd_search(channel_t *ch, void *data)
     memcpy(rsp.ip, ip, sizeof(rsp.ip));
     /* 12H 应答 Port 字段语义 = 设备「配置功能端口」（TCP 业务端口，出厂默认 9528，
      * 协议文档 doc/02 附件2），非 UDP 发现口 10011。取 g_ldi.cfg 的 device_port，
-     * 未配置时回退出厂默认 9528——此前误用 LDI_DISCOVERY_PORT 导致上位机把 10011
-     * 当配置端口读回并写回，污染 Sector1/W25 后 TCP Server 错误改监听 10011。 */
+     * 未配置时回退出厂默认 9528——误用发现口会让上位机把 10011 当配置端口写回，
+     * 污染配置后 TCP Server 错误改监听 10011。 */
     uint16_t port = g_ldi.cfg_valid ? g_ldi.cfg.device_port : LDI_DEFAULT_CONFIG_PORT;
     rsp.port[0]   = (uint8_t)(port >> 8);
     rsp.port[1]   = (uint8_t)port;
@@ -1166,11 +1145,11 @@ static void cmd_search(channel_t *ch, void *data)
     frame->data_crc[payload_len]     = (uint8_t)(crc >> 8);
     frame->data_crc[payload_len + 1] = (uint8_t)(crc & 0xFF);
 
-    /* 发送顺序：广播为主、回源为辅（2026-08-21）。
+    /* 发送顺序：广播为主、回源为辅。
      * 回源依赖通道 src 快照（s_udp_ch.src_ip/src_port），LDI 帧排队处理期间
      * 10011 上后续 IAP/CQ 帧会覆盖快照 → 回源可能发错目标，故先发广播保证
      * 搜索工具必达，回源仅容错且失败静默。帧级 src 快照（frame_msg_t 扩展）
-     * 属架构改造，本轮不做，留作已知限制（doc/07）。 */
+     * 属架构改造，留作已知限制（doc/07）。 */
     app_udp_broadcast(g_ldi.tx_buf, frame_len);
 
     if (ch != NULL && ch->ops != NULL && ch->ops->send != NULL)

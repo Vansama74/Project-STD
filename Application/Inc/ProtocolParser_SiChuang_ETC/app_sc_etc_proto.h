@@ -87,13 +87,13 @@ void sc_etc_execute_cmd(channel_t *ch, const sc_etc_parsed_cmd_t *cmd);
 
 /**
  * @brief  心跳超时渲染「ETC车道关闭，请择道行驶」（由计时任务调用）。
- * @note   2026-08-17：心跳计时任务已停用（#if 0），本函数暂无调用方，保留待恢复。
+ * @note   心跳计时任务已停用（#if 0），本函数暂无调用方，保留待恢复。
  */
 void sc_etc_show_lane_closed(void);
 
 /**
  * @brief  黄闪 10 秒自动关闭计时启动（0x38 收到时调用）。
- * @note   2026-08-17：心跳计时任务已停用，计时不再被消费——黄闪开启后不再
+ * @note   心跳计时任务已停用，计时不再被消费——黄闪开启后不再
  *         10 秒自动关闭，须由 0A 39 显式关闭；本函数仍被调用仅记录状态。
  */
 void sc_etc_hs_timer_arm(void);
@@ -105,7 +105,7 @@ void sc_etc_hs_timer_cancel(void);
 
 /**
  * @brief  黄闪 10 秒自动关闭到期回调（由心跳计时任务调用）。
- * @note   2026-08-17：心跳计时任务已停用，本函数暂无调用方，保留待恢复。
+ * @note   心跳计时任务已停用（#if 0），本函数暂无调用方，保留待恢复。
  */
 void sc_etc_hs_timeout(void);
 

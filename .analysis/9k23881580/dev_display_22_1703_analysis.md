@@ -363,7 +363,7 @@ SRAM 影响：派生实例 `g_22_1703`（`.data`，与 `g_1_263` 同尺寸 **48B
 含义：
 - `scan_task` 是 `osPriorityRealtime`（`dev_display.c:182-189`），一次扫描是**不可抢占的连续突发**；档位 A + 500µs 意味着每 500µs 独占 CPU 339~440µs，其他任务（LwIP TCP/IP 线程 prio=24、协议任务 prio=Normal）每周期只剩 60~160µs → **ping/IAP 升级/UDP 业务会明显变慢甚至丢包**。
 - 档位 A + TIM3=1.5ms → 23~29%（与现行 1-969 水平相当，可接受）；档位 D + TIM3=1ms → 13~17%（推荐）；档位 C + 500µs → 7~9%（最优但 CCM +20.9KB、prepare 变重）。
-- **每个档位都必须上机用 DWT/`g_dev_display_scan_count` 实测复核**（M5 里程碑），本表仅为选型依据。
+- **每个档位都必须上机用 DWT/`g_dev_display_scan_count` 实测复核**（M5 里程碑），本表仅为选型依据。〔**2026-10-13**：`g_dev_display_scan_count` 已随小项裁决删除（`dev_display.c` 定义 + `scan_task` 自增、`dev_display.h` extern 全清），实测改用调试器读全局量 / DWT 周期计数或临时加计数，报告 `.analysis/comment_pass_20261013/report.md` §⑪；本段为 2026-09 快照。〕
 
 ---
 
@@ -378,7 +378,7 @@ SRAM 影响：派生实例 `g_22_1703`（`.data`，与 `g_1_263` 同尺寸 **48B
 | **M2 映射正确性（不上协议）** | 用临时测试序列（或 `app_factory_test` 路径）打点：① y=0 全行红 → 应亮屏顶第 1 行；② y=4 全行绿 → 应亮第 5 行（判 half 语义）；③ y=8 全行红 → 应亮第 9 行（判 channel 序）；④ x=0..7 亮 → 屏左起 1..8（判块内位序）；⑤ x=8..15 亮 → 左起 9..16（判块序） | 目视 + 照片比对源固件同图案 | 仅改 row_dst 公式（half/通道互换），不动 scan |
 | **M3 时序与刷新** | 逻辑分析仪/示波器测：每行 CLK 脉冲数 = **448**；每行 LAT 脉冲 = 1；A/B 电平序列 0,1,2,3；OE 在换行窗口为高 | 波形截图归档；改 TIM3 前后刷新率对比（源 71.4Hz 基准） | 恢复 TIM3 原值 |
 | **M4 亮度/消隐** | `dev_display_set_brightness` 0~8 全档目视；对照源固件同档亮度观感；确认换行无鬼影/无残影 | 目视 + 照度计（可选） | 恢复 TIM4 原值 |
-| **M5 CPU 预算实测** | `g_dev_display_scan_count` + DWT 计时统计单行扫描耗时；对 TIM3=500µs/1ms 两档各测；必要时切档位 D 或 C | 记录实测 µs/行 → 对照 §4.4 估算；确认 LwIP ping/IAP 升级无异常 | 档位 A ↔ D 切换为局部改动 |
+| **M5 CPU 预算实测** | `g_dev_display_scan_count` + DWT 计时统计单行扫描耗时〔**2026-10-13**：该计数已删除，改用调试器/DWT 或临时加计数，见 `.analysis/comment_pass_20261013/report.md` §⑪〕；对 TIM3=500µs/1ms 两档各测；必要时切档位 D 或 C | 记录实测 µs/行 → 对照 §4.4 估算；确认 LwIP ping/IAP 升级无异常 | 档位 A ↔ D 切换为局部改动 |
 | **M6 协议/渲染联调** | 224×64 几何下验证 app_render 字号 16/24/32 与换行、滚动（app_scroll）、等宽；与源固件同报文显示效果比对 | 上位机发源固件同款报文（TCLY 0x20）逐条比对 | — |
 
 ---

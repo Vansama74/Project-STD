@@ -1,0 +1,15 @@
+Application/Src/IAP/app_iap.c                                    strip-md5=同 段 23/23 反汇编 一致
+Application/Src/IAP/app_iap_cmd.c                                strip-md5=同 段 15/15 反汇编 一致
+Application/Src/LDI/app_ldi.c                                    strip-md5=同 段 37/37 反汇编 一致
+Application/Src/LDI/app_ldi_cmd.c                                strip-md5=同 段 26/26 反汇编 一致
+Application/Src/ProtocolParser_Anhui/app_anhui_proto.c           strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_ChongQing/app_cq_proto.c          strip-md5=同 段 28/28 反汇编 一致
+Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c            strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_QingHai/app_qh_proto.c            strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_ShanDong/app_sd_proto.c           strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c   strip-md5=同 段 31/31 反汇编 一致
+Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c   strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c strip-md5=同 段 24/24 反汇编 一致
+Application/Src/ProtocolParser_YunNan/app_yn_proto.c             strip-md5=同 段 24/24 反汇编 一致
+Application/Src/RLS/app_rls.c                                    strip-md5=同 段 25/25 反汇编 一致
+== 逐对象 A/B：14 个源文件，段级 353/353 一致，不一致对象 0 个 ==

@@ -72,20 +72,3 @@ static inline osThreadId_t app_udp_gzol_start(void)
 }
 
 uint16_t app_udp_gzol_get_port(void);
-
-/* ---- GZ_OL 专用口绑定结果（只读观察）---- */
-
-/** @brief GZ_OL 专用 UDP 业务口最近一次绑定结果 */
-typedef enum {
-    APP_UDP_GZOL_BIND_UNKNOWN = 0, /**< 任务尚未跑过一轮 */
-    APP_UDP_GZOL_BIND_OK,          /**< 绑定成功（正在服务） */
-    APP_UDP_GZOL_BIND_FALLBACK,    /**< net_cfg.port 无效/0 → 回退 9528 + 告警 */
-    APP_UDP_GZOL_BIND_SKIPPED,     /**< 与 10011 / CQ 业务口同号 → 跳过绑定 + 告警 */
-    APP_UDP_GZOL_BIND_FAIL,        /**< netconn_bind 失败（netconn_new 失败/端口占用等） */
-} app_udp_gzol_bind_sta_t;
-
-/** @brief 读 GZ_OL 专用口绑定结果（跨任务只读，无需锁） */
-app_udp_gzol_bind_sta_t app_udp_gzol_bind_status(void);
-
-/** @brief 绑定结果字符串（静态常量） */
-const char *app_udp_gzol_bind_status_str(void);

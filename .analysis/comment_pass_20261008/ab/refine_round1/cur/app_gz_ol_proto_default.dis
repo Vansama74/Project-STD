@@ -1,0 +1,87 @@
+
+
+
+Disassembly of section .text.gz_ol_default_display_init:
+
+00000000 <gz_ol_default_display_init>:
+   0:	b508      	push	{r3, lr}
+   2:	4802      	ldr	r0, [pc, #8]	@ (c <gz_ol_default_display_init+0xc>)
+   4:	f7ff fffe 	bl	0 <app_default_display_register>
+   8:	bd08      	pop	{r3, pc}
+   a:	bf00      	nop
+   c:	00000000 	.word	0x00000000
+
+Disassembly of section .text._gz_ol_default_line:
+
+00000000 <_gz_ol_default_line>:
+   0:	0109      	lsls	r1, r1, #4
+   2:	b289      	uxth	r1, r1
+   4:	f8b0 c00c 	ldrh.w	ip, [r0, #12]
+   8:	458c      	cmp	ip, r1
+   a:	d800      	bhi.n	e <_gz_ol_default_line+0xe>
+   c:	4770      	bx	lr
+   e:	b500      	push	{lr}
+  10:	b089      	sub	sp, #36	@ 0x24
+  12:	f04f 0c00 	mov.w	ip, #0
+  16:	f8ad c004 	strh.w	ip, [sp, #4]
+  1a:	f8ad 1006 	strh.w	r1, [sp, #6]
+  1e:	8941      	ldrh	r1, [r0, #10]
+  20:	f8ad 1008 	strh.w	r1, [sp, #8]
+  24:	2110      	movs	r1, #16
+  26:	f8ad 100a 	strh.w	r1, [sp, #10]
+  2a:	2102      	movs	r1, #2
+  2c:	f88d 100c 	strb.w	r1, [sp, #12]
+  30:	f04f 0000 	mov.w	r0, #0
+  34:	f88d 000d 	strb.w	r0, [sp, #13]
+  38:	9204      	str	r2, [sp, #16]
+  3a:	f8ad 3014 	strh.w	r3, [sp, #20]
+  3e:	f04f 0310 	mov.w	r3, #16
+  42:	f88d 3016 	strb.w	r3, [sp, #22]
+  46:	2303      	movs	r3, #3
+  48:	f88d 3017 	strb.w	r3, [sp, #23]
+  4c:	f88d c000 	strb.w	ip, [sp]
+  50:	f88d c001 	strb.w	ip, [sp, #1]
+  54:	f88d c002 	strb.w	ip, [sp, #2]
+  58:	f8cd d018 	str.w	sp, [sp, #24]
+  5c:	f88d 101c 	strb.w	r1, [sp, #28]
+  60:	a801      	add	r0, sp, #4
+  62:	f7ff fffe 	bl	0 <app_render>
+  66:	b009      	add	sp, #36	@ 0x24
+  68:	bd00      	pop	{pc}
+
+Disassembly of section .text._gz_ol_default_show:
+
+00000000 <_gz_ol_default_show>:
+   0:	b530      	push	{r4, r5, lr}
+   2:	b083      	sub	sp, #12
+   4:	f7ff fffe 	bl	0 <dev_display_get>
+   8:	b1f0      	cbz	r0, 48 <_gz_ol_default_show+0x48>
+   a:	4604      	mov	r4, r0
+   c:	8943      	ldrh	r3, [r0, #10]
+   e:	2500      	movs	r5, #0
+  10:	9501      	str	r5, [sp, #4]
+  12:	8982      	ldrh	r2, [r0, #12]
+  14:	9200      	str	r2, [sp, #0]
+  16:	462a      	mov	r2, r5
+  18:	4629      	mov	r1, r5
+  1a:	f7ff fffe 	bl	0 <dev_display_fill>
+  1e:	2309      	movs	r3, #9
+  20:	4a0a      	ldr	r2, [pc, #40]	@ (4c <_gz_ol_default_show+0x4c>)
+  22:	4629      	mov	r1, r5
+  24:	4620      	mov	r0, r4
+  26:	f7ff fffe 	bl	0 <_gz_ol_default_show>
+  2a:	230e      	movs	r3, #14
+  2c:	4a08      	ldr	r2, [pc, #32]	@ (50 <_gz_ol_default_show+0x50>)
+  2e:	2101      	movs	r1, #1
+  30:	4620      	mov	r0, r4
+  32:	f7ff fffe 	bl	0 <_gz_ol_default_show>
+  36:	230f      	movs	r3, #15
+  38:	4a06      	ldr	r2, [pc, #24]	@ (54 <_gz_ol_default_show+0x54>)
+  3a:	2102      	movs	r1, #2
+  3c:	4620      	mov	r0, r4
+  3e:	f7ff fffe 	bl	0 <_gz_ol_default_show>
+  42:	4620      	mov	r0, r4
+  44:	f7ff fffe 	bl	0 <dev_display_commit_frame>
+  48:	b003      	add	sp, #12
+  4a:	bd30      	pop	{r4, r5, pc}
+	...

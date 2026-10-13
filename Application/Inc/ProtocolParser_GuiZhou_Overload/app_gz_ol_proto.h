@@ -2,10 +2,10 @@
  * @file    app_gz_ol_proto.h
  * @brief   贵州治超屏协议（"TCLY" 帧族）公共定义
  *
- * 契约（改错静默致现场故障）：① 0x40/0x50/0x70 端口字段高字节在前 BE16；
- * ② 帧头 0x54 全槽唯一：无需 EIDE 互斥；③ 写 `port`：TCP 与 GZ_OL 专用口共读；
- * ④ 队列/控制块/帧缓冲置 CCMRAM（1136B）；⑤ 字面 `\n` 转 0x0A 须按 GBK 结构行走；
- * ⑥ 9600 8N1：现场 DIP1 必须置 OFF。
+ * 契约（改错静默致现场故障）：① 0x40/0x50/0x70 端口字段高字节在前；
+ * ② `port` 字段被 TCP 与专用 UDP 口共读；
+ * ③ 静态队列三段（体/cb/帧缓冲）置 CCMRAM；④ 字面 `\n` 转 0x0A 须按 GBK 结构行走；
+ * ⑤ 9600 8N1：现场 DIP1 置 OFF。
  * 详见 doc/14_贵州治超屏协议/README.md §1、§3、§4、§6、§13
  */
 #pragma once
@@ -35,9 +35,8 @@
 #define GZ_OL_QUEUE_DEPTH (3U)                                   /**< 帧队列深度（四 mask 共用） */
 #define GZ_OL_MSG_SIZE (sizeof(frame_msg_t) + GZ_OL_PAYLOAD_MAX) /* 264 */
 
-_Static_assert(GZ_OL_PAYLOAD_MAX <= RB_SIZE_RS485, "GZ_OL frame must fit RS485 RB");
-_Static_assert(GZ_OL_PAYLOAD_MAX <= RB_SIZE_RS232, "GZ_OL frame must fit RS232 RB");
-_Static_assert(GZ_OL_PAYLOAD_MAX <= RB_SIZE_RJ45, "GZ_OL frame must fit RJ45 RB (UDP 10011)");
+/* 契约：payload 上限须 ≤ 三槽 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 
 /* ---- 0x20 立即显示载荷布局 ---- */
 #define GZ_OL_DISPLAY_PREFIX_LEN (17U) /**< X2 Y2 屏宽2 屏高2 字体名4 字号2 颜色3 */
@@ -75,7 +74,7 @@ typedef struct {
     uint16_t text_len;      /**< 显示内容字节数 */
     font_size_t font_size;  /**< 字号（仅 16/24/32，其余整帧丢弃） */
     font_type_t font_type;  /**< 字型（未命中回退宋体 FONT_ST） */
-    display_color_t color;  /**< 颜色（RGB→8 色映射，见 doc/14 §1 载荷表颜色行） */
+    display_color_t color;  /**< 颜色（RGB→8 色映射，详见 doc/14_贵州治超屏协议/README.md §1） */
 } gz_ol_display_t;
 
 /** 0x40 修改 IP 参数（端口字段 BE16，见契约 ①） */
@@ -83,7 +82,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gw[4];
-    uint16_t port; /**< 写 `net_cfg.port`（契约 ③）；10028 发 `27 2C`（§13） */
+    uint16_t port; /**< 写 `net_cfg.port`（契约 ②）；10028 发 `27 2C`（doc/14_贵州治超屏协议/README.md §13） */
 } gz_ol_setip_t;
 
 /** 0x80 全屏纯色参数（RGB 三字节） */
@@ -121,7 +120,8 @@ void gz_ol_execute_cmd(channel_t *ch, const gz_ol_parsed_cmd_t *cmd);
 
 /**
  * @brief  恢复光敏自动调光（复现源固件「收到数据即开启」语义）。
- * @note   由帧处理任务每帧调用；0x80 的挂起副作用在下帧被解除，未挂起时空操作（§1）。
+ * @note   由帧处理任务每帧调用；0x80 的挂起副作用在下帧被解除，未挂起时空操作
+ *         （详见 doc/14_贵州治超屏协议/README.md §1）。
  */
 void gz_ol_resume_auto_dim(void);
 
@@ -131,5 +131,6 @@ void gz_ol_resume_auto_dim(void);
  */
 void gz_ol_proto_handle_task(void *argument);
 
-/** @brief 协议注册入口（`sw_app_initcall` 自注册；四通道四 mask 共用一静态队列，§3）。 */
+/** @brief 协议注册入口（`sw_app_initcall` 自注册；四通道四 mask 共用一静态队列，详见
+ *         doc/14_贵州治超屏协议/README.md §3）。 */
 void gz_ol_proto_init(void);

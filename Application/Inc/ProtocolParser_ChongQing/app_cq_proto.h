@@ -22,7 +22,7 @@
  *   （通用版固件多协议共存时，他省上位机不发重庆心跳，不能误显示故障内容）；
  * - 构建入口可显式覆盖：-DCQ_FAULT_SCREEN=1 强制开 / =0 强制关（Makefile/EIDE
  *   defineList）。
- * - 旧名已废弃（2026-08-24 改名，不保留兼容别名）：
+ * - 旧名已废弃（不保留兼容别名）：
  *   CQ_FAULT_SCREEN_ENABLED → CQ_FAULT_SCREEN；
  *   -DCQ_FAULT_SCREEN_FORCE_ON=1/0 覆盖 → -DCQ_FAULT_SCREEN=1/0。 */
 #ifndef CQ_FAULT_SCREEN

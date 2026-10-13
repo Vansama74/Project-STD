@@ -554,7 +554,7 @@ PROTO=CQ 构建 `nm` 无 `ldi_` 符号（0 个）；PROTO=ALL 反汇编 `_udp_cq
 | 25 | 工厂测试 vs warn1 | `cq_proto_timer_task` | OK（已注释）：warn1 倒计时在工厂测试期间**不暂停**（裸机 hsCnt 同 ISR 口径）；心跳计数暂停（Q17）。裸机源码不在本仓库，逐行核对缺口已记入注释 |
 | 26 | cq_proto_sync_reset 调用点 | `app_cq_proto.c` `cq_proto_handle_task` | OK（2026-08-21 宽松语义 B.7.2）：帧结构合法的 JSON（OK / ERR_CMD / ERR_PARAM）均复位；仅 ERR_FRAME 不复位；二进制帧（重启/搜索）不复位 |
 | 27 | 双 mask 注册失败路径 | `cq_proto_init` | OK：第一 mask==0 即 return（不建任务）；第二 mask==0 时 bind/set_frame_queue 对称跳过，队列仍建（第一 mask 用） |
-| 28 | CCM 队列越界 | `app_cq_proto.c` | OK：`_Static_assert(CQ_PAYLOAD_MAX <= RB_SIZE_RJ45)`；队列体 3×1052=3156 = mq_size；CCM 总量 ~6.3KB（64KB 池内） |
+| 28 | CCM 队列越界 | `app_cq_proto.c` | OK：`CQ_PAYLOAD_MAX ≤ RB_SIZE_RJ45`（源码契约注释）；队列体 3×1052=3156 = mq_size；CCM 总量 ~6.3KB（64KB 池内） |
 | 29 | 网络配置应用时序（原 _cq_net_cfg_apply，2026-08-21 移交 app_net_boot） | `app_net_boot.c` `app_net_boot_apply` / `app_boot.c` init_task | OK：`dev_eth_start()` 在 `sw_board_init()`（sw_initcall）之前调用，`pl_net_set_ip` 在 eth 启动后执行；有效性判定 ip 非 0 + port 1~65535，空/损坏写本构建默认落盘 |
 | 30 | 协议一致性偏差 | 全部 | 记录：modify/warn1 level/pic1/voice_play1 不实现（与方案一致）；screen 仅记录；voice_control1 grade=level/2+1 上限 7 → dev_rs232_voice_volume 原样透传（驱动无值域校验，grade 域 1~7，符合语音板 0~7 约定子集） |
 | 31 | CH_ID_UDP_CQ=7 边界 | `app_dispatch.h` | OK：channels[CH_ID_MAX=8]，索引 7 合法 |

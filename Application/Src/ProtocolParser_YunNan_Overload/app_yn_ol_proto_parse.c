@@ -10,7 +10,8 @@
 #include "app_yn_ol_proto_parse.h"
 
 /* 字段编码容错（只放宽、不改语义）：'3'/'4' 的颜色、'3' 的行号 ASCII 与二进制原值两端都接受，
- * 越界仍整帧丢弃；口径与已裁决的 '8' 亮度超集一致（背景见 doc/15_云南治超屏协议/README.md §11.1） */
+ * 越界仍整帧丢弃；口径与已裁决的 '8' 亮度超集一致（背景详见
+ * doc/15_云南治超屏协议/README.md §11.1） */
 
 /** @brief 颜色字段容错解析：ASCII '0'~'2' 或二进制 0x00~0x02（越界返回 false）。 */
 static bool _yn_ol_parse_color(uint8_t b, uint8_t *out)

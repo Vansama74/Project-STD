@@ -145,7 +145,7 @@ static void _sd_exec_brightness(uint8_t level)
         return;
 
     if (level == 0) {
-        /* 自动调节亮度：恢复光敏任务（若此前被手动档挂起） */
+        /* 自动调节亮度：恢复光敏任务（可能被手动档挂起） */
         if (g_light_sensor_task_handle != nullptr)
             osThreadResume(g_light_sensor_task_handle);
         return;

@@ -22,7 +22,11 @@
 /* ---- 常量 ---- */
 #define MAX_CHANNELS       (32U)
 #define FRAME_DATA_MAX_LEN (1044U)
-#define PROTO_MAX_COUNT    (32U)
+/** 协议注册槽位数（位宽 = proto_mask_t 的 64 位）：
+ *  `PROTO=ALL` 口径下 IAP/LDI/CQ/9 个地区协议的独立 mask 已用满 32 槽，
+ *  新增协议会静默注册失败（`app_proto_register` 返回 0），故扩至 64；
+ *  只加宽不改调度逻辑，槽位分配仍按「最低空闲位」递增（见 doc/19 §2.1）。 */
+#define PROTO_MAX_COUNT    (64U)
 
 /* ---- 物理通道 RB 槽（与 CH_ID 解耦；网口逻辑通道共享 RJ45 槽）---- */
 typedef enum {
@@ -72,7 +76,8 @@ typedef enum {
     PROTO_PROBE_SKIP,
 } proto_probe_sta_t;
 
-typedef uint32_t proto_mask_t;
+/** 协议位掩码：每位 = 一个协议注册槽（2 的幂），0 = 无协议 */
+typedef uint64_t proto_mask_t;
 
 /* ---- 通道抽象（OCP 虚表） ---- */
 
@@ -103,7 +108,7 @@ typedef struct {
 } proto_module_entry_t;
 
 typedef struct {
-    uint32_t registered_mask;
+    proto_mask_t registered_mask;
     ring_buffer_t *proto_rb[PROTO_MAX_COUNT];
     proto_probe_fn_t proto_probe[PROTO_MAX_COUNT];
     osMessageQueueId_t frame_queue[PROTO_MAX_COUNT];
@@ -111,34 +116,13 @@ typedef struct {
     osMessageQueueId_t ch_queue;
     proto_mask_t ch_proto_map[CH_ID_MAX];
     channel_t *channels[CH_ID_MAX];
-    /* ---- 诊断计数（只读；不参与任何调度决策）----
-     * qfull_drop  : 协议帧队列满 → osMessageQueuePut 失败而丢帧的次数
-     *               （2026-09-17 YN_OL 联调轮新增：协议处理任务被卡住/过载时，
-     *                现场表现为「发命令没反应」，此前完全静默、无任何可观测性）；
-     * resync_byte : 探测链无消费时按 1 字节重同步（skip 1）的次数
-     *               （含 any_fake / any_overrun / 500ms WAIT 预算到期的强制重同步）。
-     * notify_drop : 通道接收通知（ch_queue）在「立即 + 短重试」后仍投递失败的次数
-     *               （2026-09-17 YN_OL 联调第二轮新增，盲区 C：原 timeout=0 且忽略
-     *                返回值，队列满即静默丢通知——数据已在 RB 但无人唤醒分发任务，
-     *                直到下一条通知到达才被顺带处理，现场表现＝「首次发命令无反应、
-     *                重连/再发一次才执行」）。正常恒 0。 */
-    uint32_t qfull_drop;
-    uint32_t resync_byte;
-    uint32_t notify_drop;
 } dispatch_ctx_t;
 
 extern dispatch_ctx_t g_dispatch;
 extern osThreadId_t g_dispatch_task_handle;
 
-/** @brief 协议帧队列满丢帧累计次数（诊断只读；见 dispatch_ctx_t 注释）。 */
-uint32_t app_dispatch_qfull_drops(void);
-/** @brief 探测链 1 字节重同步累计次数（诊断只读）。 */
-uint32_t app_dispatch_resync_count(void);
-/** @brief 通道通知投递失败（队列满）累计次数（诊断只读；正常恒 0）。 */
-uint32_t app_dispatch_notify_drops(void);
-
 /* ---- 调度 API ---- */
-uint8_t proto_index(uint32_t mask);
+uint8_t proto_index(proto_mask_t mask);
 proto_mask_t app_proto_register(proto_probe_fn_t probe, ring_buffer_t *rb);
 void app_proto_set_frame_queue(proto_mask_t mask, osMessageQueueId_t queue);
 void app_proto_bind_channel(proto_mask_t mask, channel_id_t ch_id);

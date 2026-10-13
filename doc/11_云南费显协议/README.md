@@ -34,7 +34,7 @@
 - 目录/命名：`ProtocolParser_YunNan/`，前缀 `app_yn_`；文件拆分与青海/贵州同构（proto / proto_parse / proto_cmd / proto_voice，**无 proto_default**）。
 - 注册五步：`RB_PROVIDE_WEAK`（RS485+RS232 同槽 weak 合并）→ `app_proto_acquire_buf` → `app_proto_register`（双通道各独立 mask）→ `app_proto_bind_channel`（CH_ID_RS485 + CH_ID_RS232）→ `app_proto_set_frame_queue`；`sw_app_initcall(yn_proto_init)`。
 - probe：**长度字段定界**（len 字段 + 尾字节 `'}'` 校验），PURE 契约（仅 rb_peek）；命令字预筛 '1'~'9','A','B',0x01,0x02 否则 FAKE；首字节非 `'{'` 快拒。0x01/0x02 控制字符命令字与青海/山东/四川MTC 的 ASCII 命令集互斥，各 probe 首命令字快拒无冲突。
-- 队列：`YN_PAYLOAD_MAX 259`、`YN_QUEUE_DEPTH 3`（静态 SRAM 801B + cb 80B）；`_Static_assert` ≤ RB 768。
+- 队列：`YN_PAYLOAD_MAX 259`、`YN_QUEUE_DEPTH 3`（静态 SRAM 801B + cb 80B）；payload ≤ RB 768（源码契约注释）。
 - 处理任务：`yn_handle_task` 栈 256×4；帧缓冲 static；parse 纯函数 → `yn_execute_cmd` 查表分派。
 - 应答：'1' 主机查询、0x02 版本号经 `channel_send` 回源通道（串口通道 `ch->ops->send` → `pl_uart_send`，RS232/RS485 均支持 TX）；其余命令单向不回。
 - 自检：一次性任务 `yn_selftest_task`（栈 256×4，`s_yn_selftest_running` 防重入；`s_yn_selftest_abort` 由 `yn_execute_cmd` 在下一帧有效命令到达时置位，任务分片（100ms）检测后退出且**不清屏**）。

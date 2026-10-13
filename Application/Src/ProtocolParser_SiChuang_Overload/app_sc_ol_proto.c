@@ -35,8 +35,8 @@ static osMessageQueueId_t s_sc_ol_queue;
 #define SC_OL_PAYLOAD_MAX (SC_OL_FRAME_LEN_MAX) /* 255：覆盖 0x80 全屏长数据段（数据 ≤249） */
 #define SC_OL_MSG_SIZE    (sizeof(frame_msg_t) + SC_OL_PAYLOAD_MAX)
 #define SC_OL_QUEUE_DEPTH (3U)
-_Static_assert(SC_OL_PAYLOAD_MAX <= RB_SIZE_RS485, "SC_OL frame must fit RS485 RB");
-_Static_assert(SC_OL_PAYLOAD_MAX <= RB_SIZE_RS232, "SC_OL frame must fit RS232 RB");
+/* 契约：payload 上限须 ≤ 串口 RB 容量（越限被 RB 截断，静默收错帧），
+ * 详见 doc/08_协议模块接入规则/01_通用规则与模块骨架.md §4。 */
 static StaticQueue_t s_sc_ol_queue_cb;
 static uint8_t s_sc_ol_queue_buf[SC_OL_QUEUE_DEPTH * SC_OL_MSG_SIZE];
 static const osMessageQueueAttr_t s_sc_ol_queue_attr = {

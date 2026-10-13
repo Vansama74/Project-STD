@@ -5,7 +5,7 @@
  * 显示内容映射到 app_render（协议文本 GBK 直通渲染，构造行文 UTF-8 渲染，行高 FONT_16）；
  * 灯控映射到 dev_io_lane_light / dev_io_flash_light（红优先）；
  * 亮度 0=自动调光（恢复光敏任务），1~5 映射硬件档 {3,4,5,7,8}；
- * 音量 1~5 映射语音板音量 {1,3,5,7,9}（按设备实测行为）；
+ * 音量 1~5 映射语音板音量 {1,3,5,7,9}（差异表见 doc/10 §3）；
  * 语音经 dev_rs232_voice 旁路 USART6。
  * 上行应答：'1' 主机查询回固定「正常」帧、0x02 版本号回裸 ASCII PROGRAM_CODE，其余命令单向不回。
  */
@@ -37,8 +37,8 @@ static const display_color_t s_gz_color_map[] = {
 /* 协议亮度 1~5 → 硬件亮度；最大档映射到 DEV_DISPLAY_BRIGHTNESS_MAX(8) */
 static const uint8_t s_gz_brightness_map[] = {3, 4, 5, 7, 8};
 
-/* 协议音量 1~5 → 语音板音量值 {1,3,5,7,9}（按设备实测行为，语音板音量非线性档位；
- * STD dev_rs232_voice_volume 直通发送音量值，青海 identity 映射不可复用） */
+/* 协议音量 1~5 → 语音板音量值 {1,3,5,7,9}（语音板音量非线性档位；
+ * dev_rs232_voice_volume 直通发送音量值，青海 identity 映射不可复用） */
 static const uint8_t s_gz_volume_map[] = {1, 3, 5, 7, 9};
 
 /**
@@ -146,8 +146,8 @@ static void _gz_render_gbk_line(uint8_t row, display_color_t color, const uint8_
 
 /**
  * @brief  执行主机查询（'1' 命令）：回固定「状态正常」应答。
- * @param  ch  源通道（应答回源通道；设备实测经固定串口属实现瑕疵，不沿袭）。
- * @note   协议定义正常/异常两种应答，本实现仅回「正常」一种（按设备实测行为）。
+ * @param  ch  源通道（应答回源通道；设备经固定串口应答属实现瑕疵，不沿袭）。
+ * @note   协议定义正常/异常两种应答，本实现仅回「正常」一种（设备恒正常）。
  */
 static void _gz_exec_host_query(channel_t *ch)
 {
@@ -212,8 +212,8 @@ static void _gz_exec_one_line(const gz_one_line_t *p)
  * @brief  执行全屏可编辑显示（'4' 命令：按协议 X/Y 坐标渲染，自动换行）。
  * @param  p  全屏显示参数。
  * @note   先整屏清黑再渲染；文本中 0x0A 由渲染引擎换行、0x0D 被跳过。
- *         X/Y 坐标按协议文档原文取参数渲染（设备实测行为为校验坐标后恒按
- *         (0,0) 渲染，不沿袭）。
+ *         X/Y 坐标按协议文档原文取参数渲染（设备校验坐标后恒按 (0,0) 渲染，
+ *         不沿袭；差异表见 doc/10 §3）。
  */
 static void _gz_exec_full_screen(const gz_full_screen_t *p)
 {
@@ -246,7 +246,7 @@ static void _gz_exec_full_screen(const gz_full_screen_t *p)
 /**
  * @brief  执行全屏点亮（0x01 命令：整屏填充红/绿/黄）。
  * @param  color  归一化颜色索引 0 红 / 1 绿 / 2 黄。
- * @note   03=黄色按协议文档原文；设备实测行为为蓝色，不沿袭。
+ * @note   03=黄色按协议文档原文（设备为蓝色，不沿袭；差异表见 doc/10 §3）。
  */
 static void _gz_exec_fill_all(uint8_t color)
 {
@@ -261,7 +261,7 @@ static void _gz_exec_fill_all(uint8_t color)
  * @brief  执行获取版本号（0x02 命令）：串口回裸 ASCII PROGRAM_CODE，
  *         屏幕红字全屏显示「版本:PROGRAM_CODE」。
  * @param  ch  源通道。
- * @note   屏幕显示版本为对齐设备实测行为的附加行为（协议文档仅要求返回版本号）。
+ * @note   屏幕显示版本为附加行为（协议文档仅要求返回版本号）。
  */
 static void _gz_exec_version(channel_t *ch)
 {
@@ -311,7 +311,7 @@ static void _gz_exec_brightness(uint8_t level)
         return;
 
     if (level == 0) {
-        /* 自动调节亮度：恢复光敏任务（若此前被手动档挂起） */
+        /* 自动调节亮度：恢复光敏任务（可能被手动档挂起） */
         if (g_light_sensor_task_handle != nullptr)
             osThreadResume(g_light_sensor_task_handle);
         return;
@@ -326,7 +326,7 @@ static void _gz_exec_brightness(uint8_t level)
 /**
  * @brief  执行语音音量设定（'9' 命令：'1'~'5' 档）。
  * @param  level  协议音量档位（1~5）。
- * @note   档位来源按设备实测行为：协议 '1'~'5' → 语音板音量值 1/3/5/7/9。
+ * @note   档位映射：协议 '1'~'5' → 语音板音量值 1/3/5/7/9。
  */
 static void _gz_exec_volume(uint8_t level)
 {
@@ -395,8 +395,8 @@ static void _gz_render_weight_line(uint8_t row, display_color_t color, uint32_t 
 /**
  * @brief  执行固定格式显示（'6' 命令）。
  * @param  p  固定格式参数。
- * @note   行文对齐设备实测行为（协议文档原文为「车型: X型」等全角冒号形式）。
- *         客车：车型/金额/余额/信息1 四行，信息2 不显示（按设备实测行为）；
+ * @note   行文对齐设备（协议文档原文为「车型: X型」等全角冒号形式；行文差异表见 doc/10 §2）。
+ *         客车：车型/金额/余额/信息1 四行，信息2 不显示；
  *         货车：有超重(≥0.1 吨)→金额/余额/总重/超重；无超重→车型/金额/余额/总重。
  *         金额 ≥0.5 元同步播报费额语音。
  */
@@ -445,7 +445,7 @@ static void _gz_exec_fixed(const gz_fixed_t *p)
         /* 行3 信息1 原文（GBK；空行或首字节空格不显示） */
         if (n > 3)
             _gz_render_gbk_line(3, color, fields[3], flen[3]);
-        /* 行4 信息2 不显示（按设备实测行为） */
+        /* 行4 信息2 不显示 */
     } else { /* 货车 */
         if (exceed_fen >= 10U) {
             /* 有超重（≥0.1 吨）：金额/余额/总重/超重 */

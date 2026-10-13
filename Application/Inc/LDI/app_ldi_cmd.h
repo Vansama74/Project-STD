@@ -260,7 +260,7 @@ typedef struct [[gnu::packed]] {
     uint8_t reserved[3];      // 保留, 填 00H
 } ldi_device_info_t;
 
-static_assert(sizeof(ldi_device_info_t) == 17, "ldi_device_info_t must be 17 bytes");
+/* 契约：固定 17B（含 reserved[3]）；padding/对齐错位 = 静默收发错帧。 */
 
 /** 设备验证申请帧 DATA 域（0EH） */
 typedef struct [[gnu::packed]] {

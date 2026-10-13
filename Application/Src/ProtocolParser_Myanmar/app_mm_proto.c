@@ -2,8 +2,8 @@
  * @file    app_mm_proto.c
  * @brief   缅甸 2D 费显协议 — 注册 / 探测 / 帧处理任务
  *
- * 契约一览见 app_mm_proto.h 文件头（本文件实现 ④ 正签名判据、⑥ CCM 放置）；
- * RS232 槽与四川治超重叠的共存纪律、开机默认画面见
+ * 契约一览见 app_mm_proto.h 文件头（本文件实现 ③ 正签名判据、⑤ CCM 放置）；
+ * RS232 槽与四川治超重叠的共存纪律、开机默认画面详见
  * doc/16_缅甸2D费显协议/README.md §5、§6、§7、§14
  */
 
@@ -17,7 +17,7 @@
 #include "dev_display.h" /* dev_display_get / set_pixel / fill / commit_frame */
 #include "pl_task_static.h"
 
-/* 处理任务栈 + TCB 静态落 CCMRAM（契约 ⑥；账见
+/* 处理任务栈 + TCB 静态落 CCMRAM（契约 ⑤；账见
  * doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md §8） */
 PL_TASK_STATIC_STORAGE(mm_handle, 256);
 
@@ -27,7 +27,7 @@ RB_PROVIDE_WEAK(rb_provide_rs232, RB_SIZE_RS232);
 static proto_mask_t s_mm_mask; /**< CH_ID_RS232（RS232 槽 RB） */
 static osMessageQueueId_t s_mm_queue;
 
-/* 静态队列：队列体 + 控制块置 CCMRAM（契约 ⑥）；理由与账见 doc/16_缅甸2D费显协议/README.md §6 */
+/* 静态队列：队列体 + 控制块置 CCMRAM（契约 ⑤）；理由与账详见 doc/16_缅甸2D费显协议/README.md §6 */
 [[gnu::section(".ccmram")]] static StaticQueue_t s_mm_queue_cb;
 [[gnu::section(".ccmram")]] static uint8_t s_mm_queue_buf[MM_QUEUE_DEPTH * MM_MSG_SIZE];
 static const osMessageQueueAttr_t s_mm_queue_attr = {
@@ -41,7 +41,8 @@ static const osMessageQueueAttr_t s_mm_queue_attr = {
 static proto_probe_sta_t mm_probe_frame(const channel_t *ch, const ring_buffer_t *rb,
                                         uint32_t *total_len, uint8_t *aux);
 
-/* ---- 开机默认画面「红色叉（×）」：仅带显示驱动的构建注册（§14.3）----
+/* ---- 开机默认画面「红色叉（×）」：仅带显示驱动的构建注册（详见
+ * doc/16_缅甸2D费显协议/README.md §14.3）----
  * 两条对角线取 `dev_display_get()` 几何（不硬编码分辨率、不依赖字库）；单槽首个注册生效。 */
 
 /** @brief 画一个红色像素（x 越界丢弃；y 由调用者保证在屏内） */
@@ -89,7 +90,8 @@ static void _mm_default_red_cross(void)
 
 /**
  * @brief  注册开机默认画面（仅当本构建带显示驱动）。
- * @note   无显示构建不注册 ⇒ 回落到 `app_default_display()` 的守卫跳过路径（§10.2）。
+ * @note   无显示构建不注册 ⇒ 回落到 `app_default_display()` 的守卫跳过路径
+ *         （详见 doc/16_缅甸2D费显协议/README.md §10.2）。
  */
 static void _mm_default_display_init(void)
 {
@@ -101,7 +103,8 @@ static void _mm_default_display_init(void)
  * @brief  缅甸 2D 费显协议模块初始化（`sw_app_initcall` 自注册）。
  * @note   次序：acquire RS232 槽 → register → bind → 注册开机默认画面（仅带显示驱动）→
  *         `mm_apply_init()` 接管干接点（**建任务前完成**，避免上电沿出现未定义灯态窗口）→
- *         建静态队列 → 建处理任务；`CH_ID_RS232_1`（USART6 语音 TX）**禁止绑定**，见 §7.1。
+ *         建静态队列 → 建处理任务；`CH_ID_RS232_1`（USART6 语音 TX）**禁止绑定**，详见
+ *         doc/16_缅甸2D费显协议/README.md §7.1。
  */
 void mm_proto_init(void)
 {
@@ -115,11 +118,13 @@ void mm_proto_init(void)
 
     app_proto_bind_channel(s_mm_mask, CH_ID_RS232);
 
-    /* 上电默认画面 = 红叉：仅带显示驱动的构建注册；无显示构建零调用零告警（§14.3） */
+    /* 上电默认画面 = 红叉：仅带显示驱动的构建注册；无显示构建零调用零告警
+     * （doc/16_缅甸2D费显协议/README.md §14.3） */
     _mm_default_display_init();
 
     /* 干接点接管（默认红叉）必须在建任务前完成，避免上电沿出现未定义灯态窗口；
-     * PE12/PE11/PE10 的 EXTI 摘除与推挽接管见 app_mm_proto_cmd.c（§4.2）。 */
+     * PE12/PE11/PE10 的 EXTI 摘除与推挽接管见 app_mm_proto_cmd.c
+     * （doc/16_缅甸2D费显协议/README.md §4.2）。 */
     mm_apply_init();
 
     s_mm_queue = osMessageQueueNew(MM_QUEUE_DEPTH, MM_MSG_SIZE, &s_mm_queue_attr);
@@ -141,7 +146,8 @@ sw_app_initcall(mm_proto_init);
  *                    （doc/05_协议模块多协议兼容优化/01_architecture.md §3.2 规则 3）。
  * @return READY = 车道灯命令整帧 20B 入队；SKIP = 非本模块命令或 DATA0 越界（整帧消费）；
  *         FAKE = 首字节/机器地址不符 → 交外层按 1 字节重同步。
- * @note   判据全表见 §6；「非本模块命令的正签名门槛」是防误吞同槽治超帧的关键（§5④）。
+ * @note   判据全表详见 doc/16_缅甸2D费显协议/README.md §6；「非本模块命令的正签名门槛」是
+ *         防误吞同槽治超帧的关键（doc/16_缅甸2D费显协议/README.md §5④）。
  */
 static proto_probe_sta_t mm_probe_frame(const channel_t *ch, const ring_buffer_t *rb,
                                         uint32_t *total_len, uint8_t *aux)
@@ -176,7 +182,8 @@ static proto_probe_sta_t mm_probe_frame(const channel_t *ch, const ring_buffer_t
     if (cmd_arg[0] != (uint8_t)MM_CMD_LANE_RED && cmd_arg[0] != (uint8_t)MM_CMD_LANE_LEFT &&
         cmd_arg[0] != (uint8_t)MM_CMD_LANE_RIGHT) {
         /* 非本模块命令字：须「结束码正签名」成立才整帧消费（SKIP），否则 FAKE——
-         * 无条件 SKIP 会截断同槽四川治超的半帧（其 byte[1] 可为 0xE0）；防误吞纪律见 §5④ */
+         * 无条件 SKIP 会截断同槽四川治超的半帧（其 byte[1] 可为 0xE0）；防误吞纪律详见
+         * doc/16_缅甸2D费显协议/README.md §5④ */
         uint8_t sig[MM_TAIL_SIG_LEN];
         rb_peek(rb, MM_TAIL_SIG_OFFSET, sig, MM_TAIL_SIG_LEN, NULL);
         for (uint32_t i = 0U; i < MM_TAIL_SIG_LEN; i++) {

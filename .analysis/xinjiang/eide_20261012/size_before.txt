@@ -1,0 +1,30 @@
+build/xj_eide_dbg_before/Project_STD.elf  :
+section                size        addr
+.isr_vector             392   134479872
+.text                133544   134480272
+.rodata              192232   134613816
+.hw_initcall            160   134806048
+.sw_initcall            120   134806208
+.ARM.extab                0   134806328
+.ARM                      8   134806328
+.preinit_array            0   134806336
+.init_array               4   134806336
+.fini_array               4   134806340
+.data                  1632   536870912
+.ccmram               17260   268435456
+.bss                 116420   536872544
+._user_heap_stack      2564   536988964
+.ARM.attributes          48           0
+.comment                 69           0
+.debug_info          524405           0
+.debug_abbrev         87403           0
+.debug_loclists      197246           0
+.debug_aranges        17776           0
+.debug_rnglists       16081           0
+.debug_line          314427           0
+.debug_str            85226           0
+.debug_frame          55452           0
+.debug_line_str         474           0
+Total               1762947
+
+

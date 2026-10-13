@@ -6,7 +6,7 @@
 #include "main.h"
 #include "stm32f4xx_it.h"
 
-/* ---- HardFault 现场保护：崩溃信息存入全局变量，调试时 Watch 窗口查看 ---- */
+/* ---- HardFault 现场保护：崩溃信息存入全局变量（调试器 Watch 读取） ---- */
 static volatile uint32_t g_fault_stack[8]; /* R0,R1,R2,R3,R12,LR,PC,xPSR */
 static volatile uint32_t g_fault_pc;       /* 崩溃指令地址 */
 static volatile uint32_t g_fault_cfsr;     /* SCB->CFSR 故障状态寄存器 */

@@ -16,8 +16,8 @@
  * ================================================================ */
 #define MODULE_CODE                "1000000260"
 
-#define _1_260_MODULE_ROWS         (1U)  /* 每行模块数 */
-#define _1_260_MODULE_COLS         (1U)  /* 每列模块数 */
+#define _1_260_MODULE_ROWS         (7U)  /* 每行模块数 */
+#define _1_260_MODULE_COLS         (2U)  /* 每列模块数 */
 #define _1_260_MODULE_PIXEL_ROW    (32U) /* 单模块每行的像素个数 */
 #define _1_260_MODULE_PIXEL_COL    (32U) /* 单模块每列的像素个数 */
 #define _1_260_CHANNELS_PER_MODULE (2U)  /* 每模块通道数（R1G1B1 + R2G2B2） */

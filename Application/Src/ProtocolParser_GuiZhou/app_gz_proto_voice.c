@@ -15,7 +15,7 @@
 #include "text_cvt.h"
 
 /* 文明用语（UTF-8 字面量，播报前运行时转 GBK 送语音板）。
- * '0' 按设备实测行为用「贵州高速公路」（协议文档原文为「贵州公路」） */
+ * '0' 用「贵州高速公路」（协议文档原文为「贵州公路」，差异表见 doc/10 §3） */
 static const char *const s_civil_texts[] = {
     "您好！欢迎行驶贵州高速公路",
     "请出示通行卡",
@@ -45,7 +45,7 @@ void gz_voice_civil(uint8_t idx)
  * @brief  播报费额提示语。
  * @param  amount_fen  费额，单位分。
  * @note   金额 ≥0.5 元才播报（0 元不播报）；小数保留两位（如 1.20→「1.20元」），
- *         .00 时只播整数（按设备实测行为）。
+ *         .00 时只播整数。
  */
 void gz_voice_fee_amount(uint32_t amount_fen)
 {

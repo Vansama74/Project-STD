@@ -2,7 +2,7 @@
  * @file    app_gz_ol_proto_parse.c
  * @brief   贵州治超屏协议 — 帧解析（纯函数；长度/尾字节/取值二次防御）
  *
- * 载荷长度纪律（0x20 ≥17B、0x40 ≥14B、无载荷命令不限）与端口 BE16 见
+ * 载荷长度纪律（0x20 ≥17B、0x40 ≥14B、无载荷命令不限）与端口 BE16 详见
  * doc/14_贵州治超屏协议/README.md §1、§13.5.1
  */
 
@@ -123,7 +123,7 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             }
             cmd.p.display.x         = _gz_ol_le16(&p[0]);
             cmd.p.display.y         = _gz_ol_le16(&p[2]);
-            /* p[4..7] 屏宽/屏高：源固件读取后忽略，本实现同样忽略（§2 #4） */
+            /* p[4..7] 屏宽/屏高：源固件读取后忽略，本实现同样忽略（doc/14_贵州治超屏协议/README.md §2 #4） */
             cmd.p.display.font_type = _gz_ol_font_type(&p[8]);
             cmd.p.display.font_size = size;
             cmd.p.display.color     = _gz_ol_color(&p[14]);
@@ -160,12 +160,12 @@ gz_ol_parsed_cmd_t gz_ol_parse_frame(const uint8_t *raw, uint16_t raw_len)
             break;
         }
 
-        /* 无载荷命令：**载荷长度不限**（源固件各 handler 不读载荷；文档 0x30 帧例自带 17B
-         * 参数块，严格校验会拒掉上位机真实帧） */
+        /* 无载荷命令：**载荷长度不限**——源固件各 handler 不读载荷，文档 0x30 帧例自带 17B
+         *（严格校验会拒掉上位机真实帧；详见 doc/14_贵州治超屏协议/README.md §1） */
         case GZ_OL_PCMD_FAULT_QUERY:
         case GZ_OL_PCMD_CLEAR:
         case GZ_OL_PCMD_SEARCH:
-        case GZ_OL_PCMD_SET_IP_ACK: /* 入站 0x50 亦作搜索触发（§8 Q3 采纳 C） */
+        case GZ_OL_PCMD_SET_IP_ACK: /* 入站 0x50 亦作搜索触发（doc/14_贵州治超屏协议/README.md §8 Q3） */
             cmd.sta = GZ_OL_PARSE_OK;
             break;
 

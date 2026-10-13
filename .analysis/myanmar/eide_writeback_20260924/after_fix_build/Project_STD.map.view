@@ -1,0 +1,6 @@
+tool: GCC
+fileName: 'Project_STD.map'
+elfName: 'Project_STD.elf'
+compilerName: 'Arm GNU Toolchain 15.2.Rel1 (Build arm-15.86)'
+compilerFullName: 'arm-none-eabi-gcc (Arm GNU Toolchain 15.2.Rel1 (Build arm-15.86)) 15.2.1 20251203'
+compilerPath: '/home/yystation/EnvTools/embedded-toolchain/arm-gnu-toolchain/bin/arm-none-eabi-gcc'

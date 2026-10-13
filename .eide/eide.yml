@@ -140,6 +140,12 @@ virtualFolder:
                 - path: Application/Src/RLS/app_rls_cmd.c
                 - path: Application/Src/RLS/app_rls.c
               folders: []
+            - name: ProtocolParser_XinJiang
+              files:
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto.c
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_parse.c
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_cmd.c
+              folders: []
     - name: Drivers
       files: []
       folders:
@@ -409,6 +415,7 @@ targets:
         - USE_HAL_DRIVER
         - STM32F407xx
         - PROTO_CHONGQING
+        - XJ_FAULT_SCREEN=0
       incList:
         - Core/Inc
         - Drivers/CMSIS/Include
@@ -443,6 +450,7 @@ targets:
         - Application/Inc/ProtocolParser_ChongQing
         - Application/Inc/ProtocolParser_Anhui
         - Application/Inc/ProtocolParser_Myanmar
+        - Application/Inc/ProtocolParser_XinJiang
         - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
@@ -453,8 +461,6 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Device/Display/dev_display_p20.c
-      - <virtual_root>/Device/Display/dev_display_1_263.c
-      - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
       - <virtual_root>/Device/Display/dev_display_22_1703.c
@@ -467,6 +473,11 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
       - <virtual_root>/Device/Display/dev_display_22_1665.c
       - <virtual_root>/Application/protocol/ProtocolParser_Anhui
+      - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Device/Display/dev_display_1_969.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -616,6 +627,7 @@ targets:
         - Application/Inc/ProtocolParser_ChongQing
         - Application/Inc/ProtocolParser_Anhui
         - Application/Inc/ProtocolParser_Myanmar
+        - Application/Inc/ProtocolParser_XinJiang
         - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
@@ -640,6 +652,7 @@ targets:
       - <virtual_root>/Device/Display/dev_display_1_577.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Application/app_factory_test.c
+      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
     settings:
       debugger: cortex-debug
     toolchain: GCC
