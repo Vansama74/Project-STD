@@ -1,8 +1,0 @@
-  ✔ app_gz_ol_proto.h                去注释 token 流逐字节一致（2119 字节）
-  ✔ app_gz_ol_proto_cmd.h            去注释 token 流逐字节一致（30 字节）
-  ✔ app_gz_ol_proto_parse.h          去注释 token 流逐字节一致（30 字节）
-  ✔ app_gz_ol_proto.c                去注释 token 流逐字节一致（4188 字节）
-  ✔ app_gz_ol_proto_cmd.c            去注释 token 流逐字节一致（5674 字节）
-  ✔ app_gz_ol_proto_parse.c          去注释 token 流逐字节一致（3967 字节）
-  ✔ app_gz_ol_proto_default.c        去注释 token 流逐字节一致（1421 字节）
-######## 结果：仅注释变化（代码 token 零改动）

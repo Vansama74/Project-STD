@@ -1,4 +1,0 @@
-### 22_1665 8x4 PROTO=ALL（预计链接期溢出）
-/home/yystation/EnvTools/embedded-toolchain/arm-gnu-toolchain/bin/../lib/gcc/arm-none-eabi/15.2.1/../../../../arm-none-eabi/bin/ld: /tmp/landing_build/all1665/Project_STD.elf section `.ccmram' will not fit in region `CCMRAM'
-/home/yystation/EnvTools/embedded-toolchain/arm-gnu-toolchain/bin/../lib/gcc/arm-none-eabi/15.2.1/../../../../arm-none-eabi/bin/ld: region `CCMRAM' overflowed by 17700 bytes
-collect2: error: ld returned 1 exit status

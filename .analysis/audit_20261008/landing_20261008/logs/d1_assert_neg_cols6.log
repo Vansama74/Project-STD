@@ -1,8 +1,0 @@
-### 负向 A：MODULE_COLS=6（通道守卫 + CCM 守卫同触发）
-/tmp/landing_build/d1_neg/dev_display_22_1665_cols6.c:103:1: error: static assertion failed: "22_1665: per-column wiring needs 2 channels per module column (2 x MODULE_COLS <= HUB75_CHANNEL_MAX = 10)"
-  103 | _Static_assert(2U * _22_1665_MODULE_COLS <= HUB75_CHANNEL_MAX,
-      | ^~~~~~~~~~~~~~
-/tmp/landing_build/d1_neg/dev_display_22_1665_cols6.c:174:1: error: static assertion failed: "22_1665: arrays exceed CCMRAM region (64KB; reduce MODULE_ROWS/MODULE_COLS)"
-  174 | _Static_assert(_22_1665_CCM_BYTES <= 64U * 1024U,
-      | ^~~~~~~~~~~~~~
-gcc_exit=1

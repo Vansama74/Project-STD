@@ -25,8 +25,8 @@ OBJCOPY = arm-none-eabi-objcopy
 SIZE    = arm-none-eabi-size
 
 # ---- Directories ----
-# BUILD_DIR 可用 `?=` 覆盖（make BUILD_DIR=... 或环境变量）——供宿主脚本把等价口径
-# 的构建产物落到 .analysis/ 下，避免污染 build/（见 .analysis/myanmar/README.md）。
+# BUILD_DIR 可用 `?=` 覆盖（make BUILD_DIR=... 或环境变量）——把变体/等价口径的构建
+# 产物落到独立目录，避免污染 build/。
 CONFIG    ?= Debug
 BUILD_DIR ?= build/$(CONFIG)
 
@@ -60,7 +60,7 @@ endif
 
 # ---- 诊断开关（2026-09-29 代码瘦身轮移除；同日第二轮修正保留 RTT 底层）----
 # 原 APP_DIAG_BANNER / APP_LWIP_DBG_LEVEL 两个命令行开关随自研诊断设施一并删除（不回退）：
-# 业务代码零 RTT API 调用（grep 证据见 .analysis/cleanup_20260929/round2_report.md），
+# 业务代码零 RTT API 调用（自查：`grep -rn 'SEGGER_RTT_' Application Device Platform Kernel`），
 # SEGGER RTT 底层（SRC_RTT + pl_rtt.c）**保留/已恢复**，供调试器直接读 RTT 使用；
 # LwIP 调试输出已在 Platform/Inc/lwipopts.h 中整体编出（零输出、零格式化开销）。
 

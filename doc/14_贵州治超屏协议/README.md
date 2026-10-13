@@ -1,5 +1,9 @@
 # 14 贵州治超屏协议（"TCLY" 帧族）
 
+> ⚠ **2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
+> （宿主推演 / 校验脚本 / 报告 / 证据 / 备份）**一律作废、仅作历史线索保留**，需要时用
+> `git show 069be96:<路径>` 取回（在仓库外运行）。下文脚本结果列为历史记录。
+
 > ⚠ **2026-09-29 代码瘦身轮：RTT 调试输出已整体移除**——本文件中的 `[gz_ol]`/`[diag]`/`[yn_ol]`/`[disp]`
 > 日志样例、`*_RTT_DIAG` 门控与「按 RTT 判读」的现场步骤**不再可用**（`Platform/Src/pl_rtt.c`、
 > `Application/Inc/app_diag.h` 与全部 SEGGER RTT 打印已删除；第三方源码仍在磁盘但不参与编译）。
@@ -243,8 +247,8 @@ text 164004 / rodata 198088 / data 1664 / ccmram 37084 / bss 126352，SRAM 余�
 **任务与堆**：**`gz_ol_handle_task` 已静态化**（栈 + TCB 落 CCMRAM，2026-09-17 堆修复轮起，
 不占 ucHeap，见 §3）；占 ucHeap 的是专用口两任务 `udp_gzol_task` / `udp_gzol_connect_task`
 （各 256×4，`app_udp.c`，2026-09-14 新增）。`configTOTAL_HEAP_SIZE` 36KB——**现行账本与水位
-见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8 + `.analysis/heap/heap_ledger.py`
-复算**（本文档该行原记「水位尚未标定」，对应的 RTT 水位诊断设施已于 2026-09-29 删除）。
+见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8 逐项复算**（原复算脚本 `.analysis/heap/heap_ledger.py`
+已随 `.analysis` 移除；本文档该行原记「水位尚未标定」，对应的 RTT 水位诊断设施已于 2026-09-29 删除）。
 
 ---
 

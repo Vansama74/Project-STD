@@ -1,5 +1,9 @@
 # 15 云南治超屏协议（YN_1.3.0，`{` 帧族）
 
+> ⚠ **2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
+> （宿主推演 / 校验脚本 / 报告 / 证据 / 备份）**一律作废、仅作历史线索保留**，需要时用
+> `git show 069be96:<路径>` 取回（在仓库外运行）。下文脚本结果列为历史记录。
+
 > ⚠ **2026-09-29 代码瘦身轮：RTT 调试输出已整体移除**——本文件中的 `[gz_ol]`/`[diag]`/`[yn_ol]`/`[disp]`
 > 日志样例、`*_RTT_DIAG` 门控与「按 RTT 判读」的现场步骤**不再可用**（`Platform/Src/pl_rtt.c`、
 > `Application/Inc/app_diag.h` 与全部 SEGGER RTT 打印已删除；第三方源码仍在磁盘但不参与编译）。
@@ -278,7 +282,7 @@ ALL/22_1665            elf 6556d01416d421f4c4f9a82aaac811e1
                        bin 3318ea4554e9f432ed13da10e80ba9fe
 ```
 
-（最终三口径复跑脚本：`bash .analysis/yn_ol/final_verify.sh`；A/B 增量脚本仍为 `bash .analysis/yn_ol/ab_measure.sh`。）
+（最终三口径复跑脚本：`bash .analysis/yn_ol/final_verify.sh`；A/B 增量脚本仍为 `bash .analysis/yn_ol/ab_measure.sh`。**两脚本已随 `.analysis` 移除**、上文数字仅作历史记录。）
 
 > 横幅内嵌 `__DATE__/__TIME__`（`APP_DIAG_BANNER` 默认开）→ **重新编译必然改 md5**；
 > 镜像身份以板端横幅 `fw=` + `built=` + `tree=` 为准。
@@ -305,7 +309,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 > 复核说明：三口径模块增量均经 A/B 独立测量（宿主重链同一 `.o` 列表、仅增减本模块 3 个 `.o`）；
 > 「无本模块」基线实测 `text 167076 / ccmram 10012 / bss 126400 / 余量 440B`（ALL/1_263，与既有
 > 文档基线一致）、`text 153900 / ccmram 10012 / 余量 4712B`（CQ/1_263）、`text 168940 / ccmram 9308 /
-> 余量 424B`（ALL/22_1665），证明增量可归因于本模块。复跑脚本：`bash .analysis/yn_ol/ab_measure.sh`。
+> 余量 424B`（ALL/22_1665），证明增量可归因于本模块。复跑脚本：`bash .analysis/yn_ol/ab_measure.sh`（**已随 `.analysis` 移除**）。
 
 ---
 
@@ -429,7 +433,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 **UDP 10011 不可用**（本模块不绑；与 CQ JSON 同首字节且 CQ 收录序更早）。四通道帧格式与语义完全一致，
 应答一律单播回源通道（§8 裁决 1 / §1 probe 竞争结论）。
 
-> 宿主脚本可生成/校验上述帧并输出链式竞争矩阵：`python3 .analysis/yn_ol/yn_ol_frame_sim.py`。
+> 宿主脚本可生成/校验上述帧并输出链式竞争矩阵：`python3 .analysis/yn_ol/yn_ol_frame_sim.py`（**该脚本已随 `.analysis` 移除**，需要时从 `069be96` 取回）。
 
 ---
 
@@ -559,7 +563,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 | **本轮增量**（相对联调轮基线） | **+1440** | **+1008** | +8 | +40 | **±0** | 余 2104 → **2056B** | — |
 
 （md5 内嵌横幅 `__DATE__/__TIME__` ⇒ **每次重编必变**，镜像身份以板端 `[diag] fw=/built=/tree=` 为准；
-四跑复现脚本 `bash .analysis/yn_ol/round2_verify.sh`，输出与逐口径构建日志
+四跑复现脚本 `bash .analysis/yn_ol/round2_verify.sh`（**已随 `.analysis` 移除**），输出与逐口径构建日志
 `.analysis/yn_ol/round2_verify.out.txt` + `round2_{diagoff,all_1263,all_221665,all_1263_final}.log`——
 **四跑 exit=0、告警均为同样的 3 条既有 HAL**，段尺寸逐项复现一致。另按纪律补跑
 `make clean && make -j8`（`.analysis/yn_ol/round2_makeclean_default.log`，默认口径 elf md5

@@ -1,9 +1,0 @@
-==== Build complete ====
-   text	   data	    bss	    dec	    hex	filename
- 326640	   1632	 179364	 507636	  7bef4	/tmp/landing_build/eide_dbg_1665/Project_STD.elf
-.text                133464   134480272
-.rodata              192488   134613736
-.ccmram               60844   268435456
-.bss                 115956   536872544
-._user_heap_stack      2564   536988500
-告警数=0

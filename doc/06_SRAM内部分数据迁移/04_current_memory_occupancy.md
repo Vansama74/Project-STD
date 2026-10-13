@@ -742,11 +742,9 @@ arm-none-eabi-nm -S build/Debug/Project_STD.elf | grep -E 'ucHeap|rb_provide_.*_
 ## §8 FreeRTOS 堆预算表与任务栈 CCMRAM 下沉（2026-09-17，现场堆耗尽修复）
 
 > **角色**：`ucHeap`（`configTOTAL_HEAP_SIZE = 36KB`）的**永久预算账**。
-> 任何新增任务 / 动态队列 / 信号量 / netconn **之前**先看本表，再看现场 RTT `[diag] heap …`。
-> **复算入口（唯一权威脚本）**：`.analysis/heap/heap_ledger.py`
-> （`--markdown` 出表 / `--ab` 云南治超 A/B / `--eide` EIDE 口径）；三口径复编脚本
-> `.analysis/heap/verify_builds.sh`，输出留档 `.analysis/heap/verify_builds.out.txt`、
-> `.analysis/heap/ledger_all.txt` / `ledger_ab.txt` / `ledger_eide.txt`。
+> 任何新增任务 / 动态队列 / 信号量 / netconn **之前**先看本表，按 §8.3 逐项累加复算。
+> 〔2026-10-13：原复算脚本 `.analysis/heap/heap_ledger.py` / `verify_builds.sh` 已随 `.analysis/`
+> 目录移除；需要时用 `git show 069be96:<路径>` 取回（在仓库外运行）。〕
 
 ### §8.1 现场现象与根因（口径：**用量超限**，非碎片、非泄漏）
 
@@ -1180,15 +1178,17 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
 
 **现行排障步骤**（无 `[diag]` 输出）：
 
-1. 先跑 `python3 .analysis/heap/heap_ledger.py` 复算启动期堆预算（§8.3），并与链接期段尺寸对账；
+1. 先按 §8.3 账本逐项累加复算启动期堆预算，并与链接期段尺寸对账（原复算脚本
+   `heap_ledger.py` 已随 `.analysis` 移除；需要时从 `069be96` 取回，在仓库外运行）；
 2. 需要实测水位时，在 `app_rs485_start` 等启动点加一行 `SEGGER_RTT_printf(0, …)` 打
    `xPortGetFreeHeapSize()` / `xPortGetMinimumEverFreeHeapSize()`（**RTT 底层已备**，业务代码本身零调用）；
 3. `vApplicationMallocFailedHook` 命中即关中断停机 ⇒ 调试器读 `g_fault_*` / `xLastFailedAllocSize` 现场。
 
 ### §8.6 纪律
 
-1. **新增任务/动态队列/信号量/netconn 前**：先跑 `python3 .analysis/heap/heap_ledger.py` 复算
-   （自研 `[diag] heap … min` 打印已随 2026-09-29 瘦身轮删除，改由脚本 + 链接期段尺寸核账）；
+1. **新增任务/动态队列/信号量/netconn 前**：先按 §8.3 账本逐项累加复算
+   （自研 `[diag] heap … min` 打印已随 2026-09-29 瘦身轮删除；原 `heap_ledger.py` 脚本亦已随
+   `.analysis` 移除，改由账本 + 链接期段尺寸核账）；
    本表 §8.3 不更新即视为未评审。
 2. **可静态化的任务优先静态化**（`Platform/Inc/pl_task_static.h`，落 CCMRAM）——
    前提是「全生命周期只创建一次」；会被反复创建/退出的任务（每连接任务）保持动态，

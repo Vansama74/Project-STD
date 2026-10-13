@@ -1,5 +1,9 @@
 # 16 缅甸 2D 费显协议（车道灯开关量控制，RS232 定长 20 字节帧）
 
+> **⚠ 2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
+> （宿主脚本 / 推演与校验脚本 / 报告 / 抽取存档 / EIDE 备份）**一律作废、仅作历史线索保留**；对应文件
+> 需要时从 git 历史取回：`git show 069be96:<.analysis 下路径>`。下文脚本结果列为历史记录。
+
 > 协议文档：`/home/yystation/文档/创迪科技生产订单与技术资料/01 产品软件/产品协议文档/2D缅甸费显协议.doc`
 > （标题《缅甸费显》，3 页，末次保存 2026-04-02；**全文实读**，抽取存档
 > `.analysis/myanmar/doc_extract.txt`）。
@@ -303,8 +307,8 @@ RS232 槽（USART3）既有协议首字节：`0x0A`（四川 ETC）/ `0x5A`（�
 | `Platform/Inc/pl_gpio.h` · `Platform/Src/pl_gpio.c` | **本轮增量**：`pl_gpio_config_output()`（推挽输出）+ `pl_gpio_release_exti()`（按线摘 EXTI） |
 | `Makefile` | `-I Application/Inc/ProtocolParser_Myanmar` + 两个 `.c`（`SRC_APPLICATION` 末尾，Anhui 之后）；**本轮增量**：`FACTORY ?= STD`（`STD`/`MM` 二选一，非法值 `$(error)`；开关值进 `.build_stamp`；`SRC_FACTORY_TEST` 决定收录标准版还是缅甸版） |
 | `.eide/eide.yml` | **本轮增量**：`files` 收录 `app_factory_test_mm.c`；Debug / Myanmar 目标 `excludeList` 增 `<virtual_root>/Application/app_factory_test.c`（= 编缅甸版、排标准版，恰好一个；见 §13.3）；缅甸模块两文件收录与 `targets.Myanmar` 同前（Debug 现行口径见 §9.1） |
-| `.analysis/myanmar/mm_frame_sim.py` | 宿主 probe/parse 推演 + 源码断言（**当前 158/158**——2026-10-13 编译期断言清理后原断言存在性检查改「契约注释 + 宿主复算」，净 +1；此前瘦身轮删除 RTT 断言后由 159 收敛为 157，见 `.analysis/cleanup_20260929/report.md`；含引脚/极性/上电默认态/接管顺序/EXTI 纪律 + **§10 箭头落点交换语义与不变量** + **§11 开机默认画面「红色叉（×）」几何与源码断言** + Makefile `FACTORY` / 缅甸版出厂测试文件断言；**2026-09-28 起期望值 = 高有效**，**2026-09-29 起上电默认 = 红叉亮**） |
-| `.analysis/myanmar/check_eide_targets.py` | **EIDE 目标校验（结构不变量口径）+ 编译集/CCM 预算**（**2026-10-08 改写**：只校验 I1~I8 结构不变量 + 输出当前集合；不再锁「Debug 必须 = 某集合」；`.eide/eide.yml` 只读不改）。**现行 14/15：唯一失败 = Debug 的 I6（`PROTO_CHONGQING` 定义但 CQ 模块未编入 = C3 混编，待用户在 GUI 二选一）**；另有与 `build/<target>/builder.params` 的对拍（差异只报信息）与 `--emit-make [--target T]`（生成等价口径，无显示时 `SRC_DISPLAY` 置空） |
+| `.analysis/myanmar/mm_frame_sim.py`（**已随 `.analysis` 移除**，结果列为历史记录） | 宿主 probe/parse 推演 + 源码断言（**当时 158/158**——2026-10-13 编译期断言清理后原断言存在性检查改「契约注释 + 宿主复算」，净 +1；此前瘦身轮删除 RTT 断言后由 159 收敛为 157，见 `.analysis/cleanup_20260929/report.md`；含引脚/极性/上电默认态/接管顺序/EXTI 纪律 + **§10 箭头落点交换语义与不变量** + **§11 开机默认画面「红色叉（×）」几何与源码断言** + Makefile `FACTORY` / 缅甸版出厂测试文件断言；**2026-09-28 起期望值 = 高有效**，**2026-09-29 起上电默认 = 红叉亮**） |
+| `.analysis/myanmar/check_eide_targets.py`（**已随 `.analysis` 移除**） | **EIDE 目标校验（结构不变量口径）+ 编译集/CCM 预算**（**2026-10-08 改写**：只校验 I1~I8 结构不变量 + 输出当前集合；不再锁「Debug 必须 = 某集合」；`.eide/eide.yml` 只读不改）。**现行 14/15：唯一失败 = Debug 的 I6（`PROTO_CHONGQING` 定义但 CQ 模块未编入 = C3 混编，待用户在 GUI 二选一）**；另有与 `build/<target>/builder.params` 的对拍（差异只报信息）与 `--emit-make [--target T]`（生成等价口径，无显示时 `SRC_DISPLAY` 置空） |
 
 ### 7.2 接入清单（对照 doc/08_协议模块接入规则/04_接入检查清单.md）
 
@@ -464,11 +468,10 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
 | 历史（阶段二继承 1_969，192×96） | 13644 + 2440 + 38208 = 54292B | 链接通过，余 11244B |
 | 参考（22_1665 8×4，128×64） | 13644 + 2440 + 46080 = 62164B | 链接通过，余 3372B |
 
-- **等价口径复现**（**2026-09-29 第二轮：产物改落 `.analysis/`，不再污染 `build/`**）：
-  `python3 .analysis/myanmar/check_eide_targets.py --emit-make .analysis/myanmar/build_nodisp/Makefile.mm_nodisp`
-  → `make -f .analysis/myanmar/build_nodisp/Makefile.mm_nodisp CONFIG=EIDEMyanmarNoDisp -B -j8`
-  （生成物内 `BUILD_DIR` 已默认改写为 `.analysis/myanmar/build_nodisp/$(CONFIG)`；需要换目录用
-  `make BUILD_DIR=<dir> …`——Makefile 侧 `BUILD_DIR ?=`，见 doc/构建开关总表.md §3）。
+- **等价口径复现**（原做法：`check_eide_targets.py --emit-make` 生成等价口径 Makefile，产物落
+  `.analysis/myanmar/build_nodisp/`，`CONFIG=EIDEMyanmarNoDisp`）——**该脚本已随 `.analysis` 移除**；
+  现行做法 = 按 `.eide/eide.yml` 的 `excludeList` 手工核对无显示口径，再用既有 `make`
+  （`make BUILD_DIR=<dir> …`，Makefile 侧 `BUILD_DIR ?=`，见 doc/构建开关总表.md §3）复现。
   （**阶段三首次实测**：`.text 138720 / .rodata 197056 / .data 1584 / .ccmram 16084 / .bss 116060 /
   ._user_heap_stack 2564` ⇒ **SRAM 合计 120208B（余 10864B）**、**CCM 余 49452B**；207 个源文件、
   零新增告警（仍 3 条既有 HAL）。`Device/Display/` 下只有 `dev_display.o`，`nm` 无任何模组驱动符号）。
@@ -537,6 +540,9 @@ EIDE 子集的固定 CCM 消费者 = **13644B**（静态任务栈 + TCB + 内核
 `app_ldi_device.c` 的 `display_clear` 路径（经 `app_render`，已判空）。
 
 ### 10.3 判据与复跑
+
+> **下表的「工具」列脚本（`check_display_guards.py` / `check_guard_disasm.py` 等）已随 `.analysis/` 移除**，
+> 结果列 = 当时的判据记录（历史）；现行等价复核 = §10.1 的判空清单逐条对照源码 + `objdump` / `nm` 抽查。
 
 | 判据 | 工具 | 结果 |
 |---|---|---|

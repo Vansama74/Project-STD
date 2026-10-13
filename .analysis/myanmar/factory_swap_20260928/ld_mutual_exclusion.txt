@@ -1,6 +1,0 @@
-arm-none-eabi-ld: build/Debug/Application/Src/app_factory_test_mm.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test_mm.c:60: multiple definition of `g_factory_test'; build/Debug/Application/Src/app_factory_test.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test.c:48: first defined here
-arm-none-eabi-ld: build/Debug/Application/Src/app_factory_test_mm.o: in function `app_factory_mode_interrupt':
-/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test_mm.c:108: multiple definition of `app_factory_mode_interrupt'; build/Debug/Application/Src/app_factory_test.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test.c:348: first defined here
-arm-none-eabi-ld: build/Debug/Application/Src/app_factory_test_mm.o: in function `app_factory_test_active':
-/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test_mm.c:118: multiple definition of `app_factory_test_active'; build/Debug/Application/Src/app_factory_test.o:/home/yystation/Program/3833024/Project-STD-main/Application/Src/app_factory_test.c:62: first defined here
-ld exit=1

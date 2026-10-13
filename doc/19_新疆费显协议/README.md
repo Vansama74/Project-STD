@@ -1,5 +1,9 @@
 # 19 新疆费额显示器协议（ZJ_2024）
 
+> **⚠ 2026-10-13 用户裁决：`.analysis/` 目录已从仓库移除且禁止再建。** 本文中所有 `.analysis/**` 引用
+> （宿主推演 / 校验脚本 / 调研与实施报告 / EIDE 备份 / 构建证据）**一律作废、仅作历史线索保留**；
+> 对应文件需要时从 git 历史取回：`git show 069be96:<.analysis 下路径>`。下文脚本结果列为历史记录。
+
 - **协议文档（主）**：`费额显示器通讯协议(2).pdf`（**PDF 全文「费额显示器通讯协议 2020 年」，22 页**，
   WPS 生成；修订说明：2020-07 增心跳与「彩色行显示协议」、2021-08 增入口发卡/出口收卡语音）
   —— 全文留档 `.analysis/xinjiang/doc_v2/doc_v2.txt`（`pdftotext -layout`）+ 含 hexdump 的页 20/21/22 渲染图
@@ -316,8 +320,9 @@
 
 #### 6.3.1 用户目标口径 A/B：自备 RB 的代价（等价 EIDE Debug = IAP + LDI + 新疆）
 
-Makefile 由 `python3 .analysis/myanmar/check_eide_targets.py --target Debug --emit-make /tmp/xjmk/Debug.mk` 生成
-（28 个 app 源文件、显示 `dev_display_1_263.c`、DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
+Makefile 原由 `python3 .analysis/myanmar/check_eide_targets.py --target Debug --emit-make /tmp/xjmk/Debug.mk` 生成
+（**该脚本已随 `.analysis` 移除**；生成物 = 与 EIDE Debug 等价的 28 个 app 源文件、显示 `dev_display_1_263.c`、
+DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
 `make -f /tmp/xjmk/Debug.mk CONFIG=EIDEDebugXJ -B -j8 BUILD_DIR=build/xj_r2_dbg`（**改后**）与
 `… BUILD_DIR=build/xj_r2_dbg_nofix`（**临时摘掉两行 `RB_PROVIDE_WEAK` 的改前对照**，日志 `build_r2_dbg{,_nofix}.log`）：
 
@@ -336,6 +341,10 @@ Makefile 由 `python3 .analysis/myanmar/check_eide_targets.py --target Debug --e
 ---
 
 ## §7 宿主推演与校验脚本
+
+> **下表脚本均已随 `.analysis/` 目录移除（2026-10-13）**，结果列为当时的判据记录（历史）；
+> 现行复核 = 直接读源码 + `make` / EIDE 段尺寸（`arm-none-eabi-size -A`）+ `objdump` 抽查。
+> 需要脚本时用 `git show 069be96:<路径>` 取回（在仓库外运行）。
 
 | 脚本 | 结果 |
 |---|---|

@@ -78,7 +78,7 @@ void gz_ol_proto_init(void)
             app_proto_bind_channel(s_gz_ol_mask_udp, CH_ID_UDP);
 
         /* GZ_OL 专用业务口：端口 = Sector1 `net_cfg.port`（`0x40` 改端口即改此口，契约 ②）；
-         * 同槽 IAP/LDI/CQ 与本 probe 首字节双向快拒（证据 .analysis/9k23881580/gz_ol_udp_binding_report.md §2）。 */
+         * 同槽 IAP/LDI/CQ 与本 probe 首字节双向快拒（判据见 `doc/14_贵州治超屏协议/README.md` §13）。 */
         s_gz_ol_mask_gzol = app_proto_register(gz_ol_probe_frame, rb_rj45);
         if (s_gz_ol_mask_gzol != 0)
             app_proto_bind_channel(s_gz_ol_mask_gzol, CH_ID_UDP_GZOL);

@@ -1,8 +1,0 @@
-  ✔ Application/Inc/ProtocolParser_Myanmar/app_mm_proto.h:9  doc/16_缅甸2D费显协议/README.md §13、§2、§3、§6、§7、§8、§13、§14
-  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto.c:8  doc/16_缅甸2D费显协议/README.md §7.1、§14.3、§5、§6、§7、§10、§14
-  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto.c:31  doc/16_缅甸2D费显协议/README.md §6
-  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto.c:142  doc/05_协议模块多协议兼容优化/01_architecture.md §3.2
-  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c:9  doc/16_缅甸2D费显协议/README.md §4.3、§3、§4、§6、§13、§14
-  ✔ Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c:33  doc/16_缅甸2D费显协议/README.md §4.1
-  ✔ Application/Src/app_factory_test_mm.c:9  doc/16_缅甸2D费显协议/README.md §13
-######## doc 指针检查：7/7 通过，失败 0
