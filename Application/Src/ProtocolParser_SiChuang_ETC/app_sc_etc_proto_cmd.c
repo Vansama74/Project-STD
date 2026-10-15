@@ -127,8 +127,10 @@ static void _sc_etc_exec_display(const sc_etc_display_t *p) {
 
   if (p->row == 0U) {
     /* 全屏（含滚屏）：先清屏再自第 1 行第 1 列按屏宽自动换行渲染，
-     * 变长数据（≤145B）按收到内容渲染，无固定 56B 布局 */
-    _sc_etc_clear_screen();
+     * 变长数据（≤145B）按收到内容渲染，无固定 56B 布局。
+     * 清屏只写显存、不单独提交（app_render 末尾统一提交一次）：两次提交会让
+     * 面板先黑一帧，字库读被 W25Qxx 写保存阻塞时黑屏被放大成肉眼可见闪烁。 */
+    dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_BLACK);
     app_render(&(render_cfg_t){
         .type = RENDER_TEXT,
         .x = 0,

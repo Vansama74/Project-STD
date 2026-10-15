@@ -13,7 +13,9 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 > `make clean`、`bear -- make` 等）**一律作废、仅作历史**（下文相关条目已就地标注）。
 >
 > - **日常构建 = EIDE**。现行 target 共 2 个（2026-10-13 用户裁决重组）：`Base`（**基线口径 / 重置模板**）、
->   `Debug`（**与 `Base` 同口径、日常主用**——2026-10-13 全量 Rebuild 构建成功、190 个 .c）。
+>   `Debug`（**日常主用**）——2026-10-13 全量 Rebuild 构建成功；**2026-10-15 起为现场调试口径**
+>   （在基线之上取消排除 `ldi` + 四川 ETC/MTC/治超 + 显示驱动 `dev_display_1_969.c`），**与 `Base` 已不同**
+>   ——各 target 的编入集一律以 `.eide/eide.yml` 现状为准（配方见 `doc/构建开关总表.md` §7）。
 >   **`Release` target 已于 2026-10-13 按用户裁决整块删除**（原「已损坏、勿用」态：incList 30 条中 17 条目录不存在、排除表仅 4 条）。
 >   **基线口径** = 核心代码 + IAP + 标准厂测 `app_factory_test.c` + RTT 底层 4 源 + 显示基类 `dev_display.c`；
 >   7 个显示驱动 + 13 个协议目录（青海/山东/贵州常规/贵州治超/云南常规/云南治超/重庆/安徽/四川 ETC·MTC·治超/
@@ -156,7 +158,8 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
     三模组 CCMRAM 显存 + CQ 6377B + 贵州治超 1136B + 云南治超 1152B **不可同编**（同编 = .ccmram 溢出或双实例注册、
     活动屏由链接序决定）；非法值 make 直接 `$(error)` 报错。EIDE 侧等价语义由 target 的 `excludeList` 表达
     （见「选编口径」；**2026-10-13 target 重组后 `dev_display_22_1665.c` 与其余 6 个显示驱动一样在 Base/Debug
-    排除表内**——需要 22_1665 时在 GUI 取消排除，配方见 `doc/构建开关总表.md` §7.2 第 8 条）。
+    排除表内**——**2026-10-15 起 `Debug` 为现场调试口径、例外地编入 `dev_display_1_969.c`；以 `.eide/eide.yml`
+    现状为准**——需要 22_1665 时在 GUI 取消排除，配方见 `doc/构建开关总表.md` §7.2 第 8 条）。
   - **`FACTORY ?= STD`**（2026-09-28 新增，本轮）：**出厂测试实现二选一** ——
     `STD`（默认，保持改动前行为）= `Application/Src/app_factory_test.c`（TEST 键 11 步序列：固件信息 / 七色满屏 /
     通信灯 / 老化循环 / 斜扫 / 重启）；**`MM` = `Application/Src/app_factory_test_mm.c`**（缅甸版：TEST 键每按一次
@@ -295,6 +298,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/15_云南治超屏协议` | 云南治超屏协议（YN_1.3.0 `{` 帧族）接入记录（19 命令字；'6'/'7'/'9' 文档明示治超屏不开发→probe 快拒；**绑 RS485+RS232+TCP Server+TCP Client 四通道**——TCP 与 CQ 的 `{` 同首字节竞争以**通道掩码隔离**解决（CQ 只绑 UDP/UDP_CQ，TCP 链上不被调用），本模块**不绑 10011** → CQ 量产行为零削弱；队列 1152B 置 CCMRAM；**属 `{` 帧族 → 定义 `g_brace_proto_guard` 守卫，量产与其它 `{` 族目录二选一**（与云南常规这一对已 `ld -r` 实测报 multiple definition）；**上电默认画面已删除**——走 STD 默认显示链路；`0x47`/`0x51` 端口字段**已裁决 BE16**；**`0x49` 屏体参数持久化**（W25Qxx 独立 4KB 扇区 `capacity-12288` 12B 记录 + 上电装载）；与云南常规 `0x42` 同字节歧义；§8 = 8 条裁决结果表） |
 | `doc/16_缅甸2D费显协议` | 缅甸 2D 费显协议（车道灯开关量控制，RS232 **定长 20 字节帧** `FF E0 + 命令 + 12B + 5B`，无校验/无应答）接入记录（只解析 `0x90` 红灯 / `0x0A` 左下箭头 / `0x0B` 右下箭头，DATA0 1=开 0=关；**只绑 `CH_ID_RS232`**；队列与任务栈落 CCMRAM；**与四川治超同为 RS232 槽 `0xFF` 首字节 → 双向不误吞（正签名判别）**；**干接点已真实驱动 = S1/S2/S3 → PE12/PE11/PE10（高电平有效推挽、上电默认显示红叉 = 红灯点亮（2026-09-29，取代「三路全灭」）、按线摘 EXTI）**——极性由 2026-09-28 现场实测翻转（复位后灯亮 + 65 脚 3.3V ⇒ 3.3V = 点亮，取代 2026-09-24 的「低有效」初判），副作用与量产建议见 §4；**§14 = 上电默认红叉（车道灯板）+ 开机默认画面「红色叉（×）」（屏，仅带显示驱动构建）**；**EIDE target 现状与缅甸固件点选配方见 `doc/构建开关总表.md` §7（原独立 `Myanmar` target 已于 2026-10-13 删除，§9 为历史目标结构）**；**§10 = 无显示驱动构建的边界防护**（14 条路径判空/降级 + `[disp]` 限速告警 + 判据脚本）；`0x0B` 文档中不存在、`0x0A` 文档标题/注文自相矛盾） |
 | `doc/19_新疆费显协议` | 新疆费额显示器协议接入记录（**协议文档 = PDF 全文「费额显示器通讯协议 2020 年」22 页**，桌面另有 2024-04-16 摘录版 `.md`；`FF DC` + **长度 = 整帧总长** + 命令 + BCC；**14 命令**（含 `'D'` 行/全屏、`'G'`/`'H'`/`'Z'`/`'P'`；`'B'` 不实现）；帧长 **5~106**（'T' 10+16N N≤6、'D' 全屏 7+16N N=2~6，**PDF §5.2 现场采样 = 103B 6 行**）；`'T'`/`'D'` 严格 16 字节/行、RGB≥128 位掩码、亮度 0=自动/1~255→8 档、心跳 15s 维护屏 `XJ_FAULT_SCREEN`、`'D'/'C'/'Z'/'P'` 回 5B 应答；**绑 RS485 + RS232 双槽、自备两槽 `RB_PROVIDE_WEAK` 槽体**（单协议目标必需，见下）；与四川治超 `0xFF` 首字节重叠 → 四重隔离免 EIDE 互斥；队列 1668B 置 CCMRAM；**§2.1 = 调度框架掩码 32→64**；`'B'`/维语/彩色行出处为待确认缺口） |
+| `doc/20_LDI到四川ETC协议转义` | **LDI → 四川 ETC 协议转义（镜像）**（2026-10-15）：LDI 命令成功执行 → 翻译为四川 ETC 帧从 RS485 + RS232 双口同发（供总线纯监听设备解析）；weak 钩子接入层级、事件→出站帧映射表、默认决策 6 条、EIDE 源文件开关、依赖（须同编 LDI + 四川 ETC）、已知限制与验证步骤、**§11 现场排查记录（心跳与「屏幕闪烁」，2026-10-15）：第一轮软件路径逐行排除（心跳不写显存）、第二轮 5 探针部署、第三次观测（纯心跳窗口 36s 仍闪 + 与心跳发射 1:1，判别收口为「电气路径」、削弱「帧触发显示路径」）、第四次观测（**闪屏对象现场确认 = 本机 HUB75 LED 模组（1-263 32×32 1×1）** ⇒ 对端/监听侧屏分支作废，机制收敛为「本机电气耦合」，列三子机制 A1 供电/地耦合 · A2 串扰耦合 · A3 面板对共模敏感 + 实验 E1~E5（E1 拔总线线缆最优先、E2 形态/次数、E3 单口隔离补丁待批准、E4 示波器、E5 供电整改）；GPIO 速度档查证 = UART TX 三脚全 VERY_HIGH、RS485 DE=LOW、HUB75 全 MEDIUM/LOW）；并确认 16:04 构建**含 `dev_display_1_263.c`（32×32）** ⇒ 本机屏确有扫描信号；**第五~六次观测（2026-10-15 晚）= 根因定位与结案**：根因 = `pl_uart_send` 原 `HAL_UART_Transmit` 轮询忙等（3B@9600≈3.1ms/口、双口≈6.25ms 不让出 CPU）饿死 FreeRTOS Timer 守护任务（优先级 2），而 TIM3 行同步 `osEventFlagsSet`（FromISR）经 `xTimerPendFunctionCallFromISR` 投递到该任务中转 ⇒ 发送窗口内 `scan_task` 停摆 ≈6ms、末行被 OE 多点亮 ⇒ 闪；修复 = UART TX 中断化（`HAL_UART_Transmit_IT` + TC 完成信号量 + 每 UART 发送互斥，等待期间让出 CPU）；现场 36s 纯心跳窗口复测**闪烁消失、用户确认通过**；排查期临时 RTT 探针已回收** |
 
 > **⚠ 仓库纪律（2026-10-13 用户裁决）：仓库内已移除 `.analysis/` 目录，禁止创建或使用 `.analysis/`。**
 > 分析报告、验证证据、日志、临时脚本、构建产物一律**不得**落在仓库内（临时产物放仓库外，如 `/tmp`）；
@@ -836,7 +840,7 @@ struct dev_display {
 | **`dev_display_1_263.c`**（`1000000263`） | **224×64**（7×32 / 2×32） | 1/8，2 通道/模块（总 4） | 29568B | **Makefile 默认口径（`DISP=1_263`，历史）**；EIDE **Base/Debug 基线排除本文件**（要用时在 GUI 取消排除；`doc/构建开关总表.md` §7.2 第 6 条 = 全协议口径的标准选择） |
 | **`dev_display_22_1703.c`**（`2200001703`） | 宏当前为 **224×64**（7×32 / 4×16）；**用户 WIP——宏可被改成 1×1 = 32×16**（该态 `.ccmram` 39164→11420，差值 27744B 可反推板上镜像几何） | **1/4**，2 通道/模块（总 **8**） | 31648B（1×1 态 3904B） | `make DISP=22_1703` 选编（历史）；**EIDE Base/Debug 基线排除本文件**（2026-09-16 起不再作为现成口径，要用时在 GUI 取消排除 + 窄口径，见 `doc/构建开关总表.md` §7.2 第 9 条） |
 | **`dev_display_22_1665.c`**（`2200001665`） | **16×16 双色**（4 条数据线 × 每模块每线 128 位 = 512 LED = 256 像素 × 2 die）；**几何宏控**：`_22_1665_MODULE_ROWS` / `_22_1665_MODULE_COLS`（**改屏体尺寸只改这两个**）+ 单模块像素宏（16×16）→ 屏面、**每帧时钟 = 128 × MODULE_ROWS**，**语义同兄弟驱动**；数据线表 `_22_1665_lines[5][4]` 恒 5 组 × 4 行（**与模块数无关**），**链段 = 模块 × 线、区域自动推导**，组 0 = R1/G1/R2/G2（现场逐脚定标）、**组 1 = R3/G3/R4/G4 = PB8/PB9/PE1/PE2**；**接线模型 = 模型 B（每列一口独立线，2026-09-17 第二十七轮落地、第二十九轮删去模型 A 后为唯一形态）**；现场 A/B 开关 `_22_1665_CHAIN_HEAD_IS_MODULE0`（默认 0；组内横向链首），测试矩阵见 doc/01 §0.10/§0.11 | **静态 1 扫**，**每段 128 位 = 8 片 MBI5034B**；换屏标定用**归档的旧驱动**（探针 7/8/9，见 doc/01 §0.3 / 附录 A.8） | **模型 B `1408M + 256·COLS`**（1×1 = **1664B**、1×2 = **3328B**、**8×2 = 23040B**：`chain_dst` 1024M + pixel_map 256M + 状态 128M + 合并写表 256·COLS；**上限（2026-10-13 起）= 无自设预算 + 0 条编译期断言**（契约注释 ① 通道表 `2·COLS ≤ HUB75_CHANNEL_MAX = 10` ⇒ COLS ≤ 5、② 本模组数组 ≤ 64KB；其余约束 = 注释契约 + doc/01 §0.3）—— 越限后果：COLS ≥ 6 零告警编过（-O3 越界 UB 告警）、其余错几何静默编过；本模组自身超 64KB 与整片超区域均由链接期兜底）；历史模型 A `1408M + 384`（已删）。驱动对象实测：1×1 1664 / 1×2 3328 / 2×2 6144 / 8×2 23040 / **8×4 46080 B** | `make DISP=22_1665` 选编（历史）；**EIDE Base/Debug 基线排除本文件**——要用时在 GUI 取消排除（窄口径配方见 `doc/构建开关总表.md` §7.2 第 8 条）；**2026-09-17 现场确认显示正常**（as-built 与「改分辨率」步骤见 doc/01 §0 / §0.9；**工作区当前宏值 = 8×4 = 128×64（2026-10-08 用户确认屏体即此几何）⇒ make 的 ALL/CQ 两口径链接期溢出 17700B / 15444B（实测）—— 日常构建以 EIDE 为主**） |
-| `dev_display_1_969.c`（`1000000969`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；EIDE Base/Debug 基线排除（2026-10-13 前曾作 Debug 现行显示模组，历史） |
+| `dev_display_1_969.c`（`1000000969`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；**`Base` 排除**；**`Debug` 2026-10-15 起为现场调试口径、编入本文件**（2026-10-13 前曾作 Debug 现行显示模组，历史）；以 `.eide/eide.yml` 现状为准 |
 | `dev_display_1_577.c`（`1000000577`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；EIDE Base/Debug 基线排除 |
 | `dev_display_1_260.c` | 32×32（单模块） | 1/8 | 2560B | 备用；EIDE Base/Debug 基线排除（任何口径均未编入） |
 | `dev_display_p20.c` | 128×32（8×16 / 4×8） | 静态 1 扫 | 9792B | 未编入任何构建；EIDE Base/Debug 基线排除 |
@@ -845,7 +849,7 @@ struct dev_display {
 （29568 / 31648 / 1792B）+ CQ 6377 + GZ_OL 1136 + YN_OL 1152 合计超 64KB CCMRAM（且双实例先后
 `dev_display_register`，活动屏由链接序决定）→〔历史〕原 Makefile 用 `DISP` 开关三选一（**已随 Makefile 移除**）；**现由 EIDE target 的 `excludeList` 表达同一语义（配方见 `doc/构建开关总表.md` §7）**
 （默认 `1_263` 保持现状；非法值 `$(error)`）。**EIDE 现态（2026-10-13 target 重组后）**：
-**Base/Debug 基线排除全部 7 个显示驱动**（① 三模组不可同编；② 显示驱动一律「按需点选」，切模组须同步改排除表并 **EIDE: Reload Project**）。
+**`Base` 基线排除全部 7 个显示驱动**（① 三模组不可同编；② 显示驱动一律「按需点选」，切模组须同步改排除表并 **EIDE: Reload Project**）；**`Debug` 2026-10-15 起为现场调试口径、编入 `dev_display_1_969.c`（其余 6 个仍排除）**——以 `.eide/eide.yml` 现状为准。
 〔历史口径（2026-09-16 裁决时）：`targets.Debug.excludeList` 含 `dev_display_1_263.c` 与
 `dev_display_22_1703.c`、`dev_display_22_1665.c` 未排除 ⇒ **当时 EIDE Debug 编 22_1665**〕
 
@@ -1057,6 +1061,7 @@ app_render(&(render_cfg_t){
 | `app_boot` | 编排 | — | — | RTOS 启动编排 |
 | `app_net_boot` | 应用 | — | — | 网络配置横切应用（Sector1 net_cfg → netif + TCP Server 口；空/损坏/非法写本构建默认落盘并应用，两口径共用） |
 | `app_default_display` | 应用 | — | — | 注册制默认显示界面（协议 sw_initcall 注册回调则用之，否则默认欢迎画面） |
+| `app_ldi_etc_bridge` | 应用（镜像/转义） | — (发) | — (无 initcall) | **LDI → 四川 ETC 协议转义**（2026-10-15）：LDI 执行层（`Application/Src/LDI/app_ldi_device.c`）以 5 个 **weak 空实现钩子**（`app_ldi_etc_display/clear/lamp/alarm/heartbeat`，声明在 `Application/Inc/app_ldi_etc_bridge.h`）触发；本文件提供强实现，把 E6 显示/清屏/KeepTime 到期清屏、E7 通行信号灯、E8 报警器开关翻译为四川 ETC 帧（`0A 00 <行号> <GBK文本> 0D` / `0A 00 00 20 0D` / `0A 37 0D` 绿 / `0A 36 0D` 红 / `0A 38 0D` 报警开 / `0A 39 0D` 报警关），经 `app_channel_get` + `channel_send` **从 RS485 + RS232 双口发出同一份帧**（纯监听设备解析用）；**+ 3 秒周期心跳 `0A 08 0D`（LDI 定时任务 `ldi_timer_task()` 每秒节拍差值 ≥3000ms 驱动、无条件、不依赖 LDI 命令与 TCP 通道状态；现场口径 `0x08`，非协议文档心跳 `0x50`）**；**E9 VMS 不镜像、黄灯 03H 不发、报警 KeepTime 到期不补关帧**；帧缓冲仅在栈上（≤149B）、本模块无全局可变状态、无任务、无锁（心跳节拍静态量 4B 在 LDI 定时任务内）；**开关 = EIDE 源文件排除/包含（默认编入，不在任何 excludeList 内）**；**现场生效前提 = 同时编入 LDI 与四川 ETC 协议模块**（后者绑定串口保证通道启动）；详见 `doc/20_LDI到四川ETC协议转义/README.md`、`doc/构建开关总表.md` §7.2 第 10 条；**现场「心跳发送时屏幕闪烁」已结案（2026-10-15）**：根因 = `pl_uart_send` 原 `HAL_UART_Transmit` 轮询忙等（3B@9600≈3.1ms/口、双口≈6.25ms 不让出 CPU）饿死 FreeRTOS Timer 守护任务（优先级 2），TIM3 行同步 `osEventFlagsSet`（FromISR）经 `xTimerPendFunctionCallFromISR` 投递到该任务中转 ⇒ 发送窗口内 `scan_task` 停摆 ≈6ms（≈12 个扫描周期）、末行被 OE 多点亮 ⇒ 闪；修复 = `pl_uart_send` 改中断驱动（等待期间让出 CPU）；现场 36 秒纯心跳窗口复测闪烁消失、用户确认通过；排查期经批准的临时 RTT 探针已回收（业务代码零 `SEGGER_RTT_*` 调用）。详见 doc/20 §11（第六次观测）** |
 | `app_test` | 测试 | — | — | 硬件测试用例 |
 | `app_factory_test`（标准版）/ **`app_factory_test_mm`（缅甸版，历史 `FACTORY=MM`）** | 测试/出厂 | — | `sw_app_initcall` | 出厂检测（**两文件二选一编译**，同名对外符号 ⇒ 同编即链接报 `multiple definition`；EIDE 由 `excludeList` 点选：Base/Debug 基线编标准版、排缅甸版，互换算见 `doc/构建开关总表.md` §7.2 第 5 条）。标准版 = TEST 键 11 步序列（固件信息 / 七色满屏 / 通信灯 / 老化循环 / 斜扫 / 重启）；**缅甸版 = TEST 键每按一次 `mm_arrow_map_toggle()` 切换 0x0A ⇄ 0x0B 箭头落点**（不进入序列、不引用显示 API、任务栈 256 words 静态落 CCMRAM；doc/16 §13） |
 
@@ -1105,6 +1110,7 @@ app_render(&(render_cfg_t){
 - **RB_PROVIDE_WEAK 编译期按需提供**：协议 TU 以 `RB_PROVIDE_WEAK(rb_provide_xxx, size)` 提供 RB 体；未编入任何协议的槽为 NULL（`app_proto_acquire_buf` 返回 nullptr）。
 - **同 RB 写去重**：`app_channel_dispatch` 用 `seen[]` 指针去重（表长 = 缓冲池槽数 `RB_CNT_MAX`，非 `PROTO_MAX_COUNT`——见上方掩码位宽说明），多协议共享同一 RB 时只写一次。
 - **链式 probe 契约**：READY/SKIP 消费后取下一帧；WAIT/FAKE 继续试下一协议；一轮无消费时 any_wait 停等更多字节 / any_fake 跳 1 字节重同步。
+- **WAIT 头阻塞预算 + 空闲滴答（2026-10-15）**：帧头匹配但数据未到齐时，头部前缀指纹（前 `min(4,avail)` 字节 + 字节数）在 `FRAME_WAIT_BUDGET_MS`（默认 1000ms，按物理 RB 分槽计时）内无前进 → 判「残帧卡头」强制 `rb_skip(1)` 重同步（判据**绝非** `avail` 增长）；`frame_dispatch_task` 的等待由 `osWaitForever` 改为 `DISPATCH_IDLE_POLL_MS`（默认 100ms，`#ifndef` 可覆盖）空闲滴答，**超时且无通知时**对在册 RB 兑现同一预算（同一 `_wait_budget_poll`）——总线空闲时残帧也会被清理，不必等下一次总线活动（如 3 秒心跳的 `0x0D`）把它补齐成一个「看似合法」的帧。权威说明见 doc/05 §3.1、开关表见 doc/构建开关总表.md §1。
 - **probe 首字节快拒**：探测函数首字节不匹配即返回 FAKE，禁止盲 WAIT 阻塞链式探测。
 
 **帧 queue 深度（静态 SRAM 队列，不占 ucHeap）**：IAP 2 / LDI 4 / QH 3 / RLS 2 / AH_MQTT 3 / SC_ETC 3 / SC_MTC 3 / SC_OL 3 / SD 3 / GZ 3 / YN 3 / ANHUI 3 / CQ 3 / GZ_OL 3 / **YN_OL 3** / **MM 3** / **XJ 3**（**CQ、GZ_OL、YN_OL、MM、XJ 队列体置 CCMRAM**，见上）。
@@ -1161,6 +1167,14 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 - `dev_rs232.c`（USART3）：仅 `dev_rs232_get_buf(index)` — index0 返回 1280B 乒乓缓冲（`RS232_BUF_SIZE`=640 块 ×2），index1（USART6）返回 `nullptr`（无协议 RX）。
 - `dev_rs232_voice.c`（USART6）：语音板 TTS 专用 TX。`dev_rs232_voice_play` / `dev_rs232_voice_volume` 组帧后经 `pl_uart_send(PL_UART6)` 发送，不经过 dispatch 框架。
 
+**TX 路径（Platform 层 `pl_uart_send`，2026-10-15 改中断驱动）**：`HAL_UART_Transmit_IT` 启动
++ 完成信号量等待——等待期间任务阻塞让出 CPU（不再 `HAL_UART_Transmit` 轮询忙等，原 3B@9600
+≈3.1ms/口忙等会饿死低优先级任务，链路上报/语音长帧则放大到百毫秒级）；每 UART 一把发送互斥
+（`osMutex`，优先级继承）串行化多任务回帧；完成回调 `HAL_UART_TxCpltCallback` 在 TC 中断释放
+信号量（ISR 安全路径）；超时/出错 `HAL_UART_AbortTransmit` 中止并复位同步状态；RS485 `dir_cb`
+发送前置位、TC 后（或中止后）复位。返回前保证本次发送已结束或已中止（调用方栈上缓冲安全）。
+背景、修复与现场验证（**已结案 2026-10-15**）见 `doc/20_LDI到四川ETC协议转义/README.md` §11。
+
 **Application 层（通道生命周期 + 任务循环）**：
 - `app_rs485.c`：`rs485_ch_t`（`channel_t me` + `uart/rx_queue/rx_buf`），`rs485_task` 循环 `osMessageQueueGet(rx_queue, {块号,偏移,长度})` → 按块拷贝 → `app_channel_dispatch`。`app_rs485_start()` 注册通道 + 注入 RX 回调 + `pl_uart_start_rx` + 创建任务（栈 256×4）。
 - `app_rs232.c`：同构（`rs232_ch_t` / `rs232_task`，栈 256×4）。`app_rs232_1_start()` 为桩函数（返回 `nullptr` — USART6 语音 TX 不经通道任务）。
@@ -1192,11 +1206,12 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 车道设备指示器协议，**仅网口**：`CH_ID_TCP_SERVER / CH_ID_TCP_CLIENT / CH_ID_UDP` 三通道各独立 mask，共用 RJ45 RB 与 `g_ldi_msg_queue`（`LDI_QUEUE_DEPTH=4`）。帧 STX `0xFF 0xFF`（`app_ldi.h` 固定值）+ CRC-16/XMODEM 校验；`LDI_PAYLOAD_MAX=512`。
 
 - `ldi_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大）
-- `ldi_timer_task`：周期性状态上报（栈 256×4=1KB；原 2KB 偏大）
+- `ldi_timer_task`：周期性状态上报 + **ETC 转义心跳**（每秒节拍差值 ≥3000ms 时无条件发 `0A 08 0D` 双口；栈 256×4=1KB；原 2KB 偏大）
 - 13 种设备类型（`Application/Inc/LDI/app_ldi.h`，`LDI_DEV_TYPE_COUNT=13`）：RSU 0xE1 / LPR 0xE2 / VTR 0xE3 / 栏杆机 0xE4 / 车检 0xE5 / 显示屏 0xE6 / 信号灯 0xE7 / 报警器 0xE8 / VMS 0xE9 / 雨棚灯 0xEA / 雾灯 0xEB / 语音 0xF4
 - `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`）
 - `app_vms_ctrl`：VMS 情报板子模块，将 LDI 命令翻译为 `app_render()` 调用
 - 复合指令模块：支持多设备类型组合控制（1BH 命令）
+- **设备能力层（`Application/Src/LDI/app_ldi_device.c`）**：E6/E7/E8 的实际执行与状态缓存（`ldi_device_*_ctrl` / `ldi_device_timer_poll`）。该文件同时提供 **5 个 `__attribute__((weak))` 空实现**的镜像钩子（`app_ldi_etc_display/clear/lamp/alarm/heartbeat`），在命令**成功路径**（前 4 个）或**定时任务节拍**（心跳，`ldi_timer_task()` 每 3 秒无条件）调用；强实现由 `Application/Src/app_ldi_etc_bridge.c` 提供（EIDE 排除它即回退空实现）。**LDI → 四川 ETC 转义（镜像）**的映射、默认决策与开关见 `doc/20_LDI到四川ETC协议转义/README.md`（E9 VMS 不镜像、黄灯不发、报警只转显式开/关、心跳 `0A 08 0D` 3 秒周期；出站走 RS485+RS232 双口）。
 
 ## 青海协议 (`Application/Src/ProtocolParser_QingHai/app_qh_proto.c`)
 
@@ -1369,7 +1384,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 
 三个四川地区协议模块均绑定 `CH_ID_RS485` + `CH_ID_RS232` 双通道、queue 深度 3（静态 SRAM），与青海同构（acquire → register → bind → set_frame_queue）。协议文档提取自 1D/1E/1F，要点：
 
-- **ETC（1D）**：帧 `0A + 显示方式(00/01) + 行号(00~06) + 数据 + 0D`（数据**变长 0x0D 定界**：单行 ≤24B、全屏 ≤145B，无固定 56B——上限对齐 9K1F212701 etc.c `cmd_etc_disPlay_ctrl` 0x0D 扫描索引 ≤148，GBK）；`0A 36/37/38/39 0D` 灯控 → `dev_io_lane_light`/`dev_io_flash_light` 且同步显示颜色（fontColor 语义）；`0A 40 XX YY 0D` 亮度（XX=00 自动调光）；`0A 50 0D` 心跳（解析保留，识别后丢弃）。应答 `0A 00/01/02 0D`（收到即回，心跳不回）。**0x20 清屏（行号 0 全屏）、0x30 初始化 → 软件复位**。全屏渲染按 9K1F212701 `MakeSixteenLattAll` 语义：清屏后自第 1 行第 1 列按屏宽自动换行。**心跳超时显示已停用（2026-08-17）**：原独立计时任务（栈 256×4，5 分钟无有效帧 → 「ETC车道关闭」）已 #if 0、任务不再创建；黄闪 0A 38 开启后的 10 秒自动关闭依赖同一任务 tick，一并失效——开启后须 0A 39 显式关闭。恢复方法见 `app_sc_etc_proto.c` 注释。
+- **ETC（1D）**：帧 `0A + 显示方式(00/01) + 行号(00~06) + 数据 + 0D`（数据**变长 0x0D 定界**：单行 ≤24B、全屏 ≤145B，无固定 56B——上限对齐 9K1F212701 etc.c `cmd_etc_disPlay_ctrl` 0x0D 扫描索引 ≤148，GBK）；`0A 36/37/38/39 0D` 灯控 → `dev_io_lane_light`/`dev_io_flash_light` 且同步显示颜色（fontColor 语义）；`0A 40 XX YY 0D` 亮度（XX=00 自动调光）；`0A 50 0D` 心跳（解析保留，识别后丢弃）。应答 `0A 00/01/02 0D`（收到即回，心跳不回）。**0x20 清屏（行号 0 全屏）、0x30 初始化 → 软件复位**。全屏渲染按 9K1F212701 `MakeSixteenLattAll` 语义：清屏后自第 1 行第 1 列按屏宽自动换行。**全屏渲染合并为一次提交（2026-10-15）**：清屏只写显存（`dev_display_fill`，不单独 `commit_frame`），由 `app_render` 末尾统一提交一次——原「清屏提交 + 渲染提交」两次提交会让面板先黑一帧（字库读被 W25Qxx 写保存阻塞时黑屏被放大成肉眼可见闪烁）；单行分支与 0x20 清屏分支保持原语义（各自一次提交）。**心跳超时显示已停用（2026-08-17）**：原独立计时任务（栈 256×4，5 分钟无有效帧 → 「ETC车道关闭」）已 #if 0、任务不再创建；黄闪 0A 38 开启后的 10 秒自动关闭依赖同一任务 tick，一并失效——开启后须 0A 39 显式关闭。恢复方法见 `app_sc_etc_proto.c` 注释。
 - **MTC（1E 方案二）**：帧 `'{' + 命令('1'~'9','A') + 参数 + '}'`——**'}' 定界变长，无长度字段、无 BCC**（对齐 9K1F212701 mtc.c：各命令 handler 逐字节扫 '}' 定帧，参考扫描上限 228；本设备 probe 上限 `SC_MTC_PAYLOAD_MAX=74B` 队列约束）。字段偏移按变长重算：'3' 单行 = 行号[2]+变长文本[3..]，'4' 全屏 = 变长文本[2..]（先清屏后整屏 word_wrap 渲染：w=screen_rows 屏宽、h=screen_cols 整屏高、word_wrap=true，渲染引擎按当前字号自动折行——2026-08-17 修复，原 16B/行切 ≤4 行且单行不换行，第一行超宽溢出被裁、超 64B 被丢弃；'3' 单行保持 word_wrap=false + h=当前字号截断语义），'6' 固定格式 = 类型[2]+数字串（客车 ≥11B / 货车 ≥20B），'1','2','5'→3B、'7'固定→4B（'78' 自定义文本变长）、'8','9'→4B。带 BCC 变体不加判别：BCC 字节视为内容尾部（与参考语义一致），BCC 不校验。主机查询 `0A 46 0A → 0A 64 0A`、清屏 `0A 46 0D`；附加 7B 40~45 原始帧族（同样 '}' 定界）：40 改波特率（`app_uart_baud_apply`）、41 点阵大小、42 字体、43 协议类型（仅记录）、44 全屏点亮、45 版本号 → `SC_FX_P7.62_1.0`。'6' 字段布局按 9K1F212701 mtc.c。'7' 语音经 `dev_rs232_voice`（固定用语 GBK 直送，动态变量不拼读）。7B 46（1280B 载荷）不实现（超 RB 768）。宿主推演 `~/EnvTools/CD-DebugTool-cpp/scripts/probe_sim/sc_mtc_frame_sim.py`（`--old` 可复现旧定长乱码链）。
 - **治超（1F 3.5.1）**：帧 `FF + 长度(07~FF，1 字节；0xFE 显式排除给 RLS) + 命令 + 亮度 + 数据(可变长) + BCC(五字段异或) + FF`；**80 全屏显示、81~88 八行显示（9K1F212701 语义：行数据变长 = 总长-6，≤24B 截断、不足不补空格、先清行再渲染）**、94 清屏、96 亮度（00=自动调光，非 0 按 lightLev=(val+1)/32 映射 1~8 档）、99 通行灯（同步显示颜色）、98 黄闪；查询 A0 → A1~A8 每行独立帧（固定 16B 应答兼容工具，参考项目无应答实现）、B6/B9/B8 → 回显当前状态。**与 RLS 区分**：RLS 第二字节 0xFE(254) 被治超 probe 显式排除（长度上限放宽至 FF 后 0xFE 落入合法区间，不排除会把 RLS 帧吞掉并 WAIT 卡死链式），RLS probe 亦要求第二字节 0xFE，双向快拒成立。
 - **帧头冲突纪律**：MTC '{' 与青海 '{' 同帧头——MTC probe 以「'}' 定界变长扫描 + 上限 74B」认领，完整青海帧由青海 probe 先认领（qh_proto_init 先注册，源码收录序 QH 在前）；残余风险两类：①青海 '3' 帧总长 ≤74 且数据段含 '}' 字节（GBK 尾字节可为 0x7D）且半帧到达时被 MTC 截断认领，②青海 'A'/'B' 空数据帧与 MTC 7B 41/42 同长（QH probe 先认领）；量产由 EIDE 目录排除纪律兜底（doc/05 §6）；编译期互斥守卫 `g_brace_proto_guard` 链接期兜底强制（EIDE 多 `{` 族编入即 `multiple definition` 报错；Makefile 全协议构建经 `-DSTD_ALL_PROTO` 豁免）。

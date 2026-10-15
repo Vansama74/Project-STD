@@ -33,6 +33,16 @@
 #define DISPATCH_NOTIFY_RETRY_MS 20U
 #endif
 
+/* ---- 分发任务空闲滴答（ms）----
+ * WAIT 预算原本只在「被通知唤醒后」检查：总线空闲（残帧卡头后无新字节）时预算
+ * 永不到期，残帧可无限期卡在 RB 头部，被后续无关字节（如周期心跳的 0x0D）补齐
+ * 成一个「看似合法」的帧被误认领。空闲滴答给等待补上时间维度：超时且无通知时，
+ * 对在册 RB 兑现同一预算判据（见 _wait_budget_poll）。
+ * 100ms 远小于任何正常分块间隔，不干扰合法攒帧；可用 -D 覆盖。 */
+#ifndef DISPATCH_IDLE_POLL_MS
+#define DISPATCH_IDLE_POLL_MS 100U
+#endif
+
 /* 栈 + TCB 落 CCMRAM（启动期创建一次、永不退出；任务栈仅被 CPU 访问，不经 DMA） */
 PL_TASK_STATIC_STORAGE(frame_dispatch, 256);
 
@@ -49,6 +59,15 @@ static const osMessageQueueAttr_t s_ch_queue_attr = {
 
 /* ---- 帧分发任务缓冲区 ---- */
 static uint8_t _msg_dispatch_buf[sizeof(frame_msg_t) + FRAME_DATA_MAX_LEN];
+
+/* ---- WAIT 头阻塞预算状态（**按物理 RB 分槽**，frame_dispatch_task 单消费者独占）----
+ * 进度判据 = 头部前缀指纹，不是 avail 增长：残帧卡头时新数据仍会推高 avail，
+ * 按 avail 重置预算会使强制重同步永不触发（该 RB 永久不消费，见 doc/15 §9）。
+ * 按 RB 分槽：全局单状态会被「另一条 RB 的到达」不断重置，卡头 RB 永不到期。
+ * 通知唤醒路径与空闲超时路径共用这三个数组（见 _wait_budget_poll）。 */
+static bool     s_wait_active[RB_CNT_MAX];  /**< 各 RB 的 WAIT 预算激活 */
+static uint32_t s_wait_tick[RB_CNT_MAX];    /**< 各 RB 的预算起点 tick */
+static uint32_t s_wait_head_fp[RB_CNT_MAX]; /**< 各 RB 预算起点的头部前缀指纹 */
 
 /* ================================================================
  *  环形缓冲区池 — 一物理通道一 RB，体由协议 TU RB_PROVIDE_WEAK 提供
@@ -284,6 +303,60 @@ static uint8_t _rb_slot_of(const ring_buffer_t *rb)
     return 0U;
 }
 
+/**
+ * @brief  WAIT 头阻塞预算检查（通知唤醒与空闲超时两条路径共用同一判据）。
+ *
+ * 判据 = 头部前缀指纹：指纹不变（头部无前进）且距预算起点超过
+ * FRAME_WAIT_BUDGET_MS → 判「残帧卡头」，强制 skip 1 字节重同步；
+ * 首次等待 / 头部已前进 → 重置本 RB 的预算起点。
+ *
+ * @param slot   RB 槽号（`RB_SLOT_*`，预算状态按槽独立）。
+ * @param rb     环形缓冲区（**调用者须已持 rb 锁**；nullptr / 空缓冲直接返回 0）。
+ * @param avail  当前可读字节数（调用者已取，避免重复 rb_avail）。
+ * @return 强制重同步消费的字节数（0 = 未触发；1 = 已 skip 1 字节）。
+ */
+static uint16_t _wait_budget_poll(uint8_t slot, ring_buffer_t *rb, uint16_t avail)
+{
+    if (rb == nullptr || avail == 0U || slot >= RB_CNT_MAX)
+        return 0U;
+
+    const uint32_t now = osKernelGetTickCount();
+    const uint32_t fp  = _rb_head_fp(rb, avail);
+    if (!s_wait_active[slot] || fp != s_wait_head_fp[slot]) {
+        /* 首次等待 / 头部已前进 → 重置本 RB 的预算起点 */
+        s_wait_active[slot]  = true;
+        s_wait_tick[slot]    = now;
+        s_wait_head_fp[slot] = fp;
+        return 0U;
+    }
+    if ((now - s_wait_tick[slot]) > pdMS_TO_TICKS(FRAME_WAIT_BUDGET_MS)) {
+        /* 预算到期：头部前缀在预算时间内无任何前进 → 判残帧卡头，强制重同步 */
+        s_wait_active[slot] = false;
+        return rb_skip(rb, 1, nullptr);
+    }
+    return 0U;
+}
+
+/**
+ * @brief  空闲超时的残帧清理：对在册 RB 兑现 WAIT 预算（仅无通知时调用）。
+ *
+ * osMessageQueueGet 空闲超时（DISPATCH_IDLE_POLL_MS）时执行；有通知的正常路径
+ * 不经过此处，正常分块攒帧行为不变。判据与通知路径完全同源（_wait_budget_poll）：
+ * 头部前缀在 FRAME_WAIT_BUDGET_MS 内无前进才 skip 1 字节，正常帧不受影响；
+ * 卡头残帧因此不必等下一次总线活动（如周期心跳字节）就能被破坏/丢弃。
+ */
+static void _dispatch_idle_reap(void)
+{
+    for (uint8_t s = 0U; s < RB_CNT_MAX; s++) {
+        ring_buffer_t *rb = g_dispatch.buf_pool[s];
+        if (rb == nullptr)
+            continue;
+        rb_lock(rb);
+        (void)_wait_budget_poll(s, rb, rb_avail(rb, nullptr));
+        rb_unlock(rb);
+    }
+}
+
 void frame_dispatch_task(void *argument)
 {
     (void)argument;
@@ -292,18 +365,14 @@ void frame_dispatch_task(void *argument)
     uint32_t frame_len = 0; /**< 探测到的完整帧长度 */
     uint8_t aux        = 0; /**< 辅助信息（如命令码） */
 
-    /* WAIT 头阻塞预算状态（**按物理 RB 分槽**，本任务单消费者独占）。
-     * 进度判据 = 头部前缀指纹，不是 avail 增长：残帧卡头时新数据仍会推高 avail，
-     * 按 avail 重置预算会使强制重同步永不触发（该 RB 永久不消费，见 doc/15 §9）。
-     * 按 RB 分槽：全局单状态会被「另一条 RB 的到达」不断重置，卡头 RB 永不到期。 */
-    static bool     s_wait_active[RB_CNT_MAX];  /**< 各 RB 的 WAIT 预算激活 */
-    static uint32_t s_wait_tick[RB_CNT_MAX];    /**< 各 RB 的预算起点 tick */
-    static uint32_t s_wait_head_fp[RB_CNT_MAX]; /**< 各 RB 预算起点的头部前缀指纹 */
-
     for (;;) {
-        /* 阻塞等待：任一通道收到数据时唤醒 */
-        if (osMessageQueueGet(g_dispatch.ch_queue, &ch, NULL, osWaitForever) != osOK)
+        /* 阻塞等待通道通知（任一通道收到数据时唤醒）；空闲超时 → 兑现 WAIT 预算
+         *（超时分支只在无通知时执行，有通知的正常路径不受影响）。 */
+        if (osMessageQueueGet(g_dispatch.ch_queue, &ch, NULL,
+                              pdMS_TO_TICKS(DISPATCH_IDLE_POLL_MS)) != osOK) {
+            _dispatch_idle_reap();
             continue;
+        }
 
         /* 通道回验：通知携带的指针必须仍注册在案，否则丢弃该通知。
          * 防御连接任务退出后栈上通道实例悬垂（配合通道静态化根治）：
@@ -436,9 +505,8 @@ void frame_dispatch_task(void *argument)
                     }
                 }
 
-                /* 本 RB 的 WAIT 预算槽号（按 RB 独立计时，见任务头部状态注释） */
+                /* 本 RB 的 WAIT 预算槽号（按 RB 独立计时，见文件头预算状态注释） */
                 const uint8_t wait_slot = _rb_slot_of(rb);
-
 
                 /* 无协议成功解析时的决策：
                  *   any_wait    → 禁 skip，等更多字节（带 FRAME_WAIT_BUDGET_MS 防挂死）
@@ -448,27 +516,9 @@ void frame_dispatch_task(void *argument)
                     if (any_wait) {
                         /* 帧头已匹配、数据未到齐 → 等更多字节；带时间预算防
                          * 「残帧卡头后永不到齐」的挂死（预算语义/取值依据见
-                         * 文件头 FRAME_WAIT_BUDGET_MS 注释）。
-                         *
-                         * **进度判据 = 头部前缀指纹变化（头被消费/前进），
-                         * 绝不能按 avail 增长重置**：残帧卡头时用户每发一帧
-                         * 新数据 avail 都增长，按 avail 重置 = 预算永不到期 =
-                         * 强制重同步永不触发 = 整条 RB 永久不消费。
-                         * 头部指纹不变（哪怕缓冲区更长）＝ 没有进度，预算照走。 */
-                        const uint32_t now = osKernelGetTickCount();
-                        const uint32_t fp  = _rb_head_fp(rb, avail);
-                        if (!s_wait_active[wait_slot] || fp != s_wait_head_fp[wait_slot]) {
-                            /* 首次等待 / 头部已前进 → 重置本 RB 的预算起点 */
-                            s_wait_active[wait_slot]  = true;
-                            s_wait_tick[wait_slot]    = now;
-                            s_wait_head_fp[wait_slot] = fp;
-                        } else if ((now - s_wait_tick[wait_slot]) >
-                                   pdMS_TO_TICKS(FRAME_WAIT_BUDGET_MS)) {
-                            /* 预算到期：头部前缀在预算时间内无任何前进 → 判残帧
-                             * 卡头，强制 skip 1 字节重同步。 */
-                            avail -= rb_skip(rb, 1, nullptr);
-                            s_wait_active[wait_slot] = false;
-                        }
+                         * 文件头 FRAME_WAIT_BUDGET_MS 注释，判据实现见
+                         * _wait_budget_poll——与空闲超时路径同源）。 */
+                        avail -= _wait_budget_poll(wait_slot, rb, avail);
                         break; /* 等待更多数据到达 */
                     } else if (any_fake || any_overrun) {
                         s_wait_active[wait_slot] = false; /* 有字节被消费，重置预算 */

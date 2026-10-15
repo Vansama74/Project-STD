@@ -1176,6 +1176,56 @@ CCMRAM 区域 64KB」物理守卫）+ 仅断言使用的 2 个派生宏 + **精�
   全部保留；`check_guard_disasm.py` 的「原操作零丢失」判据已按删除点补 reviewed 条目
   （`.analysis/myanmar/check_guard_disasm.py`，见 `.analysis/comment_pass_20261013/report.md` 裁决执行轮）。
 
+### §8.4.8 2026-10-15 增量（UART TX 中断化：`pl_uart_send` 不再轮询忙等）
+
+口径：**对象级**（EIDE 生成的 `build/Debug/compile_commands.json` 原始编译命令，仅加 `-fsyntax-only` /
+改 `-o` 到仓库外，编译 `Platform/Src/pl_uart.c` 与 `git show HEAD:Platform/Src/pl_uart.c`，同 flags 对比；
+**未跑 make、未跑 EIDE builder、未在仓库内落任何产物**）。
+
+| 对象 | `.text` | `.rodata` | `.data` | `.bss` | 说明 |
+|---|---|---|---|---|---|
+| `pl_uart.o`（HEAD 旧） | 1208 | 13 | 0 | 108 | `g_uart_ctx` 仅 RX 字段 |
+| `pl_uart.o`（现行新） | **1648** | **40** | 0 | **612** | **+440 / +27 / 0 / +504** |
+
+* **`.bss +504`** = 3 个 UART × (互斥控制块 80 + 完成信号量控制块 80 + 两个句柄 2×4) = 3×168；
+  `StaticSemaphore_t` 实测 80B（宿主 `-S` 读 `.word` 常量），**静态分配，不占 FreeRTOS 堆**（堆水位不变）。
+* **`.rodata +27`** = 两个 `osMutexAttr_t`/`osSemaphoreAttr_t` 的 `.name` 字符串
+  （`pl_uart_tx` / `pl_uart_txdone`，`configQUEUE_REGISTRY_SIZE > 0` 时随对象注册）。
+* **`.text +440`** = 新增 `HAL_UART_TxCpltCallback` 56 + `pl_uart_send` 72→336 + `pl_uart_set_baud`
+  112→184 + 惰性创建/回退/中止路径等（逐函数尺寸见仓库外对比表）；
+  其中 **+20** 来自 `_tx_sync_ensure()` 的并发首次使用加固（判空 + 创建 + 赋值整体入
+  `osKernelLock()/osKernelUnlock()`，`osMutexNew`/`osSemaphoreNew` 非阻塞，可在锁内调用）——
+  `.rodata`/`.data`/`.bss` 三项与加固前逐字节相同。
+* 行为面：发送语义不变（成功 = 已发完 / 失败超时 = 已中止），对外 API 签名不变；
+  唯一副作用 = 发送期间任务让出 CPU（这正是修复目标；背景见 `doc/20…/README.md` §11 第五次观测）。
+
+#### 整项目段尺寸（EIDE 构建产物，2026-10-15 18:00，**探针回收后的「净版」**）
+
+来源 = `build/Debug/Project_STD.elf`（EIDE 构建；`mtime 2026-10-15 18:03` > `pl_uart.c 17:45`，
+`nm` 含新符号 `HAL_UART_TxCpltCallback`；`strings` 查探针串 `[hb]/[tx]/[claim]/[vms]/…` **零命中** ⇒
+已是不含临时探针的净版；elf md5 **`4fbcb39dbf6d2e3c489f1c941bf60c69`**。
+同日 18:00 的一次重建（md5 `668de585aa4ba5b6d750f26636b82abd`）与本表**段尺寸逐字节相同**——
+横幅内嵌 `__DATE__/__TIME__` ⇒ 每次重建 md5 必变，段尺寸才是口径判据）。口径 = EIDE `Debug`
+target 现状（`LDI + 四川 ETC/MTC/治超 + dev_display_1_969.c` + 标准厂测 + RTT 底层保留；
+以 `.eide/eide.yml` 现状为准）。
+
+| 段 | 字节 | | 段 | 字节 |
+|---|---|---|---|---|
+| `.isr_vector` | 392 | | `.data` | 1608 |
+| `.text` | 148072 | | `.bss` | 116920 |
+| `.rodata` | 103872 | | `.ccmram` | **52972** |
+| `.hw_initcall` | 160 | | `._user_heap_stack` | 2560 |
+| `.sw_initcall` | 120 | | | |
+
+* **SRAM 合计** = `.data + .bss + ._user_heap_stack` = **121088 B**（/131072，余 **9984 B**）。
+* **CCM 余量** = 65536 − 52972 = **12564 B**。CCMRAM 主要消费者 = `_1_969` 显示
+  （`hub75_buff 18432 + pixel_map 18432 + row_dst 192 + g_bsrr 1152 = 38208`）+ 静态任务栈/TCB
+  （约 27 KB）。
+* FLASH = **254248 B**（EIDE banner，768KB 的 32.33%）。
+* **回归核对**：相对 `HEAD`，本轮源码只动 UART TX 路径（`pl_uart` 对象 `.text +440 / .bss +504`）
+  与若干非探针功能改动；**探针删除不改静态数据布局**（探针只加 RTT 调用与只读计时），故本表即结案
+  构建的净版数字。
+
 ### §8.5 永久诊断与错误处理（**设施已随 2026-09-29 瘦身轮删除；RTT 底层保留**）
 
 | 设施（历史） | 位置 | 原作用 |

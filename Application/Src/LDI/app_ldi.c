@@ -5,6 +5,7 @@
 #include "app_ldi_cmd.h"
 #include "app_vms_ctrl.h"
 #include "app_ldi_device.h"
+#include "app_ldi_etc_bridge.h"
 #include "crc_utils.h"
 #include "app_ldi_cfg.h"
 #include "pl_task_static.h"
@@ -545,6 +546,8 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
 
 void ldi_timer_task(void *argument)
 {
+    static uint32_t s_etc_hb_tick; /* ETC 镜像心跳上次发送时刻 */
+
     (void)argument;
 
     for (;;) {
@@ -552,6 +555,13 @@ void ldi_timer_task(void *argument)
 
         vms_timer_poll(); /* VMS 定时清屏 — 不受通道状态影响 */
         ldi_device_timer_poll(); /* E6 KeepTime / E8 KeepTime */
+
+        /* ETC 镜像心跳：每 3 秒无条件发送（不依赖 LDI 命令与 TCP 通道状态） */
+        uint32_t hb_tick = osKernelGetTickCount();
+        if (hb_tick - s_etc_hb_tick >= 3000U) {
+            s_etc_hb_tick = hb_tick;
+            app_ldi_etc_heartbeat();
+        }
 
         channel_t *ch = app_channel_get(CH_ID_TCP_CLIENT);
 

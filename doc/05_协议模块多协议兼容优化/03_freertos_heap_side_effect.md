@@ -52,7 +52,7 @@ tcp_server_task → osSemaphoreNew → pvPortMalloc 失败
 | `configAPPLICATION_ALLOCATED_HEAP` | **0**（`heap_4` static `ucHeap` → SRAM `.bss`） |
 | CCM | 无 `ucHeap`；显存/BSRR + **协议队列体（CQ/GZ_OL/YN_OL）+ RTOS 任务栈/TCB（2026-09-17 起，23 任务 25340B + 内核 1736B）** |
 
-待办（非本文件）：~~`xPortGetMinimumEverFreeHeapSize` 标定~~ **已完成（2026-09-17，见 06/04 §8：开机横幅与逐通道 `[diag] heap … min=` 探针）**；IAP 升级冒烟仍待验。
+待办（非本文件）：~~`xPortGetMinimumEverFreeHeapSize` 标定~~ **已完成（2026-09-17，见 06/04 §8；该 `[diag] heap … min=` 探针打印已于 2026-09-29 瘦身轮删除，现以 §8.3 账本 + 链接期段尺寸对账）**；IAP 升级冒烟仍待验。
 
 > **2026-09-17 复发归档**：多协议任务数增至 30+ 后堆再次击穿（现场停在
 > `vApplicationMallocFailedHook`，调用栈 `pvPortMalloc ← xTaskCreate ← osThreadNew ←

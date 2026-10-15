@@ -13,6 +13,7 @@ virtualFolder:
         - path: Application/Src/app_boot.c
         - path: Application/Src/app_net_boot.c
         - path: Application/Src/app_default_display.c
+        - path: Application/Src/app_ldi_etc_bridge.c
         - path: Application/Src/app_render.c
         - path: Application/Src/app_scroll.c
         - path: Application/Src/app_key.c
@@ -641,15 +642,9 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload
       - <virtual_root>/Application/protocol/ah
       - <virtual_root>/Application/protocol/rls
-      - <virtual_root>/Application/protocol/ldi
       - <virtual_root>/Application/app_factory_test_mm.c
       - <virtual_root>/Device/Display/dev_display_22_1665.c
       - <virtual_root>/Device/Display/dev_display_1_260.c
-      - <virtual_root>/Device/Display/dev_display_1_969.c
-      - <virtual_root>/Device/Display/dev_display_1_263.c
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
-      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
       - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
       - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
@@ -657,6 +652,9 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
       - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
       - <virtual_root>/Application/protocol/ProtocolParser_Anhui
+      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
+      - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Device/Display/dev_display_1_577.c
     settings:
       debugger: cortex-debug
     toolchain: GCC

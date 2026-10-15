@@ -3,8 +3,11 @@
  * @brief       UART 平台层抽象（hw_pl_initcall 优先级 3）
  *
  * 封装 USART1 (RS485)、USART3 (RS232-0)、USART6 (RS232-1)，
- * 提供不透明句柄、阻塞发送和 DMA 乒乓双缓冲接收。
+ * 提供不透明句柄、中断驱动发送和 DMA 乒乓双缓冲接收。
  * UART 及 DMA 中断处理全部内聚于此文件。
+ *
+ * TX（中断驱动 + 让出等待）: HAL_UART_Transmit_IT + 完成信号量（TC 中断经
+ *   HAL_UART_TxCpltCallback 释放），每 UART 发送互斥串行化，超时/出错 AbortTransmit。
  *
  * RX 架构（乒乓双缓冲 + circular DMA）:
  *   - DMA circular 覆盖 2×block 缓冲，HT/TC 中断各冲刷半块（段长恒 = block）；
@@ -20,6 +23,10 @@
 #include "dma.h"
 #include "initcall.h"
 #include <string.h>
+
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "cmsis_os2.h"
 
 /* DMA 句柄（定义在 Core/Src/dma.c） */
 extern DMA_HandleTypeDef hdma_usart1_rx;
@@ -37,6 +44,12 @@ typedef struct {
     volatile uint32_t recv_total; /* 接收累计：HT/TC 各 +block_size */
     volatile uint32_t posted;     /* 已通知上层的累计（%rx_buf_size 即缓冲偏移） */
     volatile bool rx_running;     /* circular RX 已启动 */
+
+    /* TX：中断驱动发送的同步对象（首次发送时惰性创建，控制块静态免占堆） */
+    osMutexId_t tx_lock;              /* 同一 UART 的多任务发送串行化（优先级继承） */
+    osSemaphoreId_t tx_done;          /* TC 中断释放（ISR 安全路径），发送任务获取 */
+    StaticSemaphore_t tx_lock_cb;     /* 互斥控制块（.bss） */
+    StaticSemaphore_t tx_done_cb;     /* 完成信号量控制块（.bss，二值） */
 } uart_ctx_t;
 
 static uart_ctx_t g_uart_ctx[PL_UART_MAX];
@@ -141,6 +154,17 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         _uart_rx_restart(ctx);
 }
 
+/** TC（发送完成，含末字节移出）：释放完成信号量，唤醒等待中的发送任务
+ *  ISR 安全：cmsis_os2.c 的 osSemaphoreRelease 内含 IS_IRQ() 分支
+ *  （xSemaphoreGiveFromISR + portYIELD_FROM_ISR）；本 UART 中断优先级 7，
+ *  数值 ≥ configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY(5)，允许调用 FromISR API。 */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    uart_ctx_t *ctx = _ctx_of(huart);
+    if (ctx != nullptr && ctx->tx_done != nullptr)
+        (void)osSemaphoreRelease(ctx->tx_done);
+}
+
 /* ---- initcall ---- */
 void pl_uart_init(void)
 {
@@ -160,14 +184,90 @@ pl_uart_handle_t pl_uart_get_handle(uint8_t id)
     return (id < PL_UART_MAX) ? &g_uart_ctx[id] : NULL;
 }
 
+/* ---- 内部：惰性创建 TX 同步对象（互斥 + 完成信号量） ----
+ * pl_uart_init 在 RTOS 启动前执行，不能创建 RTOS 对象，故首次发送时创建；
+ * 控制块在 uart_ctx_t 内（.bss 静态），不占 FreeRTOS 堆。
+ * 判空与赋值整体置于内核锁内：同一 UART 可能被两个任务同时首次发送
+ * （如定时心跳 + 协议回帧），分开会重复初始化同一控制块、破坏正在阻塞的等待链；
+ * 锁内只调用非阻塞的创建 API。
+ * @return 0=可用；-1=内核未运行或创建失败（调用方回退阻塞发送） */
+static int32_t _tx_sync_ensure(uart_ctx_t *ctx)
+{
+    if (ctx->tx_lock != nullptr && ctx->tx_done != nullptr)
+        return 0;
+    if (osKernelGetState() != osKernelRunning)
+        return -1;
+
+    int32_t locked = osKernelLock(); /* 0=本函数加锁；1=已被外层锁定（同样禁止切换） */
+    if (locked < 0)
+        return -1;
+
+    if (ctx->tx_lock == nullptr) {
+        const osMutexAttr_t attr = {
+            .name    = "pl_uart_tx",
+            .cb_mem  = &ctx->tx_lock_cb,
+            .cb_size = sizeof(ctx->tx_lock_cb),
+        };
+        ctx->tx_lock = osMutexNew(&attr);
+    }
+    if (ctx->tx_done == nullptr) {
+        const osSemaphoreAttr_t attr = {
+            .name    = "pl_uart_txdone",
+            .cb_mem  = &ctx->tx_done_cb,
+            .cb_size = sizeof(ctx->tx_done_cb),
+        };
+        ctx->tx_done = osSemaphoreNew(1U, 0U, &attr); /* 二值，仅 TC 中断释放 */
+    }
+
+    if (locked == 0)
+        (void)osKernelUnlock(); /* locked!=0 表示外层持有，此处解锁会提前恢复调度 */
+
+    return (ctx->tx_lock != nullptr && ctx->tx_done != nullptr) ? 0 : -1;
+}
+
+/* ---- 内部：阻塞轮询发送（RTOS 未运行 / 同步对象不可用时的回退路径） ---- */
+static int32_t _send_blocking(uart_ctx_t *ctx, const uint8_t *buf, size_t len, uint32_t timeout_ms)
+{
+    if (ctx->dir_cb) ctx->dir_cb(true);
+    HAL_StatusTypeDef st = HAL_UART_Transmit(ctx->huart, (uint8_t *)buf, (uint16_t)len, timeout_ms);
+    if (ctx->dir_cb) ctx->dir_cb(false);
+    return (st == HAL_OK) ? (int32_t)len : -1;
+}
+
 int32_t pl_uart_send(pl_uart_handle_t h, const uint8_t *buf, size_t len, uint32_t timeout_ms)
 {
     uart_ctx_t *ctx = (uart_ctx_t *)h;
-    if (!ctx || !ctx->huart) return -1;
+    if (!ctx || !ctx->huart || buf == nullptr || len == 0U || len > UINT16_MAX)
+        return -1;
+
+    /* 回退路径：内核未运行 / 同步对象创建失败（现有调用点全在任务上下文） */
+    if (_tx_sync_ensure(ctx) != 0)
+        return _send_blocking(ctx, buf, len, timeout_ms);
+
+    /* 同一 UART 可能被多个协议任务发送（回帧）：互斥串行化，帧与帧不交织 */
+    if (osMutexAcquire(ctx->tx_lock, osWaitForever) != osOK)
+        return _send_blocking(ctx, buf, len, timeout_ms);
+
+    /* 丢弃陈旧完成计数（上次中止与 TC 中断的竞态尾巴），使本次等待只认本次 TC */
+    (void)osSemaphoreAcquire(ctx->tx_done, 0U);
 
     if (ctx->dir_cb) ctx->dir_cb(true);
-    HAL_StatusTypeDef st = HAL_UART_Transmit(ctx->huart, (uint8_t *)buf, len, timeout_ms);
-    if (ctx->dir_cb) ctx->dir_cb(false);
+
+    HAL_StatusTypeDef st = HAL_UART_Transmit_IT(ctx->huart, (uint8_t *)buf, (uint16_t)len);
+    if (st == HAL_OK) {
+        /* 等待 TC：任务阻塞让出 CPU（不再忙等饿死低优先级任务） */
+        if (osSemaphoreAcquire(ctx->tx_done, timeout_ms) != osOK)
+            st = HAL_TIMEOUT;
+    }
+    if (st != HAL_OK) {
+        /* 未发出/超时：中止在途发送（复位 gState）并丢弃刚入队的完成计数 */
+        (void)HAL_UART_AbortTransmit(ctx->huart);
+        (void)osSemaphoreAcquire(ctx->tx_done, 0U);
+    }
+
+    if (ctx->dir_cb) ctx->dir_cb(false); /* TC 后（或中止后）必拉低 DE */
+    (void)osMutexRelease(ctx->tx_lock);
+
     return (st == HAL_OK) ? (int32_t)len : -1;
 }
 
@@ -207,19 +307,32 @@ int32_t pl_uart_set_baud(pl_uart_handle_t h, uint32_t baud)
 
     UART_HandleTypeDef *huart = ctx->huart;
 
+    /* 与发送互斥：DeInit 会复位外设，在途 TX 必须先中止（运行态切波特率场景）。
+     * 拿不到锁（内核未运行 / 同步对象尚未创建）时不存在在途发送，直接继续。 */
+    bool tx_locked = false;
+    if (ctx->tx_lock != nullptr && osKernelGetState() == osKernelRunning &&
+        osMutexAcquire(ctx->tx_lock, osWaitForever) == osOK)
+        tx_locked = true;
+    (void)HAL_UART_AbortTransmit(huart);
+    if (ctx->tx_done != nullptr)
+        (void)osSemaphoreAcquire(ctx->tx_done, 0U); /* 丢弃陈旧完成计数 */
+
     /* 先停 DMA RX（若已启动），DeInit 后按新波特率 Init，最后重挂 RX。
      * DeInit 顺序：DMA Stop → HAL_UART_DeInit（MspDeInit 释放 GPIO/DMA/NVIC）
      * → 改 BaudRate → HAL_UART_Init（MspInit 重新配置）。 */
+    int32_t ret = 0;
     if (huart->hdmarx != NULL)
         HAL_UART_DMAStop(huart);
     HAL_UART_DeInit(huart);
     huart->Init.BaudRate = baud;
-    if (HAL_UART_Init(huart) != HAL_OK) return -1;
-
-    if (ctx->rx_buf != NULL && ctx->rx_buf_size > 0U) {
-        if (_uart_rx_restart(ctx) != 0) return -1;
+    if (HAL_UART_Init(huart) != HAL_OK) {
+        ret = -1;
+    } else if (ctx->rx_buf != NULL && ctx->rx_buf_size > 0U) {
+        if (_uart_rx_restart(ctx) != 0) ret = -1;
     }
-    return 0;
+
+    if (tx_locked) (void)osMutexRelease(ctx->tx_lock);
+    return ret;
 }
 
 /* ================================================================

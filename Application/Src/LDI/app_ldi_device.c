@@ -21,6 +21,35 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "app_ldi_etc_bridge.h"
+
+/* ---- LDI → 四川 ETC 转义钩子（weak 空实现）----
+ * 强实现见 Application/Src/app_ldi_etc_bridge.c；EIDE 排除该文件时回退到本层，
+ * 钩子退化为无操作（不影响 LDI 自身行为与应答）。 */
+__attribute__((weak)) void app_ldi_etc_display(uint8_t row, const uint8_t *text, uint16_t len)
+{
+    (void)row;
+    (void)text;
+    (void)len;
+}
+
+__attribute__((weak)) void app_ldi_etc_clear(void)
+{
+}
+
+__attribute__((weak)) void app_ldi_etc_lamp(uint8_t color)
+{
+    (void)color;
+}
+
+__attribute__((weak)) void app_ldi_etc_alarm(bool on)
+{
+    (void)on;
+}
+
+__attribute__((weak)) void app_ldi_etc_heartbeat(void)
+{
+}
 
 /* ---- 状态缓存 ---- */
 static ldi_dev_display_sta_t s_display_sta = {
@@ -224,6 +253,9 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
         s_display_timer_active = true;
     }
 
+    /* 转义镜像：行号按实际显示形态（未落到指定行则按全屏），文本为改写后内容 */
+    app_ldi_etc_display(line_selected ? ctrl->font_line : 0x00U, (const uint8_t *)ctrl->text, text_len);
+
     return LDI_DEV_OK;
 }
 
@@ -241,6 +273,8 @@ static ldi_dev_result_t display_clear(const ldi_ctrl_display_t *ctrl)
     s_display_sta.font_color     = 0x00;
     s_display_sta.keep_time      = 0x00;
     s_display_timer_active       = false;
+
+    app_ldi_etc_clear();
 
     return LDI_DEV_OK;
 }
@@ -276,16 +310,19 @@ ldi_dev_result_t ldi_device_lane_signal_ctrl(const ldi_ctrl_signal_t *ctrl)
             dev_io_lane_light(true);
             s_signal_sta.color          = 0x01;
             s_signal_sta.running_status = 0x01; /* A.1 绿灯 */
+            app_ldi_etc_lamp(0x01);
             return LDI_DEV_OK;
         case 0x02: /* 红 — 禁行 */
             dev_io_lane_light(false);
             s_signal_sta.color          = 0x02;
             s_signal_sta.running_status = 0x00; /* A.1 红灯 */
+            app_ldi_etc_lamp(0x02);
             return LDI_DEV_OK;
         case 0x03: /* 黄 — 无独立黄灯，降级关灯，上报按红 */
             dev_io_lane_light(false);
             s_signal_sta.color          = 0x03;
             s_signal_sta.running_status = 0x00; /* A.1 无黄，按红灯 */
+            app_ldi_etc_lamp(0x03);             /* 黄色无 ETC 对应帧，由转义模块决定不发 */
             return LDI_DEV_OK;
         default:
             return LDI_DEV_FAIL;
@@ -308,6 +345,7 @@ ldi_dev_result_t ldi_device_alarm_ctrl(const ldi_ctrl_alarm_t *ctrl)
         s_alarm_sta.work_mode = ctrl->work_mode;
         s_alarm_sta.keep_time = ctrl->keep_time;
         alarm_stop();
+        app_ldi_etc_alarm(false); /* 显式停止才镜像（KeepTime 到期自动停止不补发） */
         return LDI_DEV_OK;
     }
 
@@ -337,6 +375,8 @@ ldi_dev_result_t ldi_device_alarm_ctrl(const ldi_ctrl_alarm_t *ctrl)
         s_alarm_timer_active = true;
     }
 
+    app_ldi_etc_alarm(true);
+
     return LDI_DEV_OK;
 }
 
@@ -353,6 +393,7 @@ void ldi_device_timer_poll(void)
         app_render_save();
         s_display_sta.running_status = 0x00;
         s_display_timer_active       = false;
+        app_ldi_etc_clear(); /* KeepTime 到期清屏同步镜像 */
     }
 
     if (s_alarm_active && s_alarm_timer_active && now >= s_alarm_off_tick) {
