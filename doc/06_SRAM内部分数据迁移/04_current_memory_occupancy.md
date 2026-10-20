@@ -124,6 +124,7 @@ CCM 中 **0 字节** ucHeap / RB / UART DMA。
 | 贵州治超 | 3 | 792 | 新增（"TCLY" 帧族，payload 256）；**队列体+cb+任务帧缓冲 1136B 置 CCMRAM**（ALL 口径 SRAM 余量仅 496B，CPU 独占访问无 DMA） | — EIDE 排除 |
 | 云南治超 | 3 | 801 | 新增（YN_1.3.0 `{` 帧族，payload 255 = 参数区 1B 长度上限、帧 ≤259，与云南常规同构；'6'/'7'/'9' 文档明示治超屏不开发 → probe 快拒）；**队列体+cb+任务帧缓冲置 CCMRAM**（1152B = queue_buf 801 + cb 80 + 帧缓冲 267 + 对齐）；属 `{` 帧族 → 定义 `g_brace_proto_guard` 守卫，量产与其它 `{` 族目录二选一 | — EIDE 排除 |
 | 新疆费显 XJ | 3 | 246 | 新增（协议文档「费额显示器通讯协议 2024年」，`FF DC` + 长度 = 整帧总长 + 命令 + BCC；payload 74 = 'T' 文本 4 行上限 10+4×16；9 命令最小集，`'D'`/彩色行不实现）；**队列体+cb+任务帧缓冲 + 任务栈/TCB 置 CCMRAM**（实测增量 1544B = queue_buf 246 + cb 80 + 帧缓冲 82 + 栈 1024 + TCB 100 + 对齐）；**只 acquire 不 provide RB**（RS485/RS232 槽体由既有协议提供）；SRAM 侧 32B（mask×2/句柄/心跳时刻/标志） | — EIDE 未收录（待用户裁决） |
+| 广西费显 GX | 3 | 636 | 新增（`AA + addr + BB + 双字节命令 + data + FF`；payload 204 = 显示文本 192B + 头 11B + 结束码；其余命令定长 ≤103B）；**队列体+cb+任务帧缓冲 + 任务栈/TCB 置 CCMRAM**（**实测 2056B** = queue_buf 636 + cb 80 + 帧缓冲 212 + 栈 1024 + TCB 100 + 对齐 4；A/B 双构建实测 `.text +4824` / `.rodata +464` / `.data +8` / `.ccmram +2056` / `.bss +128`）；**自备 RS485/RS232 两槽 `RB_PROVIDE_WEAK` 槽体后再 acquire**（多协议口径 weak 合并、零额外 SRAM，单协议目标必需）；SRAM 侧 136B（bss 128 + data 8；mask×2/句柄/定时状态/字号字型/开机界面缓存）+ 自备槽体 1536B（多协议口径被同槽 weak 合并、不占）；2026-10-20 接入，详见 doc/21 §4 | — EIDE 基线排除（按需点选） |
 
 > **重庆CQ 内存例外（2026-08-20）**：CQ 队列 `s_cq_queue_buf` 3156B + `s_cq_queue_cb` 80B +
 > 任务帧缓冲 1052B + JSON 缓冲 1045B + 文本缓冲 1044B = **6377B 置 `.ccmram`**。

@@ -147,6 +147,12 @@ virtualFolder:
                 - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_parse.c
                 - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_cmd.c
               folders: []
+            - name: ProtocolParser_GuangXi
+              files:
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto.c
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto_cmd.c
+              folders: []
     - name: Drivers
       files: []
       folders:
@@ -470,6 +476,7 @@ targets:
       - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Device/Display/dev_display_1_263.c
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
+      - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
@@ -630,6 +637,7 @@ targets:
         - Application/Inc/ProtocolParser_Anhui
         - Application/Inc/ProtocolParser_Myanmar
         - Application/Inc/ProtocolParser_XinJiang
+        - Application/Inc/ProtocolParser_GuangXi
         - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
@@ -653,8 +661,11 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
       - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
-      - <virtual_root>/Device/Display/dev_display_1_263.c
       - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Device/Display/dev_display_1_263.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
