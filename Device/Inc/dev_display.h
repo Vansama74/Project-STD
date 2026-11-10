@@ -116,6 +116,9 @@ dev_display_t *dev_display_1_260_get(void);
 /** @brief 获取 1-577 模组显示实例 */
 dev_display_t *dev_display_1_577_get(void);
 
+/** @brief 获取 1-543 模组显示实例（P5 64x32，1/8 扫，2 通道；料号 1000000543） */
+dev_display_t *dev_display_1_543_get(void);
+
 /** @brief 获取 1-263 模组显示实例（P6 32x32，1/8 扫，2 通道） */
 dev_display_t *dev_display_1_263_get(void);
 

@@ -281,7 +281,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 | 目录 | 角色 |
 |---|---|
-| `doc/01_显示系统` | 显示层：1-260/1-577/1-969/1-263/22-1703/**22-1665** 模组驱动、自适应字号 |
+| `doc/01_显示系统` | 显示层：1-260/1-577/**1-543**/1-969/1-263/22-1703/**22-1665** 模组驱动、自适应字号 |
 | `doc/02_LDI协议与外设接口` | LDI 协议与光敏/字库等外设接口 |
 | `doc/03_重庆高速二代费显协议` | RLS 重庆协议接入记录 |
 | `doc/04_青海高速费显协议` | 青海协议接入记录 |
@@ -535,6 +535,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 1-pl | pl | `pl_hub75_init` | `pl_hub75.c` | HUB75 GPIO |
 | 2-dev | dev | `dev_display_init` | `dev_display.c` | HUB75 引脚 + DBG 冻结 |
 | 2-dev | dev | `dev_display_1_577_init` | `dev_display_1_577.c` | 1-577 模组实例注册（备用） |
+| 2-dev | dev | `dev_display_1_543_init` | `dev_display_1_543.c` | **1-543 模组实例注册**（P5-8S 320×160 / 料号 `1000000543`，64×32 单模块，1/8 扫，2 通道；列驱动 ICN2037BP ×8/数据线 = 128 bit/扫描线 + 行驱动 URC7258D 8 路行扫描；几何与 1-577 相同，**差异只在 16 bit 链段 → 物理区块的排列**（`_1_543_chain_seg[8]`，**2026-11-10 实机确认默认排列「高行带整行 → 低行带整行」正确 = as-built**，候选 B/C 已否证）；**`Debug` 当前编入本文件**（`dev_display_1_577.c` 已排除）；排布判读/候选表/EIDE 收录见 `doc/01_显示系统/1-543模组驱动构建记录.md`） |
 | 2-dev | dev | `dev_display_1_260_init` | `dev_display_1_260.c` | 1-260 模组实例注册（备用，Makefile/EIDE 均已排除） |
 | 2-dev | dev | `dev_display_1_969_init` | `dev_display_1_969.c` | 1-969 模组实例注册（备用） |
 | 2-dev | dev | `dev_display_1_263_init` | `dev_display_1_263.c` | 1-263 模组实例注册（P6 32x32；**224×64** = 7 行 × 32 / 2 列 × 32；Makefile 默认口径 `DISP=1_263`；**EIDE Base/Debug 基线排除本文件**——要用时在 GUI 取消排除，见 `doc/构建开关总表.md` §7.2） |
@@ -805,7 +806,7 @@ typedef struct { dev_w25qxx_t   me; pl_spi_handle_t spi; ... } dev_w25qxx_inner;
 
 | 虚表 | 定义位置 | 方法签名 | 实现者 |
 |---|---|---|---|
-| `dev_display_ops` | `dev_display.h` | `prepare(dev)` / `scan(dev,line)` / `set_row(row)` | `dev_display_1_577.c` / `dev_display_1_260.c` / `dev_display_1_969.c` |
+| `dev_display_ops` | `dev_display.h` | `prepare(dev)` / `scan(dev,line)` / `set_row(row)` | `dev_display_1_577.c` / `dev_display_1_543.c` / `dev_display_1_260.c` / `dev_display_1_969.c` |
 | `dev_storage_ops` | `dev_storage.h` | `init/read/write/erase/capacity(dev,...)` | `dev_w25qxx.c` / `dev_flash_int.c` |
 | `ch_ops` | `app_dispatch.h` | `send(ch, data, len)` | `app_rs485.c` / `app_rs232.c` / `app_udp.c` / TCP/MQTT 通道 |
 | `proto_probe_fn_t` | `app_dispatch.h` | `probe(ch, rb, &total_len, &aux)` | `app_iap.c` / `app_ldi.c` / `app_qh_proto.c` / `app_rls.c` / `ah_mqtt.c` |
@@ -841,7 +842,8 @@ struct dev_display {
 | **`dev_display_1_263.c`**（`1000000263`） | **224×64**（7×32 / 2×32） | 1/8，2 通道/模块（总 4） | 29568B | **Makefile 默认口径（`DISP=1_263`，历史）**；EIDE **Base/Debug 基线排除本文件**（要用时在 GUI 取消排除；`doc/构建开关总表.md` §7.2 第 6 条 = 全协议口径的标准选择） |
 | **`dev_display_22_1703.c`**（`2200001703`） | 宏当前为 **224×64**（7×32 / 4×16）；**用户 WIP——宏可被改成 1×1 = 32×16**（该态 `.ccmram` 39164→11420，差值 27744B 可反推板上镜像几何） | **1/4**，2 通道/模块（总 **8**） | 31648B（1×1 态 3904B） | `make DISP=22_1703` 选编（历史）；**EIDE Base/Debug 基线排除本文件**（2026-09-16 起不再作为现成口径，要用时在 GUI 取消排除 + 窄口径，见 `doc/构建开关总表.md` §7.2 第 9 条） |
 | **`dev_display_22_1665.c`**（`2200001665`） | **16×16 双色**（4 条数据线 × 每模块每线 128 位 = 512 LED = 256 像素 × 2 die）；**几何宏控**：`_22_1665_MODULE_ROWS` / `_22_1665_MODULE_COLS`（**改屏体尺寸只改这两个**）+ 单模块像素宏（16×16）→ 屏面、**每帧时钟 = 128 × MODULE_ROWS**，**语义同兄弟驱动**；数据线表 `_22_1665_lines[5][4]` 恒 5 组 × 4 行（**与模块数无关**），**链段 = 模块 × 线、区域自动推导**，组 0 = R1/G1/R2/G2（现场逐脚定标）、**组 1 = R3/G3/R4/G4 = PB8/PB9/PE1/PE2**；**接线模型 = 模型 B（每列一口独立线，2026-09-17 第二十七轮落地、第二十九轮删去模型 A 后为唯一形态）**；现场 A/B 开关 `_22_1665_CHAIN_HEAD_IS_MODULE0`（默认 0；组内横向链首），测试矩阵见 doc/01 §0.10/§0.11 | **静态 1 扫**，**每段 128 位 = 8 片 MBI5034B**；换屏标定用**归档的旧驱动**（探针 7/8/9，见 doc/01 §0.3 / 附录 A.8） | **模型 B `1408M + 256·COLS`**（1×1 = **1664B**、1×2 = **3328B**、**8×2 = 23040B**：`chain_dst` 1024M + pixel_map 256M + 状态 128M + 合并写表 256·COLS；**上限（2026-10-13 起）= 无自设预算 + 0 条编译期断言**（契约注释 ① 通道表 `2·COLS ≤ HUB75_CHANNEL_MAX = 10` ⇒ COLS ≤ 5、② 本模组数组 ≤ 64KB；其余约束 = 注释契约 + doc/01 §0.3）—— 越限后果：COLS ≥ 6 零告警编过（-O3 越界 UB 告警）、其余错几何静默编过；本模组自身超 64KB 与整片超区域均由链接期兜底）；历史模型 A `1408M + 384`（已删）。驱动对象实测：1×1 1664 / 1×2 3328 / 2×2 6144 / 8×2 23040 / **8×4 46080 B** | `make DISP=22_1665` 选编（历史）；**EIDE Base/Debug 基线排除本文件**——要用时在 GUI 取消排除（窄口径配方见 `doc/构建开关总表.md` §7.2 第 8 条）；**2026-09-17 现场确认显示正常**（as-built 与「改分辨率」步骤见 doc/01 §0 / §0.9；**工作区当前宏值 = 8×4 = 128×64（2026-10-08 用户确认屏体即此几何）⇒ make 的 ALL/CQ 两口径链接期溢出 17700B / 15444B（实测）—— 日常构建以 EIDE 为主**） |
-| `dev_display_1_969.c`（`1000000969`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；**`Base` 排除**；**`Debug` 2026-10-15 起为现场调试口径、编入本文件**（2026-10-13 前曾作 Debug 现行显示模组，历史）；以 `.eide/eide.yml` 现状为准 |
+| `dev_display_1_543.c`（`1000000543`） | **工作区当前宏值 3×3 = 192×96**；单块口径 1×1 = 64×32 | 1/8，2 通道/模块（3×3 总 **6**；1×1 总 2） | 3×3 = **36864B**（2 × 18432）；1×1 = **4096B**（2 × 2048）。`g_bsrr` 1152/384B + `row_base` 192/64B + `seg_idx` 8B 在 SRAM | **新增（2026-11-10）**：P5-8S 320×160 64×32，列驱动 ICN2037BP（16 通道，8 颗/数据线 = 128 bit/扫描线）、行驱动 URC7258D（8 路行扫描）；几何与 1-577 相同，**差异只在「16 bit 链段 → 物理区块」的排列**（`_1_543_chain_seg[8]`，**默认「高行带整行 → 低行带整行」已实机确认正确 = as-built**，候选 B/C 否证；as-built 摘要见 doc/01 的 1-543 记录 §7）；EIDE **`Debug` 已编入本驱动**（`dev_display_1_577.c` 已排除），**`Base` 尚未排除本文件**（需用户在 GUI 勾选，见同记录 §8） |
+| `dev_display_1_969.c`（`1000000969`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；**`Base` 排除**；2026-10-15 ~ 2026-10-21 曾作 `Debug` 现场调试显示驱动；**2026-11-10 起 `Debug` 编入 `dev_display_1_543.c`**；以 `.eide/eide.yml` 现状为准 |
 | `dev_display_1_577.c`（`1000000577`） | 192×96（3×3） | 1/8，2 通道/模块（总 6） | 38208B | 备用；EIDE Base/Debug 基线排除 |
 | `dev_display_1_260.c` | 32×32（单模块） | 1/8 | 2560B | 备用；EIDE Base/Debug 基线排除（任何口径均未编入） |
 | `dev_display_p20.c` | 128×32（8×16 / 4×8） | 静态 1 扫 | 9792B | 未编入任何构建；EIDE Base/Debug 基线排除 |
@@ -849,8 +851,12 @@ struct dev_display {
 **硬约束：显示模组互斥（`1_263` / `22_1703` / `22_1665` 三选一）**——三模组显存
 （29568 / 31648 / 1792B）+ CQ 6377 + GZ_OL 1136 + YN_OL 1152 合计超 64KB CCMRAM（且双实例先后
 `dev_display_register`，活动屏由链接序决定）→〔历史〕原 Makefile 用 `DISP` 开关三选一（**已随 Makefile 移除**）；**现由 EIDE target 的 `excludeList` 表达同一语义（配方见 `doc/构建开关总表.md` §7）**
-（默认 `1_263` 保持现状；非法值 `$(error)`）。**EIDE 现态（2026-10-13 target 重组后）**：
-**`Base` 基线排除全部 7 个显示驱动**（① 三模组不可同编；② 显示驱动一律「按需点选」，切模组须同步改排除表并 **EIDE: Reload Project**）；**`Debug` 2026-10-15 起为现场调试口径、编入 `dev_display_1_969.c`（其余 6 个仍排除）**——以 `.eide/eide.yml` 现状为准。
+（默认 `1_263` 保持现状；非法值 `$(error)`）。**EIDE 现态（2026-11-10 核对，以 `.eide/eide.yml` 为准）**：显示驱动共 **8 个**文件（原 7 个 + 新增
+`dev_display_1_543.c`）——**`Debug` 编入 `dev_display_1_543.c`（工作区宏值 3×3 = 192×96），其余 7 个仍排除**；
+**`Base` 已排除 7 个原驱动，但 `dev_display_1_543.c` 尚未列入其排除表 ⇒ `Base` 现也会编入它**
+（与「`Base` = 基线不含任何显示驱动」不符；需用户在 EIDE GUI 勾选后 `Reload Project`，
+仓库内 yml 未改，见 `doc/01_显示系统/1-543模组驱动构建记录.md` §8）。
+① 显示驱动一律互斥（同编 = 双实例注册 + CCM 超）；② 「按需点选」，切模组须同步改排除表并 **EIDE: Reload Project**。
 〔历史口径（2026-09-16 裁决时）：`targets.Debug.excludeList` 含 `dev_display_1_263.c` 与
 `dev_display_22_1703.c`、`dev_display_22_1665.c` 未排除 ⇒ **当时 EIDE Debug 编 22_1665**〕
 
