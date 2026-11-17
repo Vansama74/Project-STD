@@ -12,8 +12,22 @@
 
 void dev_light_sensor_init(light_sensor_dev_t *dev, dev_display_t *display)
 {
-    dev->adc     = pl_adc_get_handle();
-    dev->display = display;
+    dev->adc       = pl_adc_get_handle();
+    dev->display   = display;
+    dev->min_level = 1;
+    dev->max_level = DEV_DISPLAY_BRIGHTNESS_MAX;
+}
+
+void dev_light_sensor_set_range(light_sensor_dev_t *dev, uint8_t min, uint8_t max)
+{
+    if (min < 1) min = 1;
+    if (min > DEV_DISPLAY_BRIGHTNESS_MAX) min = DEV_DISPLAY_BRIGHTNESS_MAX;
+    if (max < 1) max = 1;
+    if (max > DEV_DISPLAY_BRIGHTNESS_MAX) max = DEV_DISPLAY_BRIGHTNESS_MAX;
+    if (min > max) min = max;
+
+    dev->min_level = min;
+    dev->max_level = max;
 }
 
 uint8_t dev_light_sensor_read(light_sensor_dev_t *dev)
@@ -30,16 +44,25 @@ uint8_t dev_light_sensor_read(light_sensor_dev_t *dev)
     if (temp_val > 4000) temp_val = 4000;
 
     /* ADC 值越大 = 光越暗 (LDR 分压: 光强↓ → 电阻↑ → 电压↑)
-       映射: ADC 0(最亮) → level 7,  ADC 3000+(最暗) → level 1
-       display 支持 0~7 (0=关, 7=最亮)，这里只出 1~7（不关屏） */
+       映射: ADC 0(最亮) → level 8,  ADC 4000(最暗) → level 0 */
     uint8_t level = 8 - (uint8_t)(temp_val / 500);
     if (level < 1) level = 1;
-    if (level > 7) level = 7;
+    if (level > DEV_DISPLAY_BRIGHTNESS_MAX) level = DEV_DISPLAY_BRIGHTNESS_MAX;
+
+    /* 按配置范围钳位 */
+    if (level < dev->min_level) level = dev->min_level;
+    if (level > dev->max_level) level = dev->max_level;
+
     return level;
 }
 
 void dev_light_sensor_auto_adjust(light_sensor_dev_t *dev)
 {
+    /* 无显示驱动构建：init 时绑定的显示句柄为 nullptr，无亮度对象可调 → 安全跳过
+     * （dev_light_sensor_read 仍在采样，但不产生任何副作用）。 */
+    if (dev == nullptr || dev->display == nullptr)
+        return;
+
     static uint8_t old_light = 0;
     uint8_t new_light        = dev_light_sensor_read(dev);
 

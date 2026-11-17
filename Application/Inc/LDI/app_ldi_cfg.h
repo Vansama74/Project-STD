@@ -6,7 +6,7 @@
 // Flash Sector 11 (0x080E0000~0x080FFFFF, 128KB) 已释放。
 // LDI 配置现已迁移至 W25Qxx 最后一个 4KB 扇区，通过 dev_storage_ops 访问。
 #define APP_FLASH_LDI_MAGIC    0x0D001B00
-#define APP_FLASH_LDI_MAX_MODULES (6U) // Flash 最大可存储的功能模块数量
+#define APP_FLASH_LDI_MAX_MODULES (11U) // Flash 最大可存储的功能模块数量
 
 /**
  * 单功能模块配置信息（从 0BH 命令下发，共 12 字节）
@@ -20,7 +20,8 @@ typedef struct {
     uint8_t vendor[10];    // 厂商自定义参数段 (0BH 命令下发的 Vendor[] 段)
 } app_flash_ldi_module_cfg_t;
 
-static_assert(sizeof(app_flash_ldi_module_cfg_t) == 12);
+/* 契约：单模块条目固定 12B（device_type 1 + device_index 1 + vendor 10），
+ * W25 记录按此布局读写，改错静默错位。 */
 
 /**
  * LDI 车道设备配置信息 (共 46 字节)

@@ -1,9 +1,11 @@
 /**
- * @file    dev_udp.h
- * @brief   UDP 广播接收通道（Device 层）
+ * @file    app_udp.h
+ * @brief   UDP 广播接收通道
  *
- * 监听 UDP 广播，用于 IAP 固件升级协议。
- * 端口 10011 硬编码，不可修改（升级通道必须保持可连接）。
+ * 监听端口固定 10011（宏 `LDI_DISCOVERY_PORT`，定义于 app_ldi.h），同口承载：
+ *   - 创迪发现口（LDI 21H/12H）
+ *   - IAP 固件升级（0x5A5A5A5A）
+ * 端口固定，禁止修改接口。
  */
 
 #pragma once
@@ -12,8 +14,10 @@
 
 #include "cmsis_os2.h"
 #include "app_dispatch.h"
+#include "pl_task_guard.h"
 
-/** @brief UDP 通道子类（每 bind 实例） */
+/** @brief UDP 通道子类（文件级 static 单实例，UAF 根治：
+ *  连接任务重入复用同一实例，ch 指针恒定；dispatch 侧回验兜底） */
 typedef struct {
     channel_t me;
     void *conn; /**< 不透明句柄（中间件 netconn），在 .c 中 cast 回具体类型 */
@@ -32,9 +36,39 @@ void udp_task(void *argument);
 
 static inline osThreadId_t app_udp_start(void)
 {
-    return osThreadNew(udp_task, NULL, &udp_task_attr);
+    return pl_task_create_checked(osThreadNew(udp_task, NULL, &udp_task_attr), "udp_task");
 }
 
-void app_udp_set_port(uint16_t port);
 uint16_t app_udp_get_port(void);
 void app_udp_broadcast(const uint8_t *data, uint16_t len);
+
+/* ---- CQ 业务口 UDP 通道（CH_ID_UDP_CQ；PROTO_CHONGQING 读 Sector1 net_cfg.udp_port
+       默认 20103，dev 共存构建固定 20103，见 app_udp.c _udp_cq_read_port）---- */
+
+void udp_cq_task(void *argument);
+extern const osThreadAttr_t udp_cq_task_attr;
+
+static inline osThreadId_t app_udp_cq_start(void)
+{
+    return pl_task_create_checked(osThreadNew(udp_cq_task, NULL, &udp_cq_task_attr), "udp_cq_task");
+}
+
+uint16_t app_udp_cq_get_port(void);
+
+/** @brief CQ 业务口广播（255.255.255.255:20103，SOF_BROADCAST）。 */
+void app_udp_cq_broadcast(const uint8_t *data, uint16_t len);
+
+/* ---- 贵州治超业务口 UDP 通道（CH_ID_UDP_GZOL；读 Sector1 net_cfg.port，与
+       TCP 业务口同号不同协议栈；空/0 回退 9528，与 10011/CQ 同号则跳过绑定，
+       见 app_udp.c _udp_gzol_read_port / udp_gzol_task）---- */
+
+void udp_gzol_task(void *argument);
+extern const osThreadAttr_t udp_gzol_task_attr;
+
+static inline osThreadId_t app_udp_gzol_start(void)
+{
+    return pl_task_create_checked(osThreadNew(udp_gzol_task, NULL, &udp_gzol_task_attr),
+                                   "udp_gzol_task");
+}
+
+uint16_t app_udp_gzol_get_port(void);

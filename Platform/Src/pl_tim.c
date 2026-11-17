@@ -50,12 +50,6 @@ void pl_tim_irq_disable(uint8_t irq)
 void pl_tim_irq_enable(uint8_t irq)
 { NVIC_EnableIRQ(irq); }
 
-void pl_tim_dbg_freeze(pl_tim_handle_t h)
-{
-    if (h && ((TIM_HandleTypeDef *)h)->Instance == TIM3)
-        __HAL_DBGMCU_FREEZE_TIM3();
-}
-
 /* ---- HAL 周期回调（分派到注册的模块回调）---- */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {

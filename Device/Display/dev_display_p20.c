@@ -92,7 +92,7 @@ static dev_display_p20_t g_p20 = {
         .buffer_size         = P20_BUFFER_SIZE,
         .pixel_map           = p20_pixel_map,
         .hub75_buff          = p20_hub75_buff,
-        .light_level         = 7,
+        .light_level         = DEV_DISPLAY_BRIGHTNESS_MAX,
     },
 };
 
@@ -175,7 +175,7 @@ static inline void _p20_scan(dev_display_t *dev, uint8_t line)
 /* ---- set_row: ABCD 行地址编码 (静态扫描无需切换行) ---- */
 static void _p20_set_row(uint8_t row)
 {
-    pl_hub75_set_row(row);
+    pl_hub75_Decoder_set_row(row);
 }
 
 /* ---- ops 虚表 ---- */

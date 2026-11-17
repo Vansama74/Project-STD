@@ -31,6 +31,18 @@
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
 
+/* ---- LwIP 调试输出整体关闭 ------------------------
+ * Core/Inc/main.h（CubeMX 生成区，不改动）定义 LWIP_DEBUG/SOCKETS_DEBUG/TCP_DEBUG
+ * = LWIP_DBG_ON。此处只覆盖 LwIP 官方开关 **LWIP_DBG_TYPES_ON = 0**：
+ *   · LWIP_DEBUGF 的第一个条件成为编译期常量假 ⇒ 打印分支与全部调试格式串被优化掉
+ *     （零输出、零运行期格式化开销、字符串不落 Flash）；
+ *   · 调用点与 `#ifdef LWIP_DEBUG` 门控结构保持原样 ⇒ 第三方代码零改动、
+ *     不产生 unused-function / unused-parameter 告警。
+ * LwIP 日志整体关闭（调试输出开关宏 = 0，见 doc/17）。
+ * 恢复 LwIP 日志：把下行改回 `LWIP_DBG_ON`（建议仅调试期临时开启）。 */
+#undef LWIP_DBG_TYPES_ON
+#define LWIP_DBG_TYPES_ON 0
+
 /* USER CODE END 0 */
 
 #ifdef __cplusplus
@@ -124,6 +136,15 @@
 
 #define MQTT_REQ_MAX_IN_FLIGHT 16
 #define LWIP_SO_RCVTIMEO      1 /* UDP recv_timeout，用于探测通道可用性 */
+
+/* 网络通道资源池（容量核算，随新增 UDP 端口协议重核）：
+ * dev 共存构建常驻 netconn = UDP 10011 + UDP 20103(CQ) + UDP 9528(GZ_OL 业务口)
+ * + TCP Server listener + TCP Client = 5，叠加 TCP Server 已连接客户端 1 =
+ * 6；广播回退临时 conn 最多 +2（LDI/CQ 各一，常驻 conn 就绪时不占用）→
+ * 峰值 8 恰为池容量。**新增 UDP 端口协议时仍须随通道数核算（doc/06 预算）**，
+ * 届时优先看本行：常驻数不得逼近池容量，否则广播回退静默丢包复发。 */
+#define MEMP_NUM_NETCONN 8
+#define MEMP_NUM_UDP_PCB 8
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

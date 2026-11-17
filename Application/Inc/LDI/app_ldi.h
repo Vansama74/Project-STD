@@ -5,9 +5,15 @@
 #include "app_ldi_cfg.h"
 #include "ring_buffer.h"
 
-#define DEVICE_NUM      (2U) // 本设备使用到的功能模块数量
+#define DEVICE_NUM      (4U) // 本设备使用到的功能模块数量
 
 #define LDI_TX_BUF_SIZE (512U) // 响应帧拼装缓冲区上限
+
+/* 创迪发现口固定值（设计原则：禁止修改、不提供修改接口，0AH/4B02 均不携带此端口） */
+#define LDI_DISCOVERY_PORT (10011U)
+
+/* 设备配置功能端口出厂默认值（TCP 业务端口，协议文档 doc/02 附件2：9528） */
+#define LDI_DEFAULT_CONFIG_PORT (9528U)
 
 /**
  * 外设功能模块类型编码
@@ -150,6 +156,14 @@ typedef struct {
 extern ldi_ctx_t g_ldi;
 
 void ldi_ctx_init(ldi_ctx_t *self);
+
+/**
+ * @brief 以 Sector1 net_cfg 为单一真源刷新 LDI 运行态网络字段（IP/掩码/网关/配置端口）
+ *
+ * LDI 各网络上报路径（0x12 搜索应答 / 0xD1 IP 采集应答）入口调用，保证与
+ * IAP 0x01（直接读 Sector1）同源；记录无效时保留现值。见 app_ldi.c 实现注释。
+ */
+bool ldi_sync_net_from_board_cfg(void);
 
 /* ---- API ---- */
 

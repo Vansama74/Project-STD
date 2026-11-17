@@ -60,12 +60,14 @@ void pbuf_free_custom(struct pbuf *p);
 /** @brief ETH RX 完成回调：释放信号量通知 ethernetif_input 线程取包 */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *handlerEth)
 {
+    (void)handlerEth;
     osSemaphoreRelease(RxPktSemaphore);
 }
 
 /** @brief ETH TX 完成回调：释放信号量通知发送完成 */
 void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *handlerEth)
 {
+    (void)handlerEth;
     osSemaphoreRelease(TxPktSemaphore);
 }
 
@@ -183,7 +185,11 @@ static void low_level_init(struct netif *netif)
     attributes.name       = "EthIf";
     attributes.stack_size = INTERFACE_THREAD_STACK_SIZE;
     attributes.priority   = osPriorityRealtime;
-    osThreadNew(ethernetif_input, netif, &attributes);
+    /* 判空：EthIf 起不来 = 全部网络协议（LDI/IAP/CQ/GZ_OL/YN_OL）无声失效 */
+    osThreadId_t ethif_tid = osThreadNew(ethernetif_input, netif, &attributes);
+    if (ethif_tid == nullptr) {
+        /* 创建失败（堆耗尽）：无以太网输入线程；保留判空点供调试器定位 */
+    }
 
     /* PHY 已在 pl_eth_mac_hw_init() 初始化，此处仅检测链路状态 */
     {
@@ -242,6 +248,7 @@ static void low_level_init(struct netif *netif)
  */
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
+    (void)netif;
     uint32_t i                                  = 0U;
     struct pbuf *q                              = NULL;
     err_t errval                                = ERR_OK;
@@ -301,6 +308,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
  */
 static struct pbuf *low_level_input(struct netif *netif)
 {
+    (void)netif;
     struct pbuf *p = NULL;
 
     if (RxAllocStatus == RX_ALLOC_OK) {
@@ -398,7 +406,7 @@ err_t ethernetif_init(struct netif *netif)
  * @brief   自定义 pbuf 释放回调：将 Rx 缓冲区归还内存池
  * @param   p  待释放的 pbuf
  *
- * 若此前因 Rx 池耗尽触发错误，归还缓冲区后释放 RX 信号量
+ * 若因 Rx 池耗尽触发错误，归还缓冲区后释放 RX 信号量
  * 通知 ethernetif_input 线程调用 HAL_ETH_GetRxDataBuffer 重建描述符。
  */
 void pbuf_free_custom(struct pbuf *p)

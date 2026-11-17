@@ -11,12 +11,22 @@ virtualFolder:
     - name: Application
       files:
         - path: Application/Src/app_boot.c
+        - path: Application/Src/app_net_boot.c
+        - path: Application/Src/app_default_display.c
+        - path: Application/Src/app_ldi_etc_bridge.c
         - path: Application/Src/app_render.c
+        - path: Application/Src/app_scroll.c
         - path: Application/Src/app_key.c
         - path: Application/Src/app_light_sensor.c
+        - path: Application/Src/app_uart_baud.c
         - path: Application/Src/app_test.c
         - path: Application/Src/app_factory_test.c
+        - path: Application/Src/app_factory_test_mm.c
       folders:
+        - name: config
+          files:
+            - path: Application/Src/Config/app_board_net_cfg.c
+          folders: []
         - name: channel
           files:
             - path: Application/Src/Channel/app_mqtt.c
@@ -39,19 +49,109 @@ virtualFolder:
               files:
                 - path: Application/Src/IAP/app_iap_cmd.c
                 - path: Application/Src/IAP/app_iap.c
-                - path: Application/Src/IAP/app_iap_cfg.c
               folders: []
             - name: ldi
               files:
                 - path: Application/Src/LDI/app_ldi.c
                 - path: Application/Src/LDI/app_ldi_cmd.c
+                - path: Application/Src/LDI/app_ldi_device.c
                 - path: Application/Src/LDI/app_vms_ctrl.c
                 - path: Application/Src/LDI/app_ldi_cfg.c
+              folders: []
+            - name: ProtocolParser_QingHai
+              files:
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_parse.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_cmd.c
+                - path: Application/Src/ProtocolParser_QingHai/app_qh_proto_voice.c
+              folders: []
+            - name: ProtocolParser_SiChuang_ETC
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_ETC/app_sc_etc_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_SiChuang_MTC
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_cmd.c
+                - path: Application/Src/ProtocolParser_SiChuang_MTC/app_sc_mtc_proto_voice.c
+              folders: []
+            - name: ProtocolParser_SiChuang_Overload
+              files:
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto.c
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_SiChuang_Overload/app_sc_ol_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_ShanDong
+              files:
+                - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto.c
+                - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto_parse.c
+                - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto_cmd.c
+                - path: Application/Src/ProtocolParser_ShanDong/app_sd_proto_default.c
+              folders: []
+            - name: ProtocolParser_GuiZhou
+              files:
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_cmd.c
+                - path: Application/Src/ProtocolParser_GuiZhou/app_gz_proto_voice.c
+              folders: []
+            - name: ProtocolParser_GuiZhou_Overload
+              files:
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_cmd.c
+                - path: Application/Src/ProtocolParser_GuiZhou_Overload/app_gz_ol_proto_default.c
+              folders: []
+            - name: ProtocolParser_YunNan
+              files:
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_parse.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_cmd.c
+                - path: Application/Src/ProtocolParser_YunNan/app_yn_proto_voice.c
+              folders: []
+            - name: ProtocolParser_YunNan_Overload
+              files:
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto.c
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_parse.c
+                - path: Application/Src/ProtocolParser_YunNan_Overload/app_yn_ol_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_ChongQing
+              files:
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto.c
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_parse.c
+                - path: Application/Src/ProtocolParser_ChongQing/app_cq_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_Anhui
+              files:
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_parse.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_cmd.c
+                - path: Application/Src/ProtocolParser_Anhui/app_anhui_proto_voice.c
+              folders: []
+            - name: ProtocolParser_Myanmar
+              files:
+                - path: Application/Src/ProtocolParser_Myanmar/app_mm_proto.c
+                - path: Application/Src/ProtocolParser_Myanmar/app_mm_proto_cmd.c
               folders: []
             - name: rls
               files:
                 - path: Application/Src/RLS/app_rls_cmd.c
                 - path: Application/Src/RLS/app_rls.c
+              folders: []
+            - name: ProtocolParser_XinJiang
+              files:
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto.c
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_parse.c
+                - path: Application/Src/ProtocolParser_XinJiang/app_xj_proto_cmd.c
+              folders: []
+            - name: ProtocolParser_GuangXi
+              files:
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto.c
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto_parse.c
+                - path: Application/Src/ProtocolParser_GuangXi/app_gx_proto_cmd.c
               folders: []
     - name: Drivers
       files: []
@@ -219,6 +319,10 @@ virtualFolder:
             - path: Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT_printf.c
             - path: Middlewares/Third_Party/SEGGER_RTT/SEGGER_RTT_Syscalls_GCC.c
           folders: []
+        - name: cJSON
+          files:
+            - path: Middlewares/Third_Party/cJSON/cJSON.c
+          folders: []
     - name: Compiler
       files:
         - path: Compiler/startup.c
@@ -230,6 +334,7 @@ virtualFolder:
           files:
             - path: Device/Comm/dev_rs232.c
             - path: Device/Comm/dev_rs485.c
+            - path: Device/Comm/dev_rs232_voice.c
           folders: []
         - name: Network
           files:
@@ -250,6 +355,12 @@ virtualFolder:
         - name: Display
           files:
             - path: Device/Display/dev_display.c
+            - path: Device/Display/dev_display_1_969.c
+            - path: Device/Display/dev_display_1_577.c
+            - path: Device/Display/dev_display_1_260.c
+            - path: Device/Display/dev_display_1_263.c
+            - path: Device/Display/dev_display_22_1703.c
+            - path: Device/Display/dev_display_22_1665.c
             - path: Device/Display/dev_display_p20.c
           folders: []
     - name: Platform
@@ -301,11 +412,11 @@ virtualFolder:
         - path: Core/Src/crc.c
       folders: []
 dependenceList: []
-outDir: build
+outDir: ..\build\Project_STD
 miscInfo:
   uid: e3e6d7588780775da2eb8dcb95a2ad14
 targets:
-  Debug:
+  Base:
     cppPreprocessAttrs:
       defineList:
         - USE_HAL_DRIVER
@@ -329,13 +440,53 @@ targets:
         - Application/Inc/Channel
         - Application/Inc/IAP
         - Application/Inc/LDI
+        - Application/Inc/Config
         - Application/Inc/AH_MQTT
         - Application/Inc/RLS
+        - Application/Inc/ProtocolParser_QingHai
+        - Application/Inc/ProtocolParser_SiChuang_ETC
+        - Application/Inc/ProtocolParser_SiChuang_MTC
+        - Application/Inc/ProtocolParser_SiChuang_Overload
+        - Application/Inc/ProtocolParser_ShanDong
+        - Application/Inc/ProtocolParser_GuiZhou
+        - Application/Inc/ProtocolParser_GuiZhou_Overload
+        - Application/Inc/ProtocolParser_YunNan
+        - Application/Inc/ProtocolParser_YunNan_Overload
+        - Application/Inc/ProtocolParser_ChongQing
+        - Application/Inc/ProtocolParser_Anhui
+        - Application/Inc/ProtocolParser_Myanmar
+        - Application/Inc/ProtocolParser_XinJiang
+        - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
+      - <virtual_root>/Device/Display/dev_display_p20.c
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan
+      - <virtual_root>/Device/Display/dev_display_22_1703.c
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload
+      - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/protocol/ldi
+      - <virtual_root>/Application/app_factory_test_mm.c
+      - <virtual_root>/Device/Display/dev_display_22_1665.c
+      - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Device/Display/dev_display_1_969.c
+      - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
+      - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
+      - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -346,15 +497,17 @@ targets:
         floatingPointHardware: single
         options:
           version: 5
-          afterBuildTasks: []
+          afterBuildTasks:
+            - name: copy hex to build root
+              command: cmd /c if exist "..\build\Project_STD\Base\Project_STD.hex" copy /y "..\build\Project_STD\Base\Project_STD.hex" "..\build\Project_STD.hex"
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c23
-            language-cpp: c++23
+            language-c: gnu23
+            language-cpp: gnu++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-debug
+            optimization: level-3
             warnings: all-warnings
           global:
             $float-abi-type: hard
@@ -365,6 +518,8 @@ targets:
             stack-usage: true
             use-newlib-nano: true
           linker:
+            $outputTaskExcludes:
+              - .s19
             $toolName: auto
             LIB_FLAGS: -lm
             output-format: elf
@@ -381,7 +536,9 @@ targets:
         floatingPointHardware: single
         options:
           version: 1
-          afterBuildTasks: []
+          afterBuildTasks:
+            - name: copy hex to build root
+              command: cmd /c if exist "..\build\Project_STD\Base\Project_STD.hex" copy /y "..\build\Project_STD\Base\Project_STD.hex" "..\build\Project_STD.hex"
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
@@ -409,22 +566,32 @@ targets:
     uploadConfigMap:
       Custom:
         bin: ""
-        commandLine: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/${workspaceFolderBasename}.hex verify reset exit"
-        eraseChipCommand: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"
+        commandLine: bash ./tool/flash_all.sh -a ../build/Project_STD/Base/Project_STD.hex
+        eraseChipCommand: ""
       JLink:
         baseAddr: ""
         bin: ""
         cpuInfo:
-          cpuName: "null"
-          vendor: "null"
+          cpuName: STM32F407ZG
+          vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 8000
+        speed: 50000
       OpenOCD:
         baseAddr: "0x08000000"
         bin: ""
         interface: cmsis-dap
         target: stm32f4x
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
       probe-rs:
         allowEraseAll: false
         baseAddr: "0x08000000"
@@ -434,7 +601,7 @@ targets:
         speed: 10000
         target: STM32F407ZG
     uploader: Custom
-  Release:
+  Debug:
     cppPreprocessAttrs:
       defineList:
         - USE_HAL_DRIVER
@@ -444,35 +611,64 @@ targets:
         - Drivers/CMSIS/Include
         - Drivers/CMSIS/Device/ST/STM32F4xx/Include
         - Drivers/STM32F4xx_HAL_Driver/Inc
-        - Drivers/BSP/Components/dp83848
-        - Drivers/BSP/Components/HUB75
-        - Drivers/BSP/Components/W25Qxx
-        - Drivers/RTT/Config
-        - Drivers/RTT/RTT
-        - LWIP/App
-        - LWIP/Target
         - Middlewares/Third_Party/LwIP/src/include
         - Middlewares/Third_Party/LwIP/system
         - Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2
         - Middlewares/Third_Party/FreeRTOS/Source/include
         - Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F
         - Compiler
-        - Drivers/BSP/Display
-        - Drivers/BSP/Key
-        - Drivers/BSP/RingBuffer
-        - Drivers/BSP/IAP
-        - Drivers/BSP/RingBuff
-        - Drivers/BSP/Components/ADC
-        - Drivers/BSP/Components/LightSensor
-        - Drivers/BSP/Protocol
-        - Drivers/BSP/Display/text_cvt
-        - Drivers/BSP/IOCtrl
+        - Application/Inc
+        - Device/Inc
+        - Kernel/Inc
+        - Platform/Inc
+        - Middlewares/Third_Party/SEGGER_RTT
+        - Application/Inc/Channel
+        - Application/Inc/IAP
+        - Application/Inc/LDI
+        - Application/Inc/Config
+        - Application/Inc/AH_MQTT
+        - Application/Inc/RLS
+        - Application/Inc/ProtocolParser_QingHai
+        - Application/Inc/ProtocolParser_SiChuang_ETC
+        - Application/Inc/ProtocolParser_SiChuang_MTC
+        - Application/Inc/ProtocolParser_SiChuang_Overload
+        - Application/Inc/ProtocolParser_ShanDong
+        - Application/Inc/ProtocolParser_GuiZhou
+        - Application/Inc/ProtocolParser_GuiZhou_Overload
+        - Application/Inc/ProtocolParser_YunNan
+        - Application/Inc/ProtocolParser_YunNan_Overload
+        - Application/Inc/ProtocolParser_ChongQing
+        - Application/Inc/ProtocolParser_Anhui
+        - Application/Inc/ProtocolParser_Myanmar
+        - Application/Inc/ProtocolParser_XinJiang
+        - Application/Inc/ProtocolParser_GuangXi
+        - Middlewares/Third_Party/cJSON
       libList: []
     excludeList:
       - <virtual_root>/Drivers/BSP/Key/key.c
       - <virtual_root>/Drivers/BSP/RingBuff/Ringbuffer.c
       - <virtual_root>/Drivers/BSP/Display/scan.c
-      - <virtual_root>/Application/NetIF/udp_interface.c
+      - <virtual_root>/Device/Display/dev_display_p20.c
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan
+      - <virtual_root>/Device/Display/dev_display_22_1703.c
+      - <virtual_root>/Application/protocol/ProtocolParser_YunNan_Overload
+      - <virtual_root>/Application/protocol/ah
+      - <virtual_root>/Application/protocol/rls
+      - <virtual_root>/Application/app_factory_test_mm.c
+      - <virtual_root>/Device/Display/dev_display_22_1665.c
+      - <virtual_root>/Device/Display/dev_display_1_260.c
+      - <virtual_root>/Application/protocol/ProtocolParser_ShanDong
+      - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
+      - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ProtocolParser_Anhui
+      - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
+      - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
+      - <virtual_root>/Device/Display/dev_display_1_263.c
     settings:
       debugger: cortex-debug
     toolchain: GCC
@@ -483,28 +679,29 @@ targets:
         floatingPointHardware: single
         options:
           version: 5
-          afterBuildTasks: []
+          afterBuildTasks:
+            - name: copy hex to build root
+              command: cmd /c if exist "..\build\Project_STD\Debug\Project_STD.hex" copy /y "..\build\Project_STD\Debug\Project_STD.hex" "..\build\Project_STD.hex"
           asm-compiler: {}
           beforeBuildTasks: []
           c/cpp-compiler:
-            language-c: c17
-            language-cpp: c++17
-            no-exceptions: true
-            no-rtti: true
-            no-threadsafe-statics: true
-            no-use-cxa-atexit: true
+            language-c: gnu23
+            language-cpp: gnu++23
             one-elf-section-per-data: true
             one-elf-section-per-function: true
-            optimization: level-size
+            optimization: level-3
             warnings: all-warnings
           global:
             $float-abi-type: hard
-            arm-thumb-interwork: true
             arm-thumb-mode: thumb
+            callgraph-info: true
             not-use-syscalls: true
             output-debug-info: enable
+            stack-usage: true
             use-newlib-nano: true
           linker:
+            $outputTaskExcludes:
+              - .s19
             $toolName: auto
             LIB_FLAGS: -lm
             output-format: elf
@@ -515,23 +712,74 @@ targets:
           RAM: []
           ROM: []
         useCustomScatterFile: true
+      LLVM_ARM:
+        archExtensions: ""
+        cpuType: Cortex-M4
+        floatingPointHardware: single
+        options:
+          version: 1
+          afterBuildTasks:
+            - name: copy hex to build root
+              command: cmd /c if exist "..\build\Project_STD\Debug\Project_STD.hex" copy /y "..\build\Project_STD\Debug\Project_STD.hex" "..\build\Project_STD.hex"
+          asm-compiler: {}
+          beforeBuildTasks: []
+          c/cpp-compiler:
+            C_FLAGS: --sysroot=/usr/arm-none-eabi --gcc-toolchain=/usr -fshort-enums
+            language-c: c23
+            language-cpp: c++23
+            one-elf-section-per-data: true
+            one-elf-section-per-function: true
+            optimization: level-debug
+            warnings: all-warnings
+          global:
+            $float-abi-type: hard
+            output-debug-info: enable
+          linker:
+            $toolName: clang
+            LD_FLAGS: --sysroot=/usr/arm-none-eabi --gcc-toolchain=/usr -fshort-enums -Wl,--specs=nano.specs -Wl,--specs=nosys.specs
+            LIB_FLAGS: -lm
+            output-format: elf
+            remove-unused-input-sections: true
+        scatterFilePath: Compiler/STM32F407XX_FLASH.ld
+        storageLayout:
+          RAM: []
+          ROM: []
+        useCustomScatterFile: true
     uploadConfigMap:
       Custom:
         bin: ""
-        commandLine: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program ./build/Debug/${fileWorkspaceFolderBasename}.hex verify reset exit"
-        eraseChipCommand: openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"
+        commandLine: bash ./tool/flash_all.sh
+        eraseChipCommand: ""
       JLink:
         baseAddr: ""
         bin: ""
         cpuInfo:
-          cpuName: "null"
-          vendor: "null"
+          cpuName: STM32F407ZG
+          vendor: ST
         otherCmds: ""
         proType: 1
-        speed: 8000
+        speed: 50000
       OpenOCD:
         baseAddr: "0x08000000"
         bin: ""
-        interface: stlink
-        target: stm32f1x
+        interface: cmsis-dap
+        target: stm32f4x
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
+      probe-rs:
+        allowEraseAll: false
+        baseAddr: "0x08000000"
+        bin: ""
+        otherOptions: ""
+        protocol: swd
+        speed: 10000
+        target: STM32F407ZG
     uploader: Custom
