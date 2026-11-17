@@ -44,6 +44,21 @@ LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX
 /* ---- 变量定义 ---- */
 static uint8_t RxAllocStatus;                           /**< Rx 缓冲区分配状态 */
 
+/* ---- ETH DMA 故障恢复 ------------------------------------------------
+ * STM32F4 的 ETH DMA 在下列错误后会停止收发，且 HAL 自身不会自愈：
+ *   · RBUS / RPSS：RX 描述符不可用 / RX 进程停止（DMA 进入 Suspended）；
+ *   · FBES（Fatal Bus Error）：HAL 关闭 NISE/AISE 中断并把 gState 置
+ *     HAL_ETH_STATE_ERROR，此后 HAL_ETH_ReadData 因 gState != STARTED
+ *     直接返回 HAL_ERROR —— RX 描述符永远不再被重新挂载。
+ * 共同后果：ARP / ICMP 全部无响应（PING 不通），只有复位才恢复。
+ *
+ * 恢复动作（eth_dma_recover）放在 ethernetif_input 线程执行：
+ * HAL_ETH_Stop_IT / Start_IT 内部各有 HAL_Delay(ETH_REG_WRITE_DELAY)，
+ * 合计约 5ms 忙等，不能在中断上下文调用。ISR 只置标志 + 放信号量。 */
+#define ETH_DMA_FAULT_MASK  (ETH_DMASR_FBES | ETH_DMASR_RPSS | ETH_DMASR_RBUS)
+
+static volatile uint8_t g_eth_dma_fault;                /**< 1 = 需在任务上下文重启 ETH DMA */
+
 ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];      /**< ETH Rx DMA 描述符表 */
 ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];      /**< ETH Tx DMA 描述符表 */
 
@@ -71,12 +86,23 @@ void HAL_ETH_TxCpltCallback(ETH_HandleTypeDef *handlerEth)
     osSemaphoreRelease(TxPktSemaphore);
 }
 
-/** @brief ETH DMA 错误回调：RBUS 错误时释放 RX 信号量触发恢复 */
+/** @brief ETH DMA 错误回调：标记故障并唤醒 ethernetif_input 线程重启 DMA
+ *
+ * HAL 在中断里已按分支归档错误码：非致命分支写 ETS|RWTS|RBUS|AIS 并清对应位，
+ * FBES 分支写 FBES|TPS|RPS 并关 NISE/AISE。RPSS(bit8) 两种分支都不清，
+ * 因此从 DMASR 直接补读一次。
+ */
 void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *handlerEth)
 {
-    if ((HAL_ETH_GetDMAError(handlerEth) & ETH_DMASR_RBUS) == ETH_DMASR_RBUS) {
-        osSemaphoreRelease(RxPktSemaphore);
+    uint32_t err = HAL_ETH_GetDMAError(handlerEth);
+    err |= (uint32_t)(handlerEth->Instance->DMASR & ETH_DMASR_RPSS);
+
+    if ((err & ETH_DMA_FAULT_MASK) == 0U) {
+        return; /* ETS / RWTS 等非致命状态：HAL 已清位，无需重启 DMA */
     }
+
+    g_eth_dma_fault = 1U;
+    osSemaphoreRelease(RxPktSemaphore);
 }
 
 /* ================================================================
@@ -329,6 +355,28 @@ static struct pbuf *low_level_input(struct netif *netif)
  *   4. 如果池耗尽（RxAllocStatus == ERROR），HAL 回调会释放信号量触发本线程
  *      → 调用 HAL_ETH_GetRxDataBuffer 重建描述符
  */
+/**
+ * @brief  重启 ETH DMA（仅任务上下文调用）
+ *
+ * HAL 在 Fatal Bus Error 分支把 gState 置 HAL_ETH_STATE_ERROR 并关闭
+ * NISE/AISE，而 HAL_ETH_Stop_IT 只接受 STARTED ⇒ 先把状态退回 STARTED
+ * 再走标准 Stop/Start；Start 内部重建 RX 描述符并重新打开中断。
+ * 不触碰 RxAllocStatus：池耗尽时由 pbuf_free_custom 在缓冲归还后置回
+ * RX_ALLOC_OK 并再次唤醒本线程，保持既有恢复链路。
+ */
+static void eth_dma_recover(void)
+{
+    if (heth.gState == HAL_ETH_STATE_ERROR) {
+        heth.gState = HAL_ETH_STATE_STARTED;
+    }
+    if (heth.gState == HAL_ETH_STATE_STARTED) {
+        (void)HAL_ETH_Stop_IT(&heth);
+    }
+    if (heth.gState == HAL_ETH_STATE_READY) {
+        (void)HAL_ETH_Start_IT(&heth);
+    }
+}
+
 void ethernetif_input(void *argument)
 {
     struct pbuf *p      = NULL;
@@ -336,6 +384,12 @@ void ethernetif_input(void *argument)
 
     for (;;) {
         if (osSemaphoreAcquire(RxPktSemaphore, TIME_WAITING_FOR_INPUT) == osOK) {
+            /* DMA 故障：本线程负责重启（ISR 里不能跑 HAL_Delay） */
+            if (g_eth_dma_fault != 0U) {
+                g_eth_dma_fault = 0U;
+                eth_dma_recover();
+                continue;
+            }
             do {
                 p = low_level_input(netif);
                 if (p != NULL) {

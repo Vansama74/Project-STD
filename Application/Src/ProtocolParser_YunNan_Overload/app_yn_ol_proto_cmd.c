@@ -44,7 +44,9 @@ static volatile bool s_yn_ol_selftest_abort;
 /** @brief 构造并发送应答帧（`{` + cmd + len + payload + `}`；单播回源，resp ≤14B）。 */
 static void _yn_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload, uint16_t payload_len)
 {
-    uint8_t buf[YN_OL_HEAD_LEN + YN_OL_NET_PAYLOAD_LEN + 1U];
+    /* 静态缓冲（SRAM）：channel_send 走网口时是 zero-copy（netbuf_ref 只登记指针），
+     * 任务栈在 CCMRAM，ETH DMA 不可访问 → 栈数组会在绑 UDP 时打死网口。 */
+    static uint8_t buf[YN_OL_HEAD_LEN + YN_OL_NET_PAYLOAD_LEN + 1U];
     if (payload_len > YN_OL_NET_PAYLOAD_LEN)
         return;
 

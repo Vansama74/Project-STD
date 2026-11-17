@@ -144,5 +144,24 @@ bool app_dispatch_channel_has_proto(channel_id_t ch_id);
 void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len);
 void app_channel_register(channel_id_t ch_id, channel_t *ch);
 channel_t *app_channel_get(channel_id_t ch_id);
+
+/**
+ * @brief  经通道发送数据（协议应答出口）。
+ * @param  ch    来源通道（必须仍注册在案）。
+ * @param  data  发送缓冲。
+ * @param  len   字节数。
+ * @return 实际发送字节数；<0 失败（通道不可用 / 缓冲非法）。
+ *
+ * @warning **缓冲必须 ETH DMA 可达，且必须持久到发送完成**。
+ *          网口通道是零拷贝（`udp_ch_send` → `netbuf_ref` 只登记指针，
+ *          `pl_eth` 直接把 `payload` 地址写进 DMA 描述符）。因此：
+ *          - 禁止传函数栈数组（协议任务栈在 CCMRAM，ETH DMA 不可访问，
+ *            会触发 FBES 致命总线错误把网口打死，2026-11-17 青海事故）；
+ *          - 用静态数组 / 协议上下文里的持久缓冲（`g_ldi.tx_buf`、
+ *            `pIAP_ReTmp` 等现状即如此）。
+ *          `app_udp.c` 的 `udp_payload_dma_reachable()` 会在入口拦下 CCM 缓冲
+ *          并累加 `g_udp_ccm_reject_cnt`，但那只兜底、不能替代正确写法。
+ *          串口通道不受此限（`pl_uart` 同步拷贝进 DMA 缓冲）。
+ */
 int32_t channel_send(channel_t *ch, uint8_t *data, uint16_t len);
 void app_dispatch_init(void);

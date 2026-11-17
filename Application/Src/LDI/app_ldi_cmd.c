@@ -421,30 +421,6 @@ const ldi_cmd_handler_fn_t g_ldi_cmd_table[] = {
 // ============================================================================
 
 /**
- * @brief 保存 LDI 配置至 W25 并返回结果（0AH 如实应答用）
- *
- * 落盘字节与 app_ldi_cfg.c:app_flash_ldi_save_config 完全一致
- * （magic + cfg + CRC32，CRC 覆盖 magic+cfg 即记录总长减 crc32 字段），
- * 仅额外返回擦/写结果；save_config 为 void 且不在本次改动范围内，
- * 故此处内联其逻辑以捕获返回值，两处需保持同构。
- *
- * @return 0 成功；<0 擦除/写入失败（dev_storage_erase/write 错误码）
- */
-static int32_t _ldi_save_config_ret(app_flash_ldi_cfg_info_t *info)
-{
-    app_flash_ldi_record_t rec = {0};
-    rec.magic                  = APP_FLASH_LDI_MAGIC;
-    memcpy(&rec.cfg, info, sizeof(app_flash_ldi_cfg_info_t));
-    rec.crc32 = pl_crc32_calc(pl_crc_get_handle(), (uint8_t *)&rec, sizeof(rec) - sizeof(rec.crc32));
-
-    int32_t ret = app_flash_ldi_erase_config();
-    if (ret < 0)
-        return ret;
-    ret = app_flash_ldi_write_config(&rec);
-    return ret < 0 ? ret : 0;
-}
-
-/**
  * 处理 0AH 设备 IP 信息设置请求
  *
  * 上位机→设备, 用于出厂配置模式下设置设备网络参数.
@@ -471,12 +447,18 @@ void cmd_set_ip(channel_t *ch, void *data)
     g_ldi.cfg.host_port = ((uint16_t)info->net.host_port[0] << 8) | info->net.host_port[1];
     memcpy(g_ldi.cfg.netmask, info->net.netmask, sizeof(g_ldi.cfg.netmask));
     memcpy(g_ldi.cfg.gateway, info->net.gateway, sizeof(g_ldi.cfg.gateway));
+
+    /* 协议 4.1.1：0AH 通用帧头偏移 5 = LaneHex(5B)、偏移 10 = CertificationInfo(8B)。
+     * 平台用 0AH 单条命令配置时也会带这两个字段，必须一并落盘，否则只用 0AH 配置的
+     * 现场 lane/cert 永远是 0，设备对平台所有需身份校验的帧（0EH/0CH/1BH）都被 SKIP。 */
+    memcpy(g_ldi.cfg.lane_hex, info->head.lane_code, sizeof(g_ldi.cfg.lane_hex));
+    memcpy(g_ldi.cfg.cert, info->head.cert_info, sizeof(g_ldi.cfg.cert));
     g_ldi.cfg_valid = true;
 
     /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
      * 任一失败即如实应答失败，不再静默回 00H。
      * 0AH 写 TCP 业务口（device_port），udp_port 保留现值（get 失败用出厂默认 20103）。 */
-    int32_t w25_ret    = _ldi_save_config_ret(&g_ldi.cfg);
+    int32_t w25_ret = app_flash_ldi_save_config(&g_ldi.cfg);
     app_board_net_cfg_t cur_cfg;
     uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
     int32_t board_ret  = app_board_net_cfg_update(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
@@ -508,10 +490,6 @@ static void cmd_set_config(channel_t *ch, void *data)
     uint8_t *ptr         = (uint8_t *)data + sizeof(ldi_req_head_t);
     uint8_t device_num   = *ptr++;
 
-    /* 0BH 请求头部含车道编号和验证信息，与 module 数据一同持久化 */
-    memcpy(g_ldi.cfg.lane_hex, head->lane_code, sizeof(g_ldi.cfg.lane_hex));
-    memcpy(g_ldi.cfg.cert, head->cert_info, sizeof(g_ldi.cfg.cert));
-
     if (device_num == 0 || device_num > g_ldi.cfg.module_count) {
         ldi_status_rsp_t rsp = {.status = 0x01};
         ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_PARA_RSP);
@@ -520,7 +498,8 @@ static void cmd_set_config(channel_t *ch, void *data)
     }
 
     /* 以编译期 cfg 中的 device_type 做键，匹配请求帧中的 module，同步 index 和 vendor */
-    bool result = true;
+    bool result          = true;
+    int32_t save_ret     = -1;
     for (uint8_t i = 0; i < device_num; i++) {
         /* 每 module 先查表取长度，读取公共头与 vendor 前均校验剩余帧长，防越界读 */
         uint32_t consumed = (uint32_t)(ptr - (const uint8_t *)data);
@@ -561,10 +540,16 @@ static void cmd_set_config(channel_t *ch, void *data)
         ptr += mod_size;
     }
 
-    if (result)
-        app_flash_ldi_save_config(&g_ldi.cfg);
+    if (result) {
+        /* 先完整解析校验、再一次性提交身份字段并落盘：校验失败时不污染运行态
+         * （旧实现在函数开头就改 RAM，失败返回 01H 但 lane/cert 已在内存里生效，
+         * 重启即回滚，表现为"配置了但重启就丢"）。 */
+        memcpy(g_ldi.cfg.lane_hex, head->lane_code, sizeof(g_ldi.cfg.lane_hex));
+        memcpy(g_ldi.cfg.cert, head->cert_info, sizeof(g_ldi.cfg.cert));
+        save_ret = app_flash_ldi_save_config(&g_ldi.cfg);
+    }
 
-    ldi_status_rsp_t rsp = {.status = result ? 0x00 : 0x01};
+    ldi_status_rsp_t rsp = {.status = (result && save_ret >= 0) ? 0x00 : 0x01};
     ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_PARA_RSP);
     LDI_RESPOND(ch, LDI_CMD_SET_PARA_RSP, g_ldi.rsp_seq, rsp);
 }

@@ -43,6 +43,23 @@
 ### 2.3 UDP 通道实现要点（新协议发包侧）
 
 - 应答直接 `channel_send(ch, data, len)`：`udp_ch_send` 用 `udp->src_ip` 重建 `ip_addr_t` 发回源地址（`app_udp.c`）——**通道层自动回源，协议层无需管理 IP**。
+- **⚠️ 应答负载必须是 SRAM 持久缓冲，绝不能是函数栈数组**（2026-11-17 青海实测踩坑，网口直接打死）：
+  1. `udp_ch_send` 走 `netbuf_ref()`，**只登记指针、不拷贝数据**；
+  2. `pl_eth.c` 的 `low_level_output()` 是**零拷贝**，直接把 `pbuf->payload` 填进 ETH DMA 发送描述符；
+  3. 协议任务栈由 `PL_TASK_STATIC_STORAGE()` 放在 **CCMRAM（0x10000000）**，而 **CCM 不可被 ETH DMA 访问**。
+
+  三者叠加 → DMA 去读 CCM 地址 → 总线错误、ETH DMA 停摆 → **ping 立刻不通，直到看门狗约 33s 复位**。
+  现象极具迷惑性：不是"发不出去/回包丢"，而是**整条网口死掉**。
+
+  正确写法：静态数组 / `g_xxx.tx_buf` 之类的持久缓冲（LDI/IAP/CQ 现状即如此）。
+  串口不受影响——`pl_uart` 是同步拷贝进 DMA 缓冲，不经零拷贝路径。
+  **2026-11-17 全仓核查并已全部修正**（原为栈数组、现已改静态）：
+  `GuiZhou_Overload::_gz_ol_send_frame`、`ChongQing::_cq_exec_bin_search`、
+  `SiChuang_Overload::_sc_ol_send_reply`、`YunNan_Overload::_yn_ol_send_frame`。
+
+  **运行期兜底**：`app_udp.c` 的 `udp_payload_dma_reachable()` 在 4 个 `netbuf_ref` 出口
+  （10011 / CQ / GZOL / 广播）拒绝落在 `[_sccmram, _eccmram)` 的缓冲，并累加
+  `g_udp_ccm_reject_cnt`（调试器 Watch 读，恒为 0 才正常）。它只兜底，不替代正确写法。
 - **10011 端口语义**：该口是 STD 统一「发现口」+ IAP 升级口 + 地区协议（GZ_OL）兼容业务口。
   新增协议绑该口前先复核**首字节互斥**（IAP `0x5A` / LDI `0xFF` / CQ `'{'` 或 `FF FF`+12B），
   并在文档写清**外场上位机的目标端口**——源固件私口（如 9K23881580 的 10028）在本固件上

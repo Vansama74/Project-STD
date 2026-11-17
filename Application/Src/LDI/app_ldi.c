@@ -145,16 +145,16 @@ void ldi_ctx_init(ldi_ctx_t *self)
                 memcmp(self->cfg.netmask, flash_cfg.netmask, sizeof(flash_cfg.netmask)) != 0 ||
                 memcmp(self->cfg.gateway, flash_cfg.gateway, sizeof(flash_cfg.gateway)) != 0 ||
                 self->cfg.device_port != flash_cfg.device_port) {
-                app_flash_ldi_save_config(&self->cfg);
+                (void)app_flash_ldi_save_config(&self->cfg);
             }
         } else {
-            /* W25 空/无效：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；
-             * 本分支不 set_remote），并把当前 cfg 写为 W25 恢复镜像——维护「擦
-             * Sector1 恢复出厂后仍可还原用户配置」。W25 为 SPI 外设擦写（4KB 扇区），
-             * 不暂停 CPU 总线，上电执行安全。 */
+            /* W25 无有效记录：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；本分支不
+             * set_remote），lane/cert 保持编译期初值。**此处严禁回写 W25**：cfg 里的
+             * host/lane/cert 此时都是占位值，写回会用零值覆盖唯一副本、永久毁掉现场配置
+             * （2026-11-17 车道号/验证码/外场 IP·端口丢失事故的毁灭点）。真实配置只由
+             * 0AH/0BH 下发并落盘。 */
             memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
             self->cfg.host_port = app_tcp_client_get_host_port();
-            app_flash_ldi_save_config(&self->cfg);
         }
 
         /* 网络应用（pl_net_set_ip / app_tcp_server_set_port）已移交

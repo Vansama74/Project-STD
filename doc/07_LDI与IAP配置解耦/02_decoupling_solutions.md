@@ -361,6 +361,15 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 
 **生效语义**：所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一**重启生效**（运行时网口不即时变更，属既定策略，非缺陷）。
 
+> **纪律（2026-11-17 事故结论）：`ldi_ctx_init` 分支 1 的「W25 空/无效」子分支禁止回写 W25。**
+> 该分支下 `self->cfg` 的 host/lane/cert 全是占位值（编译期哨兵 + 编译期初值），回写会用零值覆盖
+> W25 里的**唯一副本** = 永久丢配置——2026-11-17 车道号/验证码/外场 IP·端口掉电丢失事故即由此造成
+> （叠加记录布局变更致旧记录 CRC 失配，旧 116B 记录被 176B 新固件判损坏后立刻被零值覆盖）。
+> **只有两种情况允许写 W25**：① 携带真实用户配置（0AH/0BH 下发后落盘）；② 镜像自愈
+> （分支 1 if 子分支，cfg 的 host/lane/cert 已从有效 W25 装载、仅网络字段取自 Sector1）。
+> 上层保存接口 `app_flash_ldi_save_config` 已改返回 `int32_t`（0 成功 / <0 擦·写·回读校验失败），
+> 0AH/0BH 应答状态码须反映真实写盘结果。
+
 **2026-08-18 缺陷 A/C/D/E 修复落地**：
 
 ① **镜像自愈（缺陷 C/A）**：`ldi_ctx_init` 分支 1（Sector1 有效）检测 Sector1.net_cfg 与 W25 网络字段（ip/mask/gw/port）逐项不一致即刷新 W25 镜像——覆盖 4B02 单写 Sector1 不写 W25、或单次 W25 写失败导致的永久陈旧（陈旧镜像会在擦 Sector1 恢复出厂时回滚旧 IP）；SPI 4KB 擦写无内部 Flash 总线停顿，上电执行安全。4B02 写入路径不改（保持 IAP 只写 Sector1 + 启动自愈，解耦）。

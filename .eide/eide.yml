@@ -665,10 +665,11 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
       - <virtual_root>/Device/Display/dev_display_1_577.c
+      - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
-      - <virtual_root>/Device/Display/dev_display_1_263.c
     settings:
       debugger: cortex-debug
     toolchain: GCC

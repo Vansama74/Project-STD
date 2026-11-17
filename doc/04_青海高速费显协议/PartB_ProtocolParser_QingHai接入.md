@@ -130,7 +130,60 @@ len=0x30=48、等 52 字节，永远等不到 → 静默无响应。
 因此手动档（1~8）同时把自动调光范围钉死为 `[level, level]`；
 `0`（自动）恢复默认范围 `[LIGHT_SENSOR_MIN_LEVEL, LIGHT_SENSOR_MAX_LEVEL]`（4~8）。
 
-### B.5.7 `0x3A` 网络配置
+### B.5.7 UDP 应答缓冲必须放 SRAM（不能是任务栈）
+
+`qh_reply()` 的应答缓冲是 `static uint8_t rsp[5]`（`.bss`，SRAM）。
+
+**这不是风格问题，否则会打死网口**：
+- 协议任务栈由 `PL_TASK_STATIC_STORAGE()` 放在 **CCMRAM（0x10000000）**，
+  而 CCM 由 CPU 专用总线访问，**ETH DMA 不可访问**；
+- `udp_ch_send` → `netbuf_ref()` **只登记指针、不拷贝数据**；
+- `pl_eth.c` 的 `low_level_output()` 是**零拷贝**：直接把 `pbuf->payload`
+  填进 ETH DMA 发送描述符。
+
+三者叠加 → 用栈数组应答时，DMA 去读 CCM 地址 → **总线错误、ETH DMA 停摆、网口彻底死**
+（ping 随之无响应，直到看门狗约 33s 复位）。
+
+**纪律**：任何走网口（`CH_ID_UDP*`）的 `channel_send`，负载必须是
+`.bss` / `.data` / 静态数组 / 协议上下文里的持久缓冲，**绝不能是函数栈数组**。
+
+现状核对（2026-11-17）：
+
+| 协议 | 应答缓冲 | 结论 |
+|---|---|---|
+| LDI | `g_ldi.tx_buf`（全局） | ✅ |
+| IAP | `pIAP_ReTmp`（静态） | ✅ |
+| 重庆 CQ | `s_cq_bin_reboot_rsp`（静态）；`_cq_exec_bin_search()` 的广播帧 `buf[25]` 2026-11-17 改静态 | ✅ |
+| 青海 | `static uint8_t rsp[5]`（本次修正） | ✅ |
+| 贵州治超 | `_gz_ol_send_frame()` 的 `buf[]` 2026-11-17 改静态 | ✅ |
+| 四川治超 | `_sc_ol_send_reply()` 的 `buf[]` 2026-11-17 改静态（当前只绑串口，预防） | ✅ |
+| 云南治超 | `_yn_ol_send_frame()` 的 `buf[]` 2026-11-17 改静态（当前只绑串口，预防） | ✅ |
+| 广西 / 山东 / 贵州 / 云南 / MTC / ETC / 新疆 | 局部数组或字面量，但**只绑 RS485/RS232** | ✅ 串口同步拷贝，无此风险 |
+| AH_MQTT | `ReturnBuff[128]` 局部，走 MQTT/TCP 同步发布 | ✅ 非 UDP 零拷贝路径 |
+
+**全仓核查结论（2026-11-17）**：不再有「UDP 发送 + 栈数组」组合。
+
+### B.5.9 运行期兜底：`udp_payload_dma_reachable()`
+根因修完后又补了一道守卫（`app_udp.c`），把「再犯一次的后果」从「网口死」降级为「这一帧发不出去」：
+
+```c
+static bool udp_payload_dma_reachable(const uint8_t *data, uint16_t len)
+{
+    /* 缓冲与 [_sccmram, _eccmram) 相交 → 在 CCM，DMA 不可达 */
+}
+```
+
+- 段边界取链接脚本符号 `_sccmram` / `_eccmram`（`Compiler/STM32F407XX_FLASH.ld`），**不硬编码地址**。
+- 覆盖全部 4 个 `netbuf_ref` 出口：`udp_ch_send`（10011）、`udp_cq_ch_send`、`udp_gzol_ch_send`、
+  `_udp_broadcast_send`（广播）。
+- 命中即拒绝发送（返回 `-1` / `ERR_ARG`）并累加 `g_udp_ccm_reject_cnt`。
+- **诊断方式**：调试器 Watch 读 `g_udp_ccm_reject_cnt`（`app_udp.c` 定义，`.bss 0x200007b8`）。
+  恒为 0 才正常；非 0 说明有协议又用了栈数组发 UDP。
+- 配套：`app_dispatch.h` 的 `channel_send()` 声明补了「缓冲必须 DMA 可达且持久」的契约注释。
+
+串口（RS485/RS232）不受影响：`pl_uart` 发送是同步拷贝进 DMA 缓冲，不经零拷贝路径。
+
+### B.5.8 `0x3A` 网络配置
 `app_board_net_cfg_get()` 取当前记录 → `app_board_net_cfg_update(ip, mask, gw, cur.port, cur.udp_port)`，
 **只改 IP/掩码/网关，保留既有 TCP/UDP 端口**（避免覆盖 LDI/IAP/CQ 写过的端口值）。
 
@@ -154,7 +207,7 @@ len=0x30=48、等 52 字节，永远等不到 → 静默无响应。
 |---|---|
 | 单文件编译 | 4 个 `.c` 用工程原 flags 编译，`-Wall` 零警告 |
 | 链接 | `unify_builder build` 退出码 0 |
-| 段尺寸 | RAM 119856/128KB（91.44%）、CCMRAM 52772/64KB（80.52%）、FLASH 254928/768KB（32.42%） |
+| 段尺寸 | RAM 120232/128KB（91.73%）、CCMRAM 50716/64KB（77.39%）、FLASH 250344/768KB（31.83%）（2026-11-17 全量 clean rebuild） |
 | map 符号 | `qh_proto_init` / `qh_proto_probe_frame` / `qh_parse_frame` / `qh_execute_cmd` / `qh_voice_segments` 均在 `build/Project_STD/Debug/Project_STD.map` |
 | 产物 | `E:\3833024\build\Project_STD\Debug\Project_STD.hex` |
 

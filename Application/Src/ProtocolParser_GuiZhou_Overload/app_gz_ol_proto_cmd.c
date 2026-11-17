@@ -33,7 +33,11 @@ static bool s_gz_ol_auto_dim_off; /**< 光敏自动调光是否被本模块挂�
  */
 static void _gz_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload, uint16_t payload_len)
 {
-    uint8_t buf[GZ_OL_HEAD_LEN + GZ_OL_NET_PAYLOAD_LEN + 1U];
+    /* 静态缓冲（SRAM），不可用函数栈数组：本协议绑 CH_ID_UDP / CH_ID_UDP_GZOL，
+     * 而 udp_ch_send → netbuf_ref 只登记指针、pl_eth 零拷贝直接把 payload 地址
+     * 写进 DMA 描述符；任务栈在 CCMRAM（0x10000000），ETH DMA 不可访问，
+     * 用栈数组会触发 FBES 致命总线错误把网口打死（2026-11-17 青海实测）。 */
+    static uint8_t buf[GZ_OL_HEAD_LEN + GZ_OL_NET_PAYLOAD_LEN + 1U];
     if (payload_len > GZ_OL_NET_PAYLOAD_LEN)
         return; /* 本模块应答载荷最长 14B（0x10 的 2B / 0x50、0x70 的 14B） */
 

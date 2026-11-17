@@ -29,6 +29,44 @@ uint16_t app_udp_get_port(void)
     return g_udp_port;
 }
 
+/* ---- 发送缓冲 DMA 可达性守卫 ------------------------------------------
+ * ETH 发送是零拷贝：`pl_eth.c` 的 `low_level_output()` 把 `pbuf->payload`
+ * 直接写进 DMA 发送描述符，而 `netbuf_ref()` 只登记指针、不拷贝数据。
+ * 因此调用方传进来的缓冲必须 DMA 可达（SRAM / Flash）。
+ *
+ * CCMRAM（0x10000000，CPU 专用总线）**不可被 ETH DMA 访问**，一旦缓冲落在
+ * CCM——典型就是协议任务栈，`PL_TASK_STATIC_STORAGE()` 把任务栈放进
+ * `.ccmram`——DMA 会触发 FBES 致命总线错误，整条网口停收停发
+ * （现象：ping 立刻不通，复位才恢复。2026-11-17 青海 UDP 应答实测）。
+ *
+ * 在入口直接拒绝并发信号：`g_udp_ccm_reject_cnt` 递增（调试器 Watch 可读，
+ * 不新增 RTT），让「误用栈缓冲」表现为「这一帧发不出去、可定位」，
+ * 而不是「网口整条死掉、难归因」。
+ * 段边界取自链接脚本符号，不硬编码地址。 */
+extern uint8_t _sccmram[]; /* Compiler/STM32F407XX_FLASH.ld：.ccmram 段起 */
+extern uint8_t _eccmram[]; /* Compiler/STM32F407XX_FLASH.ld：.ccmram 段止 */
+
+volatile uint32_t g_udp_ccm_reject_cnt; /*!< 因缓冲位于 CCMRAM 被拒发的累计次数 */
+
+/**
+ * @brief  判断发送缓冲是否 ETH DMA 可达。
+ * @param  data  发送缓冲。
+ * @param  len   字节数。
+ * @return true = 可发送；false = 落在 CCMRAM，已拒绝并计数。
+ */
+static bool udp_payload_dma_reachable(const uint8_t *data, uint16_t len)
+{
+    const uintptr_t a = (uintptr_t)data;
+    const uintptr_t s = (uintptr_t)_sccmram;
+    const uintptr_t e = (uintptr_t)_eccmram;
+
+    if (a < e && (a + len) > s) { /* 与 [s, e) 相交 → CCM */
+        g_udp_ccm_reject_cnt++;
+        return false;
+    }
+    return true;
+}
+
 /* ---- 信号量资源 ---- */
 static osSemaphoreId_t udp_disconnect_sem;
 
@@ -68,6 +106,9 @@ static err_t _udp_broadcast_send(struct netconn *conn, const uint8_t *data, uint
     ip_addr_t bc_addr;
     IP4_ADDR(&bc_addr, 255, 255, 255, 255);
 
+    if (!udp_payload_dma_reachable(data, len))
+        return ERR_ARG;
+
     struct netbuf *nb = netbuf_new();
     if (nb == NULL)
         return ERR_MEM;
@@ -99,6 +140,9 @@ void app_udp_broadcast(const uint8_t *data, uint16_t len)
 /* ---- UDP 通道 ops （注意：不能命名为 udp_send，与 LwIP 内部符号冲突）---- */
 static int32_t udp_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
 {
+    if (!udp_payload_dma_reachable(data, len))
+        return -1;
+
     udp_channel_t *udp = container_of(ch, udp_channel_t, me);
     struct netbuf *nb  = netbuf_new();
     if (!nb)
@@ -286,6 +330,9 @@ void app_udp_cq_broadcast(const uint8_t *data, uint16_t len)
 
 static int32_t udp_cq_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
 {
+    if (!udp_payload_dma_reachable(data, len))
+        return -1;
+
     udp_channel_t *udp = container_of(ch, udp_channel_t, me);
     struct netbuf *nb  = netbuf_new();
     if (!nb)
@@ -482,6 +529,9 @@ static udp_channel_t s_udp_gzol_ch;
 
 static int32_t udp_gzol_ch_send(channel_t *ch, const uint8_t *data, uint16_t len)
 {
+    if (!udp_payload_dma_reachable(data, len))
+        return -1;
+
     udp_channel_t *udp = container_of(ch, udp_channel_t, me);
     struct netbuf *nb  = netbuf_new();
     if (!nb)

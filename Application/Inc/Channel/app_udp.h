@@ -42,6 +42,11 @@ static inline osThreadId_t app_udp_start(void)
 uint16_t app_udp_get_port(void);
 void app_udp_broadcast(const uint8_t *data, uint16_t len);
 
+/** @brief 因发送缓冲落在 CCMRAM（ETH DMA 不可达）而被拒发的累计次数。
+ *         恒为 0 才正常；非 0 表示有协议用了任务栈数组发 UDP，调试器 Watch 直接读。
+ *         判据与拒绝逻辑见 `app_udp.c` 的 `udp_payload_dma_reachable()`。 */
+extern volatile uint32_t g_udp_ccm_reject_cnt;
+
 /* ---- CQ 业务口 UDP 通道（CH_ID_UDP_CQ；PROTO_CHONGQING 读 Sector1 net_cfg.udp_port
        默认 20103，dev 共存构建固定 20103，见 app_udp.c _udp_cq_read_port）---- */
 

@@ -61,7 +61,9 @@ static uint8_t _sc_ol_bcc_calc(const uint8_t *raw, uint16_t raw_len)
 static void _sc_ol_send_reply(channel_t *ch, uint8_t cmd, uint8_t bright,
                               const uint8_t *data, uint16_t data_len)
 {
-    uint8_t buf[SC_OL_FRAME_LEN_MAX];
+    /* 静态缓冲（SRAM）：channel_send 走网口时是 zero-copy（netbuf_ref 只登记指针），
+     * 任务栈在 CCMRAM，ETH DMA 不可访问 → 栈数组会在绑 UDP 时打死网口。 */
+    static uint8_t buf[SC_OL_FRAME_LEN_MAX];
     uint16_t len = (uint16_t)(6U + data_len); /* FF+len+cmd+bright+data+BCC+FF */
     buf[0]       = 0xFF;
     buf[1]       = (uint8_t)len;

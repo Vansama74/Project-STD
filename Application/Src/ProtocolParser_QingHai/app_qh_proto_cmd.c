@@ -42,11 +42,22 @@ static const display_color_t s_qh_color_map[] = {
  * @note   协议只写了「显示器应答：已发送数据一致」而未给字段格式，
  *         本实现取与 '1' 查询应答同构的 `7B cmd 01 sta 7D`。
  *         若创迪给出正式应答帧格式，只改这一个函数。
+ *
+ * @warning 应答缓冲必须是**持久**存储，不能用函数栈数组：
+ *         通道下发 → `udp_ch_send` → `netbuf_ref()` 只登记指针、不拷贝数据，
+ *         数据在 LwIP 真正发出前一直指向该缓冲（ARP 排队 / 异步 TX 时更明显）。
+ *         全仓其它 UDP 应答同样用持久缓冲（LDI `g_ldi.tx_buf`、IAP `pIAP_ReTmp`、
+ *         GZ `rsp_ok` 静态数组）。本模块单任务消费帧，静态缓冲无并发问题。
  */
 static void qh_reply(channel_t *ch, uint8_t cmd_char, uint8_t sta)
 {
-    uint8_t rsp[5] = {'{', cmd_char, 0x01, sta, '}'};
-    channel_send(ch, rsp, sizeof(rsp));
+    static uint8_t rsp[5];
+    rsp[0] = '{';
+    rsp[1] = cmd_char;
+    rsp[2] = 0x01;
+    rsp[3] = sta;
+    rsp[4] = '}';
+    (void)channel_send(ch, rsp, sizeof(rsp));
 }
 
 /**
