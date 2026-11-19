@@ -1007,7 +1007,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 - `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`）
 - `app_vms_ctrl`：VMS 情报板子模块，将 LDI 命令翻译为 `app_render()` 调用
 - 复合指令模块：支持多设备类型组合控制（1BH 命令）
-- **host（平台地址）存储归属**：`host_ip`/`host_port` **只存 W25 LDI 配置记录，单副本**，Sector1 `net_cfg` 不存、无出厂默认；擦 Sector1 既不恢复也不破坏 host。0AH 带全 0 host 时不覆盖（2026-11-18 零值守卫，与 lane/cert 同款）——旧实现无条件覆盖会把 host 落盘成 `0.0.0.0:0`，而 `app_tcp_client` 对「远端未配置」不连接，设备从此**永不连平台**且无默认值可回退；副作用是 host 一旦写入无法再用 0AH 清零。详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
+- **host（平台地址）存储归属**：`host_ip`/`host_port` **只存 W25 LDI 配置记录，单副本**，Sector1 `net_cfg` 不存、无出厂默认；擦 Sector1 既不恢复也不破坏 host。0AH 带全 0 host 时不覆盖（2026-11-18 零值守卫；lane/cert 自 2026-11-19 起为**成对守卫**——任一全 0 → 整帧不下发身份，0BH 的 0 为合法值、可清空身份）——旧实现无条件覆盖会把 host 落盘成 `0.0.0.0:0`，而 `app_tcp_client` 对「远端未配置」不连接，设备从此**永不连平台**且无默认值可回退；副作用是 host 一旦写入无法再用 0AH 清零。详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
 - **设备能力层（`Application/Src/LDI/app_ldi_device.c`）**：E6/E7/E8 的实际执行与状态缓存（`ldi_device_*_ctrl` / `ldi_device_timer_poll`）。该文件同时提供 **5 个 `__attribute__((weak))` 空实现**的镜像钩子（`app_ldi_etc_display/clear/lamp/alarm/heartbeat`），在命令**成功路径**（前 4 个）或**定时任务节拍**（心跳，`ldi_timer_task()` 每 3 秒无条件）调用；强实现由 `Application/Src/app_ldi_etc_bridge.c` 提供（EIDE 排除它即回退空实现）。**LDI → 四川 ETC 转义（镜像）**的映射、默认决策与开关见 `doc/20_LDI到四川ETC协议转义/README.md`（E9 VMS 不镜像、黄灯不发、报警只转显式开/关、心跳 `0A 08 0D` 3 秒周期；出站走 RS485+RS232 双口）。
 
 ## 青海协议 (`Application/Src/ProtocolParser_QingHai/app_qh_proto.c`)

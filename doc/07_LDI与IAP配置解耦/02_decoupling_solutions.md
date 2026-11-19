@@ -371,7 +371,8 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 > 0AH/0BH 应答状态码须反映真实写盘结果。
 
 **host 零值守卫（2026-11-18 已落地，`app_ldi_cmd.c` `cmd_set_ip`）**：`host_ip` 全 0 → 不覆盖
-`g_ldi.cfg.host_ip`；`host_port == 0` → 不覆盖 `g_ldi.cfg.host_port`（与同函数内的 lane/cert 守卫同款）。
+`g_ldi.cfg.host_ip`；`host_port == 0` → 不覆盖 `g_ldi.cfg.host_port`（lane/cert 守卫自 2026-11-19
+起改为**成对判定**：任一全 0 → 整帧不下发身份；0BH 的 0 为合法值、可清空身份，见 `doc/02` §6）。
 
 - **风险背景（单副本）**：host **只在 W25 LDI 配置记录里存一份**，Sector1 `net_cfg` 不存、
   无出厂默认值、擦 Sector1 也恢复不出来。平台巡检/重配类 0AH 不带 host 两栏是常态，
