@@ -4,7 +4,7 @@
  *
  * 硬件映射：
  *   E6 → app_render / dev_display
- *   E7 → dev_io_lane_light（单路灯；黄灯降级关灯，0CH 按附录 A.1 报红）
+ *   E7 → dev_lane_light_set（单路灯抽象；黄灯降级红叉，0CH 按附录 A.1 报红）
  *   E8 → dev_io_flash_light（报警器代实现；WorkMode 频率用软闪烁）
  *   F4H → dev_rs232_voice（RS232 TTS 语音板，USART6；仅按文字播报）
  *
@@ -22,6 +22,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "dev_rs232_voice.h"
 #include "app_ldi_etc_bridge.h"
 
@@ -165,7 +166,7 @@ void ldi_device_init(void)
     s_display_timer_active       = false;
     alarm_stop();
 
-    dev_io_lane_light(false);
+    dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
 }
 
 /* ================================================================
@@ -326,19 +327,22 @@ ldi_dev_result_t ldi_device_lane_signal_ctrl(const ldi_ctrl_signal_t *ctrl)
 
     switch (ctrl->color) {
         case 0x01: /* 绿 — 通行 */
-            dev_io_lane_light(true);
+            if (!dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW))
+                return LDI_DEV_FAIL;
             s_signal_sta.color          = 0x01;
             s_signal_sta.running_status = 0x01; /* A.1 绿灯 */
             app_ldi_etc_lamp(0x01);
             return LDI_DEV_OK;
         case 0x02: /* 红 — 禁行 */
-            dev_io_lane_light(false);
+            if (!dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS))
+                return LDI_DEV_FAIL;
             s_signal_sta.color          = 0x02;
             s_signal_sta.running_status = 0x00; /* A.1 红灯 */
             app_ldi_etc_lamp(0x02);
             return LDI_DEV_OK;
-        case 0x03: /* 黄 — 无独立黄灯，降级关灯，上报按红 */
-            dev_io_lane_light(false);
+        case 0x03: /* 黄 — 无独立黄灯，降级为红叉（互锁保证绿箭熄灭） */
+            if (!dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS))
+                return LDI_DEV_FAIL;
             s_signal_sta.color          = 0x03;
             s_signal_sta.running_status = 0x00; /* A.1 无黄，按红灯 */
             app_ldi_etc_lamp(0x03);             /* 黄色无 ETC 对应帧，由转义模块决定不发 */

@@ -3,7 +3,7 @@
  * @brief   山东车道费额显示器通信协议命令执行
  *
  * 显示内容映射到 app_render（GBK 直通渲染，行高 FONT_16）；
- * 灯控映射到 dev_io_lane_light / dev_io_flash_light（PD14/PD15）；
+ * 灯控映射到 dev_lane_light_set / dev_io_flash_light（PD14/PD15）；
  * 亮度 0=自动调光（恢复光敏任务），1~5 映射硬件档 {3,4,5,7,8}。
  * 协议未定义上行应答（除 '2' 取版本号回裸 ASCII 产品程序编码 PROGRAM_CODE），
  * 其余命令单向不回。
@@ -19,6 +19,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 
 /* 协议颜色索引 0/1/2 → 显示颜色（红/绿/黄） */
 static const display_color_t s_sd_color_map[] = {
@@ -168,9 +169,9 @@ static void _sd_exec_peripheral(uint8_t ctrl)
     bool red    = (ctrl & 0x02U) != 0U;
     bool yellow = (ctrl & 0x04U) != 0U;
     if (red) {
-        dev_io_lane_light(false);
+        dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
     } else if (green) {
-        dev_io_lane_light(true);
+        dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     }
     dev_io_flash_light(yellow);
 }

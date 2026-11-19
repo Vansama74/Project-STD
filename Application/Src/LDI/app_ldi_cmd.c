@@ -1139,7 +1139,22 @@ static void cmd_ctrl(channel_t *ch, void *data)
             }
             case LDI_DEV_TYPE_VOICE: { // F4H 语音播报 (01H)
                 ldi_ctrl_voice_t *ctrl = (ldi_ctrl_voice_t *)payload;
-                (void)ctrl; // TODO: dev_voice_ctrl(ctrl)
+                /* payload = DeviceFuncType(1) + Type(1) + Length(2, BE) + Data(N)。
+                 * 仅支持 Type=00H 按文字播报（GBK 文本 → USART6 TTS 语音板）；
+                 * Type=01H 指定语音序列本板不支持 → 如实回 CtlStatus=01H。 */
+                uint16_t fixed = (uint16_t)sizeof(ldi_ctrl_voice_t);
+                uint16_t need  = (uint16_t)(sizeof(ldi_module_head_t) + fixed);
+                if (ctrl->device_func_type != 0x01 || mod_len < need || ctrl->type != 0x00) {
+                    rsp->modules[i].status = 0x01;
+                    break;
+                }
+                uint16_t n = (uint16_t)(((uint16_t)ctrl->length[0] << 8) | ctrl->length[1]);
+                if (n == 0U || (uint32_t)need + n > mod_len) {
+                    rsp->modules[i].status = 0x01;
+                    break;
+                }
+                if (!ldi_device_voice_ctrl(ctrl->data, n))
+                    rsp->modules[i].status = 0x01;
                 break;
             }
             default:

@@ -333,6 +333,10 @@ extern "C" {
 #endif /* HAL_DCMI_MODULE_ENABLED */
 
 #ifdef HAL_ETH_MODULE_ENABLED
+/* DMA 描述符环深度：默认 4 在 100Mbps 下仅约 0.5ms 缓冲，突发时易触发
+ * RBU（接收缓冲不可用）；8 个约 1ms，代价约 300B SRAM。 */
+#define ETH_RX_DESC_CNT          8U
+#define ETH_TX_DESC_CNT          8U
 #include "stm32f4xx_hal_eth.h"
 #endif /* HAL_ETH_MODULE_ENABLED */
 

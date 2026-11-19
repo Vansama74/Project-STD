@@ -3,6 +3,8 @@
 #include "pl_eth.h"
 #include <string.h>
 #include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* ---- 宏定义 ---- */
 #define TIME_WAITING_FOR_INPUT (portMAX_DELAY)  /**< 等待接收数据的超时时间 */
@@ -41,6 +43,14 @@ typedef struct {
 #define ETH_RX_BUFFER_CNT 12U
 LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
 
+/* RX_POOL 的 memp 分配/释放必须互斥：lwIP memp 层非线程安全。
+ * 分配发生在 EthIf 线程（RxAllocateCallback / 描述符重建），
+ * 释放发生在 tcpip/应用线程（pbuf_free_custom）。
+ * 台架 2026-11-19 定级：高负载并发 alloc/free 损坏自由链表
+ * （链表成自环、所有描述符指向同一缓冲、网络永久死亡）。 */
+#define RX_POOL_LOCK()   taskENTER_CRITICAL()
+#define RX_POOL_UNLOCK() taskEXIT_CRITICAL()
+
 /* ---- 变量定义 ---- */
 static uint8_t RxAllocStatus;                           /**< Rx 缓冲区分配状态 */
 
@@ -58,6 +68,12 @@ static uint8_t RxAllocStatus;                           /**< Rx 缓冲区分配�
 #define ETH_DMA_FAULT_MASK  (ETH_DMASR_FBES | ETH_DMASR_RPSS | ETH_DMASR_RBUS)
 
 static volatile uint8_t g_eth_dma_fault;                /**< 1 = 需在任务上下文重启 ETH DMA */
+volatile uint32_t g_eth_tx_busy_retries;   /**< TX 描述符忙重试次数（调试器可读） */
+volatile uint32_t g_eth_tx_drops;          /**< TX 有界重试仍失败而丢弃的帧数 */
+volatile uint32_t g_eth_rx_recoveries;     /**< RX 看门狗触发 DMA 重启次数 */
+volatile uint32_t g_eth_rx_pool_exhausts;  /**< RX_POOL 分配失败（池耗尽）次数 */
+volatile uint32_t g_eth_rx_rbu_events;     /**< DMA 报 RBU（接收缓冲不可用）次数 */
+volatile uint32_t g_eth_tx_wedges;         /**< TX 挂起（TPS=6/TBUS）看门狗恢复次数 */
 
 ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT];      /**< ETH Rx DMA 描述符表 */
 ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT];      /**< ETH Tx DMA 描述符表 */
@@ -96,6 +112,10 @@ void HAL_ETH_ErrorCallback(ETH_HandleTypeDef *handlerEth)
 {
     uint32_t err = HAL_ETH_GetDMAError(handlerEth);
     err |= (uint32_t)(handlerEth->Instance->DMASR & ETH_DMASR_RPSS);
+
+    if ((err & ETH_DMASR_RBUS) != 0U) {
+        g_eth_rx_rbu_events++;
+    }
 
     if ((err & ETH_DMA_FAULT_MASK) == 0U) {
         return; /* ETS / RWTS 等非致命状态：HAL 已清位，无需重启 DMA */
@@ -307,23 +327,29 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
     pbuf_ref(p);
 
-    do {
+    /* 任务上下文先回收已完成包（正常路径不再只依赖忙分支回收） */
+    (void)HAL_ETH_ReleaseTxPacket(&heth);
+
+    uint8_t tries = 0U;
+    for (;;) {
         if (HAL_ETH_Transmit_IT(&heth, &TxConfig) == HAL_OK) {
             errval = ERR_OK;
-        } else {
-            if (HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) {
-                /* DMA 忙，等待描述符释放后重试 */
-                osSemaphoreAcquire(TxPktSemaphore, ETHIF_TX_TIMEOUT);
-                HAL_ETH_ReleaseTxPacket(&heth);
-                errval = ERR_BUF;
-            } else {
-                /* 不可恢复的错误 */
-                pbuf_free(p);
-                errval = ERR_IF;
-            }
+            break;
         }
-    } while (errval == ERR_BUF);
-
+        if ((HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY) == 0U) {
+            pbuf_free(p);
+            return ERR_IF;
+        }
+        /* DMA 忙：等待完成信号并回收，最多重试 3 次（约 6s），绝不无限阻塞 */
+        (void)osSemaphoreAcquire(TxPktSemaphore, ETHIF_TX_TIMEOUT);
+        (void)HAL_ETH_ReleaseTxPacket(&heth);
+        g_eth_tx_busy_retries++;
+        if (++tries >= 3U) {
+            pbuf_free(p);
+            g_eth_tx_drops++;
+            return ERR_BUF;
+        }
+    }
     return errval;
 }
 
@@ -372,8 +398,33 @@ static void eth_dma_recover(void)
     if (heth.gState == HAL_ETH_STATE_STARTED) {
         (void)HAL_ETH_Stop_IT(&heth);
     }
+    /* 回收仍挂在 RX 描述符上的零拷贝池缓冲：Start 重建描述符环不会自动归还，
+     * 不回收则每次恢复泄漏最多 ETH_RX_DESC_CNT 个池缓冲，几次后池耗尽。
+     * 临界区：与 tcpip/应用线程的释放互斥。 */
+    for (uint32_t i = 0U; i < ETH_RX_DESC_CNT; i++) {
+        uint32_t buff = DMARxDscrTab[i].BackupAddr0;
+        if (buff != 0U) {
+            DMARxDscrTab[i].BackupAddr0 = 0U;
+            RX_POOL_LOCK();
+            LWIP_MEMPOOL_FREE(RX_POOL, (struct pbuf_custom *)(buff - offsetof(RxBuff_t, buff)));
+            RX_POOL_UNLOCK();
+        }
+    }
+    /* 台架 2026-11-19 定级：回收是直接归还，不会走 pbuf_free_custom 的
+     * RxAllocStatus 复位分支 —— 状态锁存会永久停在 ERROR，看门狗与接收闸门
+     * 双重被挡导致网络死亡。此处归还后必须同步复位锁存。 */
+    if (RxAllocStatus != RX_ALLOC_OK) {
+        RxAllocStatus = RX_ALLOC_OK;
+    }
+    /* 半帧残留清空，避免下次 ReadData 链接到已回收的缓冲 */
+    heth.RxDescList.pRxStart = NULL;
+    heth.RxDescList.pRxEnd   = NULL;
     if (heth.gState == HAL_ETH_STATE_READY) {
         (void)HAL_ETH_Start_IT(&heth);
+        /* 清粘滞状态位（写 1 清零），避免看门狗对同一故障反复触发 */
+        heth.Instance->DMASR = (ETH_DMASR_RPSS | ETH_DMASR_RBUS | ETH_DMASR_TBUS
+                | ETH_DMASR_TPSS | ETH_DMASR_ETS | ETH_DMASR_FBES | ETH_DMASR_AIS
+                | ETH_DMASR_TUS);
     }
 }
 
@@ -383,7 +434,57 @@ void ethernetif_input(void *argument)
     struct netif *netif = (struct netif *)argument;
 
     for (;;) {
-        if (osSemaphoreAcquire(RxPktSemaphore, TIME_WAITING_FOR_INPUT) == osOK) {
+        osStatus_t rx_st = osSemaphoreAcquire(RxPktSemaphore, 1000U);
+        if (rx_st != osOK) {
+            /* 看门狗（台架 2026-11-19 三次实测定级）：
+             * ① RPS=3/TPS=6（挂起）不置 RPSS/RBUS 位 → 旧判据漏检；
+             * ② 池状态锁存 RxAllocStatus 不能作为恢复前置（回收路径可能
+             *    未走 pbuf_free_custom 的复位分支）；
+             * ③ TUS（发送欠载）置位后 DMA 挂起且 HAL 从不清除；
+             * ④ 池瞬时耗尽会留下未重挂的描述符 → 挂起自锁，轮询请求无效。
+             * 轻量恢复（不重建描述符环、不触碰池）：
+             *   清 TUS → 接收停止则置 DMAOMR.SR 重启接收 → 轮询请求 →
+             *   唤醒本线程走正常 ReadData 路径重挂描述符。
+             * 仅致命错误（FBES）走 eth_dma_recover 完整重建。 */
+            uint32_t dmasr = heth.Instance->DMASR;
+            uint32_t rps   = (dmasr & ETH_DMASR_RPS_Msk) >> ETH_DMASR_RPS_Pos;
+            uint32_t tps   = (dmasr & ETH_DMASR_TPS_Msk) >> ETH_DMASR_TPS_Pos;
+            uint32_t rx_wedge = ((dmasr & ETH_DMASR_RPSS) != 0U)
+                    || ((dmasr & ETH_DMASR_RBUS) != 0U) || (rps == 3U);
+            uint32_t tx_wedge = ((dmasr & ETH_DMASR_TBUS) != 0U)
+                    || ((dmasr & ETH_DMASR_TUS) != 0U) || (tps == 6U);
+            if (g_eth_dma_fault != 0U || rx_wedge || tx_wedge) {
+                if (RxAllocStatus != RX_ALLOC_OK) {
+                    RxAllocStatus = RX_ALLOC_OK;
+                }
+                g_eth_rx_recoveries++;
+                if (tx_wedge) {
+                    g_eth_tx_wedges++;
+                }
+                if (g_eth_dma_fault != 0U) {
+                    g_eth_dma_fault = 0U;
+                    eth_dma_recover();
+                } else {
+                    if ((dmasr & ETH_DMASR_TUS) != 0U) {
+                        /* 欠载：先清 TUS（写 1 清零，HAL 中断分支不清该位） */
+                        heth.Instance->DMASR = ETH_DMASR_TUS;
+                    }
+                    if ((dmasr & ETH_DMASR_RPSS) != 0U) {
+                        /* 接收进程停止：轮询请求无效，置 SR 重新启动接收 */
+                        heth.Instance->DMAOMR |= ETH_DMAOMR_SR;
+                    }
+                    WRITE_REG(heth.Instance->DMARPDR, 0U);
+                    WRITE_REG(heth.Instance->DMATPDR, 0U);
+                    /* 唤醒本线程：走正常 do-while ReadData 路径重挂描述符
+                     * （信号量已满时释放为无副作用失败） */
+                    (void)osSemaphoreRelease(RxPktSemaphore);
+                }
+            }
+            /* 不在此处调用 HAL_ETH_ReleaseTxPacket：与 tcpip 线程
+             * low_level_output 并发操作 TX 描述符链表会损坏 TxDescList。 */
+            continue;
+        }
+        {
             /* DMA 故障：本线程负责重启（ISR 里不能跑 HAL_Delay） */
             if (g_eth_dma_fault != 0U) {
                 g_eth_dma_fault = 0U;
@@ -466,7 +567,10 @@ err_t ethernetif_init(struct netif *netif)
 void pbuf_free_custom(struct pbuf *p)
 {
     struct pbuf_custom *custom_pbuf = (struct pbuf_custom *)p;
+    /* 临界区：与 EthIf 线程的分配互斥，防止自由链表被并发破坏 */
+    RX_POOL_LOCK();
     LWIP_MEMPOOL_FREE(RX_POOL, custom_pbuf);
+    RX_POOL_UNLOCK();
 
     if (RxAllocStatus == RX_ALLOC_ERROR) {
         RxAllocStatus = RX_ALLOC_OK;
@@ -672,7 +776,10 @@ void ethernet_link_thread(void *argument)
  */
 void HAL_ETH_RxAllocateCallback(uint8_t **buff)
 {
+    /* 临界区：与 tcpip/应用线程的释放互斥，防止自由链表被并发破坏 */
+    RX_POOL_LOCK();
     struct pbuf_custom *p = LWIP_MEMPOOL_ALLOC(RX_POOL);
+    RX_POOL_UNLOCK();
     if (p) {
         *buff                   = (uint8_t *)p + offsetof(RxBuff_t, buff);
         p->custom_free_function = pbuf_free_custom;
@@ -680,6 +787,7 @@ void HAL_ETH_RxAllocateCallback(uint8_t **buff)
         pbuf_alloced_custom(PBUF_RAW, 0, PBUF_REF, p, *buff, ETH_RX_BUF_SIZE);
     } else {
         RxAllocStatus = RX_ALLOC_ERROR;
+        g_eth_rx_pool_exhausts++;
         *buff         = NULL;
     }
 }

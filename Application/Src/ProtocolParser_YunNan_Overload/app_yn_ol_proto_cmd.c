@@ -21,6 +21,7 @@
 #include "cmsis_os2.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "dev_w25qxx.h"    /* 0x49 持久化（W25Qxx 独立扇区记录） */
 #include "pl_crc.h"        /* CRC32（记录校验，与 LDI 记录同源） */
 #include "stm32f4xx_hal.h" /* NVIC_SystemReset */
@@ -441,9 +442,9 @@ static int _yn_ol_exec_peripheral(uint8_t ctrl)
     const bool red    = (ctrl & 0x02U) != 0U;
     const bool yellow = (ctrl & 0x04U) != 0U;
     if (red) {
-        dev_io_lane_light(false);
+        dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
     } else if (green) {
-        dev_io_lane_light(true);
+        dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     }
     dev_io_flash_light(yellow);
     return YN_OL_EXEC_OK;

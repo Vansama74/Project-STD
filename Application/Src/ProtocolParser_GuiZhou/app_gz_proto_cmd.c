@@ -3,7 +3,7 @@
  * @brief   贵州常规费显协议命令执行
  *
  * 显示内容映射到 app_render（协议文本 GBK 直通渲染，构造行文 UTF-8 渲染，行高 FONT_16）；
- * 灯控映射到 dev_io_lane_light / dev_io_flash_light（红优先）；
+ * 灯控映射到 dev_lane_light_set / dev_io_flash_light（红优先）；
  * 亮度 0=自动调光（恢复光敏任务），1~5 映射硬件档 {3,4,5,7,8}；
  * 音量 1~5 映射语音板音量 {1,3,5,7,9}（差异表见 doc/10 §3）；
  * 语音经 dev_rs232_voice 旁路 USART6。
@@ -24,6 +24,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "dev_rs232_voice.h"
 #include "text_cvt.h"
 
@@ -346,9 +347,9 @@ static void _gz_exec_peripheral(uint8_t ctrl)
     bool red    = (ctrl & 0x02U) != 0U;
     bool yellow = (ctrl & 0x04U) != 0U;
     if (red) {
-        dev_io_lane_light(false);
+        dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
     } else if (green) {
-        dev_io_lane_light(true);
+        dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     }
     dev_io_flash_light(yellow);
 }

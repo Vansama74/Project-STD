@@ -19,6 +19,7 @@
 #include "app_light_sensor.h"
 #include "app_test.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "stm32f4xx_hal.h"
 #include "app_boot.h"
 #include "pl_task_guard.h"
@@ -249,7 +250,7 @@ static void factory_monitor_task(void *argument)
                     .v_align = ALIGN_CENTER,
             },
         });
-        dev_io_lane_light(false);
+        dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
         dev_io_flash_light(true);
         dev_display_commit_frame(dsp);
 
@@ -274,7 +275,7 @@ static void factory_monitor_task(void *argument)
                     .v_align = ALIGN_CENTER,
             },
         });
-        dev_io_lane_light(true);
+        dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
         dev_io_flash_light(false);
         dev_display_commit_frame(dsp);
 
@@ -301,7 +302,7 @@ static void factory_monitor_task(void *argument)
                                          ch_len > 2 ? ch_ptr[2] : 0, 0};
 
                     _aging_fill_screen(fsize, s_aging_types[type_idx], single_ch, ch_len);
-                    dev_io_lane_light(lane_green);
+                    dev_lane_light_set(lane_green ? DEV_LANE_LIGHT_GREEN_ARROW : DEV_LANE_LIGHT_RED_CROSS);
                     lane_green = !lane_green;
 
                     bool pressed = _factory_wait_tst(3000);

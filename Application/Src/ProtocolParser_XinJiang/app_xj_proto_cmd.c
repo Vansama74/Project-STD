@@ -18,6 +18,7 @@
 #include "cmsis_os2.h"       /* osThreadSuspend / osThreadResume */
 #include "dev_display.h"
 #include "dev_io_ctrl.h"     /* 车道灯 PD14 / 黄闪灯 PD15 */
+#include "dev_lane_light.h"
 #include "dev_rs232_voice.h" /* 语音板 TTS + 音量（USART6 旁路） */
 #include "text_cvt.h"        /* UTF8ToGBK（预制语音文案） */
 
@@ -484,11 +485,11 @@ void xj_execute_cmd(const channel_t *src_ch, const uint8_t *raw, uint16_t raw_le
             break;
 
         case XJ_PCMD_LANE_GREEN:
-            dev_io_lane_light(true); /* PD14：亮 = 通行绿灯 */
+            dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW); /* PD14：亮 = 通行绿灯 */
             break;
 
         case XJ_PCMD_LANE_RED:
-            dev_io_lane_light(false);
+            dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
             break;
 
         /* §3.1.6 'G' 全亮 / §3.1.7 'H' 全关：本硬件只有一路通行灯（PD14 单灯，
@@ -496,11 +497,11 @@ void xj_execute_cmd(const channel_t *src_ch, const uint8_t *raw, uint16_t raw_le
          * 'H' 取关闭侧（灭）——这是单灯硬件上对「全亮/全关」的唯一可表达近似，
          * 与 PDF §2「若集成通行灯……命令有效否则无效」的降级口径一致。 */
         case XJ_PCMD_LANE_BOTH_ON:
-            dev_io_lane_light(true);
+            dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
             break;
 
         case XJ_PCMD_LANE_BOTH_OFF:
-            dev_io_lane_light(false);
+            dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
             break;
 
         case XJ_PCMD_ALARM_ON:

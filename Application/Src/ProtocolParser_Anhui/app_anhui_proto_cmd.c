@@ -17,6 +17,7 @@
 #include "app_light_sensor.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "app_anhui_proto_voice.h"
 
 /* 协议文档未定义显示颜色 → 默认红色（费额显示器常规红）；待上位机联调确认 */
@@ -209,7 +210,7 @@ static void _anhui_exec_brightness(uint16_t value)
 static void _anhui_exec_io_ctrl(const anhui_io_ctrl_t *p)
 {
     if (p->type == 1) {
-        dev_io_lane_light(p->param == 1);
+        dev_lane_light_set((p->param == 1) ? DEV_LANE_LIGHT_GREEN_ARROW : DEV_LANE_LIGHT_RED_CROSS);
     } else {
         dev_io_flash_light(p->param == 1);
     }

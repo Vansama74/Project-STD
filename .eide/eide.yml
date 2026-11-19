@@ -363,6 +363,12 @@ virtualFolder:
             - path: Device/Display/dev_display_22_1665.c
             - path: Device/Display/dev_display_p20.c
           folders: []
+        - name: LaneLight
+          files:
+            - path: Device/LaneLight/dev_lane_light.c
+            - path: Device/LaneLight/default/dev_LaneLight_default.c
+            - path: Device/LaneLight/DryContact/dev_LaneLight_DryContact.c
+          folders: []
     - name: Platform
       files:
         - path: Platform/Src/pl_gpio.c
@@ -475,6 +481,7 @@ targets:
       - <virtual_root>/Device/Display/dev_display_1_260.c
       - <virtual_root>/Device/Display/dev_display_1_969.c
       - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Device/LaneLight/DryContact/dev_LaneLight_DryContact.c
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
       - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
       - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
@@ -666,8 +673,10 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
       - <virtual_root>/Device/Display/dev_display_1_577.c
       - <virtual_root>/Device/Display/dev_display_1_263.c
+      - <virtual_root>/Device/LaneLight/DryContact/dev_LaneLight_DryContact.c
       - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Device/LaneLight/dev_LaneLight_DryContact.c
     settings:
       debugger: cortex-debug
     toolchain: GCC

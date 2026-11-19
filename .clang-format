@@ -1,12 +1,11 @@
-# For more options, open this url: https://clang.llvm.net.cn/docs/ClangFormatStyleOptions.html
-
+# Style reference: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+# Base: Microsoft (Visual Studio-like), tuned for this embedded C project.
 BasedOnStyle: Microsoft
 IndentWidth: 4
 UseTab: Never
 TabWidth: 4
 ColumnLimit: 0
 
-Language: Cpp
 AccessModifierOffset: -4
 NamespaceIndentation: All
 FixNamespaceComments: false
@@ -18,4 +17,4 @@ IndentCaseLabels: true
 SortIncludes: false
 AlignConsecutiveMacros: AcrossEmptyLines
 AlignConsecutiveAssignments: Consecutive
-BoolAcrossComments: true
+AlignTrailingComments: true

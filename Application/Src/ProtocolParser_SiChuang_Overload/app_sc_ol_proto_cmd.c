@@ -3,7 +3,7 @@
  * @brief   四川治超屏协议（1F，3.5.1 串口方式）命令执行
  *
  * 显示映射到 app_render（GBK 直通渲染，行高 FONT_16）；
- * 通行灯/黄闪映射到 dev_io_lane_light / dev_io_flash_light；
+ * 通行灯/黄闪映射到 dev_lane_light_set / dev_io_flash_light；
  * 查询类应答「收到即回」，回显本模块维护的当前状态。
  *
  * 应答帧构造说明（文档 3.5.1 (7) 示例内部不一致）：
@@ -23,6 +23,7 @@
 #include "app_light_sensor.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 
 /* ---- 当前屏状态（查询应答回显用）---- */
 static uint8_t s_ol_lines[SC_OL_LINE_COUNT][SC_OL_LINE_TEXT_MAX]; /**< 八行显示内容（空行 0x00） */
@@ -240,7 +241,7 @@ void sc_ol_execute_cmd(channel_t *ch, const sc_ol_parsed_cmd_t *cmd)
             s_ol_lane = cmd->p.byte_val.val;
             /* 通行灯命令同步更新显示颜色 */
             s_ol_color = (s_ol_lane != 0U) ? COLOR_GREEN : COLOR_RED;
-            dev_io_lane_light(s_ol_lane != 0U); /* 00 红 / 01 绿 */
+            dev_lane_light_set((s_ol_lane != 0U) ? DEV_LANE_LIGHT_GREEN_ARROW : DEV_LANE_LIGHT_RED_CROSS); /* 00 红 / 01 绿 */
             break;
         case SC_OL_PCMD_YELLOW_FLASH:
             s_ol_flash = cmd->p.byte_val.val;

@@ -10,6 +10,7 @@
 #include "cmsis_os2.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "app_render.h"
 
 /* ================================================================
@@ -75,9 +76,9 @@ void app_test_render_text(void)
 
 void app_test_io_output(void)
 {
-    dev_io_lane_light(true);
+    dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     osDelay(1000);
-    dev_io_lane_light(false);
+    dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
 
     dev_io_flash_light(true);
     osDelay(1000);

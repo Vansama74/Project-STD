@@ -3,7 +3,7 @@
  * @brief   四川 ETC 费显协议（1D）命令执行
  *
  * 显示内容映射到 app_render（GBK 直通渲染，行高 FONT_16）；
- * 灯控映射到 dev_io_lane_light / dev_io_flash_light；
+ * 灯控映射到 dev_lane_light_set / dev_io_flash_light；
  * 上行应答「收到即回」：00 正常 / 01 数据超长 / 02
  * 帧错误；心跳帧不回（文档单向）。
  */
@@ -18,6 +18,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "stm32f4xx_hal.h"
 
 /** 每行数据字节数（原 14B/7 字；单行上限 24B/12 字） */
@@ -236,12 +237,12 @@ void sc_etc_execute_cmd(channel_t *ch, const sc_etc_parsed_cmd_t *cmd) {
     break;
   case SC_ETC_PCMD_LIGHT_RED:
     s_etc_color = COLOR_RED; /* 红灯 → 后续显示红色 */
-    dev_io_lane_light(false);
+    dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
     _sc_etc_send_ack(ch, 0x00);
     break;
   case SC_ETC_PCMD_LIGHT_GREEN:
     s_etc_color = COLOR_GREEN; /* 绿灯 → 后续显示绿色 */
-    dev_io_lane_light(true);
+    dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     _sc_etc_send_ack(ch, 0x00);
     break;
   case SC_ETC_PCMD_LIGHT_YELLOW_ON:

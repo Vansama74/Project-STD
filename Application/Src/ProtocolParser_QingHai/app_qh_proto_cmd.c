@@ -21,6 +21,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 
 /* V1.0：点阵固定 4 行（协议「费显点阵显示 4行」） */
 #define QH_DISPLAY_ROWS (4U)
@@ -152,11 +153,11 @@ static bool qh_exec_peripheral(uint8_t ctrl)
     switch (ctrl) {
         case 0x01: /* 通行灯显示红叉 */
             dev_io_flash_light(false);
-            dev_io_lane_light(false);
+            dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
             return true;
         case 0x02: /* 通行灯显示绿箭 */
             dev_io_flash_light(false);
-            dev_io_lane_light(true);
+            dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
             return true;
         case 0x03: /* 报警开 */
             dev_io_flash_light(true);

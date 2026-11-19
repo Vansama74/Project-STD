@@ -6,7 +6,7 @@
  * 协议原文 24 点阵、一行 12 ASCII / 6 汉字，本设备 24 点阵一行可容纳
  * 16 ASCII / 8 汉字，超宽由渲染引擎截断；行号 '1'~'5' 全按协议接受，
  * 行 5 在 96px 屏高下「执行但不落屏」）；
- * 灯控映射到 dev_io_lane_light / dev_io_flash_light（红优先，与贵州裁决一致）；
+ * 灯控映射到 dev_lane_light_set / dev_io_flash_light（红优先，与贵州裁决一致）；
  * 亮度 0x00=恢复光敏自动调光、'1'~'8'=挂起光敏 + 硬件档恒等映射（8 最亮）；
  * 自检 '2' 复用出厂测试「老化循环显示」序列 + 每 5s 播报「系统正在自检」，
  * 可被下一帧命令打断；
@@ -32,6 +32,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_lane_light.h"
 #include "dev_rs232_voice.h"
 #include "text_cvt.h"
 
@@ -435,9 +436,9 @@ static void _yn_exec_peripheral(uint8_t ctrl)
     bool red    = (ctrl & 0x02U) != 0U;
     bool yellow = (ctrl & 0x04U) != 0U;
     if (red) {
-        dev_io_lane_light(false);
+        dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
     } else if (green) {
-        dev_io_lane_light(true);
+        dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
     }
     dev_io_flash_light(yellow);
 }

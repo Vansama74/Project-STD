@@ -21,6 +21,7 @@
 #include "cmsis_os2.h"        /* osThreadSuspend / osKernelGetTickCount */
 #include "dev_display.h"
 #include "dev_io_ctrl.h"      /* 车道灯 PD14 / 报警灯 PD15 */
+#include "dev_lane_light.h"
 #include "dev_rs232_voice.h"  /* 语音板 TTS（USART6 旁路） */
 #include "text_cvt.h"         /* UTF8ToGBK（语音文案） */
 
@@ -259,12 +260,12 @@ static void _gx_exec_lane(const gx_parsed_cmd_t *cmd)
     switch (cmd->lamp) {
         case GX_LAMP_GREEN_ON:
         case GX_LAMP_RED_OFF:
-            dev_io_lane_light(true);
+            dev_lane_light_set(DEV_LANE_LIGHT_GREEN_ARROW);
             break;
 
         case GX_LAMP_GREEN_OFF:
         case GX_LAMP_RED_ON:
-            dev_io_lane_light(false);
+            dev_lane_light_set(DEV_LANE_LIGHT_RED_CROSS);
             break;
 
         case GX_LAMP_ALARM_ON:
