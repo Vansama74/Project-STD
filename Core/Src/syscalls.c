@@ -37,7 +37,7 @@ extern int __io_getchar(void) __attribute__((weak));
 /* printf 系列在本工程无落地点：此处提供显式的「无输出」实现，避免弱符号未定义时
  * 被解析为地址 0 的隐患（调用即跳 0）。业务代码不使用 printf 输出
  * （仅 newlib 内部/第三方错误路径可能引用），调试输出走调试器（见
- * `.cursor/rules/no-rtt-debug.mdc` 与 doc/18_注释规范.md）。 */
+ * `AGENTS.md` 与 doc/18_注释规范.md）。 */
 int __io_putchar(int ch)
 {
     return ch;

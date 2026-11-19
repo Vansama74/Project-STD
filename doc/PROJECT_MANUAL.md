@@ -1,6 +1,7 @@
 # PROJECT_MANUAL.md
 
 > 本文件原名 `doc/CLAUDE.md`（2026-11-19 更名为 `doc/PROJECT_MANUAL.md`，移出 Cursor 的自动规则注入范围）。
+> 同日三条项目规则（`no-rtt-debug.mdc` / `no-dot-analysis.mdc` / `eide-only-build.mdc`）并入仓库根 `AGENTS.md`。
 > 文中历史变更记录里的旧路径已按现名统一改写。
 
 此文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
@@ -1279,7 +1280,7 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 （`g_fault_*`，调试器 Watch 窗口读）、`volatile` 观察变量与调试器断点；
 `vApplicationMallocFailedHook`/`vApplicationStackOverflowHook` 仍保留「关中断死循环保现场」行为。
 需要临时观察运行时状态时，改用调试器（Watch 窗口读全局变量、断点、`g_fault_*` 现场变量）；
-确需在代码里临时打点，**先征得用户明确同意**，并说明回退方式（见规则 `.cursor/rules/no-rtt-debug.mdc`）。
+确需在代码里临时打点，**先征得用户明确同意**，并说明回退方式（见规则 `AGENTS.md`）。
 **注**：`SEGGER_RTT_Syscalls_GCC.c` 提供强 `_write`/`_write_r` ⇒ 第三方/assert 路径的 printf 落 RTT 通道 0
 （业务代码 0 处 printf）；要「严格无 printf 重定向」需把该文件移出 `SRC_RTT`（一行）。
 段尺寸代价 = text +464 / rodata +40 / bss +1208（doc/06-04 §8.4.4）。
@@ -1318,5 +1319,5 @@ PHY 寄存器操作、自动协商、链路状态检测。通过 IO 上下文注
 - 函数命名：`_` 前缀 = 内部静态函数、模块前缀 `pl_`/`dev_`/`app_` = 公开 API
 - GPIO 定义遵循 CubeMX 命名
 - 注释规范详见 `doc/18_注释规范.md`（**保留**：文件头 ≤10 行 = 模块职责 + doc 指针、函数用途/参数/返回值/单位/范围、结构体/表/宏/枚举字段语义、紧贴代码的一句话硬约束；**禁止**：调试说明、日期化历史修复记录、轮次叙事、A/B 测量与段尺寸/md5、踩坑与现场事故叙述、被注释掉的代码块——此类信息一律写入对应 `doc/xx_*/README.md`）
-- **业务代码默认禁止新增 RTT 调试**（Cursor 规则 `.cursor/rules/no-rtt-debug.mdc`，仓库纪律同款）：用户未明确要求时不得在业务代码加 `SEGGER_RTT_*` 调用、`pl_rtt` 打印封装、诊断打印宏（`APP_DIAG` / `*_RTT_DIAG` / `[diag]` 类设施）、调试 dump/探针函数与仅为调试的 include；临时观察改用调试器（Watch/断点/HardFault 现场变量）或先征得用户明确同意并说明回退方式。RTT 底层（`Middlewares/Third_Party/SEGGER_RTT/**`、`Platform/Src/pl_rtt.c`、Makefile `SRC_RTT` 与 `-I`、`.eide/eide.yml` 收录）属基础设施，不得删除/改动（除非用户明确要求）。
+- **业务代码默认禁止新增 RTT 调试**（Cursor 规则 `AGENTS.md`，仓库纪律同款）：用户未明确要求时不得在业务代码加 `SEGGER_RTT_*` 调用、`pl_rtt` 打印封装、诊断打印宏（`APP_DIAG` / `*_RTT_DIAG` / `[diag]` 类设施）、调试 dump/探针函数与仅为调试的 include；临时观察改用调试器（Watch/断点/HardFault 现场变量）或先征得用户明确同意并说明回退方式。RTT 底层（`Middlewares/Third_Party/SEGGER_RTT/**`、`Platform/Src/pl_rtt.c`、Makefile `SRC_RTT` 与 `-I`、`.eide/eide.yml` 收录）属基础设施，不得删除/改动（除非用户明确要求）。
 - **业务代码不使用编译期断言做防御**（2026-10-13 用户裁决）：`_Static_assert` / `static_assert` 不用于业务代码（`Application`/`Device`/`Platform`/`Kernel`/`Core`）——约束写成「一行契约注释（含越限后果）+ doc 指针」（规范 `doc/18_注释规范.md` §2 第 10 条）。**现行全项目业务代码 0 条**（第一轮清 12 条 + 第二轮 64 条 + **裁决执行轮再清保留的 6 条：`dev_display_22_1665.c` 2 + `app_dispatch.c` 4**）；清理计数与零回归证据见 `.analysis/comment_pass_20261013/report.md` §⑧ ~ §⑨。
