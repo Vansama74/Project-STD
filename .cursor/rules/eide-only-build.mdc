@@ -37,5 +37,5 @@ alwaysApply: true
 
 ## 交叉引用
 
-- 口径现状与「按需点选」配方：`doc/构建开关总表.md` §7、`doc/CLAUDE.md` 构建小节。
+- 口径现状与「按需点选」配方：`doc/构建开关总表.md` §7、`doc/PROJECT_MANUAL.md` 构建小节。
 - 仓库纪律（禁止 `.analysis/`）：`.cursor/rules/no-dot-analysis.mdc`。

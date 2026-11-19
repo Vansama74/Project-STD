@@ -366,7 +366,7 @@ parse 拒绝（与裸机行为一致，不兼容字符串）。
 `[netcfg] ldi_ctx_init/branch1/2/3/branch2 write-back/boot-apply`、
 `[cq] udp_cq port` 等 RTT 标签，2026-08-21 已按「代码-文档同步」全部删除
 （setip 排障改用静态审计 + 双构建验证，见 B.7.1 验证方法列）。仅
-`app_board_net_cfg.c` 的 `[fwver]` 日志保留（doc/CLAUDE.md 0x03 判断路径依赖）。
+`app_board_net_cfg.c` 的 `[fwver]` 日志保留（doc/PROJECT_MANUAL.md 0x03 判断路径依赖）。
 
 ### B.7.2 心跳宽松语义 / 故障屏恢复 / 临界区（2026-08-21 修订）
 

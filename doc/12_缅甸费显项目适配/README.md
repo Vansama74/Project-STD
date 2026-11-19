@@ -53,4 +53,4 @@ STD 主板不改板（复用 HUB75 排座引出信号），外接一块**接口�
 
 | 日期 | 内容 |
 |---|---|
-| 2026-08-31 | 新建：缅甸费显项目适配方案设计（方案 B 接口板），5 文件；事实依据为 MianDian_Fee 源码实测 + STD Core/Application 源码实测；同步 doc/CLAUDE.md 文档地图 |
+| 2026-08-31 | 新建：缅甸费显项目适配方案设计（方案 B 接口板），5 文件；事实依据为 MianDian_Fee 源码实测 + STD Core/Application 源码实测；同步 doc/PROJECT_MANUAL.md 文档地图 |

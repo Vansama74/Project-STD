@@ -360,7 +360,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 **裁决（Q7）**：协议文档中的上电显示**不需要实现**。原 `app_yn_ol_proto_default.c` 及其
 `app_default_display_register` 注册、5s 熄灭惰性任务（`yn_ol_blank`）与相关资源**已全部删除**；
-`Makefile` / `.eide/eide.yml` / `CLAUDE.md` / 本文档中相关表述同步清理。
+`Makefile` / `.eide/eide.yml` / `PROJECT_MANUAL.md` / 本文档中相关表述同步清理。
 上电画面改由 STD 现有默认显示链路给出（`app_default_display.c`；本模块不注册则回退系统默认画面）。
 （保留此小节仅为记录删除动作与原因，避免后续再从协议文档「上电效果」反推实现。）
 
@@ -378,7 +378,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 | 3 | Q2 | `0x47` 应答与复位 | **维持当前策略，不改** | 回 `0x51`（14B 回显）→ `osDelay(100)` → `NVIC_SystemReset()`（对齐 GZ_OL `0x40`）；STD 约定「改 IP/端口重启生效」，唯一生效路径 |
 | 4 | Q3 | `'8'` 亮度档位 | **维持当前策略，不改** | `0x00`/`'0'` = 恢复光敏自动；`'1'`~`'8'` = 挂起光敏 + 硬件 8 档恒等映射（文档口径 `'0'`~`'5'` 的超集） |
 | 5 | Q5 | `0x49` 屏体参数是否持久化 | **需要持久化** | 新增 W25Qxx 独立 4KB 扇区（`capacity - 12288`）12B 记录 + 上电装载；选址与①/②候选的排除依据见 **§7**。失败/损坏 → 回退默认 〔原 RTT 告警已删〕，不阻塞不重启 |
-| 6 | Q7 | 协议文档的上电显示 | **不需要实现 → 删除** | `app_yn_ol_proto_default.c`、其注册与 5s 熄灭任务已删除；`Makefile` / `.eide/eide.yml` / `CLAUDE.md` / 本文档相关表述同步清理；见 **§7.1** |
+| 6 | Q7 | 协议文档的上电显示 | **不需要实现 → 删除** | `app_yn_ol_proto_default.c`、其注册与 5s 熄灭任务已删除；`Makefile` / `.eide/eide.yml` / `PROJECT_MANUAL.md` / 本文档相关表述同步清理；见 **§7.1** |
 | 7 | Q8 | 与云南常规的量产取舍 | **编译期强制二选一** | `g_brace_proto_guard` 对「云南常规 + 云南治超」这一对**实测生效**：两文件不带 `-DSTD_ALL_PROTO` 分别编译后 `arm-none-eabi-ld -r` 合并 → `multiple definition of 'g_brace_proto_guard'`（ld 退出码 1）；加 `-DSTD_ALL_PROTO` 复编后合并退出码 0。**量产（EIDE）必二选一（排除其一）**；复跑：`bash .analysis/yn_ol/guard_test.sh` |
 | 8 | Q9 | 默认字号 | **与 STD 工程一致，不单独修改** | 默认 `FONT_16` / `FONT_ST`（与同为 `{` 帧族、协议未限定字号的青海/贵州一致；也与 `app_default_display.c` 默认一致）。文档中「由行清除命令推断 FONT_16」的表述已删除，改为「**沿用 STD 工程默认字号**」；0x49 可运行时改并持久化 |
 
@@ -693,7 +693,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 - 2026-09-18 **TCP Client 未配置不连（通道层治理，非协议改动）**：`app_tcp_client` 默认远端改为
   `0.0.0.0:0`，任务仍启动但空转；排除 LDI 后不再对硬编码地址 1Hz SYN/ARP。YN_OL 仍绑
-  `CH_ID_TCP_CLIENT`，`0x47` 仍只改设备自身 `net_cfg`。详见 `doc/CLAUDE.md` 网络子系统、
+  `CH_ID_TCP_CLIENT`，`0x47` 仍只改设备自身 `net_cfg`。详见 `doc/PROJECT_MANUAL.md` 网络子系统、
   doc/07 §12/§14、doc/08-03。
 
 - 2026-09-17 晚 **联调第二轮（本轮）**：上一轮修复的镜像已现场烧录，症状仍在（TCP 连上后首条命令 RTT 无输出、
@@ -730,7 +730,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 - 2026-09-17：新建。协议文档抽取（`.analysis/yn_ol/doc_extract.txt`，libreoffice txt + 结构化整理）；
   模块落地（3 头文件 + 3 源文件，初版含 4 源文件）；Makefile 双口径收录 + `eide.yml` 收录并排除（需 Reload）；
   三口径构建通过 + A/B 增量实测 + 守卫互斥实测；宿主推演；待裁决清单 9 条（原 §8）；
-  doc/15 本文档 + `CLAUDE.md` / `doc/05-01` / `doc/06-04` / `doc/构建开关总表.md` 同步。
+  doc/15 本文档 + `PROJECT_MANUAL.md` / `doc/05-01` / `doc/06-04` / `doc/构建开关总表.md` 同步。
   **未烧录、未改 git 配置、未动其它协议模块。**
   **同日决策修订（初版不绑 RJ45 槽 → 本轮改为绑 TCP）**：初版按 GZ_OL 先例绑 `CH_ID_UDP`（10011）；
   复核 CQ probe（`cq_probe_frame` 对 `{` 开头数据做花括号深度扫描）后发现它会抢先认领本协议帧

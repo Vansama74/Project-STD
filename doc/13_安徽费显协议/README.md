@@ -315,9 +315,9 @@ Y=00/10/20/30 为 16 点阵口径，24 点阵后自然为 00/18/30/48（假设�
   （任务仍启动、可空转）；`app_tcp_client_set_remote` 仍仅 LDI 配置装载调用。
   TCP Server 监听口 = Sector1 `net_cfg.port`（出厂默认 9528），与 Client 远端无关。
   **验证期间 EIDE 构建干扰记录**：用户 EIDE 目标（当前编译集 = IAP + LDI + 四川三
-  协议 + 安徽 + 22-1703，**无** CQ/GZ_OL/青海/山东/贵州/云南/RLS/AH——与 CLAUDE.md
+  协议 + 安徽 + 22-1703，**无** CQ/GZ_OL/青海/山东/贵州/云南/RLS/AH——与 PROJECT_MANUAL.md
   旧述不同，用户已自行重配 `.eide/eide.yml`）于验证中途全量重建并覆写 `build/Debug/`
   共享产物（其编译含本轮安徽改动、构建成功，RAM 123464 / CCMRAM 6016 / FLASH 268760）；
   两轮 make 验证均独立完成，最终磁盘产物为 make PROTO=CQ 镜像——**后续烧录 EIDE 目标
   前须先在 EIDE 重建**（构建卫生 R1 纪律）。
-- 文档同步：doc/05-01（§3.3 帧头事实 / §4 RB 提供方 / §4.1 queue 深度 / §6 兼容矩阵）、doc/06-04（协议帧 queue 表 + SRAM 记账）、CLAUDE.md（文档地图/initcall 表/模块全景/选编口径/CCM 例外行）；**本轮（2026-09-15 终裁）**：本 README §1/§1.1/§1.2/§8 #13/§9 + `doc/CLAUDE.md` 安徽小节与模块表（0x85 改「坐标直用像素」表述）+ 代码注释（`app_anhui_proto_parse.c`/`app_anhui_proto_cmd.c`/`app_anhui_proto.h`）。
+- 文档同步：doc/05-01（§3.3 帧头事实 / §4 RB 提供方 / §4.1 queue 深度 / §6 兼容矩阵）、doc/06-04（协议帧 queue 表 + SRAM 记账）、PROJECT_MANUAL.md（文档地图/initcall 表/模块全景/选编口径/CCM 例外行）；**本轮（2026-09-15 终裁）**：本 README §1/§1.1/§1.2/§8 #13/§9 + `doc/PROJECT_MANUAL.md` 安徽小节与模块表（0x85 改「坐标直用像素」表述）+ 代码注释（`app_anhui_proto_parse.c`/`app_anhui_proto_cmd.c`/`app_anhui_proto.h`）。

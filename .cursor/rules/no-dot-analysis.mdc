@@ -30,4 +30,4 @@ alwaysApply: true
 - 现行验证 / 复现手段 = **EIDE** + 链接期段尺寸（`arm-none-eabi-size -A`）+ 调试器；
   写入文档的验证步骤必须不依赖已删除的宿主脚本。
 
-背景：`doc/CLAUDE.md`「文档地图」后的仓库纪律条、`doc/18_注释规范.md`、`doc/构建开关总表.md` §6。
+背景：`doc/PROJECT_MANUAL.md`「文档地图」后的仓库纪律条、`doc/18_注释规范.md`、`doc/构建开关总表.md` §6。

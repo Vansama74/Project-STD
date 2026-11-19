@@ -1,4 +1,7 @@
-# CLAUDE.md
+# PROJECT_MANUAL.md
+
+> 本文件原名 `doc/CLAUDE.md`（2026-11-19 更名为 `doc/PROJECT_MANUAL.md`，移出 Cursor 的自动规则注入范围）。
+> 文中历史变更记录里的旧路径已按现名统一改写。
 
 此文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
 
@@ -8,9 +11,9 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 > **⚠ 构建入口（2026-10-13 用户裁决，已完成态）：`Makefile` 已从仓库移除，本项目构建/链接
 > 一律「仅 EIDE」**（VSCode 的 EIDE 插件 Build / Rebuild / Clean / Flash；`git` 历史可回溯旧 Makefile）。
-> 本小节及本文件其余各节中一切**以 make 为入口**的描述（`make -j8`、`TOOLCHAIN`/`CONFIG`/`PROTO`/
-> `DISP`/`FACTORY`/`BUILD_DIR` 变量、「口径切换必然重链接」的 `.build_stamp` 机制、「构建卫生 R1~R3」、
-> `make clean`、`bear -- make` 等）**一律作废、仅作历史**（下文相关条目已就地标注）。
+> 本文件中一切**以 make 为入口**的描述（`make -j8`、`TOOLCHAIN`/`CONFIG`/`PROTO`/`DISP`/`FACTORY` 变量、
+> `.build_stamp` 机制、构建卫生 R1~R3、`make clean`、`bear -- make` 等）**已于 2026-11-19 删除**；
+> 需要追溯时查 git 历史。
 >
 > - **日常构建 = EIDE**。现行 target 共 2 个（2026-10-13 用户裁决重组）：`Base`（**基线口径 / 重置模板**）、
 >   `Debug`（**日常主用**）——2026-10-13 全量 Rebuild 构建成功；**2026-10-15 起为现场调试口径**
@@ -30,213 +33,23 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 >   （同时排除标准版 `app_factory_test.c`）+ 不编任何显示驱动 + 不定义 `PROTO_CHONGQING`。
 >   **配方与 CCM 预算**（全协议 dev / 重庆量产 / `22_1665` 8×4 / `22_1703` / 带显示 + 缅甸厂测）
 >   见 `doc/构建开关总表.md` §7；**EIDE 使用要求（纪律清单）见同文件 §8**。
-> - **本文档中的段尺寸 / 内存基线数字均为 make 时代口径**（编译参数与 EIDE 不同，不可直接对等比较）；
+> - **本文档不记录构建段尺寸**：各口径实测以 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4 为准；
 >   现行 EIDE 构建的验收判据 = 链接通过 + `.ccmram ≤ 65536`、`.data + .bss + ._user_heap_stack ≤ 131072`。
 
-- **〔历史，make 时代口径选择变量；命令已作废〕构建 / 口径选择**：原 `make -j8`（根目录 Makefile，`TOOLCHAIN=gcc|clang`，`CONFIG=Debug|Release`，`PROTO=ALL|CQ`，**`DISP=1_263|22_1703|22_1665`**）——**现由 EIDE target 的 `defineList`/`excludeList` 表达同义选择**（见本节开头的 target 现状与 `doc/构建开关总表.md` §7）：
-  - **`DISP ?= 1_263`**（2026-09-14 新增，2026-09-16 扩第三值，2026-09-17 第二十二轮复核）：显示模组三选一——
-    `1_263`（默认，P6 32×32）、`22_1703`（P10 32×16 / 料号 2200001703，1/4 扫描）、
-    **`22_1665`（16×16 红绿双色 / 4 条数据线 × 8 片 MBI5034B / 静态单扫）**：第二十四轮起**几何彻底参数化**——
-    **改整屏分辨率只改 `_22_1665_MODULE_ROWS` / `_22_1665_MODULE_COLS` 两个宏**（屏宽/高 = 模块数 × 单模块像素，
-    语义同 1_263/22_1703；数据线表 `_22_1665_lines[5][4]` 恒 5 组 × 4 行、链段 `4×M` / 落点 / 帧长全派生、**不补任何表**；
-    **改的是文件里的值——第三十轮起这四个几何宏是兄弟驱动同款普通 `#define`，命令行 `-D_22_1665_MODULE_*=…` 不生效**
-    〔只剩重定义告警 + 文件值胜出〕，换口径一律改文件里的值、宿主脚本设施已随 `.analysis` 移除）、
-    驱动内 RTT / 探针 / 兼容口径全部删除（第二十三轮；**第二十九轮生产化收口 591 → 468 行、第三十轮文件头瘦身后 432 行、第三十四轮取消编译期防御 + 精简注释后 372 行**——
-    三个化石开关已删、只留模型 B 一条生成路径；复核 0 残留、无死宏）。
-    **`22_1665` 现场调通（2026-09-17 用户确认显示正常）**：第一组四条链 = **R1(上半红) / G1(上半绿) / R2(下半红) / G2(下半绿)**
-    （第二十轮探针 8 逐脚定标；B1/B2/A/B/C/D 六根实测无链）；「红口只上半屏 / 绿口全黑」的真根因 =
-    `prepare` 逐链掩码表达式写错（第二十一轮一行修复）。本模组 CCM（模型 B 默认）**`1408·M + 256·COLS`**
-    （`chain_dst` 1024M + pixel_map 256M + frame_state 128M + 合并写表 256·COLS；1×1 = **1664B**、1×2 = **3328B**、**8×2 = 23040B**；
-    **无自设上限**（第三十二轮）**且 2026-10-13 起 0 条编译期断言**（用户裁决：业务代码编译期断言全部移除，含 2026-10-08 恢复的 2 条守卫；约束 = 契约注释 ① `2×MODULE_COLS ≤ HUB75_CHANNEL_MAX`、② 本模组数组 ≤ 整片 CCMRAM 64KB + doc/01 §0.3）：错误几何的后果 = 静默错口径（0 / 24×16 / 16×32 / 30 等仍编过；`COLS=6` 编过、`-O3` 报越界 UB 告警）/ 越界读 `_22_1665_lines`，或**链接期** `region CCMRAM overflowed`（本模组自身超 64KB 如 47×1 亦只在此报）（工作区 8×4 = 本模组 46080B ⇒ `PROTO=ALL` 溢出 **17700B**、`PROTO=CQ` 溢出 **15444B**，2026-10-08 实测；**任何 make 口径都装不下** —— **日常构建以 EIDE 为主**：〔2026-10-08 当时口径〕当日 Debug 选择（206 源文件、含本模组）+ 8×4 实测 `.ccmram 60844B`（余 4692B，链接通过、仅 3 条既有 HAL 告警）；**2026-10-13 target 重组后 Base/Debug 基线不编任何显示驱动**——要用 22_1665 按 `doc/构建开关总表.md` §7.2 第 8 条点选）；
-    其他消费者实测 35836B ⇒ 本模组实用上限 ≈29700B、COLS=2 时 M≈20 为上限量级〔估算〕）、
-    scan 热路径 ≈**55 指令/时钟位**（1×2 两组），
-    **每帧时钟数 = 128 × MODULE_ROWS**（模型 B = 现行唯一形态；历史模型 A 的 `128 × 模块总数` 已随第二十九轮删除）（1×1 ≈ 25~35µs，1×2 ≈ 45~60µs；
-    **⚠ 8×2 = 1024 时钟 ≈ 0.36~0.48ms，占 TIM3 固定 500µs 周期 72%~96%、prepare 整帧提交 ≈1.0~1.2ms 跨帧 —— 须上机 DWT 复核，本轮未改定时参数**）。
-    **多模块接线（第二十七轮落地 = 模型 B「每列一口独立数据线」；第二十九轮起为唯一形态）**：
-    接线模型开关 `_22_1665_HUB_WIRING` 与模型 A（同线级联）的全部代码路径已于第二十九轮删除。
-    **模型 B** = 每列模块（= 一个 HUB 口 / 一个模块列）各占一组
-    4 根数据脚，组 g 取兄弟驱动通道序**通道对 `2g / 2g+1` 的 R/G 脚**：**组 0 = R1/G1/R2/G2
-    （PG9/PG10/PG15/PB6，现场逐脚定标）**、**组 1 = R3/G3/R4/G4（PB8/PB9/PE1/PE2；四脚已由
-    `Core/Src/gpio.c` 配成推挽输出、与 DIP/SW/其余 HUB75 脚无冲突）**；各组**并行**（共享 CLK/LAT/OE）、
-    **每帧 `128 × MODULE_ROWS` 时钟**，组内横向模块同线级联（`MODULE_ROWS=1` 时每组一块 ⇒ 每块收满 128 位
-    ⇒ **HUB1 显逻辑上半、HUB2 显逻辑下半**；两块合起来才是完整逻辑屏）。
-    **模型 A（第二十九轮已删除）** = 单组 4 根脚串全部模块，模块 m 占 `[(M-1-m)·128, (M-m)·128)`、
-    链首装模块 M-1 的位流，每帧 `128 × M` 时钟（要旧口径用归档驱动 + `-D_22_1665_HUB_WIRING=1`）。
-    现场 A/B 开关 `-D_22_1665_CHAIN_HEAD_IS_MODULE0=1`（默认 0；= 组内横向链首对调，
-    `MODULE_ROWS=1` 时无影响）**保留**（`MODULE_ROWS ≥ 2` 场景无现场证据）。**现场测试矩阵见 doc/01 §0.10（T1~T8）**。
-    **1×2（用户当前宏值）现场三现象已用宿主脚本逐位复现并解释**（默认全黑 / TEST 只出「MD」/ 口 2 全黑 =
-    单块模组只收末尾 128 位 = 模块 1 = 屏体下半；口 2 的脚从未被驱动）——报告
-    `.analysis/22_1665/round25_two_modules.md`；**1×2 派生路径本身无 bug**（宿主差分 40/40、几何自检 50/50×4 口径、链接通过）。
-    **第二十六轮（2026-09-17 傍晚）双 HUB 口判定**：两块模组各插一个 HUB 口 + 默认画面 `"1\n2"`（FONT_16）
-    〔外部改动，随后已回改为正常欢迎画面；现行默认画面见上文「工作区当前宏值」条〕
-    ⇒ **HUB1 显「2」/ HUB2 全黑**，与**模型 B（每列一口、各占一组独立数据脚）**完全一致（HUB1 那块是链首、
-    只留末 128 位 = 模块 1 = 第 2 行「2」；第二组候选脚 R3/G3/R4/G4 = PB8/PB9/PE1/PE2 **全帧一次未被写**——
-    候选脚位按兄弟驱动通道序推、**未现场核对**）；H1（两口并联）/ H3（真级联）预测被现场否证
-    （唯一保留的替代解释 = HUB2 硬件故障，现场 E1/E4 实验可分辨）；`-D_22_1665_CHAIN_HEAD_IS_MODULE0=1`
-    只能让 HUB1 改显「1」、**HUB2 仍黑**（现场开关，非修复）；达成「HUB1 出 1 / HUB2 出 2」= 改接成
-    真级联（**零代码** + flip 开关）**或**模型 B（**需先知 HUB2 四根脚真实脚位，禁止猜**）。
-    本轮**源码零改动**，`round26_two_hubs.py` 27/27。**（旧固件只写第一组脚、HUB2 黑的故事到此为止：
-    第二十七轮起模型 B 逐帧驱动两组的 8 根脚。）**
-    **第二十七轮（2026-09-17 晚，现行）**：按用户裁决「第二组脚按兄弟驱动口径取」**实现模型 B 为默认**
-    （见上一条）⇒ 1×2 每帧 **128** 时钟、机器级写序含 **PB8/PB9/PE1/PE2**；**ETC 七行现场现象零剩余解释**
-    （单块模组只见逻辑下半 + 单行帧在 16px 宽屏只可能出「12」；唯一自洽 = 工具 **0-based 行号**（第一行 → 行号 0 = 全屏）
-    + 观测前清屏，7/7）——报告 `.analysis/22_1665/round27_wiring_b_and_etc.md`、doc/01 §0.10/§0.11、附录 A.15。
-    本轮**本模块增量（同树 A/B 编译实测）**：驱动对象 `.text +572B`（建表 init 变大）/ `.rodata ±0` /
-    `.ccmram +128B`（= 256·COLS）/ `.bss +1B`；`_22_1665_scan` 反而 **−8B**（132 → 124，每帧只 128 时钟）。
-    本轮**构建（1×2，模型 B）**：text **172164** / rodata **202952** / data 1672 / ccmram **39164**
-    （本模组 **3328B** = `1408×2 + 256×2`）/ bss 124712 / `_user_heap_stack` 2560（SRAM 合计 128944，余 2128B），
-    elf md5 `见构建日志/横幅（本轮最终构建 elf md5 见 .analysis/22_1665/round27_wiring_b_and_etc.md §3）`；重链差值：1×1 = −1664B、模型 A 1×2 = −128B、2×2 = 6144B 全部自洽。
-    `round27_wiring_b_and_etc.py` **32/32**、`verify_all.sh --fast` **12 项全绿** / 全量 **21 项全绿**
-    （`check_host_differential.py` **70/70**、`check_driver.py` **54/54**×4、`check_eide_command.sh` 15/15、
-    `check_compile_matrix.sh` 25/25、`check_flash_artifact.sh` 7/7、round25 17/17、round26 27/27）。
-    **注**：工作区整项目 `.ccmram` 绝对值含他处在飞改动（静态任务栈 `s_task_*_stack` 等），与本模组无关。
-    **第二十八轮（2026-09-17 晚，现行 = 收口整理）**：① **调试残留审计**——驱动内 0 处 RTT / printf /
-    SEGGER / diag / probe / debug / selftest 关键词、0 处注释掉的代码块与 `#if 0`，每个 `#define` 与静态符号
-    都有消费者（4 个行为开关 + 4 个几何宏**全部保留**——第二十九轮起行为开关删至 **1 个**、几何宏仍 4 个，各有宿主矩阵 / `link_variant` / 文档消费者；
-    标定工具仍在 `.analysis/22_1665/archive/prev_round/`）；② **格式对齐兄弟驱动 `dev_display_22_1703.c`**
-    （文件头 54 → **49 行**按 22_1703 结构重写；章节分隔注释去中文序号；宏/表格/结构体排布对齐；
-    模块码宏 `_22_1665_MODULE_CODE` → **`MODULE_CODE`**、合并写表 `g_bsrr_tab`/`g_bsrr_slot_cnt`/`g_bsrr_port_cnt`
-    → **`_22_1665_bsrr_tab`/`_22_1665_bsrr_slot_cnt`/`_22_1665_bsrr_port_cnt`**；595 → **591 行**，注释净减、代码零增删）；
-    ③ **行为零变化**（机器级 A/B 双编译：整理前后驱动对象 **15 个 section md5 全同、反汇编 0 行差异**，
-    模型 A 口径同法一致；`link_variant.sh cols2` 重链 = 第二十七轮 1×2 基线），fast **12 项** / 全量 **21 项**全绿；
-    ④ 顺带修正 `dev_display.h` / `app_test.c` / `app_boot.c` 里第二十三轮旧形态的过时描述
-    （app_test 的 22_1665 口径前提、doc/01 §13 → §5 指针）、删除 doc/01 §0.3 结尾重复段落；
-    ⑤ **脚本修复**：`check_host_differential.py` 的用例改为**两个几何轴都显式钉死**（原先只钉一轴，
-    源码 `MODULE_COLS` 改成 5 后宿主侧 CCM 预算失真触发断言；覆盖不变仍 70/70）。
-    报告 `.analysis/22_1665/round28_cleanup.md`、doc/01 附录 A.16。
-    **第二十九轮（2026-09-17 晚，现行 = 生产化收口）：删除「已验证完毕的化石可配置性」**——按用户裁决
-    （现场验证完全、驱动正常）**只保留模型 B 一条生成路径**：① 模型 A 全部分支 + 接线开关 `_22_1665_HUB_WIRING`
-    （含模型 A 专用 `_22_1665_flush_state` / `scan` / `build_bsrr_table` 与 `_22_1665_bsrr_port_cnt`、只服务模型 A 的断言）；
-    ② 蓝分量开关 `_22_1665_BLUE_AS_LIT`（固化现行取值 1）；③ 数据极性开关 `_22_1665_DATA_ACTIVE_HIGH`
-    （固化现行取值 1，建表异或写成常量形）。**行数 591 → 468**；**行为开关由 4 个减为 1 个**
-    （仅 `_22_1665_CHAIN_HEAD_IS_MODULE0`）+ 4 个几何宏；`_Static_assert` **2026-10-13 起 0 条**（第三十四轮曾归零 17 条、2026-10-08 恢复 2 条，
-    2026-10-13 按用户裁决连同这 2 条全部移除）。**行为零变化**：1×1 / 1×2 / 工作区 1×5 三个口径下
-    「删除前归档源码 vs 删除后现行源码」的驱动对象**段级逐字节一致 + prepare/scan/建表/init 反汇编逐条一致**
-    （`check_equivalence.py` **75/75**）。**删除前源码完整归档**（该驱动删除时是 git 未跟踪文件，当时的唯一恢复路径 = `.analysis` 归档，现目录已移除）：
-    `git show 069be96:.analysis/22_1665/archive/finalize/driver_pre_finalize_20260917.c`（md5 `2ccd650cc24c4360b24b151cc220e1b3`、591 行）
-    ——`cp` 回去即第二十八轮形态，加 `-D_22_1665_HUB_WIRING=1` / `-D_22_1665_BLUE_AS_LIT=0` /
-    `-D_22_1665_DATA_ACTIVE_HIGH=0` 可复现旧口径；**自本轮起这三个 `-D` 对现行驱动完全无效**（宏已不存在）。
-    `verify_all.sh --fast` / 全量均 **17 项全绿**（换口径变体 9 → 5，退休 `wiringA*` / `blue0` / `invpol`；
-    `check_host_differential.py` 70 → **42/42**、`check_eide_command.sh` 15 → **12/12**、
-    `check_compile_matrix.sh` 25 → **17/17**、`check_equivalence.py` 46 → **75/75** 改锚为归档 vs 现行）。
-    报告 `.analysis/22_1665/round29_finalize.md`、doc/01 附录 A.17。
-    **⚠ 工作区当前宏值 = `MODULE_ROWS=8 / MODULE_COLS=4`（128×64）**——**2026-10-08 用户确认实际屏体即
-    8×4（128×64），宏值保持不变**（历史：第三十一轮曾改 8×2；1×5 / 1×2 为更早口径）。该口径整项目实测
-    （2026-10-08，全量重编）：`PROTO=ALL DISP=1_263` `.text 167944 / .rodata 195776 / .ccmram 39652 /
-    .bss 124768`；`DISP=22_1665` 两 make 口径**链接期溢出 17700B（ALL）/ 15444B（CQ）**（本模组 46080B）
-    ⇒ **make 出不了 22_1665 镜像（预存状态，已接受）；日常构建以 EIDE 为主**（〔2026-10-08 当时口径〕当日 Debug 选择
-    + 8×4 实测 `.ccmram 60844B`、链接通过、仅 3 条既有 HAL 告警；**2026-10-13 target 重组后 Base/Debug 基线不编显示驱动**）。**要复现 1×2 口径（= 39164B）**：把
-    `_22_1665_MODULE_COLS` 改成 2 后重编（宿主脚本 `link_variant.sh` 已随 `.analysis` 移除，
-    需要时从 `069be96` 取回；第三十轮起 `-D_22_1665_MODULE_COLS=2` 写法本就不生效）。**`Application/Src/app_default_display.c`
-    现行 = 正常默认画面「欢迎行驶\n高速公路」（`FONT_SELF_ADAPT` / `FONT_HT` / 黄色居中）**——第二十六轮现场的
-    测试画面 `"1\n2"`（FONT_16）从未进入 git（仅存档 `.analysis/22_1665/archive/finalize/app_default_display_test_1n2_20260917.c`，该存档已随 `.analysis` 移除、可从 `069be96` 取回）；
-    2026-10-08 复核：工作区与 `HEAD` 逐字一致（差异仅无显示守卫 4 行），审计记载的「仍是测试画面」为文档漂移。
-    **本模组 CCM 通式（模型 B = 现行唯一形态）= `1408 × M + 256 × MODULE_COLS`；上限口径（2026-10-13 起）=
-    无自设预算 + **0 条编译期断言**（契约注释 ① 通道表 `2 × MODULE_COLS ≤ HUB75_CHANNEL_MAX = 10` ⇒ **COLS ≤ 5**、
-    ② 本模组数组 ≤ 整片 CCMRAM 64KB；业务代码编译期断言全部移除），其余约束 = 注释契约 + doc/01 §0.3，
-    整片占用仍由链接期兜底（超区域报 `region CCMRAM overflowed by N bytes`）；历史模型 A 的
-    `1408 × M + 384`（M ≤ 11）已随第二十九轮删除**。
-    **1×1 行为零回归**由 `.analysis/22_1665/check_equivalence.py`（语义级 + **机器码对照：删除前归档驱动 vs 现行**，1×1/1×2/1×5 三口径 75/75）+
-    `check_host_differential.py`（**机器级 42/42**：新旧编译产物 1×1 逐字节 + 模型 B 各口径对规格模型）双重证明。
-    **第三十轮（2026-09-17 夜，现行 = 文件头瘦身 + 几何宏写法对齐兄弟驱动）**：① 驱动文件头 **46 → 16 行**
-    （长篇叙述移入 `doc/01` §0；全文 **468 → 432 行**）；② 四个几何宏由 `#ifndef` 守卫改**兄弟驱动同款普通
-    `#define`**（`1_263` / `22_1703` 本就是普通 `#define`）⇒ **`-D_22_1665_MODULE_*=…` 不再生效**——
-    换几何口径一律**改文件里的值**（宿主脚本设施 `macro_override.py` / `link_variant.sh` 已随 `.analysis` 移除；
-    当时 `link_variant.sh` 几何参数写 `宏名=值`，给几何宏传 `-D` 被直接拒绝）；**`_22_1665_CHAIN_HEAD_IS_MODULE0` 未动**（仍 `#ifndef` + 可 `-D`）。
-    **行为零变化**：改动前基线 `.analysis/22_1665/archive/round30/dev_display_22_1665_pre_round30.c`
-    （468 行 / md5 `abe51c0ba7dc5c0bac06973a2c53109b`）vs 现行 ⇒ **22 个 section 逐字节一致 + 反汇编 360 行
-    0 行差异**（新脚本 `check_round30_ab.sh`，已并入 `verify_all.sh`）。**实测段尺寸**：`ALL/1_263`
-    `.text 174996 / .rodata 204848 / .data 1680 / .ccmram 38332 / .bss 124772 / ._user_heap_stack 2564`
-    （SRAM 余 **2056B**）；`ALL/22_1665`（1×5）`.text 175252 / .rodata 205104 / .ccmram 44156`（本模组 **8320**）；
-    驱动对象 `.ccmram` 1×1 = **1664** / 1×2 = **3328** / 1×5 = **8320 B**；两口径各仅 3 条既有 HAL 告警。
-    脚本计数：`verify_all.sh --fast` **13 项** / 全量 **18 项** 全绿（`check_compile_matrix.sh` 17 → **18/18**、
-    `check_eide_command.sh` 12 → **15/15**、`check_driver.py` 54 → **56/56** ×4；`check_equivalence.py` 75/75、
-    `check_host_differential.py` 42/42 不变）。报告 `.analysis/22_1665/round30_header_and_macros.md`、doc/01 附录 A.18。
-    **as-built（几何宏算式 / 数据线表 / 级联时钟 / 开关 / 现场核对 / 构建基线）与「**改分辨率只改两个宏**」操作步骤（含口径对照表、CCM 通式）见 `doc/01_显示系统/22-1665模组驱动分析与迁移记录.md` §0（§0.3 模型 / §0.9 操作 / §0.10 现场测试矩阵）**；
-    第一~二十七轮的演进、探针 7/8/9 用法（**已归档**；归档与宿主脚本索引原在 `.analysis/22_1665/`，该目录已移除，
-    换屏标定等需要时按上方恢复命令从 `069be96` 取回）与作废结论见同文档附录 A（A.17 = 第二十九轮，**A.18 = 本轮**）。
-    三模组 CCMRAM 显存 + CQ 6377B + 贵州治超 1136B + 云南治超 1152B **不可同编**（同编 = .ccmram 溢出或双实例注册、
-    活动屏由链接序决定）；非法值 make 直接 `$(error)` 报错。EIDE 侧等价语义由 target 的 `excludeList` 表达
-    （见「选编口径」；**2026-10-13 target 重组后 `dev_display_22_1665.c` 与其余 6 个显示驱动一样在 Base/Debug
-    排除表内**——**2026-10-15 起 `Debug` 为现场调试口径、例外地编入 `dev_display_1_969.c`；以 `.eide/eide.yml`
-    现状为准**——需要 22_1665 时在 GUI 取消排除，配方见 `doc/构建开关总表.md` §7.2 第 8 条）。
-  - **`FACTORY ?= STD`**（2026-09-28 新增，本轮）：**出厂测试实现二选一** ——
-    `STD`（默认，保持改动前行为）= `Application/Src/app_factory_test.c`（TEST 键 11 步序列：固件信息 / 七色满屏 /
-    通信灯 / 老化循环 / 斜扫 / 重启）；**`MM` = `Application/Src/app_factory_test_mm.c`**（缅甸版：TEST 键每按一次
-    调 `mm_arrow_map_toggle()` 切换 **0x0A / 0x0B 两条命令的干接点落点**，可来回；红灯 `0x90` 不受影响；
-    **不做掉电保存**，`mm_apply_init()` 开机复位）。两文件**对外符号同名同义**（`app_factory_mode_interrupt` /
-    `app_factory_test_active` / `g_factory_test`）⇒ **同时编入必然链接报 `multiple definition`（天然互斥守卫，
-    未新增守卫宏）**；实现 = `SRC_FACTORY_TEST` 替换 `SRC_APPLICATION` 中一行（`ifeq` 两分支）、非法值 `$(error)`、
-    开关值进 `.build_stamp`（`FACTORY=` 行 + `SRC_FILES`）⇒ 切口径必然全量重编 + 重链接。〔**EIDE 侧现状
-    （2026-10-13 target 重组后）**：Base/Debug 基线编**标准版**、排缅甸版（`app_factory_test_mm.c` 在排除表内）；
-    需要缅甸版厂测时在 GUI 取消排除 `app_factory_test_mm.c` 并同时排除 `app_factory_test.c`——**不再有
-    `targets.Myanmar` 承担该口径**；详见 doc/16 §13 与 `doc/构建开关总表.md` §7.2 第 5 条。〕**实测
-    （`PROTO=ALL DISP=1_263`，全量重编）**：
-    `FACTORY=STD` text **176336** / rodata **203648** / data 1656 / ccmram 39652 / bss 124860 / heap_stack 2564
-    （SRAM 余 **1992B**）；`FACTORY=MM` text **174944** / rodata **203616** / bss 124596（SRAM 余 **2256B**）；
-    两口径零新增告警（仍 3 条既有 HAL）。
-  - **〔以下 make 时代的工具链口径 / stamp 机制 / 构建卫生 R1~R3 / 头文件依赖，全部已作废
-    （2026-10-13 Makefile 移除），仅作历史记录〕**
-    - 〔历史〕GCC/Clang × Debug/Release 四组合：`make -j8` / `CONFIG=Release` / `TOOLCHAIN=clang`
-      / `TOOLCHAIN=clang CONFIG=Release`（默认 Debug，`-Og -g`）。
-    - 〔历史〕口径切换必然重链接（2026-09-14 修复）：elf 与每个 `.o` 都依赖口径指纹
-      `build/$(CONFIG)/.build_stamp`（CONFIG / TOOLCHAIN / PROTO / DISP / DEFINES / CFLAGS /
-      LDFLAGS / Makefile cksum / 源列表 `SRC_FILES`）⇒ 切口径必然全量重编 + 重链接。
-      机制见 `doc/构建开关总表.md` §4（该节已标注作废）。
-    - 〔历史〕构建卫生 R1~R3（2026-09-14 补）：① EIDE 覆写 `build/Debug/` 共享产物（新 mtime）后，
-      同口径 `make` 会 0 编译 0 链接、静默复用 EIDE 的 elf，须 `make clean && make`；
-      ② `make -n` 干跑显示「全量过期」属预期，不能用来判断是否需重建；③ `PROTO` 无非法值守卫。
-      **R1 的共用产物风险随 make 移除而消失**；EIDE 自身增量构建以 EIDE 的依赖模型为准。
-    - 〔历史〕头文件依赖：原 Makefile `CFLAGS` 含 `-MMD -MP`，`.d` 与 `.o` 同目录、末尾 `-include` 引入。
-  - **`PROTO ?= ALL`**：默认全协议 dev 构建（CQ 恒定编入，位于 LDI 源之后）。
-    **`PROTO=CQ`**：重庆量产口径——从源码列表剔除 LDI 目录文件、追加
-    `-DPROTO_CHONGQING`（`{` 帧族仍编入并保留 `-DSTD_ALL_PROTO` 豁免守卫。
-    **注（2026-08-24 修订）**：TCP Server/Client 通道两口径**均启动**——
-    `app_boot.c` 实际无 `#ifndef PROTO_CHONGQING` 口径裁剪，此前「CQ 构建不
-    启动 TCP 通道」表述与代码不符，已按代码实态更正）。
-    **网络配置应用（两口径统一，2026-08-21 解耦，2026-08-24 端口应用两口径化）**：
-    中立模块 `app_net_boot`（`app_net_boot_apply`，`app_boot.c` init_task 在
-    `app_board_net_cfg_fw_version_update` 之后、splash 之前调用——fw_version_update
-    空扇区初始化 net_cfg=0，app_net_boot 随后判无效写默认）读 Sector1 net_cfg →
-    `pl_net_set_ip` + `app_tcp_server_set_port`（口取 `net_cfg.port` = TCP 业务口，
-    两口径统一应用）；Sector1 空/损坏/非法 → accept_write 写本构建默认记录落盘并
-    应用（方案 B 2026-08-21：两口径默认均 **port=9528（TCP 口）+ udp_port=20103
-    （CQ UDP 口）**，IP 各自口径）：CQ 192.168.1.5/255.255.255.0/192.168.1.1，
-    dev 192.168.114.200/255.255.255.0/192.168.114.1。
-    LDI `ldi_ctx_init` 与 CQ `cq_proto_init` 不再直接改 netif（ldi 保留 Sector1/W25
-    自愈与配置装载）。
-    **CQ setip 双构建语义**（doc/03 PartB B.7.1，2026-08-21 方案 B）：setip 命令
-    端口写入 Sector1 `net_cfg.udp_port`（CQ UDP 业务口专有字段），TCP 口
-    `net_cfg.port` **保留现值不再被 setip 污染**；改 IP 两构建重启后均生效（均走
-    `app_net_boot_apply`）；改端口仅 PROTO_CHONGQING 构建对 CQ 业务口生效
-    （`_udp_cq_read_port` 读 Sector1 net_cfg.udp_port，无效/0 回退 20103），dev
-    构建 CQ 业务口固定 20103（`#else` 分支）、setip 的 port 对 dev 构建任何口都
-    不生效——端口修改验证须用 **带 `PROTO_CHONGQING` 的 EIDE 口径**（〔历史〕原为 `make PROTO=CQ`；
-    **2026-10-13 起** = 在 GUI 取消排除重庆模块并把 `PROTO_CHONGQING` 加回 `defineList`，见
-    `doc/构建开关总表.md` §7.2 第 2/7 条）。
-    **CQ 心跳超时故障屏开关**（`app_cq_proto.h` `CQ_FAULT_SCREEN`，1 开 / 0 关，
-    doc/03 PartB B.7.2，2026-08-21 新增、2026-08-24 改名单层宏）：默认跟随构建
-    口径——PROTO_CHONGQING 开启、共存/其他构建（通用版多协议固件）关闭（他省
-    上位机不发重庆 syn1，120s 故障屏会误触发）；可显式覆盖 `-DCQ_FAULT_SCREEN=1`
-    强制开 / `=0` 强制关（旧名 CQ_FAULT_SCREEN_ENABLED / CQ_FAULT_SCREEN_FORCE_ON
-    已废弃，不保留兼容别名）。
-    关闭时 `cq_proto_timer_task` 不计数、不渲染（`s_cq_sync_counter` 恒 0、
-    `s_cq_fault_shown` 恒 false），warn1 倒计时不受开关影响。
-    **不变量：排除 LDI 与定义 `PROTO_CHONGQING` 必须成对**（app_net_boot 兜底后
-    中间态不再致命，但 PROTO_CHONGQING 仍决定默认口径与端口应用对象，不成对 =
-    口径错配）。〔**历史口径（2026-09-16 裁决时）**：EIDE Debug 目标当时为 CQ 量产口径
-    （excludeList 排除 ldi + defineList 含 PROTO_CHONGQING）、**显示模组编 22_1665**
-    （excludeList 同时排除 `dev_display_1_263.c` 与 `dev_display_22_1703.c`，改选前为 22-1703）；
-    **2026-10-13 target 重组后已不成立**——Base/Debug 基线既不定义 `PROTO_CHONGQING`、
-    也不编任何显示驱动（LDI 与本驱动都在排除表内），按需点选见「选编口径」小节与
-    `doc/构建开关总表.md` §7。〕
+- **口径选择（EIDE 现行）**：口径 = 目标上的「排除 / 取消排除」与 `defineList`；完整配方与 CCM 预算见 `doc/构建开关总表.md` §7，EIDE 使用纪律见同文件 §8。
+  - **重庆量产（`PROTO_CHONGQING`）** = 排除 LDI 目录 + 把 `PROTO_CHONGQING` 加回 `defineList`，**二者必须成对**（不成对 = 口径错配）。TCP Server/Client 通道两口径**均启动**（2026-08-24 修订：`app_boot.c` 无 `#ifndef PROTO_CHONGQING` 口径裁剪）。
+  - **网络配置应用（两口径统一，2026-08-21 解耦）**：中立模块 `app_net_boot`（`app_net_boot_apply`，`app_boot.c` init_task 在 `app_board_net_cfg_fw_version_update` 之后、splash 之前调用）读 Sector1 net_cfg → `pl_net_set_ip` + `app_tcp_server_set_port`（口取 `net_cfg.port` = TCP 业务口）；Sector1 空/损坏/非法 → 写本构建默认记录落盘并应用（两口径默认均 **port=9528 + udp_port=20103**；IP：CQ 192.168.1.5/255.255.255.0/192.168.1.1，dev 192.168.114.200/255.255.255.0/192.168.114.1）。`ldi_ctx_init` / `cq_proto_init` 不再直接改 netif（ldi 保留 Sector1/W25 自愈与配置装载）。
+  - **CQ setip 双构建语义**（doc/03 PartB B.7.1，方案 B）：端口写入 Sector1 `net_cfg.udp_port`，TCP 口 `net_cfg.port` **保留现值不被污染**；改 IP 两构建重启后均生效（均走 `app_net_boot_apply`）；改端口仅 `PROTO_CHONGQING` 构建对 CQ 业务口生效（`_udp_cq_read_port` 读 Sector1 `udp_port`，无效/0 回退 20103），dev 构建 CQ 业务口固定 20103。
+  - **CQ 心跳超时故障屏开关**（`app_cq_proto.h` `CQ_FAULT_SCREEN`，1 开 / 0 关，doc/03 PartB B.7.2）：默认跟随构建口径（`PROTO_CHONGQING` 开、共存/其他构建关）；可 `-DCQ_FAULT_SCREEN=1|0` 显式覆盖（旧名已废弃，不保留兼容别名）。关闭时 `cq_proto_timer_task` 不计数、不渲染。
+  - **显示模组**：`1_263` / `22_1703` / `22_1665` 三选一（一个都不编 = 无显示口径）。22_1665 的几何宏、CCM 通式、接线模型与历次轮次见 `doc/01_显示系统/22-1665模组驱动分析与迁移记录.md` §0 与附录 A。
+  - **出厂测试实现**：`app_factory_test.c`（标准版 11 步）与 `app_factory_test_mm.c`（缅甸版：TEST 键切换 0x0A/0x0B 落点）**二选一**，对外符号同名 ⇒ 同编即链接报 `multiple definition`；配方见 `doc/16_缅甸2D费显协议/README.md` §13 与 `doc/构建开关总表.md` §7.2 第 5 条。
 - **〔2026-09-29 代码瘦身轮：自研诊断设施整体移除；RTT 底层保留/已恢复（同日第二轮修正）〕**
   原「自证诊断」全套（`Application/Inc/app_diag.h` 的 `APP_DIAG_BANNER` + 构建指纹宏、
   `make APP_DIAG=0` 开关、Makefile `DIAG_DEFS` 树哈希注入、开机横幅 `app_diag_boot_banner` /
   延迟体检 `app_diag_boot_late`、`[diag]` 全部打印、各协议/通道的 `*_RTT_DIAG`、调度层 `[disp]` 告警）
   **已删除且不回退**。**RTT 底层 = 保留/已恢复**：`Middlewares/Third_Party/SEGGER_RTT/` 三个源文件
-  （`SEGGER_RTT.c` / `SEGGER_RTT_printf.c` / `SEGGER_RTT_Syscalls_GCC.c`）在 Makefile `SRC_RTT` 与
-  `.eide/eide.yml` 编译清单内，`Platform/Src/pl_rtt.c`（`hw_pl_initcall` 注册）已按 `git HEAD`
+  （`SEGGER_RTT.c` / `SEGGER_RTT_printf.c` / `SEGGER_RTT_Syscalls_GCC.c`）在 `.eide/eide.yml` 编译清单内
+  （原 Makefile `SRC_RTT` 同义），`Platform/Src/pl_rtt.c`（`hw_pl_initcall` 注册）已按 `git HEAD`
   逐字节恢复；**业务代码零 RTT API 调用**（grep 0 命中，唯一命中 = `pl_rtt.c` 自身）。现场判
   「板子跑的是哪份镜像」仍比对 `arm-none-eabi-size -A` / elf md5 或读 IAP 0x03 版本号（无 `[diag]` 横幅）；
   LwIP 调试输出维持整体编出（`Platform/Inc/lwipopts.h` `LWIP_DBG_TYPES_ON 0`），
@@ -264,9 +77,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
   failed` = 擦写路径问题；② 确认烧录物为最新构建（`arm-none-eabi-strings
   E:/3833024/build/Project_STD/Debug/Project_STD.elf | grep 9K10212482`；仓库已无 make，产物由 EIDE 写入
   `E:\3833024\build\Project_STD\<target>`，注意陈旧覆盖）。
-- **清理**：〔已作废〕原 `make clean`（仅删除 `build/$(CONFIG)` 目录）随 Makefile 移除而失效。EIDE 的 Clean 由 EIDE 自己执行（`eide.project.clean`）；清理产物前先确认不误删 EIDE 的输出与其他 target 目录。
-- **〔历史〕make 时代与 EIDE 共用 `build/Debug` 同名产物**（`Project_STD.elf/.hex/.bin`）——现仓库已无 make，唯一写入方 = EIDE；**烧录前仍建议核对产物 mtime / `arm-none-eabi-size -A`**，确认烧的是最后一次构建的镜像。
-
+- **清理**：用 EIDE 的 Clean（`eide.project.clean`）；清理产物前先确认不误删 EIDE 的输出与其他 target 目录。
 ### 构建产物
 
 | 产物 | 格式 | 用途 |
@@ -275,7 +86,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `Project_STD.hex` | Intel HEX（ASCII 文本） | 烧录文件。OpenOCD 通过 `program ... verify` 写入并回读比对。文本格式，每行含地址+数据+校验和 |
 | `Project_STD.bin` | 纯二进制 | 裸二进制映像，无地址信息。适用于 IAP bootloader 直接写入 Flash |
 
-**链接优化**：`--gc-sections` + `-ffunction-sections -fdata-sections`，未引用的函数/数据自动丢弃。`--specs=nano.specs` 链接精简版 newlib。`-u _printf_float` 强制链接 printf 浮点格式化支持（newlib-nano 默认关闭）。`-fshort-enums` 按最小宽度打包枚举类型。
+**链接优化**：`--gc-sections` + `-ffunction-sections -fdata-sections`，未引用的函数/数据自动丢弃。`--specs=nano.specs` 链接精简版 newlib。`-u _printf_float` 强制链接 printf 浮点格式化支持（newlib-nano 默认关闭）。EIDE 以 `-O3` 编译，**不使用** `-fshort-enums`。
 
 ## 文档地图
 
@@ -298,7 +109,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 | `doc/15_云南治超屏协议` | 云南治超屏协议（YN_1.3.0 `{` 帧族）接入记录（19 命令字；'6'/'7'/'9' 文档明示治超屏不开发→probe 快拒；**绑 RS485+RS232+TCP Server+TCP Client 四通道**——TCP 与 CQ 的 `{` 同首字节竞争以**通道掩码隔离**解决（CQ 只绑 UDP/UDP_CQ，TCP 链上不被调用），本模块**不绑 10011** → CQ 量产行为零削弱；队列 1152B 置 CCMRAM；**属 `{` 帧族 → 定义 `g_brace_proto_guard` 守卫，量产与其它 `{` 族目录二选一**（与云南常规这一对已 `ld -r` 实测报 multiple definition）；**上电默认画面已删除**——走 STD 默认显示链路；`0x47`/`0x51` 端口字段**已裁决 BE16**；**`0x49` 屏体参数持久化**（W25Qxx 独立 4KB 扇区 `capacity-12288` 12B 记录 + 上电装载）；与云南常规 `0x42` 同字节歧义；§8 = 8 条裁决结果表） |
 | `doc/16_缅甸2D费显协议` | 缅甸 2D 费显协议（车道灯开关量控制，RS232 **定长 20 字节帧** `FF E0 + 命令 + 12B + 5B`，无校验/无应答）接入记录（只解析 `0x90` 红灯 / `0x0A` 左下箭头 / `0x0B` 右下箭头，DATA0 1=开 0=关；**只绑 `CH_ID_RS232`**；队列与任务栈落 CCMRAM；**与四川治超同为 RS232 槽 `0xFF` 首字节 → 双向不误吞（正签名判别）**；**干接点已真实驱动 = S1/S2/S3 → PE12/PE11/PE10（高电平有效推挽、上电默认显示红叉 = 红灯点亮（2026-09-29，取代「三路全灭」）、按线摘 EXTI）**——极性由 2026-09-28 现场实测翻转（复位后灯亮 + 65 脚 3.3V ⇒ 3.3V = 点亮，取代 2026-09-24 的「低有效」初判），副作用与量产建议见 §4；**§14 = 上电默认红叉（车道灯板）+ 开机默认画面「红色叉（×）」（屏，仅带显示驱动构建）**；**EIDE target 现状与缅甸固件点选配方见 `doc/构建开关总表.md` §7（原独立 `Myanmar` target 已于 2026-10-13 删除，§9 为历史目标结构）**；**§10 = 无显示驱动构建的边界防护**（14 条路径判空/降级 + `[disp]` 限速告警 + 判据脚本）；`0x0B` 文档中不存在、`0x0A` 文档标题/注文自相矛盾） |
 | `doc/19_新疆费显协议` | 新疆费额显示器协议接入记录（**协议文档 = PDF 全文「费额显示器通讯协议 2020 年」22 页**，桌面另有 2024-04-16 摘录版 `.md`；`FF DC` + **长度 = 整帧总长** + 命令 + BCC；**14 命令**（含 `'D'` 行/全屏、`'G'`/`'H'`/`'Z'`/`'P'`；`'B'` 不实现）；帧长 **5~106**（'T' 10+16N N≤6、'D' 全屏 7+16N N=2~6，**PDF §5.2 现场采样 = 103B 6 行**）；`'T'`/`'D'` 严格 16 字节/行、RGB≥128 位掩码、亮度 0=自动/1~255→8 档、心跳 15s 维护屏 `XJ_FAULT_SCREEN`、`'D'/'C'/'Z'/'P'` 回 5B 应答；**绑 RS485 + RS232 双槽、自备两槽 `RB_PROVIDE_WEAK` 槽体**（单协议目标必需，见下）；与四川治超 `0xFF` 首字节重叠 → 四重隔离免 EIDE 互斥；队列 1668B 置 CCMRAM；**§2.1 = 调度框架掩码 32→64**；`'B'`/维语/彩色行出处为待确认缺口） |
-| `doc/20_LDI到四川ETC协议转义` | **LDI → 四川 ETC 协议转义（镜像）**（2026-10-15）：LDI 命令成功执行 → 翻译为四川 ETC 帧从 RS485 + RS232 双口同发（供总线纯监听设备解析）；weak 钩子接入层级、事件→出站帧映射表、默认决策 6 条、EIDE 源文件开关、依赖（须同编 LDI + 四川 ETC）、已知限制与验证步骤、**§11 现场排查记录（心跳与「屏幕闪烁」，2026-10-15）：第一轮软件路径逐行排除（心跳不写显存）、第二轮 5 探针部署、第三次观测（纯心跳窗口 36s 仍闪 + 与心跳发射 1:1，判别收口为「电气路径」、削弱「帧触发显示路径」）、第四次观测（**闪屏对象现场确认 = 本机 HUB75 LED 模组（1-263 32×32 1×1）** ⇒ 对端/监听侧屏分支作废，机制收敛为「本机电气耦合」，列三子机制 A1 供电/地耦合 · A2 串扰耦合 · A3 面板对共模敏感 + 实验 E1~E5（E1 拔总线线缆最优先、E2 形态/次数、E3 单口隔离补丁待批准、E4 示波器、E5 供电整改）；GPIO 速度档查证 = UART TX 三脚全 VERY_HIGH、RS485 DE=LOW、HUB75 全 MEDIUM/LOW）；并确认 16:04 构建**含 `dev_display_1_263.c`（32×32）** ⇒ 本机屏确有扫描信号；**第五~六次观测（2026-10-15 晚）= 根因定位与结案**：根因 = `pl_uart_send` 原 `HAL_UART_Transmit` 轮询忙等（3B@9600≈3.1ms/口、双口≈6.25ms 不让出 CPU）饿死 FreeRTOS Timer 守护任务（优先级 2），而 TIM3 行同步 `osEventFlagsSet`（FromISR）经 `xTimerPendFunctionCallFromISR` 投递到该任务中转 ⇒ 发送窗口内 `scan_task` 停摆 ≈6ms、末行被 OE 多点亮 ⇒ 闪；修复 = UART TX 中断化（`HAL_UART_Transmit_IT` + TC 完成信号量 + 每 UART 发送互斥，等待期间让出 CPU）；现场 36s 纯心跳窗口复测**闪烁消失、用户确认通过**；排查期临时 RTT 探针已回收** |
+| `doc/20_LDI到四川ETC协议转义` | **LDI → 四川 ETC 协议转义（镜像）**（2026-10-15）：LDI 命令成功执行 → 翻译为四川 ETC 帧从 RS485 + RS232 双口同发（供总线纯监听设备解析）；weak 钩子接入层级、事件→出站帧映射表、默认决策 6 条、EIDE 源文件开关、依赖（须同编 LDI + 四川 ETC）、已知限制与验证步骤、****§11 现场排查记录（心跳与「屏幕闪烁」，2026-10-15 已结案）：根因 = `pl_uart_send` 原 `HAL_UART_Transmit` 轮询忙等（双口 ≈6.25ms 不让出 CPU）饿死 FreeRTOS Timer 守护任务（优先级 2），TIM3 行同步事件经该任务中转 ⇒ 发送窗口内 `scan_task` 停摆 ≈6ms、末行被 OE 多点亮 ⇒ 闪；修复 = UART TX 中断化（等待期间让出 CPU）；现场 36s 纯心跳窗口复测闪烁消失、用户确认通过；临时 RTT 探针已回收。**（六轮观测过程已于 2026-11-18 压缩为 README §11 结论，原始记录见 git 历史）** |
 | `doc/21_广西费显协议` | 广西费显协议（`AA + addr + BB + 双字节命令 + data + FF`，源项目 9K10712700）接入记录（**8 组命令码 / 10 条逻辑命令**：`51 54` 显示（`0xFF` 定界、文本 ≤192B、`[5]` 累加和 v1 不校验）、`4B 4C` 亮度 0~3→8/6/4/2、`4B 5A` 灯组六三元组、`56 4F` 礼貌语/收费语音（按分格式化）、`01 01` 全屏、`02 02` 版本、`03 03` 开机界面（103B 6×16B、仅运行态；**不注册专属默认画面**——未设置时显示项目通用默认画面「欢迎行驶 / 高速公路」，到期恢复同口径）、`04 04` 字体字号；**回 `0x1B` 的命令 = 51 54 / 4B 4C / 4B 5A / 56 4F / 03 03，原路回**；屏体 192×96 + `dev_display_1_969.c`；绑 RS485+RS232 双槽、**自备两槽 `RB_PROVIDE_WEAK` 槽体**；队列/帧缓冲/任务栈 CCMRAM 实测 2056B；`0xAA` 三槽唯一 → 免 EIDE 互斥；**EIDE `Base` 基线排除、`Debug` 已编入**（2026-10-20 落盘，点选配方见 doc/21 §5）） |
 
 > **⚠ 仓库纪律（2026-10-13 用户裁决）：仓库内已移除 `.analysis/` 目录，禁止创建或使用 `.analysis/`。**
@@ -339,36 +150,12 @@ SRAM (128KB, 0x20000000) — Debug 全协议构建 **129080B / 131072B（98.5%�
 ├─ app_scroll 槽位  s_slots[4] **360B** + 事件/双互斥/任务句柄 16B（2026-09-08 ④a/⑤ 起 376B；scroll_task 栈 1KB **静态落 CCMRAM**——惰性创建但全生命周期只建一次）
 ├─ RTT               **SEGGER RTT 底层保留/已恢复**（2026-09-29 第二轮；`_acUpBuffer` 1KB + `_acDownBuffer` 16B + `_SEGGER_RTT` 控制块 168B = **1208B**）；W25 sec、s_dma_bounce 等
 └─ _user_heap_stack newlib + MSP 预留（链接期下限 512B + 2KB，2026-09-04 由 1KB+2.5KB 收紧）
+```
 
-实测（Makefile GCC Debug）：**【现行】2026-10-12 新疆轮第二轮（PDF 全文命令面 + 模块自备串口 RB；全量重编，
-仅 3 条既有 HAL 告警）**——`PROTO=ALL` `DISP=1_263` `FACTORY=STD` `.text **172056** / .rodata **196264** /
-.data 1656 / .ccmram **41324** / .bss **125388** / `._user_heap_stack` 2564` ⇒ SRAM 合计 **129608B（余 1464B）**、
-CCM 余 **24212B**；`PROTO=CQ` `.text **158652** / .rodata **195592** / .data 852 / .ccmram **39068** /
-.bss **121900** / heap 2564`（余 **5756B**）。**相对本日 15:36 基线**（9 命令 / 74 上限口径）=
-text **+1664** / rodata **+240** / ccmram **+128** / **bss ±0**（text/rodata 归因 = PDF 命令面扩面
-（白名单 9→14、`'S'` 四形态、应答帧、8 条文案）+ 帧长口径 74→106；**本轮「模块自备 RB」只占 +16B text**；
-ccmram +128 = 队列 `3×(82→114)` +96 与任务帧缓冲 `82→114` +32）。**同一目标口径 A/B**（等价 EIDE Debug =
-IAP + LDI + 新疆〔**2026-10-12 当时口径**；2026-10-13 target 重组后 Base/Debug = 基线，该子集需按需点选〕）实测：模块自备 RB = `text +16 / data +32 / bss +1536（768+768 槽体）/ ccmram ±0`，
-SRAM 116528 → 118096（余 12976B）；`PROTO=ALL`/`PROTO=CQ` 下本模块 weak 定义被同槽合并、`.bss` ±0。
-详见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.6 与 `doc/19_新疆费显协议/README.md` §6、
-`.analysis/xinjiang/round2_pdf_fulltext_and_rb.md`。**〔前一轮〕2026-10-12 新疆轮首轮（协议接入 + 掩码 32→64）**
-——`PROTO=ALL` `.text 170392 / .rodata 196024 / .ccmram 41196 / .bss 125388`（余 1464B）；
-`PROTO=CQ` `.text 157004 / .rodata 195360 / .ccmram 38940`（余 5756B）；掩码扩容 = `.text +592 / .bss +588`、
-新疆模块 = `.text +1856 / .rodata +248 / .ccmram +1544 / .bss +32`。
-**〔前一轮〕2026-09-29 代码瘦身轮第二轮（自研诊断设施移除 + RTT 底层恢复 + 注释精简；全量重建，
-仅 3 条既有 HAL 告警）**——`PROTO=ALL` `DISP=1_263` `FACTORY=STD` `.text **167752** / .rodata **195776** /
-.data 1656 / .ccmram 39652 / .bss **124768** / `._user_heap_stack` 2560` ⇒ SRAM 合计 **128984B（余 2088B）**、
-CCM 余 25884B；`FACTORY=MM` `.text 166216 / .rodata 195664 / .bss 124504 / heap 2560`（余 2352B）；`PROTO=CQ`
-`.text 154492 / .rodata 195112 / .data 852 / .ccmram 37396 / .bss 121292`（余 6368B）；无显示等价口径 `.text 131928 /
-.rodata 191968 / .ccmram 16084 / .bss 115704 / heap 2560` ⇒ SRAM 余 11224B。**相对第一轮瘦身基线**（RTT 移除态）：
-text **+464** / rodata **+40** / bss **+1208**（= RTT 上行 1024 + 下行 16 + 控制块 168）/ ccmram ±0。
-详见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.4 与
-`.analysis/cleanup_20260929/round2_report.md`。**（历史口径）2026-09-29 代码瘦身轮第一轮（RTT 移除态）四口径**：
-`ALL/1_263/STD` text 167288 / rodata 195736 / bss 123560（SRAM 余 3296B）；`FACTORY=MM` text 165752 / bss 123296（余 3440B）；
-`CQ` text 154044 / bss 120084（余 7260B）；无显示口径 text 131480 / bss 114496（余 13912B）——详见
-`.analysis/cleanup_20260929/report.md` 与 `doc/17` §3。**（历史口径）2026-09-17 FreeRTOS 堆修复轮三口径**（doc/06-04 §8.4）：`PROTO=ALL` `DISP=1_263` text **171860** / rodata **202592** / data 1672 / bss 124712 / `_user_heap_stack` 2560 / **SRAM 合计 128944B（余 2128B）** / **CCM 38332B（余 27204B）**；`PROTO=CQ` `DISP=1_263` text 158684 / rodata 201936 / data 872 / bss 121228 / SRAM 124664B（余 6408B）/ CCM 36076B（余 29460B）；`PROTO=ALL` `DISP=22_1665` text **172036** / rodata 202592 / data 1672 / bss 124712 / SRAM 128944B（余 2128B）/ CCM 39036B（该值 = 堆修复轮、模型 A 驱动 3200B）；**第二十七轮（模型 B 现行）**：同口径 text **172164** / rodata **202952** / CCM **39164**（本模组 **3328B** = `1408×2 + 256×2`）/ bss 124712 / SRAM 128944B（余 2128B）——三口径链接通过、零新增告警（3 条既有 HAL）。**相对修复前（ALL/1_263）**：text +1264 / rodata +856（判空守卫 + heap 诊断 + 内核静态任务缓冲强定义 + `heap_4` 失败请求量补丁）/ bss **−1732** / ccmram **+27168** / **SRAM 余量 400B → 2128B**。**2026-09-18 YN_OL TCP 现场修复轮（历史，doc/06-04 §8.4.1）**：`PROTO=ALL` `DISP=22_1665`（1×5）text **174640** / rodata **203152** / data 1680 / bss 124816 / ccmram 44156 / `_user_heap_stack` 2560 ⇒ **SRAM 合计 129056B（余 2016B）**；同轮 `PROTO=ALL` `DISP=1_263` 余 **2020B**、`PROTO=CQ` `DISP=1_263` 余 **6304B**——三口径链接通过、零新增告警（3 条既有 HAL）。**相对修复前（ALL/22_1665：text 175252 / rodata 205104 / bss 124776 / 余 2056B，tree `3146c4f0`）**：text **−612** / rodata **−1952** / bss **+40**（归因：LwIP 调试档位 `LEVEL_ALL` → `APP_LWIP_DBG_LEVEL` 默认 WARNING 单独贡献 text −1044 / rodata −2216；新增复位原因行 / `[disp]` 无协议承载告警 / TCP keepalive 等净增 text +432 / rodata +264 / bss +40）。烧录镜像 `tree=7df8ac20`、elf md5 `71e94c8f…`（elf 见 `.analysis/yn_ol/fix_verify/final_shipping.elf`）。**2026-09-18 第三十二轮（22_1665 CCM 自设上限删除；工作区宏值 = 8×2 = 128×32，用户第三十一轮改宏）**：`PROTO=ALL` `DISP=22_1665` `.text **175248** / .rodata **203296** / data 1656 / bss 124836 / .ccmram **58876**`（本模组 **23040B** = `1408×16 + 256×2`，**余 6660B**）/ `._user_heap_stack 2564` ⇒ **SRAM 合计 129056B（余 2016B）**；同轮 `ALL/1_263` `.text 174976 / .rodata 203040 / .ccmram 38332`（余 2016B）、`CQ/1_263` `.text 161796 / .rodata 202384 / .ccmram 36076`（余 6296B）——三口径链接通过、零新增告警（仍 3 条既有 HAL；**该两口径不编 22_1665 驱动**，其相对上条基线的 ±600B 级差异来自工作区他处在飞改动）。**（历史口径，2026-09-17 云南治超裁决轮三口径，doc/15 §6）**：`PROTO=ALL` `DISP=1_263` text **170596** / rodata **201736** / SRAM **130672B（余 400B）** / CCM **11164B**（余 54372B）；`PROTO=CQ` `DISP=1_263` SRAM 126392B（余 4680B）；`PROTO=ALL` `DISP=22_1665` text **172460** / rodata **202896** / data 1672 / SRAM 130688B（余 384B）/ CCM **10460B**（本模组 1792B；**该轮口径**——**第二十四轮现行基线**为 text **170772** / rodata **201768** / data 1672 / bss 126436 / SRAM 合计 130672B（余 **400B**）/ CCM **10460B**，tree **`35b296d8`**；多模块口径整项目 CCM 实测 2×1 = 11868B / 2×2 = 14684B / 3×2 = 17500B）——三口径链接通过、零新增告警（3 条既有 HAL）。**本模块增量（A/B）**：text +3520 / rodata +680~688 / data +0 / ccmram +1152 / bss +36（SRAM 合计 +40B / +32B / +40B）；相对上一轮 4 文件模块（text +3232 / rodata +584~592 / ccmram +1152 / bss +20）净增 text +288 / rodata +96 / SRAM +16B（删除上电画面代码 vs 新增 TCP 双通道注册 + `0x49` 持久化含 RTT 诊断）。**（历史口径，2026-09-14 复测轮四口径）**：`PROTO=ALL` `DISP=1_263` SRAM 130632B（余 440B）/ CCM **37084B**（该值为 1-263 文件 224×64 态；**工作区 1-263 当前为 1×1 实验态 → CCM 10012B**）；`PROTO=CQ` 126360B（余 4712B）；`DISP=22_1703` 两口径余 360B / 4632B（ccmram 39164B = 该文件当前 7×4 = 224×64 态；其 1×1 实验态为 11420B）。**诊断设施（`APP_DIAG_BANNER`）增量：Flash +5616B / RAM +0B**。
+> 段尺寸与各口径占用以 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4 为准（EIDE 构建）；本文不再重复 make 时代的历史数字。
 
-CCMRAM (64KB, 0x10000000, NOLOAD) — **41324B / 65536B（63.1%）**（Makefile `PROTO=ALL` `DISP=1_263`，**2026-10-12 新疆轮第二轮**；余 24212B；同口径首轮 = 41196B / 余 24340B，见 doc/06-04 §8.4.6）
+```
+CCMRAM (64KB, 0x10000000, NOLOAD) — 占用数字以 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4 为准（EIDE 构建；下表为结构性说明，不是某次构建的实测值）
 ├─ pixel_map / hub75_buff / row_dst / 模组查表   **显存与查表**
 │   1-263（224×64）：pixel_map 14336 + hub75_buff 14336 + row_dst 128 + g_bsrr 768 = **29568B**
 │   22-1703（224×64，1/4 扫）：14336 + 14336 + 128 + 合并表 2848 = **31648B**（`DISP=22_1703` 口径；两模组不可同编）
@@ -1001,7 +788,7 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 
 **板级系统配置** (`Application/Src/Config/app_board_net_cfg.c`)：`app_board_sys_info_t` 记录（72B，方案 B 2026-08-21）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(20) + CRC32(4)，布局以 `app_board_net_cfg.h` 注释 + `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §15 为唯一口径（与 Bootloader/Recovery 二进制兼容）。NetConfig 字段语义：`ip/mask/gw` 两套口共享；`port` = **TCP 业务口**（LDI 0AH / IAP 0x01 报 0x02 写 / TCP Server 监听，出厂默认 9528）+ **贵州治超专用 UDP 业务口**（GZ_OL `0x40` 写 / `CH_ID_UDP_GZOL` 读；同号不同协议栈，2026-09-14 用户裁决，doc/14 §13）；`udp_port` = **CQ UDP 业务口**（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。网络配置经 `app_board_net_cfg_get` / `app_board_net_cfg_update(ip,mask,gw,port,udp_port)` 读写（LDI 0AH / IAP 4B02 写 port 保留 udp_port；CQ setip 写 udp_port 保留 port），FWInfo/update_sta 经 `app_board_net_cfg_read` 整记录读取（IAP 命令用）。**升级兼容**：旧 68B 记录按新 72B 布局重算 CRC 必失配 → 走空/损坏自愈路径重写（网段配置丢失一次，由 ldi_ctx_init W25 镜像回写或 app_net_boot 默认落盘恢复）；**反向同理**——设备上旧 68B 布局 Bootloader/Recovery 读新 72B 记录同样失配 → 反复重建旧布局出厂记录，**方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次会话），否则 Sector1 两布局交替重建、设备可能陷 Recovery（网络全部无响应）**（2026-08-21 纪律强化）。
 
-**LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t` 记录长度按 `sizeof` 计（11 模块 = 176B）= magic(4) + cfg + padding + CRC32(4)，CRC 覆盖 `[0, offsetof(crc32))`。扇区切成 **16 × 256B 槽顺序追加写**（擦除后回槽 0，单次保存掉电只毁正在写的槽），装载倒序取最新合法槽并做回读校验；装载时**兼容识别 v1 旧布局（6 模块 / 116B）记录并自动迁移**（无版本号，靠当前/v1 两种 CRC 覆盖面试探区分，v1 命中即搬运字段后用新布局重写）。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。
+**LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t` 记录长度按 `sizeof` 计（11 模块 × 13B = 188B）= magic(4) + cfg + padding + CRC32(4)，CRC 覆盖 `[0, offsetof(crc32))`。扇区切成 **16 × 256B 槽顺序追加写**（擦除后回槽 0，单次保存掉电只毁正在写的槽），装载倒序取最新合法槽并做回读校验；装载时**兼容识别历史布局并自动迁移**（无版本号，靠不同 CRC 覆盖面试探区分）：**v1 6 模块 / 116B → v2 11 模块 × 12B / 176B → v3 11 模块 × 13B / 188B**（现行唯一可写布局；模块条目 = `type + index + param + vendor[10]`，E4H/E6H 的 param 独立成字段，v2 记录里它混在 `vendor[0]`，迁移时右移还原），命中旧布局即搬运字段后用 v3 重写。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。布局/迁移/1EH 定长表详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §10。
 
 > **解耦已落地（2026-08-14）**：LDI 与 IAP 协议均经中立模块 `app_board_net_cfg`（`Application/Config`）读写 Sector 1 网络配置，互不依赖对方协议目录；`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 已删除。守卫语义（空/损坏自愈、升级中间态仅放行 net_cfg 字段更新、同值跳过）见 `doc/07_LDI与IAP配置解耦`。
 
@@ -1213,12 +1000,13 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 
 车道设备指示器协议，**仅网口**：`CH_ID_TCP_SERVER / CH_ID_TCP_CLIENT / CH_ID_UDP` 三通道各独立 mask，共用 RJ45 RB 与 `g_ldi_msg_queue`（`LDI_QUEUE_DEPTH=4`）。帧 STX `0xFF 0xFF`（`app_ldi.h` 固定值）+ CRC-16/XMODEM 校验；`LDI_PAYLOAD_MAX=512`。
 
-- `ldi_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大）
-- `ldi_timer_task`：周期性状态上报 + **ETC 转义心跳**（每秒节拍差值 ≥3000ms 时无条件发 `0A 08 0D` 双口；栈 256×4=1KB；原 2KB 偏大）
+- `ldi_handle_task`：协议处理任务（栈 256×4=1KB，帧缓冲 static；原 2KB 偏大）。**状态门禁拒绝不再静默丢帧**：被拒的 1AH 回 `A1H`+`device_num=0`、被拒的 1BH 回 `B1H`+`device_num=0`（平台按 `device_num` 解析，无回应会判超时）；0EH/0CH/1CH/C0H/E0H 等设备上报或平台对上报的应答维持静默（该方向无应答约定，回了会成环）。**状态机、门禁矩阵、断链复位语义的权威描述见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md`**。
+- `ldi_timer_task`：每秒一拍，三件事——①**断链边沿复位**（存在会话锚点 `sess_ch`/`sess_ch_id` 且其通道被销毁/换实例/不再 `CH_STATE_UP` → 复位一次到 `UNINIT` 并清锚点；**无锚点时不拉平状态**，旧实现「TCP Client 不 UP 就无条件回 UNINIT」会让只连 TCP Server 的平台永远认证不上）；②`UNINIT` 每 3 秒发 `0EH`（验证申请），直到 E0H 认证成功，发送通道**会话锚点优先、无锚点回退 `CH_ID_TCP_CLIENT`**；③`AUTHED`/`READY` 每 5 秒发 `0CH`（状态上报，发到会话通道）。认证成功后锚定会话通道（E0H 的 `lane_code`/`cert_info` 须与本机一致，身份未配置即全 0 时豁免，否则新设备无法首次认证）。另含 **ETC 转义心跳**（每 3 秒无条件发 `0A 08 0D` 双口，与状态机无关；栈 256×4=1KB；原 2KB 偏大）
 - 13 种设备类型（`Application/Inc/LDI/app_ldi.h`，`LDI_DEV_TYPE_COUNT=13`）：RSU 0xE1 / LPR 0xE2 / VTR 0xE3 / 栏杆机 0xE4 / 车检 0xE5 / 显示屏 0xE6 / 信号灯 0xE7 / 报警器 0xE8 / VMS 0xE9 / 雨棚灯 0xEA / 雾灯 0xEB / 语音 0xF4
 - `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`）
 - `app_vms_ctrl`：VMS 情报板子模块，将 LDI 命令翻译为 `app_render()` 调用
 - 复合指令模块：支持多设备类型组合控制（1BH 命令）
+- **host（平台地址）存储归属**：`host_ip`/`host_port` **只存 W25 LDI 配置记录，单副本**，Sector1 `net_cfg` 不存、无出厂默认；擦 Sector1 既不恢复也不破坏 host。0AH 带全 0 host 时不覆盖（2026-11-18 零值守卫，与 lane/cert 同款）——旧实现无条件覆盖会把 host 落盘成 `0.0.0.0:0`，而 `app_tcp_client` 对「远端未配置」不连接，设备从此**永不连平台**且无默认值可回退；副作用是 host 一旦写入无法再用 0AH 清零。详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
 - **设备能力层（`Application/Src/LDI/app_ldi_device.c`）**：E6/E7/E8 的实际执行与状态缓存（`ldi_device_*_ctrl` / `ldi_device_timer_poll`）。该文件同时提供 **5 个 `__attribute__((weak))` 空实现**的镜像钩子（`app_ldi_etc_display/clear/lamp/alarm/heartbeat`），在命令**成功路径**（前 4 个）或**定时任务节拍**（心跳，`ldi_timer_task()` 每 3 秒无条件）调用；强实现由 `Application/Src/app_ldi_etc_bridge.c` 提供（EIDE 排除它即回退空实现）。**LDI → 四川 ETC 转义（镜像）**的映射、默认决策与开关见 `doc/20_LDI到四川ETC协议转义/README.md`（E9 VMS 不镜像、黄灯不发、报警只转显式开/关、心跳 `0A 08 0D` 3 秒周期；出站走 RS485+RS232 双口）。
 
 ## 青海协议 (`Application/Src/ProtocolParser_QingHai/app_qh_proto.c`)
