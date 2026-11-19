@@ -3,7 +3,7 @@
  * @brief   LDI 设备能力层 — 协议解析与硬件执行解耦
  *
  * 协议层 (app_ldi_cmd) 只负责校验/分发/回包；
- * E6/E7/E8 的实际执行与状态缓存统一由此层提供。
+ * E6/E7/E8/F4H 的实际执行与状态缓存统一由此层提供。
  *
  * 硬件/协议兼容约定：
  *   E7 控制 Color: 01H绿 / 02H红 / 03H黄
@@ -48,6 +48,9 @@ typedef struct {
     uint8_t keep_time;
 } ldi_dev_alarm_sta_t;
 
+/** 判定「本固件确实实现了该模块」：与 1BH 注册表 / 0CH 可用状态同源（LDI_MODULE_LIST） */
+bool ldi_device_available(uint8_t device_type);
+
 void ldi_device_init(void);
 
 /** E6 显示控制/清屏；text_len 为 text[] 有效字节数（不含定长头） */
@@ -58,6 +61,9 @@ ldi_dev_result_t ldi_device_lane_signal_ctrl(const ldi_ctrl_signal_t *ctrl);
 
 /** E8 报警器开关控制（含 work_mode 频率闪烁 / keep_time 定时关闭） */
 ldi_dev_result_t ldi_device_alarm_ctrl(const ldi_ctrl_alarm_t *ctrl);
+
+/** F4H 语音播报（按文字播报）：gbk_text 为 GBK 文本，text_len 为其有效字节数 */
+bool ldi_device_voice_ctrl(const uint8_t *gbk_text, uint16_t text_len);
 
 /** 由 ldi_timer_task 每秒调用：E6 KeepTime / E8 KeepTime+频率闪烁 */
 void ldi_device_timer_poll(void);

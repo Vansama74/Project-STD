@@ -54,6 +54,87 @@ warn()  { printf "%b[WARN]%b  %s\n"  "$C_Y" "$C_N" "$*"; }
 error() { printf "%b[ERROR]%b %s\n" "$C_R" "$C_N" "$*"; }
 step()  { printf "%b[STEP]%b  %s\n"  "$C_B" "$C_N" "$*"; }
 
+# ── WSL / Windows 互操作 ─────────────────────────────────────────────────────
+# 本脚本原先跑在纯 Linux（JLinkExe 位于 /opt/SEGGER/JLink）。迁到 Windows 后：
+#   · git-bash / MSYS：JLink.exe 与固件同属 Windows 文件系统，路径直接用；
+#   · WSL：脚本跑在 Linux 侧，而 JLink.exe 是 Windows 原生程序 —— 传给它的
+#     每个路径都必须是 Windows 形式，否则报 "Could not open J-Link Command
+#     File"（实测：/dev/null 与 \\wsl.localhost\... 均打不开）。
+IS_WSL=0
+[ -n "${WSL_DISTRO_NAME:-}" ] && IS_WSL=1
+# EIDE 在 Windows 上执行 bash 用的是它自带的精简 MSYS（OSTYPE=msys）：
+# 盘符挂在 /<d>（不是 /mnt/<d>），且没有 wslpath / cygpath / mktemp / realpath。
+IS_MSYS=0
+[ "${OSTYPE:-}" = "msys" ] && IS_MSYS=1
+
+# Linux 路径 → Windows 路径（纯 Linux 环境原样返回）。相对路径先基于 cwd 绝对化。
+# MSYS（EIDE 自带 bash）没有 wslpath/cygpath/realpath，用 pwd -W 取 Windows 盘符。
+to_win_path() {
+    local p="$1" d b
+    case "$p" in
+        /*) ;;
+        *)  p="$PWD/$p" ;;
+    esac
+    if command -v wslpath >/dev/null 2>&1; then
+        wslpath -w "$p"
+    elif command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$p"
+    elif ((IS_MSYS)) && d="$(cd "$(dirname -- "$p")" 2>/dev/null && pwd -W)"; then
+        b="$(basename -- "$p")"
+        printf '%s/%s' "$d" "$b"
+    else
+        printf '%s' "$p"
+    fi
+}
+
+# Windows 路径 → Linux 路径（纯 Linux 环境原样返回）。
+to_unix_path() {
+    local p="$1"
+    if command -v wslpath >/dev/null 2>&1; then
+        wslpath -u "$p"
+    elif command -v cygpath >/dev/null 2>&1; then
+        cygpath -u "$p"
+    elif ((IS_MSYS)); then
+        # C:\Users\yy  →  /c/Users/yy
+        p="${p//\\//}"
+        printf '/%s/%s' "$(printf '%s' "${p:0:1}" | tr 'A-Z' 'a-z')" "${p:3}"
+    else
+        printf '%s' "$p"
+    fi
+}
+
+# J-Link 命令脚本落点。必须是 Windows 可见目录：/tmp 在 WSL 下会变成
+# \\wsl.localhost\... UNC，MSYS 下也不是 Windows 原生路径，
+# J-Link Commander 都不保证能打开（实测报 "Could not open"）。
+# 优先级：FLASH_TMP_WIN 覆盖 → Windows 系统 %TEMP% → 各用户 Temp → TMPDIR。
+# 不扫 /c/Users/* —— 会命中 "Default User"（只读）。
+flash_tmp_dir() {
+    local d u
+    if [ -n "${FLASH_TMP_WIN:-}" ]; then
+        u="$(to_unix_path "$FLASH_TMP_WIN")"
+        [ -d "$u" ] && { printf '%s' "$u"; return; }
+    fi
+    for d in "${TEMP:-}" "${TMP:-}"; do
+        case "$d" in
+            [A-Za-z]:[\\/]*) ;;
+            *) continue ;;
+        esac
+        u="$(to_unix_path "$d")"
+        [ -d "$u" ] && { printf '%s' "$u"; return; }
+    done
+    if ((IS_WSL)); then
+        # 先按 $USER，再扫全部用户；排除 Default/Public 等只读模板账户
+        for d in "/mnt/c/Users/${USER:-}/AppData/Local/Temp" \
+                 /mnt/c/Users/*/AppData/Local/Temp; do
+            case "$d" in
+                */Default/*|*/"Default User"/*|*/Public/*|*/"All Users"/*) continue ;;
+            esac
+            [ -d "$d" ] && { printf '%s' "$d"; return; }
+        done
+    fi
+    printf '%s' "${TMPDIR:-/tmp}"
+}
+
 # ── Resolve script directory (relative path base) ────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Project root: tool/../
@@ -169,15 +250,34 @@ validate_files() {
     return $ok
 }
 
-# ── Find JLinkExe ────────────────────────────────────────────────────────────
+# ── Find J-Link Commander ────────────────────────────────────────────────────
+# 探测顺序：JLINK_EXE 环境变量 → PATH → Linux 经典路径 → Windows 安装目录。
+# Windows 侧按「盘符逐个枚举 + 目录内 glob」找：H:\SEGGER\JLink_V994
+#   WSL 形态 /mnt/h/SEGGER/JLink_V994/JLink.exe
+#   MSYS 形态 /h/SEGGER/JLink_V994/JLink.exe（EIDE 自带 bash，OSTYPE=msys）
+# 注意：不能用 /[a-z]/SEGGER/... 这种根目录 glob —— MSYS 不展开盘符挂载点
+# （实测展开为空），必须自己枚举盘符。判断一律用 if，避免 set -e 提前退出。
 find_jlink() {
-    local p
-    command -v JLinkExe 2>/dev/null && return
-    for p in /opt/SEGGER/JLink/JLinkExe /usr/bin/JLinkExe; do
-        [[ -x "$p" ]] && { echo "$p"; return; }
+    local p d b
+    if [ -n "${JLINK_EXE:-}" ] && [ -f "$JLINK_EXE" ]; then
+        printf '%s' "$JLINK_EXE"; return
+    fi
+    for p in JLinkExe JLink.exe; do
+        if command -v "$p" >/dev/null 2>&1; then
+            command -v "$p"; return
+        fi
     done
-    for p in /opt/SEGGER/JLink*/JLinkExe; do
-        [[ -x "$p" ]] && { echo "$p"; return; }
+    for p in /opt/SEGGER/JLink/JLinkExe /usr/bin/JLinkExe /opt/SEGGER/JLink*/JLinkExe; do
+        if [ -f "$p" ]; then printf '%s' "$p"; return; fi
+    done
+    for d in "" /mnt; do
+        for b in c d e f g h i j k l m n o p q r s t u v w x y z; do
+            for p in "$d/$b/SEGGER"/JLink*/JLink.exe \
+                     "$d/$b/Program Files/SEGGER"/JLink*/JLink.exe \
+                     "$d/$b/Program Files (x86)/SEGGER"/JLink*/JLink.exe; do
+                if [ -f "$p" ]; then printf '%s' "$p"; return; fi
+            done
+        done
     done
     return 1
 }
@@ -197,7 +297,9 @@ format_elapsed() {
 # ── Generate J-Link script ───────────────────────────────────────────────────
 generate_jlink_script() {
     local tmp
-    tmp="$(mktemp /tmp/flash_all_XXXXX.jlink)"
+    # 不用 mktemp：EIDE 自带 MSYS 不含该命令；PID + 秒级时间戳已足够唯一
+    tmp="$(flash_tmp_dir)/flash_all_$$_$(date +%s).jlink"
+    : > "$tmp"
     {
         printf 'device %s\n' "$JLINK_DEVICE"
         printf 'si %s\n' "$JLINK_IF"
@@ -209,9 +311,9 @@ generate_jlink_script() {
         if $SKIP_VERIFY; then
             printf 'SetCompareMode 0\n'
         fi
-        printf 'loadfile %s\n' "$BOOT_FILE"
-        printf 'loadfile %s\n' "$RECV_FILE"
-        printf 'loadfile %s\n' "$APP_FILE"
+        printf 'loadfile %s\n' "$(to_win_path "$BOOT_FILE")"
+        printf 'loadfile %s\n' "$(to_win_path "$RECV_FILE")"
+        printf 'loadfile %s\n' "$(to_win_path "$APP_FILE")"
         # 默认擦除 Sector1 (0x08004000~0x08007FFF, 板级配置扇区) 恢复出厂态:
         # 规避 Bootloader 条件 D 的 app_info CRC 失配坑 (详见脚本头注释)。
         # J-Link 范围擦除语法: Erase [<SAddr>, <EAddr>] (逗号分隔, 大小写不敏感)。
@@ -240,13 +342,16 @@ validate_files || exit 1
 
 step "Locating J-Link Commander..."
 JLINK_EXE=$(find_jlink) || {
-    error "JLinkExe not found! Install: https://www.segger.com/downloads/jlink/"
+    error "J-Link Commander not found!"
+    error "  Windows: install SEGGER J-Link -> https://www.segger.com/downloads/jlink/"
+    error "  Or set env JLINK_EXE=<full path to JLink.exe / JLinkExe>"
     exit 1
 }
 info "Found: $JLINK_EXE"
 
 step "Generating command script..."
 JLINK_SCRIPT="$(generate_jlink_script)"
+info "Script: $(to_win_path "$JLINK_SCRIPT")"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 printf -- '\n--------------------------------------------\n'
@@ -286,7 +391,7 @@ set +e
     -if "$JLINK_IF" \
     -speed "$JLINK_SPEED" \
     -autoconnect 1 \
-    -CommanderScript "$JLINK_SCRIPT"
+    -CommanderScript "$(to_win_path "$JLINK_SCRIPT")"
 rc=$?
 set -e
 

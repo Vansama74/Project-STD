@@ -8,7 +8,7 @@
 #include "app_dispatch.h"
 
 /* RJ45 物理通道 RB：与 IAP/LDI 等同槽 weak 合并（启用 MQTT 时才占体） */
-RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
+RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
 static proto_mask_t s_ah_mqtt_mask;
 

@@ -5,7 +5,7 @@
 > **状态**：现行事实　|　2026-08-14  
 > **触发**：EIDE 工程仅勾选 LDI 相关源文件时链接失败（见终端 `undefined reference to app_flash_iap_*` / `g_config`）。  
 > **解耦方案** → [02_decoupling_solutions.md](./02_decoupling_solutions.md)  
-> **临时选编** → [03_interim_build_rules.md](./03_interim_build_rules.md)
+> **临时选编规则**（2026-08-14 已废止，文件已于 2026-11-18 删除，历史见 git）：结论 = 配置层 `app_board_net_cfg.c` 公共必选，LDI / IAP 目录可各自独立裁剪。
 
 ---
 
@@ -145,7 +145,7 @@ doc/05 目标：**工程目录选编协议**（exclude 即可裁剪）。
 | 缺陷类型 | **编译期模块边界错误**（强符号依赖放错层） |
 | 严重度 | 裁剪构建 **阻塞**；全量构建 **隐性** |
 | 是否安全漏洞 | 否 |
-| 是否必须整包 IAP | **否**；见 [03](./03_interim_build_rules.md) |
+| 是否必须整包 IAP | **否**；配置层 `app_board_net_cfg.c` 公共必选即可（原 03 号选编规则已删，历史见 git） |
 | 附带现状缺陷 | 空 Sector1 写路径不置 magic（§3.4）、0AH 写失败/断电无保护（§4.3）、模块命名与注释勘误（§3.5） |
 
 ---

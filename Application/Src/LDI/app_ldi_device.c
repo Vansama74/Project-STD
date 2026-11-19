@@ -1,11 +1,12 @@
 /**
  * @file    app_ldi_device.c
- * @brief   LDI 设备能力层实现（E6/E7/E8）
+ * @brief   LDI 设备能力层实现（E6/E7/E8/F4H）
  *
  * 硬件映射：
  *   E6 → app_render / dev_display
  *   E7 → dev_io_lane_light（单路灯；黄灯降级关灯，0CH 按附录 A.1 报红）
  *   E8 → dev_io_flash_light（报警器代实现；WorkMode 频率用软闪烁）
+ *   F4H → dev_rs232_voice（RS232 TTS 语音板，USART6；仅按文字播报）
  *
  * 附录 A.1 running_status：
  *   E6: 00H关闭 / 01H开启
@@ -21,6 +22,7 @@
 #include "app_render.h"
 #include "dev_display.h"
 #include "dev_io_ctrl.h"
+#include "dev_rs232_voice.h"
 #include "app_ldi_etc_bridge.h"
 
 /* ---- LDI → 四川 ETC 转义钩子（weak 空实现）----
@@ -135,6 +137,23 @@ static void alarm_stop(void)
     s_alarm_active             = false;
     s_alarm_timer_active       = false;
     s_alarm_freq_active        = false;
+}
+
+/* ================================================================
+ *  模块可用性
+ * ================================================================ */
+
+/* 判定「本固件确实实现了该模块」，与 1BH 注册表 / 0CH 可用状态同源：
+ * switch 由 app_ldi.h 的 LDI_MODULE_LIST 生成，加入新模块只改那一张列表。 */
+bool ldi_device_available(uint8_t device_type)
+{
+    switch (device_type) {
+#define _LDI_MOD_CASE(t, i) case (t): return true;
+        LDI_MODULE_LIST(_LDI_MOD_CASE)
+#undef _LDI_MOD_CASE
+        default:
+            return false;
+    }
 }
 
 void ldi_device_init(void)
@@ -378,6 +397,18 @@ ldi_dev_result_t ldi_device_alarm_ctrl(const ldi_ctrl_alarm_t *ctrl)
     app_ldi_etc_alarm(true);
 
     return LDI_DEV_OK;
+}
+
+/* ================================================================
+ *  F4H 语音播报
+ *
+ *  仅「按文字播报」：GBK 文本直送 TTS 语音板（USART6）。
+ *  成功判据 = 整帧确实发出（dev_rs232_voice_play 的返回值）。
+ * ================================================================ */
+
+bool ldi_device_voice_ctrl(const uint8_t *gbk_text, uint16_t text_len)
+{
+    return dev_rs232_voice_play(gbk_text, text_len);
 }
 
 /* ================================================================

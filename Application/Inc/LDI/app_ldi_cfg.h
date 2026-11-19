@@ -9,18 +9,19 @@
 #define APP_FLASH_LDI_MAX_MODULES (11U) // Flash 最大可存储的功能模块数量
 
 /**
- * 单功能模块配置信息（从 0BH 命令下发，共 12 字节）
+ * 单功能模块配置信息（从 0BH 命令下发，共 13 字节）
  *
- * 每个模块包含设备类型编码、模块序号和厂商自定义参数段。
+ * 每个模块包含设备类型编码、模块序号、类型参数和厂商自定义参数段。
  * 存储在 Flash 中供 1EH 参数采集命令回读。
  */
 typedef struct {
     uint8_t device_type;   // ldi_device_t 枚举值 (E1H~EBH)
     uint8_t device_index;  // 功能模块序号，从 01H 开始
-    uint8_t vendor[10];    // 厂商自定义参数段 (0BH 命令下发的 Vendor[] 段)
+    uint8_t param;         // 类型参数：E4H=FilterTime / E6H=FontLine / 其余类型=0（协议 §4.2/4.5 模块第 3 字节）
+    uint8_t vendor[10];    // 厂商自定义参数段
 } app_flash_ldi_module_cfg_t;
 
-/* 契约：单模块条目固定 12B（device_type 1 + device_index 1 + vendor 10），
+/* 契约：单模块条目固定 13B（device_type 1 + device_index 1 + param 1 + vendor 10），
  * W25 记录按此布局读写，改错静默错位。 */
 
 /**
@@ -50,10 +51,10 @@ typedef struct {
 /**
  * Flash 存储记录（槽内布局）= magic + 配置 + CRC32 校验
  *
- * 总长按 sizeof(app_flash_ldi_record_t) 计（11 模块 = 176B，含对齐 padding，
+ * 总长按 sizeof(app_flash_ldi_record_t) 计（11 模块 × 13B，含对齐 padding，
  * 必须 <= APP_FLASH_LDI_SLOT_SIZE），CRC32 覆盖 [0, offsetof(crc32))。
  * 记录**不带版本号**：旧固件布局与本布局的区分靠 CRC 试探（magic 相同、
- * CRC 取不同长度各试一次），故跨版本升级时必须保留下方 v1 布局定义。
+ * CRC 取不同长度各试一次），故跨版本升级时必须保留下方 v2 / v1 布局定义。
  */
 typedef struct {
     uint32_t magic;
@@ -61,7 +62,35 @@ typedef struct {
     uint32_t crc32;
 } app_flash_ldi_record_t;
 
-/* v1 布局（2026-11-17 前的 6 模块版，116B 记录）——只用于装载时识别并迁移，禁止写入 */
+/* v2 布局（2026-11-18 前：11 模块 × 12B，无 param 字段，param 混入 vendor[0]）
+ * ——只读迁移，禁止写入 */
+typedef struct {
+    uint8_t device_type;
+    uint8_t device_index;
+    uint8_t vendor[10];
+} app_flash_ldi_module_cfg_v2_t;
+
+typedef struct {
+    uint8_t device_ip[4];
+    uint16_t device_port;
+    uint8_t host_ip[4];
+    uint16_t host_port;
+    uint8_t netmask[4];
+    uint8_t gateway[4];
+    uint8_t lane_hex[5];
+    uint8_t cert[8];
+    uint8_t module_count;
+    app_flash_ldi_module_cfg_v2_t modules[APP_FLASH_LDI_MAX_MODULES];
+} app_flash_ldi_cfg_info_v2_t;
+
+typedef struct {
+    uint32_t magic;
+    app_flash_ldi_cfg_info_v2_t cfg;
+    uint32_t crc32;
+} app_flash_ldi_record_v2_t;
+
+/* v1 布局（2026-11-17 前的 6 模块版，116B 记录）——只用于装载时识别并迁移，禁止写入。
+ * 模块元素沿用 12B 的 app_flash_ldi_module_cfg_v2_t，以保证本布局恒为 116B。 */
 #define APP_FLASH_LDI_V1_MAX_MODULES (6U)
 
 typedef struct {
@@ -74,7 +103,7 @@ typedef struct {
     uint8_t lane_hex[5];
     uint8_t cert[8];
     uint8_t module_count;
-    app_flash_ldi_module_cfg_t modules[APP_FLASH_LDI_V1_MAX_MODULES];
+    app_flash_ldi_module_cfg_v2_t modules[APP_FLASH_LDI_V1_MAX_MODULES];
 } app_flash_ldi_cfg_info_v1_t;
 
 typedef struct {
@@ -88,8 +117,8 @@ bool app_flash_ldi_is_config_valid(volatile const app_flash_ldi_record_t *rec);
 int32_t app_flash_ldi_erase_config(void);
 int32_t app_flash_ldi_write_config(app_flash_ldi_record_t *rec);
 /**
- * @brief 保存 LDI 配置到 W25 槽区（顺序追加 + 回读校验）
- * @return 0 成功；<0 擦除 / 写入 / 回读校验失败（dev_storage 错误码或 -1）
+ * @brief 保存 LDI 配置到 W25 槽区（顺序追加到第一个空槽，不做写后回读）
+ * @return 0 成功；<0 擦除或写入失败（dev_storage 错误码）
  */
 int32_t app_flash_ldi_save_config(app_flash_ldi_cfg_info_t *info);
 /** @brief 从 W25Qxx 加载 LDI 配置（倒序找最新槽，兼容 v1 旧记录并自动迁移），返回 true 表示读取到有效配置 */

@@ -285,3 +285,10 @@ typedef struct [[gnu::packed]] {
 /* ---- 主动发送 API ---- */
 void ldi_send_cert_req(channel_t *ch);
 void ldi_send_sta_rpt(channel_t *ch);
+
+/**
+ * @brief 状态门禁拒绝时的错误应答（1AH → A1H、1BH → B1H，device_num 均为 0）
+ *
+ * 由 `ldi_handle_task` 在 `ldi_cmd_allowed` 拒绝命令时调用；其余命令维持静默。
+ */
+void ldi_gate_reject_rsp(channel_t *ch, uint8_t cmd);

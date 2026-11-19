@@ -20,7 +20,7 @@
 PL_TASK_STATIC_STORAGE(iap_handle, 256);
 
 /* RJ45 物理通道 RB：与 LDI/MQTT 等同槽 weak 合并 */
-RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
+RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
 /* ---- proto_iap_queue 静态分配 ---- */
 #define IAP_PAYLOAD_MAX (1044U) /* FRAME_MAX_LEN * 4 */

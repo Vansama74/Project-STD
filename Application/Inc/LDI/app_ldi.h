@@ -37,6 +37,20 @@ typedef enum : uint8_t {
 } ldi_device_t;
 
 /**
+ * 本固件实际实现的模块列表（单一真源）
+ *
+ * 用法：X(device_type, device_index)。消费者 = `ldi_device_available()` 的
+ * switch 生成（app_ldi_device.c）。新增/删除实现的模块只改这一张列表。
+ * 注意：这里列的是「固件实现了该模块」的判定依据，不等同于 g_ldi.cfg.modules
+ * （后者是平台 0BH 下发的运行配置，可裁剪）。
+ */
+#define LDI_MODULE_LIST(X)         \
+    X(LDI_DEV_TYPE_DISPLAY, 1)     \
+    X(LDI_DEV_TYPE_LANE_SIGNAL, 1) \
+    X(LDI_DEV_TYPE_ALARM, 1)       \
+    X(LDI_DEV_TYPE_VOICE, 1)
+
+/**
  * 通用通讯数据帧
  * 依据《车道设备接口规范》第3.4节定义
  * 服务端与客户端通讯的统一帧格式，所有数据均为大端序
@@ -133,9 +147,9 @@ typedef enum : uint8_t {
 /* ---- 协议上下文 ---- */
 
 typedef enum {
-    LDI_ST_UNINIT, // 仅接受 0AH(IP设置)、E0H(认证结果)
-    LDI_ST_AUTHED, // 已认证，可接受 1AH(初始化)
-    LDI_ST_READY,  // 正常运行，全部命令可用
+    LDI_ST_UNINIT, // 未认证：只主动发 0EH(验证申请)；接受 E0H 与全部配置类命令(0AH/0BH/0DH/1DH/1EH/21H)
+    LDI_ST_AUTHED, // 已认证：在 UNINIT 基础上接受 1AH(初始化)，并开始 5 秒 0CH 上报
+    LDI_ST_READY,  // 初始化完成：全部命令可用
 } ldi_state_t;
 
 typedef struct {
@@ -149,6 +163,14 @@ typedef struct {
     uint32_t last_cert_tick; // 上次发送 0EH 的 RTOS tick（3 秒间隔）
     uint32_t last_rpt_tick;  // 上次发送 0CH 的 RTOS tick（5 秒间隔）
 
+    /* ---- 会话锚点（认证成功时锚定发起认证的通道）----
+     * 断链复位的判据：锚点非空且其通道已销毁/换实例/不再 UP → 复位一次。
+     * 无锚点（从未认证成功）时不做任何状态拉平。两字段仅比较与判空，
+     * 实际发送前用 sess_ch_id 现查 app_channel_get，避免持有失效实例。 */
+    uint8_t sess_ch_id;       // 完成认证的通道 ID（CH_ID_*），0 = 无会话
+    const channel_t *sess_ch; // 会话通道实例地址（仅比较/判空，不解引用）
+    uint32_t sess_gen;        // 锚定时的通道注册代次（识别实例复用重连，见 app_channel_link_gen）
+
     osMutexId_t tx_lock;             // 保护 tx_buf，两个任务共享
     uint8_t tx_buf[LDI_TX_BUF_SIZE]; // 响应帧拼装缓冲区
 } ldi_ctx_t;
@@ -156,6 +178,9 @@ typedef struct {
 extern ldi_ctx_t g_ldi;
 
 void ldi_ctx_init(ldi_ctx_t *self);
+
+/** @brief 将组好的响应帧交给独立 TX 任务发送（拷贝入队即返回，不在调用方阻塞） */
+void ldi_tx_enqueue(channel_t *ch, const uint8_t *frame, uint16_t len);
 
 /**
  * @brief 以 Sector1 net_cfg 为单一真源刷新 LDI 运行态网络字段（IP/掩码/网关/配置端口）
@@ -165,6 +190,14 @@ void ldi_ctx_init(ldi_ctx_t *self);
  */
 bool ldi_sync_net_from_board_cfg(void);
 
+/**
+ * @brief 本机身份是否未配置（lane_hex 与 cert 全 0）
+ *
+ * lane_hex/cert 只由 0AH/0BH 在帧头字段非全 0 时写入，全 0 = 从未被平台配置过。
+ * 身份校验（probe 与 E0H）在此状态下豁免，避免零身份把平台所有帧 SKIP。
+ */
+bool ldi_identity_unconfigured(void);
+
 /* ---- API ---- */
 
 extern osMessageQueueId_t g_ldi_msg_queue;
@@ -172,6 +205,8 @@ extern osThreadId_t g_ldi_task_handle;
 extern const osThreadAttr_t ldi_task_attr;
 extern osThreadId_t g_ldi_timer_task_handle;
 extern const osThreadAttr_t ldi_timer_task_attr;
+extern osThreadId_t g_ldi_tx_task_handle;
+extern const osThreadAttr_t ldi_tx_task_attr;
 
 void ldi_handle_task(void *argument);
 void ldi_timer_task(void *argument);

@@ -35,7 +35,7 @@
 | **B. 弱符号 + 空实现** | `app_flash_iap_*` 改为 weak；无 IAP 配置 TU 时空操作 | ✅ | 小 | 过渡可接受 |
 | **C. 接口注入 / 函数指针** | LDI 只依赖 `ldi_net_persist_ops`；默认挂 IAP cfg 或 stub | ✅ | 中 | 与 A 可合并 |
 | **D. LDI 彻底不碰 Sector1** | 删同步调用；IP 只活在 W25 + 运行时 LwIP | ✅ | 小 | 需产品确认 Boot 行为 |
-| **E. 仅文档规定必带 cfg** | 不改代码，选编规则强制带 `app_iap_cfg.c` | ⚠️ 治标 | 极小 | 见 [03](./03_interim_build_rules.md)，非终态 |
+| **E. 仅文档规定必带 cfg** | 不改代码，选编规则强制带 `app_iap_cfg.c` | ⚠️ 治标 | 极小 | 曾以 03 号「选编临时规则」承载，该文已于 2026-11-18 删除（历史见 git），非终态 |
 
 ---
 
@@ -157,7 +157,7 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 产品放弃 Sector1 IP  → 方案 D + 更新 Boot/Recovery 文档
 ```
 
-> **2026-08-14 现状**：三处缺陷已按 §9 定案**先行修复**；**方案 A 主体重构已落地**（`app_board_net_cfg` @ `Application/Config`，DoD §2.3 全项通过），选编规则 [03](./03_interim_build_rules.md) 已废止、仅存历史。
+> **2026-08-14 现状**：三处缺陷已按 §9 定案**先行修复**；**方案 A 主体重构已落地**（`app_board_net_cfg` @ `Application/Config`，DoD §2.3 全项通过）。原 03 号「解耦前选编临时规则」**已于 2026-11-18 随文档清洁删除**（历史见 git）：其结论只有一条仍然成立——配置层 `app_board_net_cfg.c` 为公共必选，LDI / IAP 协议目录可各自独立裁剪。
 
 ---
 
@@ -370,6 +370,20 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 > 上层保存接口 `app_flash_ldi_save_config` 已改返回 `int32_t`（0 成功 / <0 擦·写·回读校验失败），
 > 0AH/0BH 应答状态码须反映真实写盘结果。
 
+**host 零值守卫（2026-11-18 已落地，`app_ldi_cmd.c` `cmd_set_ip`）**：`host_ip` 全 0 → 不覆盖
+`g_ldi.cfg.host_ip`；`host_port == 0` → 不覆盖 `g_ldi.cfg.host_port`（与同函数内的 lane/cert 守卫同款）。
+
+- **风险背景（单副本）**：host **只在 W25 LDI 配置记录里存一份**，Sector1 `net_cfg` 不存、
+  无出厂默认值、擦 Sector1 也恢复不出来。平台巡检/重配类 0AH 不带 host 两栏是常态，
+  旧实现无条件覆盖 → host 落盘成 `0.0.0.0:0` → `app_tcp_client` 对「远端未配置」不连接 →
+  设备**永不连平台**，且只能靠下一次携带 host 的 0AH 才能救回（现场无法自助恢复）。
+- **副作用（有意）**：守卫落地后 host 一旦写入便**无法再用 0AH 清零**——0 的语义从「改成 0」
+  变为「本次不下发」。确需清空只能擦 W25 配置记录。
+- **待拍板（保留）**：出厂/新机是否应给 host 一个编译期默认值（而不是让首次部署必须下发完整 0AH），
+  仍待产品决策；同 §12 分支 1 的「哨兵 host 落入 W25」问题一并待定。
+
+详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
+
 **2026-08-18 缺陷 A/C/D/E 修复落地**：
 
 ① **镜像自愈（缺陷 C/A）**：`ldi_ctx_init` 分支 1（Sector1 有效）检测 Sector1.net_cfg 与 W25 网络字段（ip/mask/gw/port）逐项不一致即刷新 W25 镜像——覆盖 4B02 单写 Sector1 不写 W25、或单次 W25 写失败导致的永久陈旧（陈旧镜像会在擦 Sector1 恢复出厂时回滚旧 IP）；SPI 4KB 擦写无内部 Flash 总线停顿，上电执行安全。4B02 写入路径不改（保持 IAP 只写 Sector1 + 启动自愈，解耦）。
@@ -469,7 +483,7 @@ Server 口（**两口径统一，2026-08-24 修订**：TCP 口应用不再随 PR
 
 **TCP 通道裁剪（2026-08-24 实态更正）**：`app_boot.c` 实际**无**口径裁剪——
 TCP Server/Client 通道两口径均启动（`app_tcp_server_start()` /
-`app_tcp_client_start()` 无条件调用；此前本节与 doc/CLAUDE.md「CQ 构建不启动
+`app_tcp_client_start()` 无条件调用；此前本节与 doc/PROJECT_MANUAL.md「CQ 构建不启动
 TCP 通道」表述与代码不符）。2026-08-24 起 TCP 口应用同步两口径化：
 `app_net_boot_apply` 不再按 PROTO_CHONGQING 裁剪 `app_tcp_server_set_port`，
 修复「LDI 编入 + PROTO_CHONGQING」混合构建（如 EIDE Debug 口径错配）下 TCP 口
@@ -481,7 +495,7 @@ TCP 通道」表述与代码不符）。2026-08-24 起 TCP 口应用同步两口
 诊断标签，2026-08-21 已全部删除（源码不再有任何 `[netcfg]`/`[cq]` RTT 日志）；
 网络配置应用正确性以「擦 Sector1 出厂化 → 上电三分支落盘」静态审计与双构建
 验证为准。仅 `app_board_net_cfg.c` 的 `[fwver]` 日志保留（0x03 版本判断路径
-依赖，见 doc/CLAUDE.md 烧录小节）。
+依赖，见 doc/PROJECT_MANUAL.md 烧录小节）。
 
 ---
 
@@ -577,12 +591,12 @@ W25 自愈、`set_remote` 语义不变；host 字段（不在 Sector1）不参�
 - 2026-08-14（同日再修订）：新增 **§9 先行修复定案**——Q1（镜像 Bootloader 语义）、Q2（如实应答 + 上位机重发）、Q3（接受现状 + 同值跳过）三决策落地；§2.2 步骤 6、§6、§8.3 中「待用户确认」标记改为定案结论；范围声明为「先行修复，07 解耦主体重构暂缓」。
 - 2026-08-14（同日三修订）：新增 **§10 补充修复定案**——方案 1（细化守卫：升级中间态拒绝、损坏自愈覆盖、同值跳过条件 !empty→valid）、方案 2（4B02 应答 len 0→1 结果码 0/1）与四状态×两入口行为矩阵；§9 Q2 及走查第 6 步的「损坏拒绝覆盖」表述标注已被取代；§8.2 增补损坏自愈语义。
 - 2026-08-14（同日四修订）：**方案 A 落地**——按 §2.2 步骤执行：新建 `Application/Config/app_board_net_cfg.{c,h}`（Sector1 布局唯一归属 + 8 条 static_assert 锁定 + `get/update/read` API），LDI 4 处与 IAP 3 处调用迁移，`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 删除；Makefile / eide.yml 同步；DoD §2.3 全项验证通过（全量 + LDI-only + IAP-only 三种链接，产物尺寸零变化）。
-- 2026-08-14（同日五修订）：§7 风险表新增「Bootloader 条件 D `app_info` CRC 校验 × 烧录器重烧主固件 → 永远进 Recovery」风险行——Recovery 升级过一次后用烧录器直接重烧主固件会 CRC 失配被判 App 损坏；缓解为 `tool/flash_all.sh` 默认烧后擦 Sector1 恢复出厂态（`--keep-config` 保留），手动烧录/单固件烧录遵守同纪律，net_cfg 由主固件上电从 W25 同步回写。烧录纪律同步写入 `doc/CLAUDE.md` 烧录小节。
+- 2026-08-14（同日五修订）：§7 风险表新增「Bootloader 条件 D `app_info` CRC 校验 × 烧录器重烧主固件 → 永远进 Recovery」风险行——Recovery 升级过一次后用烧录器直接重烧主固件会 CRC 失配被判 App 损坏；缓解为 `tool/flash_all.sh` 默认烧后擦 Sector1 恢复出厂态（`--keep-config` 保留），手动烧录/单固件烧录遵守同纪律，net_cfg 由主固件上电从 W25 同步回写。烧录纪律同步写入 `doc/PROJECT_MANUAL.md` 烧录小节。
 - 2026-08-18：新增 **§11 三固件出厂默认网络配置统一约定**（192.168.114.200/24、网关 192.168.114.1、端口 9528）及三项一致性修复落地：Recovery `MX_LWIP_Init` 读 Sector1.net_cfg 配 netif（空/无效回退统一默认）+ Recovery 判空对齐 Bootloader；主固件 `ldi_ctx_init` W25 空 + Sector1 有效分支补 `pl_net_set_ip`；主固件 `dev_eth.c` 出厂默认 IP 统一为 114.200/114.1。
 - 2026-08-18（同日再修订）：新增 **§12 网络配置真源与生效语义**——**方案 X 落地**：Sector1.net_cfg 为唯一真源、W25 网络字段为恢复镜像；`ldi_ctx_init` 重构为三分支（Sector1 优先 / W25 自愈回写 / 出厂默认），缺陷 B 修复（分支 1 端口改读 Sector1.net_cfg.port）；0AH/4B02 修改后重启生效定为既定策略；UDP 发现口 10011 固定为宏 `LDI_DISCOVERY_PORT`，删除 `app_udp_set_port` 修改接口。
 - 2026-08-18（12H 端口字段语义修复）：`cmd_search` 12H 应答 port 字段由误用 `LDI_DISCOVERY_PORT`(10011) 改为设备配置功能端口 `g_ldi.cfg.device_port`（未配置回退 `LDI_DEFAULT_CONFIG_PORT`=9528）；新增宏 `LDI_DEFAULT_CONFIG_PORT (9528U)`（app_ldi.h）。修复 10011 污染循环（12H 报 10011 → 上位机写回 → TCP Server 错误监听 10011）；存量污染设备需 0AH 重设 9528 或擦 Sector1。详见 §12 ④。
 - 2026-08-18（同日三修订）：§12 增补 **缺陷 A/C/D/E 修复落地**——①分支 1 镜像自愈（Sector1 与 W25 网络字段不一致即刷新镜像，覆盖 4B02 单写与 W25 单次写失败的陈旧）；②Bootloader 判空改 magic 哨兵（magic 不匹配即空）+ magic 匹配但 CRC 错走条件 C 重建出厂记录（App 损坏仍 Recovery；Recovery 判空保持两哨兵防死循环的分工原因）；③所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效（4B02 删除 `IP4_ADDR`+`tcpip_callback` 即时应用段与 `iap_update_ip`）。
-- 2026-08-18（同日五修订）：§13 增补 **RTT 诊断日志**——`app_board_net_cfg_fw_version_update` 各分支打印 `[fwver] ...`（失败/首写/跳过路径），现场可区分「主固件未运行（无日志）/ 写失败 / 同值跳过」；`doc/CLAUDE.md` 烧录小节同步补「0x03 版本为空判断路径」。
+- 2026-08-18（同日五修订）：§13 增补 **RTT 诊断日志**——`app_board_net_cfg_fw_version_update` 各分支打印 `[fwver] ...`（失败/首写/跳过路径），现场可区分「主固件未运行（无日志）/ 写失败 / 同值跳过」；`doc/PROJECT_MANUAL.md` 烧录小节同步补「0x03 版本为空判断路径」。
 - 2026-08-18（同日五修订）：**升级中间态守卫语义修订**——修复「中间态冻结 net_cfg」缺陷：`app_board_net_cfg_update`（0AH/4B02 网络配置写入）升级中间态不再拒绝，仅放行 net_cfg 字段更新（update_sta/app_info 从 Flash 读出原样保留，Bootloader 条件 D 判定不受影响），不再返回 -1；`app_board_net_cfg_fw_version_update`（0x03 版本落库）保持中间态拒绝 -1 不变（version 属 app_info，由 Recovery 升级流程写入）。§10.1 表/§10.3 行为矩阵/§10.2 结果码表/§12 分支 2/§13 错误码注记同步。
 - 2026-08-18（同日六修订）：**0x03 应答 version 字节序修复**——应答载荷 version 由 memcpy 裸拷改为逐 word 大端构造（对齐 0x01 IP 约定），存储侧保持纯 ASCII；`app_iap_cmd.c cmd_ReportFirmwareStatus_03` 与 Recovery `cmd.c` 同构修改，上位机显示不再每 4 字节一组反转（"9K10212482" 此前显示为 "01K9421228"）。
 - 2026-08-21：**§12 分支 1 条件修订（setip 中间态覆盖修复）**——`ldi_ctx_init` 分支 1 条件由「Sector1 有效（magic+CRC）且 `update_sta==APP_BOARD_UPDATED`」改为「Sector1 有效且 net_cfg 合法（IP 非 0、port 1~65535）」，`update_sta` 不再参与分支判定；分支 2 条件相应收窄为「Sector1 空/损坏/记录无效或 net_cfg 非法」。根因：2026-08-18 起 `app_board_net_cfg_update` 在升级中间态也放行 net_cfg 更新（CQ setip/0AH/4B02 改 IP 中间态应生效），但 `ldi_ctx_init` 仍把中间态记录判入分支 2 并以 W25 陈旧镜像回写覆盖 Sector1，导致 setip 写入的 net_cfg 在重启后被冲掉。同步补 RTT 观察点：`[netcfg] ldi_ctx_init`（三分支判定值）、`[netcfg] branch1/2/3`、`[netcfg] branch2 write-back sector1 ret`、`[netcfg] boot-apply`。
@@ -590,4 +604,4 @@ W25 自愈、`set_remote` 语义不变；host 字段（不在 Sector1）不参�
 - 2026-08-21（同日三修订）：**方案 B 落地（新增 §15）**——Sector1.net_cfg 新增 `udp_port`（CQ UDP 业务口，默认 20103），`port` 恒为 TCP 业务口（9528）不再被 setip 污染；记录 68B→72B（NetConfig 16B→20B），三固件 config_info 同步扩展 + static_assert 锁定；`app_board_net_cfg_update` 签名加 udp_port（同值跳过比较含 udp_port），5 处调用点按「写本协议端口、保留另一端口现值」适配；`_udp_cq_read_port` PROTO_CHONGQING 分支改读 udp_port；Recovery 0x02 改为逐字段写 ip/mask/gw/port（udp_port 保留现值）；Bootloader/Recovery 初始化默认补 udp_port=20103。**旧 68B 记录升级后 CRC 失配 → 自愈重写，网段配置丢失一次（已接受）**。
 - 2026-08-21（同日四修订）：**调试期 RTT 日志清理 + CQ 心跳宽松语义**——删除本会话为排障添加的全部 `[cq]`/`[netcfg]` SEGGER_RTT 日志（app_cq_proto/parse/cmd、app_udp `udp_cq port`、app_ldi 三分支、app_net_boot boot-apply）与相应 `SEGGER_RTT.h` include，§14 RTT 观察点同步改述；仅 `[fwver]` 保留。CQ 心跳复位放宽为「帧结构合法的 JSON（OK/ERR_CMD/ERR_PARAM）均视为上位机存活」，故障屏显示后下一存活帧先 `app_default_display_show()` 恢复默认画面；`s_cq_sync_counter`/`s_cq_warn_seconds` 跨任务读写加临界区保护（doc/03 PartB B.7.2）。
 - 2026-08-21（同日五修订）：**LDI 搜索应答丢包修复（广播路径根治）**——现场「LDI 12H 搜索应答 50-75% 无响应」根因：dev 共存构建 baseline 4 netconn 已满（UDP 10011 + UDP 20103 + TCP Server listener + TCP Client），`app_udp_broadcast` 每次临时 `netconn_new` 必然 NULL 静默失败（TCP Client 周期性断开重连制造「池偶尔有空位」窗口，解释 25-50% 偶尔成功）。修复三层：① `lwipopts.h` 显式 `MEMP_NUM_NETCONN=8`、`MEMP_NUM_UDP_PCB=8`（opt.h 默认 4；bss 增量 304B，PBUF_POOL_SIZE 不动——SRAM 水位 87-94%，另行核算）；② `app_udp_broadcast`/`app_udp_cq_broadcast` 改为复用常驻通道 conn（`udp_task`/`udp_cq_task` 创建时已设 SOF_BROADCAST，经 `app_channel_get` 回验 + conn 非空判空，deinit 新增 conn=NULL），常驻未就绪回退临时 conn；③ LDI 12H 应答改「广播为主、回源为辅」——先广播、回源失败静默。**已知限制（本轮不做）**：回源依赖通道级 `src_ip/src_port` 快照，LDI 帧排队期间 10011 上后续 IAP/CQ 帧覆盖快照 → 回源可能发错目标；IAP 回源同源竞态不修改（IAP 停等一问一答、低流量）。帧级 src 快照（frame_msg_t 扩展）属架构改造，留待后续。
-- 2026-08-24：**TCP 口应用两口径化（混合口径 bug 修复）**——现场「LDI 上位机把设备端口改为 9529 重启后，LDI 12H 与 IAP 0x01 均上报 9529，但 TCP 连接 9529 失败、9528 却能连上」根因：设备固件为 EIDE Debug「LDI 编入 + defineList 含 PROTO_CHONGQING」的混合口径构建，`app_net_boot_apply` 中 `app_tcp_server_set_port` 被 `#ifndef PROTO_CHONGQING` 裁剪（CQ 构建假定无 TCP 业务），而 `app_boot.c` 实际无口径裁剪、TCP Server 照常启动 → 绑定编译期默认 `TCP_SERVER_PORT`=9528（app_tcp_server.c），与搜索/上报的 Sector1 `net_cfg.port`（9529）矛盾。修复：`app_net_boot.c` 删除端口应用的两处 `#ifndef PROTO_CHONGQING` 裁剪（含 `app_tcp_server.h` include），TCP 口两口径统一应用 `net_cfg.port`——任意构建口径下 TCP 监听口恒与 LDI 12H / IAP 0x01 上报一致；CQ setip 语义不受影响（仍只写 `udp_port`、`port` 保留现值）。同步更正「CQ 构建不启动 TCP Server/Client 通道」的过时表述（app_boot.c 实无裁剪），doc/CLAUDE.md 与 doc/03 PartB B.7.1 同步。EIDE Debug 口径错配（defineList 与 excludeList 不成对）仍应修正，但代码已对混合口径兜底。
+- 2026-08-24：**TCP 口应用两口径化（混合口径 bug 修复）**——现场「LDI 上位机把设备端口改为 9529 重启后，LDI 12H 与 IAP 0x01 均上报 9529，但 TCP 连接 9529 失败、9528 却能连上」根因：设备固件为 EIDE Debug「LDI 编入 + defineList 含 PROTO_CHONGQING」的混合口径构建，`app_net_boot_apply` 中 `app_tcp_server_set_port` 被 `#ifndef PROTO_CHONGQING` 裁剪（CQ 构建假定无 TCP 业务），而 `app_boot.c` 实际无口径裁剪、TCP Server 照常启动 → 绑定编译期默认 `TCP_SERVER_PORT`=9528（app_tcp_server.c），与搜索/上报的 Sector1 `net_cfg.port`（9529）矛盾。修复：`app_net_boot.c` 删除端口应用的两处 `#ifndef PROTO_CHONGQING` 裁剪（含 `app_tcp_server.h` include），TCP 口两口径统一应用 `net_cfg.port`——任意构建口径下 TCP 监听口恒与 LDI 12H / IAP 0x01 上报一致；CQ setip 语义不受影响（仍只写 `udp_port`、`port` 保留现值）。同步更正「CQ 构建不启动 TCP Server/Client 通道」的过时表述（app_boot.c 实无裁剪），doc/PROJECT_MANUAL.md 与 doc/03 PartB B.7.1 同步。EIDE Debug 口径错配（defineList 与 excludeList 不成对）仍应修正，但代码已对混合口径兜底。

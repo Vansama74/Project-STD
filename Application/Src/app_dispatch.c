@@ -462,13 +462,19 @@ void frame_dispatch_task(void *argument)
                             break;
                         }
 
-                        /* 完整帧就绪：从缓冲区读出 → 推入协议处理队列 */
+                        /* 完整帧就绪：从缓冲区读出 → 推入协议处理队列。
+                         * 帧归属按字节级来源标记（rb_head_owner）判定，而不是通知通道：
+                         * 多逻辑通道共享同一 RB 时，通知携带的 ch 可能对应别的通道的字节，
+                         * 曾导致 TCP 下发的 1BH 应答从 UDP 出口发出（N-B2-1）。 */
+                        uint8_t    src_id = rb_head_owner(rb, nullptr);
+                        channel_t *src_ch = app_channel_get((channel_id_t)src_id);
+
                         uint16_t actual = rb_read(rb, msg->data, frame_len, nullptr);
                         avail           = rb_avail(rb, nullptr);
 
                         if (actual == frame_len) {
                             msg->data_len = frame_len;
-                            msg->ch       = ch;
+                            msg->ch       = (src_ch != nullptr) ? src_ch : ch;
                             /* 队列满 → 丢帧（协议任务被卡住/过载）：丢弃本帧 */
                             (void)osMessageQueuePut(g_dispatch.frame_queue[j], msg, 0, 0);
                         } else {
@@ -606,7 +612,7 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
             }
         if (dup) continue;
 
-        rb_write(rb, data, len, rb->mutex);
+        rb_write_from(rb, data, len, rb->mutex, ch->ch_id);
         if (seen_cnt < RB_CNT_MAX)
             seen[seen_cnt++] = rb; /* 上界防御：理论不可达（池内不同 RB 数 ≤ 槽数） */
     }
@@ -636,10 +642,16 @@ void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len
  *  Application 层调用 get（查询抽象指针，不触碰 Device 层全局变量）。
  * ================================================================ */
 
+/* 通道注册代次：每次 register（含 deinit 传 nullptr 清空）都递增。
+ * 会话锚点靠它识别「同一静态实例被复用重连」——实例地址不变，代次必变。 */
+static uint32_t s_link_gen[CH_ID_MAX];
+
 void app_channel_register(channel_id_t ch_id, channel_t *ch)
 {
-    if (ch_id < CH_ID_MAX)
+    if (ch_id < CH_ID_MAX) {
         g_dispatch.channels[ch_id] = ch;
+        s_link_gen[ch_id]++;
+    }
 }
 
 channel_t *app_channel_get(channel_id_t ch_id)
@@ -647,4 +659,11 @@ channel_t *app_channel_get(channel_id_t ch_id)
     if (ch_id < CH_ID_MAX)
         return g_dispatch.channels[ch_id];
     return nullptr;
+}
+
+uint32_t app_channel_link_gen(channel_id_t ch_id)
+{
+    if (ch_id < CH_ID_MAX)
+        return s_link_gen[ch_id];
+    return 0;
 }

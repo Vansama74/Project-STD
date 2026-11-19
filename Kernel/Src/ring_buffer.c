@@ -104,6 +104,12 @@ bool rb_putc(ring_buffer_t *rb, uint8_t byte, void *mutex)
 
 uint16_t rb_write(ring_buffer_t *rb, const uint8_t *data, uint16_t len, void *mutex)
 {
+    return rb_write_from(rb, data, len, mutex, 0xFF);
+}
+
+uint16_t rb_write_from(ring_buffer_t *rb, const uint8_t *data, uint16_t len, void *mutex,
+                       uint8_t owner)
+{
     if (mutex) osMutexAcquire(mutex, osWaitForever);
     uint16_t free = rb_space(rb, nullptr);
     if (len > free) len = free;
@@ -118,13 +124,28 @@ uint16_t rb_write(ring_buffer_t *rb, const uint8_t *data, uint16_t len, void *mu
 
     if (len <= contiguous) {
         memcpy(&rb->data[start], data, len);
+        if (rb->owner) memset(&rb->owner[start], owner, len);
     } else {
         memcpy(&rb->data[start], data, contiguous);
         memcpy(rb->data, data + contiguous, len - contiguous);
+        if (rb->owner) {
+            memset(&rb->owner[start], owner, contiguous);
+            memset(rb->owner, owner, len - contiguous);
+        }
     }
     rb->write_index = (start + len) % rb->size;
     if (mutex) osMutexRelease(mutex);
     return len;
+}
+
+uint8_t rb_head_owner(const ring_buffer_t *rb, void *mutex)
+{
+    if (mutex) osMutexAcquire(mutex, osWaitForever);
+    uint8_t r = 0xFF;
+    if (rb->owner != nullptr && rb->read_index != rb->write_index)
+        r = rb->owner[rb->read_index];
+    if (mutex) osMutexRelease(mutex);
+    return r;
 }
 
 /* ---- 读取 ---- */

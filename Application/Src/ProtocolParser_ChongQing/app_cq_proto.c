@@ -44,7 +44,7 @@ PL_TASK_STATIC_STORAGE(cq_timer, 256);
 #include "dev_io_ctrl.h"
 
 /* RJ45 物理通道 RB：与 IAP / LDI / MQTT 等同槽 weak 合并 */
-RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
+RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
 /* ---- 12B 二进制帧常量（CRC16-XMODEM 大端，值按协议文档 2.0.1 固定）---- */
 const uint8_t cq_bin_reboot_req[12] = {0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x07, 0x31, 0x5B, 0xC9};

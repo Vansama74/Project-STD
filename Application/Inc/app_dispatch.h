@@ -144,6 +144,9 @@ bool app_dispatch_channel_has_proto(channel_id_t ch_id);
 void app_channel_dispatch(const channel_t *ch, const uint8_t *data, uint16_t len);
 void app_channel_register(channel_id_t ch_id, channel_t *ch);
 channel_t *app_channel_get(channel_id_t ch_id);
+/** @brief 通道注册代次：每次 register（含 deinit 传 nullptr 清空）递增，
+ *  用于会话锚点识别「同一静态实例被复用重连」（实例地址不变、代次已变） */
+uint32_t app_channel_link_gen(channel_id_t ch_id);
 
 /**
  * @brief  经通道发送数据（协议应答出口）。

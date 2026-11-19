@@ -3,7 +3,7 @@
 > **范围**：EIDE/目录选编时「只编 LDI、不编 IAP」导致链接失败的根因、影响面，以及解耦方案。  
 > **状态**：问题 **已确认**（2026-08-14）；三处缺陷 **已定案并先行修复**（2026-08-14，见 [02 §9](./02_decoupling_solutions.md)）；两项补充修复（守卫细化 + 4B02 结果码）**已落地**（见 [02 §10](./02_decoupling_solutions.md)）；**方案 A 主体重构（抽出板级网络配置模块 `app_board_net_cfg`）已落地（2026-08-14）**。  
 > **非本目录**：多协议 RB/绑定 → [`../05_协议模块多协议兼容优化/`](../05_协议模块多协议兼容优化/README.md)；SRAM/CCM → [`../06_SRAM内部分数据迁移/`](../06_SRAM内部分数据迁移/README.md)。  
-> **备注（2026-08-14）**：`doc/CLAUDE.md` 中「当前固件入口 0x08000000、无 IAP bootloader 运行」已过时——链接脚本 `Compiler/STM32F407XX_FLASH.ld:67` 现为 `ORIGIN=0x08040000, LENGTH=768K`，`Core/Src/main.c:15` 已设 `SCB->VTOR = FLASH_BASE|0x40000`（主固件已按 IAP 适配入口链接）；本目录 01/02/03 均按此现状撰写。
+> **备注（2026-08-14）**：`doc/PROJECT_MANUAL.md` 中「当前固件入口 0x08000000、无 IAP bootloader 运行」已过时——链接脚本 `Compiler/STM32F407XX_FLASH.ld:67` 现为 `ORIGIN=0x08040000, LENGTH=768K`，`Core/Src/main.c:15` 已设 `SCB->VTOR = FLASH_BASE|0x40000`（主固件已按 IAP 适配入口链接）；本目录 01/02/03 均按此现状撰写。
 
 ---
 
@@ -13,7 +13,9 @@
 |------|------|
 | [01_background_and_impact.md](./01_background_and_impact.md) | **背景、根因、影响面** |
 | [02_decoupling_solutions.md](./02_decoupling_solutions.md) | **解耦方案**（推荐路径 + 备选 + 验收） |
-| [03_interim_build_rules.md](./03_interim_build_rules.md) | **解耦前**工程选编临时规则 |
+
+> 原 `03_interim_build_rules.md`（解耦前选编临时规则）已于 2026-11-18 删除（历史见 git）；
+> 其唯一仍有效的结论：配置层 `app_board_net_cfg.c` 为公共必选，LDI / IAP 目录可各自独立裁剪。
 
 ## 快速结论
 
@@ -48,10 +50,10 @@
 ## 修订
 
 - 2026-08-14：首版，与 01/02/03 同步。
-- 2026-08-14（同日修订）：补充固件入口现状备注（doc/CLAUDE.md 矛盾点）、出厂新机 0AH 缺陷入口。
+- 2026-08-14（同日修订）：补充固件入口现状备注（doc/PROJECT_MANUAL.md 矛盾点）、出厂新机 0AH 缺陷入口。
 - 2026-08-14（同日再修订）：状态改为「缺陷已定案并先行修复、主体重构暂缓」；快速结论同步 [02 §9](./02_decoupling_solutions.md) 三决策。
 - 2026-08-14（同日三修订）：状态补两项补充修复（守卫细化 + 4B02 结果码，见 [02 §10](./02_decoupling_solutions.md)）。
-- 2026-08-14（同日四修订）：**方案 A 落地**——抽出 `app_board_net_cfg`（`Application/Config`，Sector1 布局唯一归属 + static_assert 锁定），LDI/IAP 迁移到 `app_board_net_cfg_get/update/read`，删除 `app_iap_cfg.{c,h}` 与 `Device/Inc/config_info.h`；[03](./03_interim_build_rules.md) 选编临时规则废止。
+- 2026-08-14（同日四修订）：**方案 A 落地**——抽出 `app_board_net_cfg`（`Application/Config`，Sector1 布局唯一归属 + static_assert 锁定），LDI/IAP 迁移到 `app_board_net_cfg_get/update/read`，删除 `app_iap_cfg.{c,h}` 与 `Device/Inc/config_info.h`；原 03 号选编临时规则废止（文件已于 2026-11-18 删除，历史见 git）。
 - 2026-08-18：新增 [02 §11](./02_decoupling_solutions.md) 三固件出厂默认网络配置统一约定（192.168.114.200/24、网关 192.168.114.1、端口 9528）；快速结论同步三项一致性修复现状。
 - 2026-08-18（同日再修订）：同步 [02 §12](./02_decoupling_solutions.md) 网络配置真源与生效语义——Sector1 真源/W25 恢复镜像、0AH/4B02 重启生效（既定策略）、UDP 发现口固定宏 `LDI_DISCOVERY_PORT`（删除 `app_udp_set_port`）。
 - 2026-08-18（同日三修订）：快速结论同步 [02 §12](./02_decoupling_solutions.md) 缺陷 A/C/D/E 修复——W25 镜像自愈、Bootloader 损坏态重建（magic/CRC 错 → 条件 C 重建出厂记录；Recovery 判空保持两哨兵防死循环）、所有改 IP 接口（0AH/4B02/Recovery IAP）统一重启生效。

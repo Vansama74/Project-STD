@@ -4,9 +4,11 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #define DEV_RS232_VOICE_MAX_TEXT (200U)
 
-void dev_rs232_voice_play(const uint8_t *gbk_text, uint16_t len);
-void dev_rs232_voice_volume(uint8_t level);
+/** @return true = 整帧已发出；false = 参数非法或发送失败/超时 */
+bool dev_rs232_voice_play(const uint8_t *gbk_text, uint16_t len);
+bool dev_rs232_voice_volume(uint8_t level);

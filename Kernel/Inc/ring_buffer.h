@@ -45,13 +45,33 @@
         return &getter##_rb;                                                                       \
     }
 
+/**
+ * @brief 带来源标记版本的通道 RB 提供宏（多逻辑通道共享同一物理 RB 时使用）
+ *
+ * 额外分配与 data 等长的 owner[] 数组，写入时逐字节记录来源通道 ID；
+ * 读帧时用 rb_head_owner() 取帧首字节的来源，帧归属不再依赖「通知通道」。
+ * 仅共享 RB（如 RJ45：TCP Server/TCP Client/UDP 三通道共用一个）需要。
+ */
+#define RB_PROVIDE_WEAK_OWNER(getter, sz)                                                          \
+    __attribute__((weak)) ring_buffer_t *getter(void)                                              \
+    {                                                                                              \
+        static uint8_t getter##_buf[sz];                                                           \
+        static uint8_t getter##_own[sz];                                                           \
+        static ring_buffer_t getter##_rb = {.data   = getter##_buf,                                \
+                                            .size   = (sz),                                        \
+                                            .mutex  = nullptr,                                     \
+                                            .owner  = getter##_own};                               \
+        return &getter##_rb;                                                                       \
+    }
+
 /** @brief 环形缓冲区结构体 */
 typedef struct {
     uint8_t *data;
     uint16_t size;
     volatile uint16_t read_index;
     volatile uint16_t write_index;
-    void *mutex; /**< osMutexId_t，nullptr 表示未绑定锁 */
+    void *mutex;   /**< osMutexId_t，nullptr 表示未绑定锁 */
+    uint8_t *owner; /**< 来源标记数组，与 data 逐字节配对；nullptr = 不记录（单通道 RB 无需） */
 } ring_buffer_t;
 
 /** @brief 运行时初始化：创建并绑定优先级继承互斥锁 */
@@ -75,6 +95,12 @@ void rb_flush(ring_buffer_t *rb, void *mutex);
 /* 写入 */
 bool rb_putc(ring_buffer_t *rb, uint8_t byte, void *mutex);
 uint16_t rb_write(ring_buffer_t *rb, const uint8_t *data, uint16_t len, void *mutex);
+/** @brief 带来源标记写入：owner 为通道 ID（uint8_t），写入的每个字节配对记录；
+ *  rb->owner 为 nullptr 时退化为普通写入 */
+uint16_t rb_write_from(ring_buffer_t *rb, const uint8_t *data, uint16_t len, void *mutex,
+                       uint8_t owner);
+/** @brief 读指针处（帧首字节）的来源标记；无标记/空缓冲返回 0xFF */
+uint8_t rb_head_owner(const ring_buffer_t *rb, void *mutex);
 
 /* 读取 */
 bool rb_getc(ring_buffer_t *rb, uint8_t *byte, void *mutex);

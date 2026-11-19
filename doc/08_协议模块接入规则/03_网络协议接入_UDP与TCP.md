@@ -77,7 +77,7 @@
   4. 协议侧 `app_proto_bind_channel(mask, CH_ID_*)`；**同槽 RB 只 acquire 不 provide**；
   5. 资源核算（doc/06 纪律）：+1 常驻 netconn + 1 UDP PCB（取自 `MEMP_NUM_NETCONN`/
      `MEMP_NUM_UDP_PCB` 池，须核对余量）+ 2 任务栈（各 1KB，ucHeap）+ 通道实例静态 ~20B；
-  6. 台账同步：doc/14（协议文档）、doc/CLAUDE.md 通道映射、doc/05-01 通道矩阵、doc/06-04 占用账。
+  6. 台账同步：doc/14（协议文档）、doc/PROJECT_MANUAL.md 通道映射、doc/05-01 通道矩阵、doc/06-04 占用账。
 - **源地址快照是通道级单例（每实例一份）**：`udp_channel_t.src_ip`/`src_port` 每次收包覆盖，
   帧经队列排队期间若有其它客户端发包会覆盖快照 → 协议应答可能发往最后发包者。
   **多实例并存不串台**（收包帧的 `frame_msg_t.ch` 决定回源走哪个实例），但同一实例内多客户端
@@ -97,15 +97,15 @@
   半帧 `avail<3` → WAIT 而调度器继续探测下一协议）。设计启示：**新协议与既有协议首字节冲突时，
   优先评估「换逻辑通道（掩码隔离）」而非改 probe 或依赖源码收录序**。详见 doc/15 §1/§7。
 - **通道状态**：`channel_t.state`（`CH_STATE_UP/DOWN`，`app_dispatch.h:59-61`）。TCP 连接建立时 `tcp_channel_init` / `tcp_client_channel_init` 置 `CH_STATE_UP` + `app_channel_register`；断开时 conn 任务置 `ops=nullptr`、`state=DOWN`、`app_channel_register(..., nullptr)`。
-- **断链状态机复位先例**：`ldi_timer_task` 每秒检查 `ch == nullptr || ch->state != CH_STATE_UP` → `g_ldi.state = LDI_ST_UNINIT`（`app_ldi.c`），断链后认证/上报状态自动回退。新协议若有会话状态机，必须设计等价的断链复位路径。
+- **断链状态机复位先例**：LDI 采用「**会话锚点 + 边沿复位**」——认证成功时把通道 ID 与实例地址记入 `ldi_ctx_t`（`sess_ch_id`/`sess_ch`），定时任务只在锚点存在且其通道被销毁/换实例/不再 `CH_STATE_UP` 时**复位一次**（`state → UNINIT` 并清锚点）；**无锚点时不拉平状态**（否则只连 TCP Server 的平台永远认证不上），且复位是边沿而非电平（不会每秒重复复位、不刷计时）。新协议若有会话状态机，必须设计等价的断链复位路径。权威描述见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §4。
 - **TCP Client 远端未配置不连（2026-09-18）**：编译期默认 `0.0.0.0:0`（IP 全 0 或 `port==0` 视为未配置）。`app_boot` 两口径仍 `app_tcp_client_start()`，但 idle **不** `netconn_new` / **不** connect，去重打 `[tcp_cli] idle (remote unset)`。远端只经 `app_tcp_client_set_remote` 注入（现行唯一调用方 = LDI 装载；绑本通道 ≠ 配置远端，YN_OL 先例）。排除 LDI 的镜像不再对历史硬编码 `192.168.2.17:9529` 外连。
 - TCP 客户端非阻塞 connect + 4s 轮询（`tcp_client_task`），keepalive idle 10s / intvl 2s / cnt 3（`tcp_keepaliveinit`）——新协议用 TCP Client 模式可直接复用通道，不改 `app_tcp_client.c`。
 - 若新协议需要新端口/新远端：用 `app_tcp_server_set_port()` / `app_tcp_client_set_remote(ip, port)`（后者释放 `client_disconnect_sem`：已连接则踢重连，idle 则下一秒进入 connect；改回哨兵则拆连接回 idle）；两个通道实例是单例，**多远端需求需要评估扩通道，不在接入范围内**。
 
 ## 4. LwIP 约束
 
-- **广播依赖**：`lwipopts.h` 中 `LWIP_BROADCAST` 未定义，但 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1` 已生效（IAP 升级依赖，见 doc/CLAUDE.md「LwIP 配置要点」）；`MEMP_NUM_NETCONN=8`/`MEMP_NUM_UDP_PCB=8`（2026-08-21 覆盖，修复池满广播丢包；2026-09-14 重核：常驻 netconn **5** = UDP 10011 + UDP 20103 + UDP `net_cfg.port`(GZ_OL) + TCP listener + TCP client，叠加已连接客户端 6、广播回退临时 conn 峰值 **8 = 池容量**；UDP_PCB 常驻 3/8）。代码侧广播：`udp_task`/`udp_cq_task`/`udp_gzol_task` 建常驻 conn 时 `ip_set_option(conn->pcb.udp, SOF_BROADCAST)`（**该选项同时是收广播帧的前提**：`IP_SOF_BROADCAST_RECV=1` 下未置位的 pcb 收不到广播目的帧）；`app_udp_broadcast`/`app_udp_cq_broadcast` **复用常驻通道 conn**（`app_channel_get` 回验 + conn 非空）`netconn_sendto` 255.255.255.255，常驻未就绪回退临时 conn。新协议需要广播时调用 `app_udp_broadcast`（10011 口）或 `app_udp_cq_broadcast`（20103 口），勿自行 `netconn_new` 临时 conn（GZ_OL 专用口暂无 broadcast 封装，如需按其口径广播，参照 `app_udp_cq_broadcast` 增设）。
-- **`pl_net_adapt.h` 禁止在任何 .h 中引用**（doc/CLAUDE.md 架构约束）：LwIP 类型（`struct netconn`、`ip_addr_t` 等）不得泄漏进协议头文件。协议 .c 需要 LwIP API 时只 include `pl_net.h`/`pl_net_adapt.h` 于 .c 内。
+- **广播依赖**：`lwipopts.h` 中 `LWIP_BROADCAST` 未定义，但 `IP_SOF_BROADCAST=1` + `IP_SOF_BROADCAST_RECV=1` 已生效（IAP 升级依赖，见 doc/PROJECT_MANUAL.md「LwIP 配置要点」）；`MEMP_NUM_NETCONN=8`/`MEMP_NUM_UDP_PCB=8`（2026-08-21 覆盖，修复池满广播丢包；2026-09-14 重核：常驻 netconn **5** = UDP 10011 + UDP 20103 + UDP `net_cfg.port`(GZ_OL) + TCP listener + TCP client，叠加已连接客户端 6、广播回退临时 conn 峰值 **8 = 池容量**；UDP_PCB 常驻 3/8）。代码侧广播：`udp_task`/`udp_cq_task`/`udp_gzol_task` 建常驻 conn 时 `ip_set_option(conn->pcb.udp, SOF_BROADCAST)`（**该选项同时是收广播帧的前提**：`IP_SOF_BROADCAST_RECV=1` 下未置位的 pcb 收不到广播目的帧）；`app_udp_broadcast`/`app_udp_cq_broadcast` **复用常驻通道 conn**（`app_channel_get` 回验 + conn 非空）`netconn_sendto` 255.255.255.255，常驻未就绪回退临时 conn。新协议需要广播时调用 `app_udp_broadcast`（10011 口）或 `app_udp_cq_broadcast`（20103 口），勿自行 `netconn_new` 临时 conn（GZ_OL 专用口暂无 broadcast 封装，如需按其口径广播，参照 `app_udp_cq_broadcast` 增设）。
+- **`pl_net_adapt.h` 禁止在任何 .h 中引用**（doc/PROJECT_MANUAL.md 架构约束）：LwIP 类型（`struct netconn`、`ip_addr_t` 等）不得泄漏进协议头文件。协议 .c 需要 LwIP API 时只 include `pl_net.h`/`pl_net_adapt.h` 于 .c 内。
 - **IP 类型隔离先例**：`udp_channel_t.src_ip` 用 `uint8_t[4]` 字节数组而非 `ip_addr_t`（`app_udp.c:160-164`），避免 Application 层暴露 middleware 类型。新协议存储对端地址照此办理。
 
 ## 5. 网络协议与串口协议混合规则

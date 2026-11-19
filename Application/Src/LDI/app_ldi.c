@@ -21,8 +21,10 @@ PL_TASK_STATIC_STORAGE(ldi_timer, 256);
 #include "pl_net.h"
 #include "pl_rtc.h"
 
-/* RJ45 物理通道 RB：与 IAP/MQTT 等同槽 weak 合并 */
-RB_PROVIDE_WEAK(rb_provide_rj45, RB_SIZE_RJ45);
+/* RJ45 物理通道 RB：与 IAP/MQTT 等同槽 weak 合并。
+ * 三逻辑通道（TCP Server / TCP Client / UDP）共享同一物理 RB，必须带来源标记，
+ * 帧归属才能按字节记录而不是按通知通道（2026-11-18 实锤 N-B2-1）。 */
+RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
 /* ---- proto_ldi_queue 静态分配 ---- */
 #define LDI_PAYLOAD_MAX (512U) /* 与探头 mem_pool 容量一致 */
@@ -38,6 +40,58 @@ static const osMessageQueueAttr_t s_ldi_queue_attr = {
     .mq_mem  = s_ldi_queue_buf,
     .mq_size = sizeof(s_ldi_queue_buf),
 };
+
+/* ---- LDI TX 队列 + 独立发送任务 ----
+ * 台架 T5 实锤：对端连着不读（零窗口）时，阻塞 netconn_write 会把持 tx_lock
+ * 的处理/定时任务一起卡死（0CH/0EH/1BH 全停、ping 仍通）。本 lwIP 移植的
+ * LWIP_SO_SNDTIMEO 与 NETCONN_DONTBLOCK 两条标准解在 A/B 实测中都会破坏 TCP
+ * 服务（原因待专项定位），故采用应用层解耦：组帧仍持 tx_lock，拷贝入队后
+ * 立即返回；阻塞发送只发生在 ldi_tx_task 里——对端不读时仅该任务阻塞，
+ * 处理/定时任务保持调度活跃；对端恢复接收后队列自动排空。 */
+#define LDI_TX_QUEUE_DEPTH (4U)
+typedef struct {
+    channel_t *ch;
+    uint16_t   len;
+    uint8_t    data[LDI_TX_BUF_SIZE];
+} ldi_tx_item_t;
+
+static ldi_tx_item_t s_tx_items[LDI_TX_QUEUE_DEPTH];
+static StaticQueue_t s_tx_queue_cb;
+static osMessageQueueId_t s_tx_queue;
+static const osMessageQueueAttr_t s_tx_queue_attr = {
+    .name    = "ldi_tx_queue",
+    .cb_mem  = &s_tx_queue_cb,
+    .cb_size = sizeof(s_tx_queue_cb),
+    .mq_mem  = s_tx_items,
+    .mq_size = sizeof(s_tx_items),
+};
+
+PL_TASK_STATIC_STORAGE(ldi_tx, 512);
+static void ldi_tx_task(void *argument);
+
+static void ldi_tx_task(void *argument)
+{
+    (void)argument;
+    for (;;) {
+        ldi_tx_item_t item;
+        if (osMessageQueueGet(s_tx_queue, &item, nullptr, osWaitForever) == osOK) {
+            /* 阻塞发送只允许发生在这里；channel_send 对已注销通道（ops==null）返回 -1 */
+            (void)channel_send(item.ch, item.data, item.len);
+        }
+    }
+}
+
+void ldi_tx_enqueue(channel_t *ch, const uint8_t *frame, uint16_t len)
+{
+    ldi_tx_item_t item;
+    if (s_tx_queue == nullptr || len > LDI_TX_BUF_SIZE)
+        return;
+    item.ch  = ch;
+    item.len = len;
+    memcpy(item.data, frame, len);
+    /* 队列满丢帧：0CH 是周期帧允许丢；命令应答由平台重试兜底 */
+    (void)osMessageQueuePut(s_tx_queue, &item, 0, 0);
+}
 
 /* 契约：枚举按 1 字节编解码（LDI 帧内字段宽度）；改错静默解析错位。 */
 
@@ -126,11 +180,15 @@ void ldi_ctx_init(ldi_ctx_t *self)
             memcpy(self->cfg.lane_hex, flash_cfg.lane_hex, sizeof(self->cfg.lane_hex));
             memcpy(self->cfg.cert, flash_cfg.cert, sizeof(self->cfg.cert));
 
-            /* module: 以编译期 type 做键匹配，同步 index */
+            /* module: 以编译期 type 做键匹配，同步 index/param/vendor（P1-b：只同步 index
+             * 会让 0BH 配的参数重启即丢） */
             for (uint8_t i = 0; i < self->cfg.module_count; i++) {
                 for (uint8_t j = 0; j < flash_cfg.module_count; j++) {
                     if (flash_cfg.modules[j].device_type == self->cfg.modules[i].device_type) {
                         self->cfg.modules[i].device_index = flash_cfg.modules[j].device_index;
+                        self->cfg.modules[i].param        = flash_cfg.modules[j].param;
+                        memcpy(self->cfg.modules[i].vendor, flash_cfg.modules[j].vendor,
+                               sizeof(self->cfg.modules[i].vendor));
                         break;
                     }
                 }
@@ -176,11 +234,14 @@ void ldi_ctx_init(ldi_ctx_t *self)
         memcpy(self->cfg.lane_hex, flash_cfg.lane_hex, sizeof(self->cfg.lane_hex));
         memcpy(self->cfg.cert, flash_cfg.cert, sizeof(self->cfg.cert));
 
-        /* module: 以编译期 type 做键匹配，同步 index */
+        /* module: 以编译期 type 做键匹配，同步 index/param/vendor（P1-b） */
         for (uint8_t i = 0; i < self->cfg.module_count; i++) {
             for (uint8_t j = 0; j < flash_cfg.module_count; j++) {
                 if (flash_cfg.modules[j].device_type == self->cfg.modules[i].device_type) {
                     self->cfg.modules[i].device_index = flash_cfg.modules[j].device_index;
+                    self->cfg.modules[i].param        = flash_cfg.modules[j].param;
+                    memcpy(self->cfg.modules[i].vendor, flash_cfg.modules[j].vendor,
+                           sizeof(self->cfg.modules[i].vendor));
                     break;
                 }
             }
@@ -286,6 +347,10 @@ static void ldi_module_init(void)
     const osMutexAttr_t tx_lock_attr = {.name = "ldi_tx_lock", .attr_bits = osMutexPrioInherit};
     g_ldi.tx_lock                    = osMutexNew(&tx_lock_attr);
 
+    /* 独立 TX 队列/任务：阻塞发送与 tx_lock 解耦（台架 T5 零窗口停摆的修复） */
+    s_tx_queue = osMessageQueueNew(LDI_TX_QUEUE_DEPTH, sizeof(ldi_tx_item_t), &s_tx_queue_attr);
+    (void)osThreadNew(ldi_tx_task, nullptr, &ldi_tx_task_attr);
+
     g_ldi_task_handle       = osThreadNew(ldi_handle_task, nullptr, &ldi_task_attr);
     g_ldi_timer_task_handle = osThreadNew(ldi_timer_task, nullptr, &ldi_timer_task_attr);
 }
@@ -304,6 +369,13 @@ const osThreadAttr_t ldi_timer_task_attr = {
     .name       = "ldi_timer_task",
     .priority   = (osPriority_t)osPriorityNormal,
     PL_TASK_STATIC_ATTR(ldi_timer, 256),
+};
+
+osThreadId_t g_ldi_tx_task_handle;
+const osThreadAttr_t ldi_tx_task_attr = {
+    .name       = "ldi_tx_task",
+    .priority   = (osPriority_t)osPriorityNormal,
+    PL_TASK_STATIC_ATTR(ldi_tx, 512),
 };
 
 /* ================================================================
@@ -409,9 +481,13 @@ void ldi_handle_task(void *argument)
         /* 从已读帧中保存序号用于响应回显（从 probe 移至此处，消除 probe 副作用） */
         g_ldi.rsp_seq = ldi_frame->seq;
 
-        /* 状态门禁 */
-        if (!ldi_cmd_allowed(g_ldi.state, req_head->cmd_type))
+        /* 状态门禁：拒绝的命令不能静默丢帧——1AH/1BH 由平台按 device_num 解析应答，
+         * 无回应会被判超时；其余方向（设备上报 / 平台对上报的应答）协议无应答约定，
+         * 维持静默。应答构造与方向判定见 app_ldi_cmd.c: ldi_gate_reject_rsp()。 */
+        if (!ldi_cmd_allowed(g_ldi.state, req_head->cmd_type)) {
+            ldi_gate_reject_rsp(msg->ch, req_head->cmd_type);
             continue;
+        }
 
         /* 查表分派 */
         uint8_t idx = 0xFF;
@@ -427,6 +503,16 @@ void ldi_handle_task(void *argument)
 /* ================================================================
  *  帧探测
  * ================================================================ */
+
+/* 身份未配置判定：lane_hex 与 cert 全 0 即视为未配置（0AH/0BH 只会在帧头
+ * 非零时写入这两个字段，全 0 = 从未被平台配置过身份）。导出给 app_ldi_cmd.c
+ * 的 E0H 身份校验复用，两处口径必须一致。 */
+bool ldi_identity_unconfigured(void)
+{
+    const uint8_t z5[5] = {0}, z8[8] = {0};
+    return memcmp(g_ldi.cfg.lane_hex, z5, sizeof(z5)) == 0 &&
+           memcmp(g_ldi.cfg.cert, z8, sizeof(z8)) == 0;
+}
 
 /**
  * @brief LDI 帧探测（PURE 函数契约：只 peek，无副作用，不修改全局状态）
@@ -512,7 +598,10 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
             cert_off = 10;
         }
 
-        if (g_ldi.cfg_valid) {
+        /* 身份已配置且非全 0 才做比对：身份未配置（W25 无有效记录、或从未被
+         * 0AH/0BH 写入过身份）时跳过身份校验，避免零身份把平台所有帧 SKIP，
+         * 表现为"能配不能控"。 */
+        if (g_ldi.cfg_valid && !ldi_identity_unconfigured()) {
             /* data_len 下限：身份字段必须完整落在帧内（标准头 cert 偏移 10 + 8 = 18B；
              * 1BH 头 cert 偏移 14 + 8 = 22B）。不足视为畸形帧直接 SKIP 整帧，
              * 不再对帧尾之外的垃圾字节做 memcmp 身份校验。 */
@@ -536,12 +625,16 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
 }
 
 /* ================================================================
- *  定时任务 — 周期发送 0EH（验证申请）和 0CH（状态上报）
+ *  定时任务 — 认证申请 / 状态上报 / 断链复位
  *
- *  每秒检查一次，根据状态机决定发送：
- *    UNINIT/AUTHED → 每 3 秒发 0EH
- *    READY        → 每 5 秒发 0CH
- *  通道断开时自动重置状态到 UNINIT。
+ *  每秒一拍，只做三类事：
+ *    1. 断链复位（边沿触发）：存在会话锚点且其通道已失效 → 复位一次到 UNINIT；
+ *       无锚点时不拉平状态（否则从未认证成功的设备永远停在 UNINIT 也无法积累
+ *       认证失败的证据）。
+ *    2. UNINIT 每 3 秒发 0EH（验证申请），直到收到 E0H 认证成功。
+ *    3. AUTHED/READY 每 5 秒发 0CH（状态监控上报）。
+ *  发送通道：会话锚点优先，无锚点回退 TCP Client（配置阶段平台走 Server/Client
+ *  都可能，锚点只锚定"认证成功的那条"）。
  * ================================================================ */
 
 void ldi_timer_task(void *argument)
@@ -563,12 +656,41 @@ void ldi_timer_task(void *argument)
             app_ldi_etc_heartbeat();
         }
 
-        channel_t *ch = app_channel_get(CH_ID_TCP_CLIENT);
-
-        if (ch == nullptr || ch->state != CH_STATE_UP) {
-            g_ldi.state = LDI_ST_UNINIT;
+        /* ---- 非法态自愈：AUTHED/READY 但锚点已空（1AH 与断链复位的竞态残留，
+         * 或锚定字段被异常清空）→ 拉回 UNINIT，3 秒内重发 0EH 重新认证 ---- */
+        if (g_ldi.sess_ch == nullptr && g_ldi.state != LDI_ST_UNINIT) {
+            g_ldi.state          = LDI_ST_UNINIT;
+            g_ldi.last_cert_tick = 0;
+            g_ldi.last_rpt_tick  = 0;
             continue;
         }
+
+        /* ---- 断链复位（边沿触发，只执行一次）----
+         * 会话锚点记录认证成功时的通道实例；该实例被销毁/替换/不再 UP，或注册
+         * 代次变化（同一静态实例被复用重连）即视为会话失效。复位后锚点清零，
+         * 下一次循环不再命中（= 边沿而非电平）。会话通道可能随时被连接任务
+         * 销毁，故实例指针只用于比较，不复用发送。 */
+        const channel_t *cur = (g_ldi.sess_ch_id != 0)
+                                   ? app_channel_get((channel_id_t)g_ldi.sess_ch_id)
+                                   : app_channel_get(CH_ID_TCP_CLIENT);
+
+        if (g_ldi.sess_ch != nullptr &&
+            (cur != g_ldi.sess_ch || cur == nullptr || cur->state != CH_STATE_UP ||
+             app_channel_link_gen((channel_id_t)g_ldi.sess_ch_id) != g_ldi.sess_gen)) {
+            g_ldi.state          = LDI_ST_UNINIT;
+            g_ldi.sess_ch        = nullptr;
+            g_ldi.sess_ch_id     = 0;
+            g_ldi.last_cert_tick = 0;
+            g_ldi.last_rpt_tick  = 0;
+            continue;
+        }
+
+        /* ---- 发送通道：会话锚点优先，无锚点回退 TCP Client（保持既有口径）---- */
+        channel_t *ch = (g_ldi.sess_ch != nullptr)
+                            ? app_channel_get((channel_id_t)g_ldi.sess_ch_id)
+                            : app_channel_get(CH_ID_TCP_CLIENT);
+        if (ch == nullptr || ch->state != CH_STATE_UP)
+            continue;
 
         uint32_t now = osKernelGetTickCount();
 

@@ -345,7 +345,9 @@ static void ldi_send_response(channel_t *ch, uint8_t rsp_cmd, uint8_t seq, const
     frame->data_crc[payload_len]     = (uint8_t)(crc >> 8);
     frame->data_crc[payload_len + 1] = (uint8_t)(crc & 0xFF);
 
-    channel_send(ch, g_ldi.tx_buf, sizeof(*frame) + payload_len + 2);
+    /* 组帧完成：拷贝入 TX 队列即返回。发送在独立 ldi_tx_task 里阻塞执行，
+     * 对端不读数据（零窗口）时不再卡死持锁的本任务（台架 T5 的修复）。 */
+    ldi_tx_enqueue(ch, g_ldi.tx_buf, (uint16_t)(sizeof(*frame) + payload_len + 2));
     osMutexRelease(g_ldi.tx_lock);
 }
 
@@ -376,6 +378,41 @@ static void _ldi_ctrl_error_rsp(channel_t *ch)
     ldi_build_ctrl_rsp_head(&rsp.head, LDI_CMD_CTRL_RSP);
     rsp.device_num = 0;
     LDI_RESPOND(ch, LDI_CMD_CTRL_RSP, g_ldi.rsp_seq, rsp);
+}
+
+/** @brief 1AH 门禁拒绝/非法帧错误应答：A1H 头 + device_num=0
+ *
+ *  不能复用 _ldi_error_rsp（它回 head(20B) + status(1B)，上位机按 1AH 应答的
+ *  device_num 字段解析会错位）；本函数与 cmd_init 成功路径同构，只是 device_num=0
+ *  表示"没有任何模块被初始化"。 */
+static void _ldi_init_error_rsp(channel_t *ch)
+{
+    ldi_init_rsp_t rsp = {0};
+    ldi_build_rsp_head(&rsp.head, LDI_CMD_INIT_RSP);
+    rsp.device_num = 0;
+    LDI_RESPOND(ch, LDI_CMD_INIT_RSP, g_ldi.rsp_seq, rsp);
+}
+
+/**
+ * @brief 状态门禁拒绝时的错误应答（由 ldi_handle_task 在 ldi_cmd_allowed 返回 false 时调用）
+ *
+ * 方向约定（协议附件2 §5.2/§5.4）：
+ *   - 1AH（平台→设备初始化请求）被拒 → 回 A1H + device_num=0
+ *   - 1BH（平台→设备控制/查询）被拒 → 回 B1H + device_num=0
+ *   - 0EH/0CH/1CH/C0H/E0H 等设备上报或平台对上报的应答 → 静默（此方向无应答约定，
+ *     回了会与对端形成应答环）
+ * 配置类命令（0AH/0BH/0DH/1DH/1EH/12H）不受状态限制，永远不会走到这里。
+ */
+void ldi_gate_reject_rsp(channel_t *ch, uint8_t cmd)
+{
+    /* 发送目标必须存在且通道仍可用；通道已销毁时无从应答，静默丢弃 */
+    if (ch == nullptr || ch->ops == nullptr)
+        return;
+
+    if (cmd == LDI_CMD_INIT_REQ)
+        _ldi_init_error_rsp(ch);
+    else if (cmd == LDI_CMD_CTRL_REQ)
+        _ldi_ctrl_error_rsp(ch);
 }
 
 // ============================================================================
@@ -443,16 +480,32 @@ void cmd_set_ip(channel_t *ch, void *data)
 
     memcpy(g_ldi.cfg.device_ip, info->net.device_ip, sizeof(g_ldi.cfg.device_ip));
     g_ldi.cfg.device_port = ((uint16_t)info->net.device_port[0] << 8) | info->net.device_port[1];
-    memcpy(g_ldi.cfg.host_ip, info->net.host_ip, sizeof(g_ldi.cfg.host_ip));
-    g_ldi.cfg.host_port = ((uint16_t)info->net.host_port[0] << 8) | info->net.host_port[1];
     memcpy(g_ldi.cfg.netmask, info->net.netmask, sizeof(g_ldi.cfg.netmask));
     memcpy(g_ldi.cfg.gateway, info->net.gateway, sizeof(g_ldi.cfg.gateway));
 
-    /* 协议 4.1.1：0AH 通用帧头偏移 5 = LaneHex(5B)、偏移 10 = CertificationInfo(8B)。
-     * 平台用 0AH 单条命令配置时也会带这两个字段，必须一并落盘，否则只用 0AH 配置的
-     * 现场 lane/cert 永远是 0，设备对平台所有需身份校验的帧（0EH/0CH/1BH）都被 SKIP。 */
-    memcpy(g_ldi.cfg.lane_hex, info->head.lane_code, sizeof(g_ldi.cfg.lane_hex));
-    memcpy(g_ldi.cfg.cert, info->head.cert_info, sizeof(g_ldi.cfg.cert));
+    /* host 零值守卫：平台巡检/重配类 0AH 不带 host 两栏是常态。host 只在 W25
+     * 单副本（Sector1 不存、无出厂默认），无条件覆盖会把 host 落盘成 0.0.0.0
+     * ⇒ 设备重启后永不连平台，且只能靠下一次携带 host 的 0AH 才能救回。
+     * 与下方 lane/cert 守卫同款语义：全 0 = 本次不下发该字段。 */
+    const uint8_t zero_host[4] = {0};
+    if (memcmp(info->net.host_ip, zero_host, sizeof(zero_host)) != 0)
+        memcpy(g_ldi.cfg.host_ip, info->net.host_ip, sizeof(g_ldi.cfg.host_ip));
+    uint16_t host_port = ((uint16_t)info->net.host_port[0] << 8) | info->net.host_port[1];
+    if (host_port != 0)
+        g_ldi.cfg.host_port = host_port;
+
+    /* 0AH 身份零值守卫（成对判定，2026-11-19）：平台巡检/重配类 0AH 帧头常不填
+     * 身份字段，无条件覆盖会把已配置的 lane/cert 抹零并落盘，设备对平台失联
+     * （2026-11-18 现场"ping 通但不受控"的根因）。lane 与 cert 是同一身份二元组，
+     * 任一全 0 即整帧不下发身份（防止"旧 lane + 新 cert"混合身份）。
+     * 需要显式写 0（清空身份）请走 0BH（设备参数配置，0 为合法值）。 */
+    const uint8_t zero_lane[5] = {0}, zero_cert[8] = {0};
+    bool lane_absent = (memcmp(info->head.lane_code, zero_lane, sizeof(zero_lane)) == 0);
+    bool cert_absent = (memcmp(info->head.cert_info, zero_cert, sizeof(zero_cert)) == 0);
+    if (!lane_absent && !cert_absent) {
+        memcpy(g_ldi.cfg.lane_hex, info->head.lane_code, sizeof(g_ldi.cfg.lane_hex));
+        memcpy(g_ldi.cfg.cert, info->head.cert_info, sizeof(g_ldi.cfg.cert));
+    }
     g_ldi.cfg_valid = true;
 
     /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
@@ -474,7 +527,7 @@ void cmd_set_ip(channel_t *ch, void *data)
  * 处理 0BH 设备参数配置请求
  *
  * 上位机→设备, 解析复合指令的 module 序列，
- * 将每个模块的 device_type + device_index + vendor[10] 写入 Flash.
+ * 将每个模块的 device_type + device_index + param(E4H/E6H) + vendor[10] 写入 Flash.
  */
 static void cmd_set_config(channel_t *ch, void *data)
 {
@@ -496,6 +549,14 @@ static void cmd_set_config(channel_t *ch, void *data)
         LDI_RESPOND(ch, LDI_CMD_SET_PARA_RSP, g_ldi.rsp_seq, rsp);
         return;
     }
+
+    /* 身份字段先提交 RAM（不依赖 module 解析结果）：解析失败时不落盘但 RAM 身份
+     * 已生效，避免"配置失败即彻底失控"（改前语义）。0BH 为显式设备参数配置
+     * （工厂/产测工具下发），**0 是合法值**——成对整体写入，允许把身份清成全 0
+     * （未配置态）。防"平台巡检空身份帧抹零"的保护只在 0AH 保留（2026-11-19 裁决）。
+     * 重启后回落盘值，由成功路径（result 且 save_ret>=0）更新落盘。 */
+    memcpy(g_ldi.cfg.lane_hex, head->lane_code, sizeof(g_ldi.cfg.lane_hex));
+    memcpy(g_ldi.cfg.cert, head->cert_info, sizeof(g_ldi.cfg.cert));
 
     /* 以编译期 cfg 中的 device_type 做键，匹配请求帧中的 module，同步 index 和 vendor */
     bool result          = true;
@@ -532,20 +593,23 @@ static void cmd_set_config(channel_t *ch, void *data)
         }
 
         g_ldi.cfg.modules[cfg_idx].device_index = mod->device_index;
-        uint8_t vendor_len                      = mod_size - sizeof(ldi_module_head_t);
+        /* E4H/E6H 请求模块 = head(2) + param(1) + vendor(10)；其余类型无 param。
+         * param 单独存取，vendor 从 param 之后拷，不再混排（P1-a 根修）。 */
+        bool has_param = (mod_size >= sizeof(ldi_module_head_t) + 11u); /* 13B 才含 param */
+        g_ldi.cfg.modules[cfg_idx].param =
+            has_param ? *(ptr + sizeof(ldi_module_head_t)) : 0U;
+        uint8_t vendor_len = mod_size - sizeof(ldi_module_head_t) - (has_param ? 1u : 0u);
         if (vendor_len > sizeof(g_ldi.cfg.modules[cfg_idx].vendor))
             vendor_len = sizeof(g_ldi.cfg.modules[cfg_idx].vendor);
-        memcpy(g_ldi.cfg.modules[cfg_idx].vendor, ptr + sizeof(ldi_module_head_t), vendor_len);
+        memcpy(g_ldi.cfg.modules[cfg_idx].vendor,
+               ptr + sizeof(ldi_module_head_t) + (has_param ? 1u : 0u), vendor_len);
 
         ptr += mod_size;
     }
 
     if (result) {
-        /* 先完整解析校验、再一次性提交身份字段并落盘：校验失败时不污染运行态
-         * （旧实现在函数开头就改 RAM，失败返回 01H 但 lane/cert 已在内存里生效，
-         * 重启即回滚，表现为"配置了但重启就丢"）。 */
-        memcpy(g_ldi.cfg.lane_hex, head->lane_code, sizeof(g_ldi.cfg.lane_hex));
-        memcpy(g_ldi.cfg.cert, head->cert_info, sizeof(g_ldi.cfg.cert));
+        /* 身份已提前提交 RAM（见函数中部），此处只负责落盘：
+         * 校验通过即写 W25，失败仅影响持久化，不回滚 RAM。 */
         save_ret = app_flash_ldi_save_config(&g_ldi.cfg);
     }
 
@@ -611,8 +675,8 @@ static void cmd_rep_ip(channel_t *ch, void *data)
  * 上位机→设备, DATA 域仅含通用头部.
  * 设备收到后回复 E1H: head(20B) + device_num(1B) + N×module(变长).
  *
- * 各设备 module 结构与 0BH 设置时一致, vendor 长度为 2~10 字节不等,
- * 通过 ldi_cfg_module_size() 查表确定.
+ * 各设备 module 结构与 0BH 设置时一致（E4H/E6H 含 param 字节），
+ * 每模块长度由 ldi_cfg_module_size() 定长表给出（13/4/12B）。
  */
 static void cmd_rep_config(channel_t *ch, void *data)
 {
@@ -621,12 +685,10 @@ static void cmd_rep_config(channel_t *ch, void *data)
     // 计算所有 module 的总字节数，确定局部 buffer 大小
     uint16_t modules_len = 0;
     for (uint8_t i = 0; i < g_ldi.cfg.module_count; i++) {
+        /* 应答按协议定长表整段拼接：E4H/E6H=13B（含 param）、E7H/E8H/EAH/EBH=4B、
+         * E9H/VOICE=12B；不再按 Flash vendor 容量截断（P1-a 根修）。 */
         uint8_t mod_size = ldi_cfg_module_size((ldi_device_t)g_ldi.cfg.modules[i].device_type);
-        // Flash 最多存 10 字节 vendor，超出则按 Flash 实际容量截断
-        uint8_t vendor_len = mod_size - sizeof(ldi_module_head_t);
-        if (vendor_len > sizeof(g_ldi.cfg.modules[i].vendor))
-            vendor_len = sizeof(g_ldi.cfg.modules[i].vendor);
-        modules_len += sizeof(ldi_module_head_t) + vendor_len;
+        modules_len      = (uint16_t)(modules_len + mod_size);
     }
 
     // 用局部 buffer 组装完整 DATA（含 head）
@@ -641,16 +703,16 @@ static void cmd_rep_config(channel_t *ch, void *data)
     for (uint8_t i = 0; i < g_ldi.cfg.module_count; i++) {
         app_flash_ldi_module_cfg_t *mod = &g_ldi.cfg.modules[i];
 
-        // module 公共头
+        // 查表确定 module 定长（含公共头 2B）
+        uint8_t mod_size   = ldi_cfg_module_size((ldi_device_t)mod->device_type);
+        bool has_param     = (mod_size >= sizeof(ldi_module_head_t) + 11u);
+        uint8_t vendor_len = mod_size - sizeof(ldi_module_head_t) - (has_param ? 1u : 0u);
+
+        // module 公共头 + param(E4H/E6H) + vendor
         *dst++ = mod->device_type;
         *dst++ = mod->device_index;
-
-        // 查表确定 vendor 实际长度
-        uint8_t mod_size   = ldi_cfg_module_size((ldi_device_t)mod->device_type);
-        uint8_t vendor_len = mod_size - sizeof(ldi_module_head_t);
-        if (vendor_len > sizeof(mod->vendor))
-            vendor_len = sizeof(mod->vendor);
-
+        if (has_param)
+            *dst++ = mod->param;
         memcpy(dst, mod->vendor, vendor_len);
         dst += vendor_len;
     }
@@ -779,24 +841,52 @@ void ldi_send_sta_rpt(channel_t *ch)
  */
 static void cmd_rsp_cert(channel_t *ch, void *data)
 {
-    (void)ch;
-
     /* data_len 下限：head(20B) + error_code(1B) 偏移读；
      * E0H 同为服务端应答，无再应答约定，不足静默丢弃 */
     if (_ldi_data_len(data) < sizeof(ldi_req_head_t) + 1)
         return;
 
-    /* E0H 响应：head(20B) + error_code(1B)，同步时间戳并检查认证结果 */
     ldi_req_head_t *head = (ldi_req_head_t *)data;
-    uint32_t ts          = ((uint32_t)head->unix_timestamp[0] << 24) |
-                           ((uint32_t)head->unix_timestamp[1] << 16) |
-                           ((uint32_t)head->unix_timestamp[2] << 8) |
-                           (uint32_t)head->unix_timestamp[3];
-    pl_rtc_set_timestamp(pl_rtc_get_handle(), ts); // 调试：排除 RTC 并发写
+
+    /* ---- 身份校验：E0H 必须是对"本机"验证申请的应答 ----
+     * probe 对 0EH 是设备主动发出的帧，服务端回 E0H 时可能把多台设备的结果
+     * 混发/错发；本机身份已配置时按帧头 lane_code(偏移 5)/cert_info(偏移 10)
+     * 严格比对，不一致直接丢弃（不改状态、不回包）。
+     * 身份未配置的设备豁免——它还没有可比对的基准，否则永远无法完成首次认证。 */
+    if (g_ldi.cfg_valid && !ldi_identity_unconfigured()) {
+        if (memcmp(head->lane_code, g_ldi.cfg.lane_hex, sizeof(g_ldi.cfg.lane_hex)) != 0 ||
+            memcmp(head->cert_info, g_ldi.cfg.cert, sizeof(g_ldi.cfg.cert)) != 0)
+            return;
+    }
+
+    /* READY 态忽略迟到/重复的认证应答：协议规定认证只推 UNINIT→AUTHED；
+     * 平台重复应答或应答迟到时，无条件写 AUTHED 会把 READY 打回 AUTHED，
+     * 1BH 被门禁拒（台架 T4 已实锤复现的现场形态）。 */
+    if (g_ldi.state == LDI_ST_READY)
+        return;
+
+    /* E0H 响应：head(20B) + error_code(1B)，携带服务端时间戳用于对时 */
+    uint32_t ts = ((uint32_t)head->unix_timestamp[0] << 24) |
+                  ((uint32_t)head->unix_timestamp[1] << 16) |
+                  ((uint32_t)head->unix_timestamp[2] << 8) |
+                  (uint32_t)head->unix_timestamp[3];
+    pl_rtc_set_timestamp(pl_rtc_get_handle(), ts); /* 同步平台时间 */
 
     uint8_t error_code = *((uint8_t *)data + sizeof(ldi_req_head_t));
-    if (error_code == 0x00)
-        g_ldi.state = LDI_ST_AUTHED;
+    if (error_code != 0x00)
+        return; /* 认证失败：状态保持 UNINIT，3 秒后继续重发 0EH */
+
+    /* ---- 认证成功：进 AUTHED 并锚定会话通道 ----
+     * 锚点用于断链边沿复位与 0CH 发送目标选择；ch 为空说明帧来源不明，
+     * 不建立会话（宁可不认证，也不锚到未知通道）。 */
+    if (ch == nullptr)
+        return;
+
+    g_ldi.state          = LDI_ST_AUTHED;
+    g_ldi.sess_ch        = ch;
+    g_ldi.sess_ch_id     = ch->ch_id;
+    g_ldi.sess_gen       = app_channel_link_gen(ch->ch_id);
+    g_ldi.last_cert_tick = 0;
 }
 
 /**
@@ -829,17 +919,17 @@ static void cmd_init(channel_t *ch, void *data)
 
     /* data_len 下限：至少 head(20B) + device_num(1B) */
     if (data_len < sizeof(ldi_req_head_t) + 1) {
-        _ldi_error_rsp(ch, LDI_CMD_INIT_RSP);
+        _ldi_init_error_rsp(ch);
         return;
     }
 
     uint8_t *ptr       = (uint8_t *)data + sizeof(ldi_req_head_t);
     uint8_t device_num = *ptr++;
 
-    /* device_num 钳制 ≤ 设备类型上限（LDI_DEV_TYPE_COUNT=13），超限视为非法帧回错误应答，
+    /* device_num 钳制：0 或超过设备类型上限（LDI_DEV_TYPE_COUNT=13）视为非法帧回错误应答，
      * 同时防止响应缓冲 VLA 尺寸被恶意 device_num 撑爆 */
-    if (device_num > LDI_DEV_TYPE_COUNT) {
-        _ldi_error_rsp(ch, LDI_CMD_INIT_RSP);
+    if (device_num == 0 || device_num > LDI_DEV_TYPE_COUNT) {
+        _ldi_init_error_rsp(ch);
         return;
     }
 
@@ -855,7 +945,7 @@ static void cmd_init(channel_t *ch, void *data)
         /* 每请求 module 定长 5 字节：head(2) + protocol_version(2) + custom_init_len(1) */
         uint32_t consumed = (uint32_t)(ptr - (const uint8_t *)data);
         if (data_len - consumed < sizeof(ldi_module_head_t) + 2 + 1) {
-            _ldi_error_rsp(ch, LDI_CMD_INIT_RSP);
+            _ldi_init_error_rsp(ch);
             return;
         }
         ldi_module_head_t *req_mod = (ldi_module_head_t *)ptr;
@@ -883,7 +973,7 @@ static void cmd_init(channel_t *ch, void *data)
         /* custom_init_len 校验：不得超过剩余帧长（防 ptr 推进越出帧尾） */
         uint32_t fixed_part = sizeof(ldi_module_head_t) + 2 + 1;
         if (custom_init_len > data_len - consumed - fixed_part) {
-            _ldi_error_rsp(ch, LDI_CMD_INIT_RSP);
+            _ldi_init_error_rsp(ch);
             return;
         }
 
@@ -904,7 +994,11 @@ static void cmd_init(channel_t *ch, void *data)
     uint16_t modules_len = (uint16_t)((uint8_t *)dst_mod - rsp->modules);
     LDI_RESPOND_EX(ch, LDI_CMD_INIT_RSP, g_ldi.rsp_seq, *rsp, modules_len);
 
-    if (all_ok)
+    /* 置 READY 前复检会话：锚点可能在门禁通过后被断链复位清掉（1AH 与定时复位
+     * 的竞态）。不复检会得到「READY 且无锚点」的永久非法态：永不复位、0CH 退化为
+     * Client 通道。复检不过时保持 AUTHED/UNINIT，3 秒内重发 0EH 重新认证（fail-closed）。 */
+    if (all_ok && g_ldi.state == LDI_ST_AUTHED && g_ldi.sess_ch == ch &&
+        app_channel_link_gen((channel_id_t)g_ldi.sess_ch_id) == g_ldi.sess_gen)
         g_ldi.state = LDI_ST_READY;
 }
 
