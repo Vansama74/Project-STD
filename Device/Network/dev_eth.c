@@ -16,6 +16,7 @@
 #include "pl_net.h"
 #include "pl_dwt.h"
 #include "initcall.h"
+#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
 
 /* 出厂默认网络配置: 192.168.114.200/24, 网关 192.168.114.1（与 Bootloader/Recovery 出厂默认一致） */
 static const uint8_t g_default_ip[4]   = {192, 168, 114, 200};
@@ -64,17 +65,21 @@ void dev_eth_init(void)
 
     /* 轮询 PHY 是否就绪（PHYIDR1 寄存器的 OUI 部分不为 0xFFFF/0x0000 即正常） */
     /* 冷启动时 PHY 晶振起振需要时间，固定延时不可靠，轮询保证不迟不早 */
-    for (uint32_t i = 0; i < 200; i++) {
+    uint32_t phy_i = 0;
+    for (phy_i = 0; phy_i < 200; phy_i++) {
         uint32_t phy_id;
         HAL_ETH_ReadPHYRegister(&heth, 1, 2, &phy_id);
         if (phy_id != 0xFFFF && phy_id != 0x0000)
             break;
         pl_delay_ms(50); /* 50ms × 200 = 最多 10s */
     }
+    SEGGER_RTT_printf(0, "[eth] phy_poll i=%u\n", (unsigned)phy_i);
 
     /* DP83848 PHY 初始化（Device 层，板级组件） */
     dev_dp83848_register_bus_io(&g_dp83848, &g_dev_dp83848_io_ctx);
-    if (dev_dp83848_init(&g_dp83848) != DP83848_STATUS_OK)
+    int32_t phy_ret = dev_dp83848_init(&g_dp83848);
+    SEGGER_RTT_printf(0, "[eth] phy_init r=%d\n", (int)phy_ret);
+    if (phy_ret != DP83848_STATUS_OK)
         Error_Handler();
 
     /* 注册 PHY 链路状态查询回调，供 Platform 层 low_level_init / ethernet_link_thread 使用 */
@@ -85,4 +90,5 @@ hw_dev_initcall(dev_eth_init);
 void dev_eth_start(void)
 {
     pl_net_init(g_default_ip, g_default_mask, g_default_gw);
+    SEGGER_RTT_printf(0, "[eth] start t=%u\n", (unsigned)osKernelGetTickCount());
 }

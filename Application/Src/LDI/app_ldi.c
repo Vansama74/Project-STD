@@ -26,6 +26,16 @@ PL_TASK_STATIC_STORAGE(ldi_timer, 256);
  * 帧归属才能按字节记录而不是按通知通道（2026-11-18 实锤 N-B2-1）。 */
 RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
+/* ---- LDI 健康心跳（喂狗门控用）：定时任务每秒 +1，停摆即系统级异常 ---- */
+volatile uint32_t g_ldi_hb;
+
+/* 供 app_boot 喂狗门控读取（app_boot 用弱引用调用：Base 目标排除 LDI 族时
+ * 该函数不存在，守卫自动退化为只门控 EthIf，不影响链接）。 */
+uint32_t app_ldi_health_hb(void)
+{
+    return g_ldi_hb;
+}
+
 /* ---- proto_ldi_queue 静态分配 ---- */
 #define LDI_PAYLOAD_MAX (512U) /* 与探头 mem_pool 容量一致 */
 #define LDI_MSG_SIZE    (sizeof(frame_msg_t) + LDI_PAYLOAD_MAX)
@@ -514,6 +524,40 @@ bool ldi_identity_unconfigured(void)
            memcmp(g_ldi.cfg.cert, z8, sizeof(z8)) == 0;
 }
 
+/** @brief LDI 命令码是否属于协议封闭集合（未知码可提前拒绝，不等完整帧） */
+static bool ldi_cmd_is_known(uint8_t cmd)
+{
+    switch (cmd) {
+        case LDI_CMD_SET_IP_REQ:
+        case LDI_CMD_SET_IP_RSP:
+        case LDI_CMD_SET_PARA_REQ:
+        case LDI_CMD_SET_PARA_RSP:
+        case LDI_CMD_REBOOT_REQ:
+        case LDI_CMD_REBOOT_RSP:
+        case LDI_CMD_GET_IP_REQ:
+        case LDI_CMD_GET_IP_RSP:
+        case LDI_CMD_GET_PARA_REQ:
+        case LDI_CMD_GET_PARA_RSP:
+        case LDI_CMD_STA_RPT_REQ:
+        case LDI_CMD_STA_RPT_RSP:
+        case LDI_CMD_CERT_REQ:
+        case LDI_CMD_CERT_RSP:
+        case LDI_CMD_UPDATE_REQ:
+        case LDI_CMD_UPDATE_RSP:
+        case LDI_CMD_INIT_REQ:
+        case LDI_CMD_INIT_RSP:
+        case LDI_CMD_CTRL_REQ:
+        case LDI_CMD_CTRL_RSP:
+        case LDI_CMD_FUNC_RPT_REQ:
+        case LDI_CMD_FUNC_RPT_RSP:
+        case LDI_CMD_SEARCH_REQ:
+        case LDI_CMD_SEARCH_RSP:
+            return true;
+        default:
+            return false;
+    }
+}
+
 /**
  * @brief LDI 帧探测（PURE 函数契约：只 peek，无副作用，不修改全局状态）
  *
@@ -564,6 +608,14 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
 
     /* DATA 至少要有 CmdType；上限保护，避免脏 LEN 越界 */
     if (data_len < 1 || data_len > (sizeof(mem_pool) - sizeof(ldi_frame_t) - 2))
+        return PROTO_PROBE_FAKE;
+
+    /* 未知命令早拒绝（2026-11-20 定级）：垃圾帧虚报 LEN 时，探测器要等满
+     * LEN 字节才做 CRC，期间的合法帧会被当作载荷吞掉（台架 fuzz 探针超时的
+     * 根因）。LDI 命令码是封闭集合，头部+首字节到达即可判定——未知码直接
+     * FAKE，交给 dispatch 跳到下一个 0xFF 快速重同步。 */
+    if (avail >= (uint32_t)(sizeof(ldi_frame_t) + 1U) &&
+        !ldi_cmd_is_known(mem_pool[sizeof(ldi_frame_t)]))
         return PROTO_PROBE_FAKE;
 
     uint32_t need = sizeof(ldi_frame_t) + data_len + 2;
@@ -645,6 +697,7 @@ void ldi_timer_task(void *argument)
 
     for (;;) {
         osDelay(1000);
+        g_ldi_hb++; /* 健康心跳：喂狗门控判据 */
 
         vms_timer_poll(); /* VMS 定时清屏 — 不受通道状态影响 */
         ldi_device_timer_poll(); /* E6 KeepTime / E8 KeepTime */

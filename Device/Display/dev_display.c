@@ -14,6 +14,7 @@
 #include "pl_tim.h"
 #include "pl_task_guard.h"
 #include "pl_task_static.h"
+#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
 
 /* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
  * scan_task：Realtime 优先级、启动期创建一次、永不退出。静态化后不再占 ucHeap
@@ -187,6 +188,13 @@ static void scan_task(void *arg)
 void dev_display_start(void)
 {
     s_scan_evt = osEventFlagsNew(NULL);
+    if (s_scan_evt == NULL) {
+        /* 事件对象创建失败：scan_task 会在 osEventFlagsWait 上自旋并饿死
+         * 低优先级任务（喂狗门控会兜底复位）。此处直接放弃显示扫描，
+         * 让协议/网络继续运行。 */
+        SEGGER_RTT_printf(0, "[disp] evt_new FAIL\n");
+        return;
+    }
 
     dev_display_t *dev = s_active_display;
 

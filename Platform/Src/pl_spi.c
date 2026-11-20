@@ -55,8 +55,14 @@ int32_t pl_spi_transmit(pl_spi_handle_t h, const uint8_t *data, uint16_t size)
     spi_ctx_t *ctx = (spi_ctx_t *)h;
     if (!ctx || !ctx->hspi) return -1;
     HAL_StatusTypeDef st = HAL_SPI_Transmit(ctx->hspi, (uint8_t *)data, size, 100);
-    /* HAL_SPI_Transmit 返回后移位寄存器可能仍在忙，必须等 BSY 清除才能操作 CS */
-    while (__HAL_SPI_GET_FLAG(ctx->hspi, SPI_FLAG_BSY)) {}
+    /* HAL_SPI_Transmit 返回后移位寄存器可能仍在忙，必须等 BSY 清除才能操作 CS。
+     * 有界等待：总线卡死时不能死循环（启动期挂死只能等 IWDG ~33s 复位）。 */
+    uint32_t t0 = HAL_GetTick();
+    while (__HAL_SPI_GET_FLAG(ctx->hspi, SPI_FLAG_BSY)) {
+        if ((HAL_GetTick() - t0) > 10U) {
+            break;
+        }
+    }
     return (st == HAL_OK) ? 0 : -1;
 }
 

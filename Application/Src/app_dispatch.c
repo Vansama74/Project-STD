@@ -528,7 +528,26 @@ void frame_dispatch_task(void *argument)
                         break; /* 等待更多数据到达 */
                     } else if (any_fake || any_overrun) {
                         s_wait_active[wait_slot] = false; /* 有字节被消费，重置预算 */
-                        avail -= rb_skip(rb, 1, nullptr); /* 重同步 */
+                        /* 垃圾洪泛加速重同步（2026-11-20 定级）：所有协议都判
+                         * FAKE 时逐字节 skip（1B/轮）会把 CPU 打满——风暴实测
+                         * 2000 帧/s × 512B 垃圾 ≈ 百万次探测/秒，饿死 tcpip
+                         * （ping/TCP 全超时）。各协议帧头首字节均为 0xFF，
+                         * 直接跳到下一个 0xFF 安全且快得多。 */
+                        /* 逐字节 peek（无栈缓冲）：通道任务栈仅 1KB，
+                         * 64B 局部数组有溢出风险（HardFault→IWDG 复位）。 */
+                        uint16_t pn = (avail > 64U) ? 64U : (uint16_t)avail;
+                        uint16_t k  = 0U;
+                        while (k < pn) {
+                            uint8_t b = 0U;
+                            if (!rb_peekc(rb, k, &b, nullptr)) {
+                                break;
+                            }
+                            if (b == 0xFFU) {
+                                break;
+                            }
+                            k++;
+                        }
+                        avail -= rb_skip(rb, (k > 0U) ? k : 1U, nullptr);
                     } else {
                         break; /* 无协议绑定或探测函数全空，防死循环 */
                     }

@@ -15,6 +15,8 @@
 #include "FreeRTOS.h"
 #include "app_dispatch.h"
 #include "pl_net_adapt.h"
+#include "lwip/ip.h"
+#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
 
 #define TCP_SERVER_PORT 9528
 
@@ -67,10 +69,16 @@ void app_tcp_server_set_port(uint16_t port)
 uint16_t app_tcp_server_get_port(void)
 { return g_port; }
 
+/* 诊断计数（2026-11-20，J-Link 可读）：定位连接被 RST / 重绑失败的成因 */
+volatile int32_t  g_tcps_last_exit;   /**< 最近一次 conn 退出 err（lwIP err_t） */
+volatile uint32_t g_tcps_exit_count;  /**< conn 退出次数 */
+volatile int32_t  g_tcps_accept_err;  /**< 最近一次 accept 错误 */
+volatile uint32_t g_tcps_bind_fail;   /**< bind 失败次数 */
+
 osThreadId_t tcp_server_task_handle;
 const osThreadAttr_t tcp_server_task_attr = {
     .name       = "tcp_server_task",
-    .stack_size = 256 * 4,
+    .stack_size = 512 * 4, /* 2026-11-20：1KB→2KB，fuzz 大块数据+dispatch 深度下防栈溢出 */
     .priority   = osPriorityNormal,
 };
 
@@ -106,8 +114,15 @@ void tcp_server_task(void *argument)
             osDelay(500);
             continue;
         }
+        /* SO_REUSEADDR（2026-11-20 定级）：客户端断开后其连接在服务器侧进入
+         * TIME_WAIT（本地端口 = 监听口），未开复用时监听口重绑会持续失败
+         * （ERR_USE，最长 ~2*MSL），期间新连接被 RST —— 现场形态正是
+         * "ping 通、9528 连不上"。 */
+        ip_set_option(conn->pcb.tcp, SOF_REUSEADDR);
         err_t err = netconn_bind(conn, IP_ADDR_ANY, g_port);
         if (err != ERR_OK) {
+            g_tcps_bind_fail++;
+            SEGGER_RTT_printf(0, "[tcps] bind fail e=%d\n", (int)err);
             netconn_delete(conn);
             osDelay(500);
             continue;
@@ -119,7 +134,14 @@ void tcp_server_task(void *argument)
             struct netconn *newconn = NULL;
             err                     = netconn_accept(conn, &newconn);
             if (err != ERR_OK || newconn == NULL) {
-                /* 监听异常 → 重建 listener */
+                /* 瞬时错误（内存压力）重试 accept，不拆 listener —— 拆了重绑
+                 * 会因 TIME_WAIT 进入长时间 bind 失败窗口（新连接被拒）。 */
+                if (err == ERR_MEM || err == ERR_TIMEOUT) {
+                    osDelay(10);
+                    continue;
+                }
+                g_tcps_accept_err = (int32_t)err;
+                SEGGER_RTT_printf(0, "[tcps] accept err e=%d\n", (int)err);
                 osDelay(500);
                 break;
             }
@@ -137,20 +159,31 @@ void tcp_server_task(void *argument)
             uint16_t len;
             err_t recv_err;
 
-            while ((recv_err = netconn_recv(newconn, &buf)) == ERR_OK) {
-                do {
-                    netbuf_data(buf, &data, &len);
-                    /* 长度判据 = `len > 0`：TCP 单字节分片（如 `7B` 与其余字节
-                     * 分开到达）必须入调度——按 `len > 1` 丢弃会在 RB 头部留下
-                     * 永远凑不齐的残帧（帧头残缺/尾部错位）；单字节分片交给 probe
-                     * 链按 1 字节重同步语义处理（与 UDP 路径口径一致）。 */
-                    if (len > 0) {
-                        app_channel_dispatch(ch, (uint8_t *)data, len);
-                    }
-                } while (netbuf_next(buf) >= 0);
-                netbuf_delete(buf);
+            for (;;) {
+                recv_err = netconn_recv(newconn, &buf);
+                if (recv_err == ERR_OK) {
+                    do {
+                        netbuf_data(buf, &data, &len);
+                        /* 长度判据 = `len > 0`：TCP 单字节分片（如 `7B` 与其余字节
+                         * 分开到达）必须入调度——按 `len > 1` 丢弃会在 RB 头部留下
+                         * 永远凑不齐的残帧（帧头残缺/尾部错位）；单字节分片交给 probe
+                         * 链按 1 字节重同步语义处理（与 UDP 路径口径一致）。 */
+                        if (len > 0) {
+                            app_channel_dispatch(ch, (uint8_t *)data, len);
+                        }
+                    } while (netbuf_next(buf) >= 0);
+                    netbuf_delete(buf);
+                    continue;
+                }
+                /* 瞬时内存压力（风暴/洪泛下 pbuf 池耗尽）不应断开客户端 */
+                if (recv_err == ERR_MEM || recv_err == ERR_TIMEOUT) {
+                    osDelay(2);
+                    continue;
+                }
+                break;
             }
-            (void)recv_err;
+            g_tcps_last_exit = (int32_t)recv_err;
+            g_tcps_exit_count++;
 
             tcp_channel_deinit(&s_tcp_ch);
             netconn_close(newconn);

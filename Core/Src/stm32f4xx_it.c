@@ -21,6 +21,14 @@ void hard_fault_handler_c(uint32_t *stack_frame)
     g_fault_r0   = stack_frame[0];
     g_fault_cfsr = SCB->CFSR;
     g_fault_bfar = SCB->BFAR;
+    /* 2026-11-20 诊断：现场写 RTC 备份寄存器（复位不丢）后立即复位。
+     * 原实现死循环等 IWDG（~33s），且复位后 bss 清零导致现场全丢；
+     * 启动时 app_boot 回读 DR7/DR8/DR9 打印 "HF pc=... cfsr=..."。 */
+    HAL_PWR_EnableBkUpAccess();
+    RTC->BKP7R = stack_frame[6];   /* 故障 PC */
+    RTC->BKP8R = SCB->CFSR;        /* 故障状态 */
+    RTC->BKP9R = 0x48465A54U;      /* "HFZT" 标记 */
+    NVIC_SystemReset();
     for (;;);
 }
 

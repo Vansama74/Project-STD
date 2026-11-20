@@ -20,7 +20,10 @@ pl_rtc_handle_t pl_rtc_get_handle(void)
 
 bool pl_rtc_bkup_write(pl_rtc_handle_t h, uint32_t reg, uint32_t value)
 {
+    /* F4 备份域写保护：不先开 DBP 则 BKUPWrite 静默无效（读写回旧值） */
+    HAL_PWR_EnableBkUpAccess();
     HAL_RTCEx_BKUPWrite((RTC_HandleTypeDef *)h, reg, value);
+    HAL_PWR_DisableBkUpAccess();
     return true;
 }
 
