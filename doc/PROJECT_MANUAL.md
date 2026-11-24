@@ -39,7 +39,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 
 - **口径选择（EIDE 现行）**：口径 = 目标上的「排除 / 取消排除」与 `defineList`；完整配方与 CCM 预算见 `doc/构建开关总表.md` §7，EIDE 使用纪律见同文件 §8。
   - **重庆量产（`PROTO_CHONGQING`）** = 排除 LDI 目录 + 把 `PROTO_CHONGQING` 加回 `defineList`，**二者必须成对**（不成对 = 口径错配）。TCP Server/Client 通道两口径**均启动**（2026-08-24 修订：`app_boot.c` 无 `#ifndef PROTO_CHONGQING` 口径裁剪）。
-  - **网络配置应用（两口径统一，2026-08-21 解耦）**：中立模块 `app_net_boot`（`app_net_boot_apply`，`app_boot.c` init_task 在 `app_board_net_cfg_fw_version_update` 之后、splash 之前调用）读 Sector1 net_cfg → `pl_net_set_ip` + `app_tcp_server_set_port`（口取 `net_cfg.port` = TCP 业务口）；Sector1 空/损坏/非法 → 写本构建默认记录落盘并应用（两口径默认均 **port=9528 + udp_port=20103**；IP：CQ 192.168.1.5/255.255.255.0/192.168.1.1，dev 192.168.114.200/255.255.255.0/192.168.114.1）。`ldi_ctx_init` / `cq_proto_init` 不再直接改 netif（ldi 保留 Sector1/W25 自愈与配置装载）。
+  - **网络配置应用（两口径统一，2026-08-21 解耦）**：中立模块 `app_net_boot`（`app_net_boot_apply`，`app_boot.c` init_task 在 `app_board_net_cfg_fw_version_update` 之后、splash 之前调用）读 Sector1 net_cfg → `pl_net_set_ip` + `app_tcp_server_set_port`（口取 `net_cfg.port` = TCP 业务口）；Sector1 空/损坏/非法 → 写本构建默认记录落盘并应用（两口径默认均 **port=9528 + udp_port=20103**；IP：CQ 192.168.1.5/255.255.255.0/192.168.1.1，dev 192.168.114.200/255.255.255.0/192.168.114.1）。`ldi_ctx_init` / `cq_proto_init` 不再直接改 netif（ldi 保留 Sector1 与 Sector 11 记录的三分支自愈与配置装载）。
   - **CQ setip 双构建语义**（doc/03 PartB B.7.1，方案 B）：端口写入 Sector1 `net_cfg.udp_port`，TCP 口 `net_cfg.port` **保留现值不被污染**；改 IP 两构建重启后均生效（均走 `app_net_boot_apply`）；改端口仅 `PROTO_CHONGQING` 构建对 CQ 业务口生效（`_udp_cq_read_port` 读 Sector1 `udp_port`，无效/0 回退 20103），dev 构建 CQ 业务口固定 20103。
   - **CQ 心跳超时故障屏开关**（`app_cq_proto.h` `CQ_FAULT_SCREEN`，1 开 / 0 关，doc/03 PartB B.7.2）：默认跟随构建口径（`PROTO_CHONGQING` 开、共存/其他构建关）；可 `-DCQ_FAULT_SCREEN=1|0` 显式覆盖（旧名已废弃，不保留兼容别名）。关闭时 `cq_proto_timer_task` 不计数、不渲染。
   - **显示模组**：`1_263` / `22_1703` / `22_1665` 三选一（一个都不编 = 无显示口径）。22_1665 的几何宏、CCM 通式、接线模型与历次轮次见 `doc/01_显示系统/22-1665模组驱动分析与迁移记录.md` §0 与附录 A。
@@ -67,7 +67,7 @@ STM32F407ZGTx 嵌入式项目，工具链 `arm-none-eabi-gcc`，C23 标准。
 - **烧录**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; program E:/3833024/build/Project_STD/Debug/Project_STD.hex verify reset exit"`
 - **整片擦除**：`openocd -f ./Compiler/stm32f407zg.cfg -c "init; halt; stm32f4x unlock 0; stm32f4x mass_erase 0; shutdown"`
 - **J-Link 一键烧录**：`bash tool/flash_all.sh`（Bootloader + Recovery + 主固件一次 J-Link 会话烧完，**默认烧后擦除 Sector1（0x08004000~0x08007FFF）恢复出厂配置态**；`--keep-config` 保留板级配置；`--erase` 整片擦除；`--verify` 校验；`--dry-run` 预览命令不烧录；**默认读 `build/Project_STD/Debug/Project_STD.hex`（= `E:\3833024\build\...`）——非 `Debug` target 必须显式 `-a ../build/Project_STD/<Target>/Project_STD.hex`，否则烧错镜像**）
-- **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info.size/crc32` 真实值只由 Recovery 升级流程写入（`app_info.version` 由主固件启动时从 PROGRAM_CODE 落库，供 IAP 0x03 上报）。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 W25Qxx 外部 Flash 同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
+- **调试期烧录陷阱（已规避）**：Bootloader 条件 D（非 debug 模式）校验 Sector1 记录 `app_info.size/crc32` 与 `0x08040000` 实机固件 CRC 是否一致，`app_info.size/crc32` 真实值只由 Recovery 升级流程写入（`app_info.version` 由主固件启动时从 PROGRAM_CODE 落库，供 IAP 0x03 上报）。一旦 Recovery 成功升级过一次，再用 J-Link/EIDE 直接重烧主固件而不更新 Sector1 → 条件 D 校验失配 → Bootloader 判「App 损坏」→ 设备永远进 Recovery。**纪律：任何烧录器（J-Link/OpenOCD/EIDE）烧完主固件后必须擦除 Sector1 恢复出厂态**——Sector1 空 → Bootloader 走条件 C（出厂初始化）→ 正常跳主固件；net_cfg 丢失副作用可接受，主固件上电 `ldi_ctx_init` 从 Sector 11 LDI 配置记录同步回写（空扇区自动完整初始化）。`tool/flash_all.sh` 已默认执行该纪律；手动烧录/单固件烧录同样遵守「烧完擦 Sector1」。
 - **三固件同步烧录纪律（方案 B 布局变更，2026-08-21）**：方案 B 把 Sector1 记录从 68B 扩到 72B（`NetConfig_t` 新增 `udp_port`，`config_crc` 偏移 64→68，Bootloader/Recovery 的 `config_info.h` 已同步修改）。**设备上 Bootloader/Recovery 若仍是旧 68B 布局（未随主固件重烧）**：旧 Bootloader 按旧偏移读 `config_crc`（读到新记录的 `udp_port` 字段）→ 判 CRC 失配 → 重建**旧布局**出厂记录；主固件按 72B 读又失配 → 反复自愈改写，两布局交替重建、Sector1 永不稳定（网络配置回出厂态；残留升级中间态还可能被旧 Bootloader 条件 A/B/D 误判 → 设备陷 Recovery、主固件不运行 → UDP 10011/20103 全部无响应，LDI 搜索/CQ 业务均失效）。**纪律：方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次 J-Link 会话）**，单固件重烧后按惯例擦 Sector1。
 - **0x03 版本为空判断路径**：现场 IAP 0x03 上报 `app_info.version` 全 0 时，按序判断：
   ① 看 IAP 0x03 应答的 `size`/`update_sta` 字段——**（原判据为 RTT `[fwver]` 日志，该打印已随 2026-09-29
@@ -139,8 +139,8 @@ Flash (1024KB, 起始 0x08000000)
 ├─ Sector 0:    0x08000000  16KB   Bootloader（独立工程，`ORIGIN 0x08000000 LENGTH 16K`）
 ├─ Sector 1:    0x08004000  16KB   板级系统配置 (app_board_net_cfg.c)
 ├─ Sector 2~5:  0x08008000  224KB  Recovery 固件（独立工程，`ORIGIN 0x08008000 LENGTH 224K`）
-├─ Sector 6~11: 0x08040000  768KB  主固件 .text/.rodata/.initcall（本工程，FLASH ORIGIN 0x08040000）
-└─ (Sector 11 已释放 — LDI 配置已迁移至 W25Qxx，不占内部 Flash)
+├─ Sector 6~10: 0x08040000  640KB  主固件 .text/.rodata/.initcall（本工程，`FLASH ORIGIN 0x08040000 LENGTH 640K`）
+├─ Sector 11:   0x080E0000  128KB  LDI 配置槽式追加日志（256B × 512 槽，app_ldi_int_cfg.c 独占；链接期 ASSERT 守卫）
 
 SRAM (128KB, 0x20000000) — Debug 全协议构建 **129080B / 131072B（98.5%，余 1992B）**（2026-09-24 缅甸阶段三「无显示守卫」轮重采；以 06/04 §8.4 为准；上一轮阶段二为 129072B / 余 2000B）
 ├─ .data / .bss     LwIP ram_heap + RX_POOL + PBUF_POOL 等（ETH 大户，永留 SRAM）
@@ -195,12 +195,21 @@ CCMRAM (64KB, 0x10000000, NOLOAD) — 占用数字以 `doc/06_SRAM内部分数�
 | 0 | `0x08000000` | 16KB | Bootloader（独立工程，`ORIGIN 0x08000000 LENGTH 16K`） | 烧录时写入 |
 | 1 | `0x08004000` | 16KB | 板级系统配置 (magic + update_sta + FWInfo + NetConfig + CRC32；记录 72B，NetConfig 20B 含 port/udp_port 双端口，方案 B 2026-08-21) | `app_board_net_cfg.c` 内存映射读 + 擦写 |
 | 2~5 | `0x08008000`~`0x08040000` | 224KB | Recovery 固件（独立工程，`ORIGIN 0x08008000 LENGTH 224K`） | IAP 升级时写入 |
-| 6~11 | `0x08040000`~`0x080FFFFF` | 768KB | 主固件 (.text/.rodata/.initcall) | 烧录时写入 |
-| 11 注 | `0x080E0000` | 128KB | 已释放 — LDI 配置已迁移至 W25Qxx 最后一个 4KB 扇区（不再占内部 Flash） | — |
+| 6~10 | `0x08040000`~`0x080DFFFF` | 640KB | 主固件 (.text/.rodata/.initcall)；链接脚本 `FLASH LENGTH 640K` + 两条 `ASSERT`（区域尾与镜像尾均 ≤ `0x080E0000`） | 烧录时写入 |
+| 11 | `0x080E0000`~`0x080FFFFF` | 128KB | **LDI 配置槽式追加日志**（`Application/Src/Config/app_ldi_int_cfg.c`）：256B × 512 槽，记录 192B = magic + version + `app_flash_ldi_cfg_info_t` + CRC32 | 0AH/0BH 追加写空槽；512 槽满才整扇区擦除（1~2s）后回槽 0；装载扫描全槽取最后合法记录 |
 
-**外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + LDI 设备配置（最后一个 4KB 扇区），通过 `dev_storage_read` 接口访问。LDI 配置绑定在 `Application/Src/LDI/app_ldi_cfg.c`（`sw_dev_initcall` 中 `s_ldi_base = dev_storage_capacity(w25) - 4096`）。
+> **Sector 11 纪律**：主应用独占，`FLASH LENGTH` 已收至 640K 并由链接期 `ASSERT` 封口；
+> 记录布局的三条不变量（记录 ≤ 槽 256B、记录长度 4 字节对齐、`crc32` 偏移 4 字节对齐）与
+> Recovery 升级包上限（`FIRMWARE_MAXLEN * 4` ≤ 5 × 128KB）源码只留契约注释，判定依据见
+> `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17.1——改 `app_flash_ldi_cfg_info_t`
+> 字段或 `FIRMWARE_MAX_FRAME_NUM` 前须按该表复算。
+> Recovery 升级包上限同步 640K（擦除只落 Sector 6~10）。整片擦除（`erase chip` / 量产全擦）
+> 会一并出厂化 LDI 配置（网络四项仍可从 Sector1 恢复，host/lane/cert/模块表需重新下发
+> 0AH/0BH）；`tool/flash_all.sh` 默认流程只写三固件 + 擦 Sector1，**不碰 Sector 11**。
 
-**出厂默认网络配置（三固件统一）**：192.168.114.200/24（网关 192.168.114.1、TCP 口 9528；CQ UDP 口 20103，方案 B 2026-08-21）。Recovery 上电 `MX_LWIP_Init` 直读 Sector1.net_cfg 配 netif（空/无效回退统一默认）；主固件 `ldi_ctx_init` 上电同步三分支：**Sector1 为网络配置真源、W25 为恢复镜像**（Sector1 有效且 net_cfg 合法即优先采纳，含升级中间态，`update_sta` 不参与分支判定（2026-08-21 修订）；Sector1 空/损坏/记录无效或 net_cfg 非法时以 W25 自愈回写；皆空用统一出厂默认，详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §11/§12）。**netif 应用由中立模块 `app_net_boot`（`app_net_boot_apply`）统一执行**——`ldi_ctx_init` 只做自愈与配置装载（2026-08-21 解耦）；Sector1 空/损坏/非法时 `app_net_boot` accept_write 写本构建默认落盘并应用（两口径默认均 port=9528/udp_port=20103，IP 各自口径：CQ 192.168.1.5、dev 114.200，详见 §14/§15）。**所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效**（运行时不即时改 netif）；Bootloader 对 Sector1 损坏态（magic 不匹配或 CRC 错）自动重建出厂记录自愈（详见 §12）。UDP 发现口 10011 固定（宏 `LDI_DISCOVERY_PORT`）。**搜索/上报端口字段语义**：LDI 12H 应答 port 与 IAP 0x01 上报 port 均为配置功能端口（TCP 业务口，出厂默认 9528，宏 `LDI_DEFAULT_CONFIG_PORT`），搜索/上报的传输渠道才是 UDP 10011——勿混淆（2026-08-18 修复 12H 误报 10011 的污染循环）。**2026-10-08（C3-C 加固，IP 单一真源）**：LDI 各网络上报路径（0x12 搜索应答 / 0xD1 IP 采集应答）在应答前调用 `ldi_sync_net_from_board_cfg()`，把 **Sector1 `net_cfg`（应用后与 netif 一致）刷新进 `g_ldi.cfg` 运行态**——与 IAP 0x01（直接读 Sector1）必然同源，消除「上电 `ldi_ctx_init` 早于 `app_net_boot_apply`、混编口径（`PROTO_CHONGQING` + LDI）下 LDI 报 114.200 而 IAP 报 192.168.1.5」的双上报源矛盾；记录无效（magic/CRC 错或 IP 全 0/port 0）时保留现值。
+**外部 Flash**（W25Qxx，SPI1，~8MB）：字库数据（5 字号×4 字型×2 编码的 40 个三元组） + 显示持久化记录 + YN_OL `0x49` 屏体参数，通过 `dev_storage_read` 接口访问。**LDI 配置自 2026-11-24 起不再落 W25**（改存内部 Flash Sector 11，见上表与 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17）；W25 最后 4KB 扇区的旧 LDI 记录仅作历史遗留，不再读写。
+
+**出厂默认网络配置（三固件统一）**：192.168.114.200/24（网关 192.168.114.1、TCP 口 9528；CQ UDP 口 20103，方案 B 2026-08-21）。Recovery 上电 `MX_LWIP_Init` 直读 Sector1.net_cfg 配 netif（空/无效回退统一默认）；主固件 `ldi_ctx_init` 上电同步三分支：**Sector1 为网络配置真源、Sector 11 LDI 配置记录为恢复镜像**（Sector1 有效且 net_cfg 合法即优先采纳，含升级中间态，`update_sta` 不参与分支判定（2026-08-21 修订）；Sector1 空/损坏/记录无效或 net_cfg 非法时以记录自愈回写；皆空用统一出厂默认，详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §11/§12/§17）。**netif 应用由中立模块 `app_net_boot`（`app_net_boot_apply`）统一执行**——`ldi_ctx_init` 只做自愈与配置装载（2026-08-21 解耦）；Sector1 空/损坏/非法时 `app_net_boot` accept_write 写本构建默认落盘并应用（两口径默认均 port=9528/udp_port=20103，IP 各自口径：CQ 192.168.1.5、dev 114.200，详见 §14/§15）。**所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一重启生效**（运行时不即时改 netif）；Bootloader 对 Sector1 损坏态（magic 不匹配或 CRC 错）自动重建出厂记录自愈（详见 §12）。UDP 发现口 10011 固定（宏 `LDI_DISCOVERY_PORT`）。**搜索/上报端口字段语义**：LDI 12H 应答 port 与 IAP 0x01 上报 port 均为配置功能端口（TCP 业务口，出厂默认 9528，宏 `LDI_DEFAULT_CONFIG_PORT`），搜索/上报的传输渠道才是 UDP 10011——勿混淆（2026-08-18 修复 12H 误报 10011 的污染循环）。**2026-10-08（C3-C 加固，IP 单一真源）**：LDI 各网络上报路径（0x12 搜索应答 / 0xD1 IP 采集应答）在应答前调用 `ldi_sync_net_from_board_cfg()`，把 **Sector1 `net_cfg`（应用后与 netif 一致）刷新进 `g_ldi.cfg` 运行态**——与 IAP 0x01（直接读 Sector1）必然同源，消除「上电 `ldi_ctx_init` 早于 `app_net_boot_apply`、混编口径（`PROTO_CHONGQING` + LDI）下 LDI 报 114.200 而 IAP 报 192.168.1.5」的双上报源矛盾；记录无效（magic/CRC 错或 IP 全 0/port 0）时保留现值。
 
 ## 软件分层架构
 
@@ -334,6 +343,7 @@ pl_sys (SystemClock_Config, delay, reset)
 | 2-dev | dev | `dev_eth_init` | `dev_eth.c` | ETH MAC + DP83848 PHY |
 | 2-dev | dev | `dev_rs485_init` | `dev_rs485.c` | RS485 RE 方向回调注入 |
 | 2-dev | dev | `_app_board_net_cfg_storage_init` | `Application/Src/Config/app_board_net_cfg.c` | 内部 Flash ops 绑定 (Sector 1) |
+| 2-dev | dev | `_app_ldi_int_cfg_storage_init` | `Application/Src/Config/app_ldi_int_cfg.c` | 内部 Flash ops 绑定 (Sector 11) |
 | 2-dev | dev | `dev_io_ctrl_init` | `dev_io_ctrl.c` | 车道灯/闪光灯 GPIO 初始化 |
 | 2-dev | dev | `dev_key_init` | `dev_key.c` | EXTI 中断回调注册 (SW1~SW3, TEST) |
 | 3-post | — | （空） | — | 预留 |
@@ -345,7 +355,6 @@ pl_sys (SystemClock_Config, delay, reset)
 | 0-pre | — | （空） | — | 预留 |
 | 2-dev | dev | `dev_display_start` | `dev_display.c` | 创建 scan_task + 启动 TIM3/4 |
 | 2-dev | dev | `dev_key_sw_init` | `dev_key.c` | 创建 TEST 按键信号量 |
-| 2-dev | dev | `_app_flash_ldi_storage_init` | `Application/Src/LDI/app_ldi_cfg.c` | LDI 配置 W25Qxx 地址计算 |
 | 3-app | app | `app_dispatch_init` | `app_dispatch.c` | 创建 ch_queue + frame_dispatch_task |
 | 3-app | app | `_render_init` | `app_render.c` | 绑定 display + storage 句柄 |
 | 3-app | app | `_app_key_init` | `app_key.c` | 创建 key_poll_task (20ms) |
@@ -780,16 +789,16 @@ OCP 虚表实现，提供 `flash_int_ops`（`init/read/write/erase`），由各�
 | 实例 | 绑定模块 | 基地址 | 大小 | initcall |
 |---|---|---|---|---|
 | `g_board_cfg_flash` | `Application/Src/Config/app_board_net_cfg.c` | `0x08004000` (Sector 1) | 16KB | `hw_dev_initcall` |
-| (LDI 已迁移) | `Application/Src/LDI/app_ldi_cfg.c` | W25Qxx 最后 4KB 扇区 | 4KB | `sw_dev_initcall` (需要 W25Qxx 先就绪) |
+| `g_ldi_int_cfg_flash` | `Application/Src/Config/app_ldi_int_cfg.c` | `0x080E0000` (Sector 11) | 128KB | `hw_dev_initcall` |
 
 **内部 Flash ops 实现**：
 - `_read`：直接内存映射 `memcpy(buf, (void*)(base+addr), len)`
 - `_write`：`pl_flash_unlock → pl_flash_program_word × N → pl_flash_lock`（按 word 编程）
 - `_erase`：`pl_flash_erase_sector(sector, voltage)`
 
-**板级系统配置** (`Application/Src/Config/app_board_net_cfg.c`)：`app_board_sys_info_t` 记录（72B，方案 B 2026-08-21）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(20) + CRC32(4)，布局以 `app_board_net_cfg.h` 注释 + `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §15 为唯一口径（与 Bootloader/Recovery 二进制兼容）。NetConfig 字段语义：`ip/mask/gw` 两套口共享；`port` = **TCP 业务口**（LDI 0AH / IAP 0x01 报 0x02 写 / TCP Server 监听，出厂默认 9528）+ **贵州治超专用 UDP 业务口**（GZ_OL `0x40` 写 / `CH_ID_UDP_GZOL` 读；同号不同协议栈，2026-09-14 用户裁决，doc/14 §13）；`udp_port` = **CQ UDP 业务口**（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。网络配置经 `app_board_net_cfg_get` / `app_board_net_cfg_update(ip,mask,gw,port,udp_port)` 读写（LDI 0AH / IAP 4B02 写 port 保留 udp_port；CQ setip 写 udp_port 保留 port），FWInfo/update_sta 经 `app_board_net_cfg_read` 整记录读取（IAP 命令用）。**升级兼容**：旧 68B 记录按新 72B 布局重算 CRC 必失配 → 走空/损坏自愈路径重写（网段配置丢失一次，由 ldi_ctx_init W25 镜像回写或 app_net_boot 默认落盘恢复）；**反向同理**——设备上旧 68B 布局 Bootloader/Recovery 读新 72B 记录同样失配 → 反复重建旧布局出厂记录，**方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次会话），否则 Sector1 两布局交替重建、设备可能陷 Recovery（网络全部无响应）**（2026-08-21 纪律强化）。
+**板级系统配置** (`Application/Src/Config/app_board_net_cfg.c`)：`app_board_sys_info_t` 记录（72B，方案 B 2026-08-21）= magic(4) + update_sta(4) + FWInfo(40) + NetConfig(20) + CRC32(4)，布局以 `app_board_net_cfg.h` 注释 + `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §15 为唯一口径（与 Bootloader/Recovery 二进制兼容）。NetConfig 字段语义：`ip/mask/gw` 两套口共享；`port` = **TCP 业务口**（LDI 0AH / IAP 0x01 报 0x02 写 / TCP Server 监听，出厂默认 9528）+ **贵州治超专用 UDP 业务口**（GZ_OL `0x40` 写 / `CH_ID_UDP_GZOL` 读；同号不同协议栈，2026-09-14 用户裁决，doc/14 §13）；`udp_port` = **CQ UDP 业务口**（CQ setip 写 / CQ UDP 通道读，出厂默认 20103）。网络配置经 `app_board_net_cfg_get` / `app_board_net_cfg_update(ip,mask,gw,port,udp_port)` 读写（LDI 0AH / IAP 4B02 写 port 保留 udp_port；CQ setip 写 udp_port 保留 port），FWInfo/update_sta 经 `app_board_net_cfg_read` 整记录读取（IAP 命令用）。**升级兼容**：旧 68B 记录按新 72B 布局重算 CRC 必失配 → 走空/损坏自愈路径重写（网段配置丢失一次，由 ldi_ctx_init 记录镜像回写或 app_net_boot 默认落盘恢复）；**反向同理**——设备上旧 68B 布局 Bootloader/Recovery 读新 72B 记录同样失配 → 反复重建旧布局出厂记录，**方案 B 后三固件必须同步烧录（`tool/flash_all.sh` 一次会话），否则 Sector1 两布局交替重建、设备可能陷 Recovery（网络全部无响应）**（2026-08-21 纪律强化）。
 
-**LDI 配置** (`Application/Src/LDI/app_ldi_cfg.c`)：已迁移至 W25Qxx 最后一个 4KB 扇区。`app_flash_ldi_record_t` 记录长度按 `sizeof` 计（11 模块 × 13B = 188B）= magic(4) + cfg + padding + CRC32(4)，CRC 覆盖 `[0, offsetof(crc32))`。扇区切成 **16 × 256B 槽顺序追加写**（擦除后回槽 0，单次保存掉电只毁正在写的槽），装载倒序取最新合法槽并做回读校验；装载时**兼容识别历史布局并自动迁移**（无版本号，靠不同 CRC 覆盖面试探区分）：**v1 6 模块 / 116B → v2 11 模块 × 12B / 176B → v3 11 模块 × 13B / 188B**（现行唯一可写布局；模块条目 = `type + index + param + vendor[10]`，E4H/E6H 的 param 独立成字段，v2 记录里它混在 `vendor[0]`，迁移时右移还原），命中旧布局即搬运字段后用 v3 重写。`_app_flash_ldi_storage_init`（`sw_dev_initcall`）中 `s_ldi_base = dev_storage_capacity(w25) - 4096`，通过 `dev_w25qxx_get()` 获取存储句柄。布局/迁移/1EH 定长表详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §10。
+**LDI 配置** (`Application/Src/Config/app_ldi_int_cfg.c`，2026-11-24 起；原 `Application/Src/LDI/app_ldi_cfg.c` 的 W25 路径已退役)：存**内部 Flash Sector 11**（`0x080E0000~0x080FFFFF`，128KB，主应用独占）。`app_ldi_int_cfg_record_t` = magic(4) + version(4) + `app_flash_ldi_cfg_info_t`(178B) + padding + CRC32(4) = **192B**（布局三条不变量——≤ 槽 256B、长度与 CRC 覆盖面 4 字节对齐——源码只留契约注释，判据见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17.1），CRC 覆盖 `[0, offsetof(crc32))`。扇区切成 **512 × 256B 槽顺序追加写**：保存追加到第一个全 0xFF 空槽（不擦扇区，单次保存掉电只毁正在写的槽），512 槽写满才整扇区擦除（1~2s）后回槽 0；装载扫描全部槽取**最后一个** magic+version+CRC 合法记录（半写槽自动跳过、回退上一槽）；写后回读校验 CRC，失败如实回 0AH/0BH 的 `01H`。记录带 version，**不做旧 W25 记录迁移**（无有效记录 = 未配置）。保存有重入保护（`s_saving` + 临界区），0AH/0BH 与上电自愈不会交叉编程。布局与三分支语义详见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17；1EH 定长表详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §10。
 
 > **解耦已落地（2026-08-14）**：LDI 与 IAP 协议均经中立模块 `app_board_net_cfg`（`Application/Config`）读写 Sector 1 网络配置，互不依赖对方协议目录；`app_iap_cfg.{c,h}` 与死代码 `Device/Inc/config_info.h` 已删除。守卫语义（空/损坏自愈、升级中间态仅放行 net_cfg 字段更新、同值跳过）见 `doc/07_LDI与IAP配置解耦`。
 
@@ -995,7 +1004,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 | 1 | **4B02 应答帧结果码** | 协议文档当前版本无此定义；固件已按扩展实现：len 0→1，1 word 结果码（0=成功含同值跳过，1=擦写错误），借鉴 4B04 应答 0/1 先例。老上位机按「B402 无载荷」解析时会多读一个 word，混合部署需联调验证（详见 doc/07 §10） |
 | 2 | **4B06「进 Recovery」应答后重启** | 协议要求应答后重启；主固件实现只写 RTC 备份寄存器标志（`FLAG_FORCE_UPDATE`）未复位，实际复位由后续流程触发——协议与实现出入 |
 | 3 | **4B04「准备升级」应答结果码** | 协议文档有 0/1 结果码先例；主固件实现应答无载荷（len=0），未按文档回结果码 |
-| 4 | **LDI 0AH 失败码 01H** | 实现已使用（00H=成功、01H=失败：W25 保存或 Sector1 同步任一步失败即 01H），协议文档需明确该语义（与 0BH / `ldi_status_rsp_t` 既有约定一致） |
+| 4 | **LDI 0AH 失败码 01H** | 实现已使用（00H=成功、01H=失败：Sector 11 记录保存或 Sector1 同步任一步失败即 01H），协议文档需明确该语义（与 0BH / `ldi_status_rsp_t` 既有约定一致） |
 
 ## LDI 协议 (`app_ldi.c` + `app_ldi_cmd.c`)
 
@@ -1007,7 +1016,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 - `ldi_ctrl_xxx_t`：每种设备类型的控制载荷结构体（`app_ldi_cmd.h`）
 - `app_vms_ctrl`：VMS 情报板子模块，将 LDI 命令翻译为 `app_render()` 调用
 - 复合指令模块：支持多设备类型组合控制（1BH 命令）
-- **host（平台地址）存储归属**：`host_ip`/`host_port` **只存 W25 LDI 配置记录，单副本**，Sector1 `net_cfg` 不存、无出厂默认；擦 Sector1 既不恢复也不破坏 host。0AH 带全 0 host 时不覆盖（2026-11-18 零值守卫；lane/cert 自 2026-11-19 起为**成对守卫**——任一全 0 → 整帧不下发身份，0BH 的 0 为合法值、可清空身份）——旧实现无条件覆盖会把 host 落盘成 `0.0.0.0:0`，而 `app_tcp_client` 对「远端未配置」不连接，设备从此**永不连平台**且无默认值可回退；副作用是 host 一旦写入无法再用 0AH 清零。详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
+- **host（平台地址）存储归属**：`host_ip`/`host_port` **只存 Sector 11 LDI 配置记录，单副本**，Sector1 `net_cfg` 不存、无出厂默认；擦 Sector1 既不恢复也不破坏 host。0AH 带全 0 host 时不覆盖（2026-11-18 零值守卫；lane/cert 自 2026-11-19 起为**成对守卫**——任一全 0 → 整帧不下发身份，0BH 的 0 为合法值、可清空身份）——旧实现无条件覆盖会把 host 落盘成 `0.0.0.0:0`，而 `app_tcp_client` 对「远端未配置」不连接，设备从此**永不连平台**且无默认值可回退；副作用是 host 一旦写入无法再用 0AH 清零。详见 `doc/02_LDI协议与外设接口/LDI会话状态机与命令门禁.md` §6。
 - **设备能力层（`Application/Src/LDI/app_ldi_device.c`）**：E6/E7/E8 的实际执行与状态缓存（`ldi_device_*_ctrl` / `ldi_device_timer_poll`）。该文件同时提供 **5 个 `__attribute__((weak))` 空实现**的镜像钩子（`app_ldi_etc_display/clear/lamp/alarm/heartbeat`），在命令**成功路径**（前 4 个）或**定时任务节拍**（心跳，`ldi_timer_task()` 每 3 秒无条件）调用；强实现由 `Application/Src/app_ldi_etc_bridge.c` 提供（EIDE 排除它即回退空实现）。**LDI → 四川 ETC 转义（镜像）**的映射、默认决策与开关见 `doc/20_LDI到四川ETC协议转义/README.md`（E9 VMS 不镜像、黄灯不发、报警只转显式开/关、心跳 `0A 08 0D` 3 秒周期；出站走 RS485+RS232 双口）。
 
 ## 青海协议 (`Application/Src/ProtocolParser_QingHai/app_qh_proto.c`)
@@ -1066,7 +1075,7 @@ RS485/RS232 按板级资源（Device 层）与通道生命周期（Application �
 - **帧**：`'{'` + 命令字(1B) + 参数长度(1B **二进制**) + 参数(变长) + `'}'`（与云南常规完全同构、无校验；帧 ≤259）；probe = 首字节快拒 + 命令字白名单（`yn_ol_cmd_from_byte` 与 parse 共用单一真源）+ 长度/尾字节双重校验。
 - **命令集（19 个命令字）**：`'1'` 主机查询（回 `7B 31 01 00 7D`）、`'2'` 自检（数字 1~9 交替，惰性任务可被下一帧打断、无语音）、`'3'` 单行（颜色+行号'1'~'5'+GBK）、`'4'` 全屏（颜色+X+Y+GBK，word_wrap）、`'5'` 清屏、`'8'` 亮度（`0x00`/`'0'` 自动、`'1'`~`'8'` 手动）、`'A'` 外设（bit0 绿/bit1 红/bit2 黄闪，红优先）、`0x42`~`0x46`+`0x50` 六行清除、`0x47` 改 IP、`0x48` 查 IP → `0x51` 应答、`0x49` 屏体参数（字体+字宽，**持久化于 W25Qxx 独立扇区、上电装载**）、`0x01` 全屏点亮（1~7 色）、`0x02` 版本号（裸 ASCII PROGRAM_CODE + 屏显「版本:…」）。**'6'/'7'/'9' 文档明示治超屏不开发（语音 + 固定格式）→ probe 快拒**。
 - **网络配置**：`0x47`/`0x51` 的 14B 载荷 = ip4+mask4+gw4+port2，写/读 Sector1 `net_cfg.port`（`udp_port` 保留）；**端口字段字节序 = 高字节在前 BE16**（写 9528 发 `25 38`）——**已裁决**（2026-09-17 裁决 2，转正；依据同厂 GZ_OL doc/14 §13.5.1 + 本固件 LDI 12H/IAP 0x01 既有口径）；`0x47` 应答 `0x51`（14B 回显）后 `osDelay(100)` + `NVIC_SystemReset()`（STD 改 IP 重启生效，对齐 GZ_OL `0x40` 先例）——**已裁决维持**（裁决 3）。
-- **`0x49` 屏体参数持久化**（**裁决 5**）：字体+字宽写入 **W25Qxx 独立 4KB 扇区 `capacity - 12288`**（倒数第三个；LDI 占 `capacity-4096`、app_render 显示持久化占 `capacity-8192` → 三者各占一扇区，避免 `dev_w25qxx._write` 整扇区读-改-写互擦）；记录 12B = magic `0x594E4F4C` + version + font_type + font_size + CRC32（仿 `app_ldi_cfg.c` 范式）；`sw_app_initcall` 初始化末尾装载、`0x49` 执行时落盘；记录空/损坏 → 静默/告警回默认，写失败 → 运行态仍生效仅告警，**不阻塞、不重启**；SRAM 侧仅 12B 记录缓冲，无整扇区镜像。
+- **`0x49` 屏体参数持久化**（**裁决 5**）：字体+字宽写入 **W25Qxx 独立 4KB 扇区 `capacity - 12288`**（倒数第三个；LDI 占 `capacity-4096`、app_render 显示持久化占 `capacity-8192` → 三者各占一扇区，避免 `dev_w25qxx._write` 整扇区读-改-写互擦）；记录 12B = magic `0x594E4F4C` + version + font_type + font_size + CRC32（仿 LDI 记录范式，现 `app_ldi_int_cfg.c`）；`sw_app_initcall` 初始化末尾装载、`0x49` 执行时落盘；记录空/损坏 → 静默/告警回默认，写失败 → 运行态仍生效仅告警，**不阻塞、不重启**；SRAM 侧仅 12B 记录缓冲，无整扇区镜像。
 - **通道**：**RS485 + RS232 + TCP Server + TCP Client 四通道四 mask 共用一队列**（队列体+cb+任务帧缓冲 **1152B 置 CCMRAM**，**裁决 1**：现场可能用网口控制）。**与 CQ 的 `{` 同首字节竞争靠「通道掩码隔离」解决、不靠源码收录序**：`app_dispatch.c` `frame_dispatch_task` 按 `ch_proto_map[ch->ch_id]` 取该通道绑定协议链，而 **CQ 只绑 `CH_ID_UDP` + `CH_ID_UDP_CQ`、不绑 TCP** → TCP 双通道上 CQ probe 根本不被调用；本模块**不绑 `CH_ID_UDP`（10011）** → CQ 量产行为逐字节不变。反向安全：CQ JSON 第二字节恒为 `'"'` 不在本 probe 白名单 → FAKE 放行；半帧（avail<3）→ WAIT 且调度器 WAIT 时继续探测下一协议 → 不卡链。**未触碰 CQ 源码**。波特率 DIP1 选择（文档 9600~115200 默认 9600 → **DIP1 置 OFF**）。
 - **帧族纪律**：属 `{` 帧族 → **定义 `g_brace_proto_guard` 互斥守卫**；**与云南常规 `app_yn_proto` 这一对已 `arm-none-eabi-ld -r` 双编实测报 `multiple definition of 'g_brace_proto_guard'`**（裁决 7；加 `-DSTD_ALL_PROTO` 复编后退出码 0）→ **量产（EIDE）必二选一**（〔**2026-10-13 现状**：Base/Debug 基线排除全部 13 个协议目录，本模块与云南常规同在排除表内；启用本模块须确保其它 `{` 族仍排除，点选见 `doc/构建开关总表.md` §7.2〕〔历史实态复核 2026-09-17 晚：`.eide/eide.yml` Debug 的 excludeList 已排除 `ProtocolParser_YunNan`、未排除本目录 ⇒ 当时本模块已编入 EIDE Debug 镜像；改回则须把本目录列入 excludeList 并放行任一其它 `{` 族目录，再 `EIDE: Reload Project`〕）。命令字重叠：`'1'`~`'5'`/`'8'`/`'A'` 与云南常规/青海等、`0x42`~`0x45` 与 MTC；**`0x42` 同字节歧义**（本协议=第一行清除 / 云南常规=`'B'` 费额语音）；本协议独有 `0x46`~`0x51`（全协议构建下独占认领）。
 - **上电默认画面：不实现**（**裁决 6**）——文档「上电显示『祝您一路平安』稍候熄灭」不由本模块实现；原 `app_yn_ol_proto_default.c`、其 `app_default_display_register` 注册与 5s 熄灭惰性任务**已删除**，Makefile / `.eide/eide.yml` / 文档表述同步清理；上电画面走 STD 现有默认显示链路（`app_default_display.c`）。

@@ -21,8 +21,13 @@
  * （省 1144B），CCM 占 1124B；CCM 零等待单周期访问，对扫屏热路径更友好。 */
 PL_TASK_STATIC_STORAGE(scan, 256);
 
-/* ---- 扫描任务事件 ---- */
-static osEventFlagsId_t s_scan_evt;
+/* ---- 扫描任务行同步信号（二值信号量，ISR 直投）----
+ * 不能用事件组：CMSIS osEventFlagsSet 在 ISR 中走 xEventGroupSetBitsFromISR
+ * → 经 FreeRTOS Timer 守护任务中转。TIM3 行同步 2kHz 的投递洪流会让守护
+ * 任务常驻就绪（优先级 25）→ 饿死全部 Normal(24)/EthLink(16) 任务（网络、
+ * LDI 全灭，2026-11-24 定级）。二值信号量的 osSemaphoreRelease 在 ISR 中
+ * 走 xSemaphoreGiveFromISR，直接唤醒 scan_task，不经任何守护任务。 */
+static osSemaphoreId_t s_scan_sem;
 static dev_display_t *s_active_display;
 static uint8_t *s_frame_front;
 static uint8_t *s_frame_back;
@@ -132,7 +137,7 @@ static void scan_task(void *arg)
     s_frame_back  = dev->pixel_map;
 
     for (;;) {
-        osEventFlagsWait(s_scan_evt, 0x01, osFlagsWaitAny, osWaitForever);
+        osSemaphoreAcquire(s_scan_sem, osWaitForever);
 
         /* 帧提交 → 预计算（off critical path） */
         osKernelLock();
@@ -187,12 +192,12 @@ static void scan_task(void *arg)
 /* ---- 软件初始化（创建事件 + 扫描任务）---- */
 void dev_display_start(void)
 {
-    s_scan_evt = osEventFlagsNew(NULL);
-    if (s_scan_evt == NULL) {
-        /* 事件对象创建失败：scan_task 会在 osEventFlagsWait 上自旋并饿死
+    s_scan_sem = osSemaphoreNew(1, 0, NULL);
+    if (s_scan_sem == NULL) {
+        /* 信号量创建失败：scan_task 会在 osSemaphoreAcquire 上自旋并饿死
          * 低优先级任务（喂狗门控会兜底复位）。此处直接放弃显示扫描，
          * 让协议/网络继续运行。 */
-        SEGGER_RTT_printf(0, "[disp] evt_new FAIL\n");
+        SEGGER_RTT_printf(0, "[disp] sem_new FAIL\n");
         return;
     }
 
@@ -295,7 +300,11 @@ void dev_display_draw_bitmap(dev_display_t *dev, uint16_t x, uint16_t y, uint16_
 
 static void _on_tim3_period(void)
 {
-    osEventFlagsSet(s_scan_evt, 0x01);
+    /* ISR 直投（xSemaphoreGiveFromISR）：未消费时释放失败为正常语义
+     * （行同步信号合并），不构成错误。 */
+    if (s_scan_sem != NULL) {
+        (void)osSemaphoreRelease(s_scan_sem);
+    }
 }
 
 static void _on_tim4_period(void)

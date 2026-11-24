@@ -148,8 +148,8 @@ TCP 连接任务断开时置 `ops = nullptr`、`state = DOWN` 并 `app_channel_r
 
 | 字段 | 存储位置 | 出厂默认 | 说明 |
 |------|----------|----------|------|
-| `host_ip` / `host_port` | **仅 W25 LDI 配置记录（单副本）** | 无 | Sector1 `net_cfg` **不存** host；擦 Sector1 不会恢复 host，也不会破坏 host |
-| `device_ip` / `device_port` / `gateway` / `netmask` | Sector1 `net_cfg`（真源）+ W25（镜像） | 有（`pl_net_get_ip`） | 见 `doc/07…/02_decoupling_solutions.md` §12 |
+| `host_ip` / `host_port` | **仅 Sector 11 LDI 配置记录（单副本）** | 无 | Sector1 `net_cfg` **不存** host；擦 Sector1 不会恢复 host，也不会破坏 host |
+| `device_ip` / `device_port` / `gateway` / `netmask` | Sector1 `net_cfg`（真源）+ Sector 11 记录（镜像） | 有（`pl_net_get_ip`） | 见 `doc/07…/02_decoupling_solutions.md` §12、§17 |
 
 `0.0.0.0:0` 的成因：host 只在平台下发 0AH 时写入。若 0AH 无条件下发（或平台巡检帧
 不带这两栏），旧实现会把 host **覆盖成 0** 并落盘到唯一副本——设备重启后
@@ -159,7 +159,7 @@ TCP 连接任务断开时置 `ops = nullptr`、`state = DOWN` 并 `app_channel_r
 **0AH host 零值守卫（2026-11-18）**：`host_ip` 全 0 → 不覆盖 `cfg.host_ip`；
 `host_port == 0` → 不覆盖 `cfg.host_port`（`app_ldi_cmd.c:484` 起，与 lane/cert 守卫同款）。
 副作用：host 一旦写入就**无法再用 0AH 清成 0**——这是有意的（0 语义 = 「本次不下发该字段」，
-不是「改成 0.0.0.0」）。确需清零只能整片擦除 W25 配置记录。
+不是「改成 0.0.0.0」）。确需清零只能擦除 Sector 11 的 LDI 配置记录（整片擦除即出厂化）。
 
 **身份字段零值语义（2026-11-19 用户裁决，取代 11-18 的逐字段守卫）**：
 
@@ -228,7 +228,7 @@ TCP 连接任务断开时置 `ops = nullptr`、`state = DOWN` 并 `app_channel_r
 `param` 语义：E4H = FilterTime（杂波过滤时间 ms）、E6H = FontLine（默认显示行数
 01H~06H，00H=自适应）；其余类型无 param 字节。
 
-W25 记录里的模块条目 `app_flash_ldi_module_cfg_t` 自 2026-11-18 起同为 **13B**
+Sector 11 记录里的模块条目 `app_flash_ldi_module_cfg_t` 自 2026-11-18 起同为 **13B**
 （`device_type + device_index + param + vendor[10]`）。改错静默错位——13B 是契约。
 
 **修复前（P1-a）**：条目只有 12B（无 param 字段），0BH 把 13B 请求的
@@ -248,27 +248,27 @@ W25 记录里的模块条目 `app_flash_ldi_module_cfg_t` 自 2026-11-18 起同�
 
 E1H 帧长 = `21 + Σ mod_size`（head 20 + device_num 1 + 模块段）。
 
-### 10.3 三级布局识别与迁移链（W25 槽区，无版本号）
+### 10.3 记录布局与槽日志（Sector 11，带版本号）
 
-| 布局 | 模块数 × 长度 | cfg | record | 说明 |
-|---|---|---|---|---|
-| v1（2026-11-17 前） | 6 × 12B | 106B | 116B | 只读迁移 |
-| v2（2026-11-17 ~ 11-18） | 11 × 12B | 166B | 176B | 只读迁移；E4/E6 的 `vendor[0]` 实为 param |
-| **v3（现行）** | **11 × 13B** | **178B** | **188B** | 唯一可写布局（≤256B 槽 ✓） |
+| 项 | 值 | 说明 |
+|---|---|---|
+| 存储 | 内部 Flash Sector 11（`0x080E0000~0x080FFFFF`，128KB） | 主应用独占；`FLASH LENGTH 640K` + 链接期 ASSERT 封口 |
+| 槽 | 256B × 512 槽 | 顺序追加，512 槽满才整扇区擦除后回槽 0 |
+| 记录 | **192B** = magic(4) + version(4) + cfg(178B) + padding(2) + CRC32(4) | CRC 覆盖 `[0, offsetof(crc32))` = 188B；记录 ≤ 槽宽、长度/覆盖面 4 字节对齐三条不变量只留契约注释，判据见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17.1 |
+| 模块条目 | 11 × 13B | 现行唯一布局（E4H/E6H 的 param 独立成字段） |
 
-装载 `app_flash_ldi_load_config()` 倒序扫描 16 个槽，逐级 CRC 试探 **v3 → v2 → v1**：
-- v3 命中：直接返回。
-- v2 命中：`_migrate_v2_to_cur()` 迁移——前部网络/身份字段同偏移直接搬；modules
-  逐项转换，**E4H/E6H 右移还原**（`param = 旧vendor[0]`、`vendor[i] = 旧vendor[i+1]`、
-  `vendor[9] = 0`），其余类型原样搬 + `param = 0`；随后立即 `app_flash_ldi_save_config()`
-  以 v3 追加写回（旧记录不破坏）。右移依据经 git 复核：0BH 从最早的
-  `3cf8283` 到 `dd59cb6`（引入 `vendor_len` 的唯一提交）一直是
-  `mod_size - 2` 夹 10B 的混排写法，v1 时代记录同样混排。
-- v1 命中：前部字段搬运 + modules 显式逐字段（`param = 0`、vendor 原样）+ 写回 v3。
+装载 `app_ldi_int_cfg_load()` 扫描全部 512 槽、取**最后一个** magic + version + CRC
+全合法的记录：半写/损坏槽被 CRC 挡下，自动回退上一槽。保存
+`app_ldi_int_cfg_save()` 追加到第一个全 0xFF 空槽（不擦扇区），写后回读校验 CRC。
+
+**不再兼容 v1/v2 旧布局**（2026-11-24 定案）：W25 时代的 v1 6×12B / 116B、v2 11×12B /
+176B、v3 11×13B / 188B 三级 CRC 试探迁移链随 `app_ldi_cfg.c` 一并退役，旧 W25 记录
+不迁移；Sector 11 无有效记录即视为未配置（lane/cert 全 0、host 哨兵）。布局/掉电语义
+见 `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17。
 
 ### 10.4 P1-b：上电恢复 param/vendor
 
-`ldi_ctx_init()` 分支 1（Sector1 有效）与分支 2（W25 有效）的模块同步循环，
+`ldi_ctx_init()` 分支 1（Sector1 有效）与分支 2（Sector 11 记录有效）的模块同步循环，
 修复前只拷 `device_index`，0BH 配的 param/vendor 重启即丢；现同步
 `device_index + param + vendor[10]` 三项。
 

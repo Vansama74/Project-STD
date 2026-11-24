@@ -8,6 +8,7 @@
 #include "app_ldi_etc_bridge.h"
 #include "crc_utils.h"
 #include "app_ldi_cfg.h"
+#include "app_ldi_int_cfg.h"
 #include "pl_task_static.h"
 
 /* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
@@ -82,8 +83,14 @@ static void ldi_tx_task(void *argument);
 static void ldi_tx_task(void *argument)
 {
     (void)argument;
+    /* 接收缓冲必须落普通 SRAM（.bss），不能放本任务栈：ldi_tx 栈由
+     * PL_TASK_STATIC_STORAGE 放在 .ccmram，而 UDP 发送是零拷贝
+     * （netbuf_ref 直接登记指针，DMA 只能寻址 SRAM），udp_ch_send 对与
+     * [_sccmram,_eccmram) 相交的载荷一律拒发（返回 -1）——放栈上会让
+     * LDI 配置类命令（0AH/0BH/1DH/1EH）在 UDP 通道执行成功却不回包。
+     * 单消费者任务顺序使用，静态化无并发风险。 */
+    static ldi_tx_item_t item;
     for (;;) {
-        ldi_tx_item_t item;
         if (osMessageQueueGet(s_tx_queue, &item, nullptr, osWaitForever) == osOK) {
             /* 阻塞发送只允许发生在这里；channel_send 对已注销通道（ops==null）返回 -1 */
             (void)channel_send(item.ch, item.data, item.len);
@@ -135,21 +142,21 @@ ldi_ctx_t g_ldi = {
 };
 
 /**
- * @brief  LDI 上下文装载：Sector1/W25 自愈 + LDI 设备配置装载。
+ * @brief  LDI 上下文装载：Sector1 真源裁定 + Sector 11 配置日志自愈。
  *
- * 职责：只做配置真源裁定与自愈——网络字段以 Sector1.net_cfg 为唯一真源、W25 为恢复
- * 镜像（三分支判定）；非网络字段（host/lane/cert/modules）与 TCP Client 远端装载，
- * Sector1 空/损坏时从 W25 回写自愈。
+ * 职责：只做配置真源裁定与自愈——网络字段以 Sector1.net_cfg 为唯一真源、Sector 11
+ * 槽日志为恢复镜像（三分支判定）；非网络字段（host/lane/cert/modules）与 TCP Client
+ * 远端装载，Sector1 空/损坏时从 Sector 11 记录回写自愈。
  * **不应用网络**：netif / TCP Server 口移交中立模块 app_net_boot（app_boot.c init_task
- * 在本函数之后调用 app_net_boot_apply）。三分支与中间态语义见 doc/07 §10/§11。
+ * 在本函数之后调用 app_net_boot_apply）。三分支与中间态语义见 doc/07 §10/§11/§17。
  */
 void ldi_ctx_init(ldi_ctx_t *self)
 {
     app_flash_ldi_cfg_info_t flash_cfg = {0};
     bool flash_valid                   = false;
 
-    if (app_flash_ldi_load_config(&flash_cfg)) {
-        /* Flash 记录的 module_count 钳制：超设备类型上限（LDI_DEV_TYPE_COUNT=13）或
+    if (app_ldi_int_cfg_load(&flash_cfg)) {
+        /* 记录的 module_count 钳制：超设备类型上限（LDI_DEV_TYPE_COUNT=13）或
          * 存储数组容量（APP_FLASH_LDI_MAX_MODULES=11）视为非法记录，回退默认配置，
          * 防后续按 module_count 遍历 flash_cfg.modules[] 越界读。 */
         if (flash_cfg.module_count <= LDI_DEV_TYPE_COUNT &&
@@ -157,7 +164,7 @@ void ldi_ctx_init(ldi_ctx_t *self)
             flash_valid = true;
     }
 
-    /* ---- 方案 X（doc/07 §12）：Sector1 为网络配置唯一真源，W25 为恢复镜像 ----
+    /* ---- 方案 X（doc/07 §12）：Sector1 为网络配置唯一真源，Sector 11 记录为恢复镜像 ----
      * Sector1 有效性判定：公开接口 app_board_net_cfg_get 做 magic+CRC 校验
      * （返回 0 = 有效）。内存映射拷贝，上电可安全执行（不擦写内部 Flash）。 */
     app_board_net_cfg_t board_cfg = {0};
@@ -166,7 +173,7 @@ void ldi_ctx_init(ldi_ctx_t *self)
     /* net_cfg 合法性（与 app_net_boot 同口径）：IP 非 0 且端口 1~65535。
      * Sector1 记录有效且 net_cfg 合法即采纳（update_sta 不参与分支判定，含升级
      * 中间态）——中间态下 0AH/4B02/CQ setip 改 IP 同样生效；若按 update_sta 落入
-     * 下一分支，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg 致 setip 失效。
+     * 下一分支，记录回写会用陈旧镜像覆盖刚写入的 net_cfg 致 setip 失效。
      * 分支语义与理由见 doc/07 §12。 */
     bool net_valid = board_valid &&
         (board_cfg.ip[0] | board_cfg.ip[1] | board_cfg.ip[2] | board_cfg.ip[3]) != 0U &&
@@ -183,8 +190,8 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg.device_port = (uint16_t)board_cfg.port;
 
         if (flash_valid) {
-            /* W25 已有有效配置：非网络字段（host/lane/cert/modules）沿用 W25，
-             * 网络字段仍以 Sector1 为准（Sector1 优先，不覆盖 W25）。 */
+            /* Sector 11 已有有效配置：非网络字段（host/lane/cert/modules）沿用记录，
+             * 网络字段仍以 Sector1 为准（Sector1 优先，不覆盖记录）。 */
             memcpy(self->cfg.host_ip, flash_cfg.host_ip, sizeof(self->cfg.host_ip));
             self->cfg.host_port = flash_cfg.host_port;
             memcpy(self->cfg.lane_hex, flash_cfg.lane_hex, sizeof(self->cfg.lane_hex));
@@ -205,21 +212,21 @@ void ldi_ctx_init(ldi_ctx_t *self)
             }
             app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
 
-            /* 镜像自愈：Sector1 与 W25 的网络字段逐项比对，任一不一致 → 用当前 cfg
-             * （网络字段取自 Sector1）刷新 W25 镜像。覆盖两类陈旧场景：① 只写
-             * Sector1、不写 W25 → 镜像残留旧值，擦 Sector1 恢复出厂时会回滚旧 IP；
-             * ② 单次 W25 写失败导致的永久陈旧。W25 为 SPI 4KB 擦写，上电执行安全。 */
+            /* 镜像自愈：Sector1 与记录的设备网络四项逐项比对，任一不一致 → 用当前 cfg
+             * （网络字段取自 Sector1）刷新记录镜像。覆盖两类陈旧场景：① 只写
+             * Sector1、不写记录 → 镜像残留旧值，擦 Sector1 恢复出厂时会回滚旧 IP；
+             * ② 单次记录写失败导致的永久陈旧。追加写空槽、不擦扇区，上电执行安全。 */
             if (memcmp(self->cfg.device_ip, flash_cfg.device_ip, sizeof(flash_cfg.device_ip)) != 0 ||
                 memcmp(self->cfg.netmask, flash_cfg.netmask, sizeof(flash_cfg.netmask)) != 0 ||
                 memcmp(self->cfg.gateway, flash_cfg.gateway, sizeof(flash_cfg.gateway)) != 0 ||
                 self->cfg.device_port != flash_cfg.device_port) {
-                (void)app_flash_ldi_save_config(&self->cfg);
+                (void)app_ldi_int_cfg_save(&self->cfg);
             }
         } else {
-            /* W25 无有效记录：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；本分支不
-             * set_remote），lane/cert 保持编译期初值。**此处严禁回写 W25**：cfg 里的
+            /* Sector 11 无有效记录：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；
+             * 本分支不 set_remote），lane/cert 保持编译期初值。**此处严禁回写记录**：cfg 里的
              * host/lane/cert 此时都是占位值，写回会用零值覆盖唯一副本、永久毁掉现场配置
-             * （2026-11-17 车道号/验证码/外场 IP·端口丢失事故的毁灭点）。真实配置只由
+             * （唯一副本被零值覆盖 = 车道号/验证码/外场 IP·端口永久丢失）。真实配置只由
              * 0AH/0BH 下发并落盘。 */
             memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
             self->cfg.host_port = app_tcp_client_get_host_port();
@@ -230,11 +237,11 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg_valid = true;
 
     } else if (flash_valid) {
-        /* ---- 分支 2：Sector1 空/损坏/记录无效或 net_cfg 非法 + W25 有效 → 以 W25 为准
-         * 并回写自愈 ----（Sector1 有效且 net_cfg 合法时不会落入本分支，见上方 net_valid）
-         * cfg 全字段取自 W25；回写 Sector1 由 app_board_net_cfg_update 内部处理
-         * 全部分支（空/损坏完整初始化自愈；中间态下 update_sta/app_info 保留、仅
-         * net_cfg 写入），见 doc/07 §10 方案 1。 */
+        /* ---- 分支 2：Sector1 空/损坏/记录无效或 net_cfg 非法 + Sector 11 记录有效 →
+         * 以记录为准并回写自愈 ----（Sector1 有效且 net_cfg 合法时不会落入本分支，
+         * 见上方 net_valid）cfg 全字段取自记录（含网络四项恢复镜像）；回写 Sector1 由
+         * app_board_net_cfg_update 内部处理全部分支（空/损坏完整初始化自愈；中间态下
+         * update_sta/app_info 保留、仅 net_cfg 写入），见 doc/07 §10 方案 1。 */
         memcpy(self->cfg.device_ip, flash_cfg.device_ip, sizeof(self->cfg.device_ip));
         self->cfg.device_port = flash_cfg.device_port;
         memcpy(self->cfg.netmask, flash_cfg.netmask, sizeof(self->cfg.netmask));
@@ -263,8 +270,8 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg_valid = true;
 
         /* 回写 Sector1 自愈（中间态仅 net_cfg 写入，update_sta/app_info 保留）。
-         * W25 device_port 写 TCP 业务口，udp_port 保留现值（Sector1 无效时 get 失败，
-         * 用出厂默认 20103）。 */
+         * device_port 取记录的恢复镜像值写 TCP 业务口，udp_port 保留现值（Sector1
+         * 无效时 get 失败，用出厂默认 20103）。 */
         app_board_net_cfg_t cur_cfg;
         uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
         (void)app_board_net_cfg_update(self->cfg.device_ip, self->cfg.netmask,
@@ -272,7 +279,7 @@ void ldi_ctx_init(ldi_ctx_t *self)
                                        udp_port);
 
     } else {
-        /* ---- 分支 3：Sector1 与 W25 皆空/无效 → 统一出厂默认 ----
+        /* ---- 分支 3：Sector1 与 Sector 11 记录皆空/无效 → 统一出厂默认 ----
          * 默认 IP 取 pl_net 上电值（三固件统一 192.168.114.200/24，doc/07 §11），
          * 端口取 TCP Server 编译期默认。host 取通道当前远端（哨兵 0.0.0.0:0，
          * 不 set_remote；出厂连上位机默认 host 待拍板）。cfg 默认填充仅保证
@@ -287,7 +294,8 @@ void ldi_ctx_init(ldi_ctx_t *self)
         self->cfg.host_port = app_tcp_client_get_host_port();
         self->cfg_valid = true;
         /* 不写任何 Flash：配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，
-         * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径。 */
+         * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径
+         * （追加写一个空槽不擦扇区，但仍是 Flash 编程，本分支一律不写）。 */
     }
 }
 
@@ -650,7 +658,7 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
             cert_off = 10;
         }
 
-        /* 身份已配置且非全 0 才做比对：身份未配置（W25 无有效记录、或从未被
+        /* 身份已配置且非全 0 才做比对：身份未配置（Sector 11 无有效记录、或从未被
          * 0AH/0BH 写入过身份）时跳过身份校验，避免零身份把平台所有帧 SKIP，
          * 表现为"能配不能控"。 */
         if (g_ldi.cfg_valid && !ldi_identity_unconfigured()) {

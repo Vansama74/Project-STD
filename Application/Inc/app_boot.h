@@ -7,6 +7,6 @@
 
 #pragma once
 
-#define PROGRAM_CODE "9K1F3127E3"
+#define PROGRAM_CODE "9K10250AE0"
 
 void app_boot(void);

@@ -96,18 +96,27 @@ static const font_size_t s_font_size_map[9] = {
     [8] = FONT_32,
 };
 
+/* LDI 字体颜色表：01H 绿 / 02H 红 / 03H 黄（协议原文 01H~03H），04H 蓝 / 05H 紫 / 06H 青 / 07H 白（扩展） */
 static const display_color_t s_color_map[] = {
     [1] = COLOR_GREEN,
     [2] = COLOR_RED,
     [3] = COLOR_YELLOW,
+    [4] = COLOR_BLUE,
+    [5] = COLOR_PURPLE,
+    [6] = COLOR_CYAN,
+    [7] = COLOR_WHITE,
 };
 
-/* ClearType: 00文字清屏→黑；01全红；02全绿；其他扩展（含03黄） */
+/* ClearType: 00H 文字清屏→黑；01H~07H 全红/绿/黄/蓝/紫/青/白 */
 static const display_color_t s_clear_color_map[] = {
     [0] = COLOR_BLACK,
     [1] = COLOR_RED,
     [2] = COLOR_GREEN,
     [3] = COLOR_YELLOW,
+    [4] = COLOR_BLUE,
+    [5] = COLOR_PURPLE,
+    [6] = COLOR_CYAN,
+    [7] = COLOR_WHITE,
 };
 
 #define MAP(table, idx, fallback) \
@@ -175,7 +184,7 @@ void ldi_device_init(void)
 
 static bool display_params_ok(const ldi_ctrl_display_t *ctrl, uint16_t text_len)
 {
-    if (ctrl->font_color < 0x01 || ctrl->font_color > 0x03)
+    if (ctrl->font_color < 0x01 || ctrl->font_color > 0x07) /* 01H~07H，04H~07H 为扩展色 */
         return false;
     if (ctrl->font_size > 0x08)
         return false;
@@ -281,9 +290,9 @@ static ldi_dev_result_t display_show(const ldi_ctrl_display_t *ctrl, uint16_t te
 
 static ldi_dev_result_t display_clear(const ldi_ctrl_display_t *ctrl)
 {
-    /* 00/01/02 标准；03H 黄为扩展；其余按文字清屏(黑) */
+    /* 00H 文字清屏（黑）；01H~07H 全屏纯色；>07H 按文字清屏 */
     display_color_t color = COLOR_BLACK;
-    if (ctrl->clear_type <= 0x03)
+    if (ctrl->clear_type <= 0x07)
         color = s_clear_color_map[ctrl->clear_type];
 
     display_fill(color);

@@ -66,7 +66,10 @@ MEMORY
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 CCMRAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 64K
 /* FLASH (rx)      : ORIGIN = 0x08000000, LENGTH = 1024K */
-FLASH (rx)      : ORIGIN = 0x08040000, LENGTH = 768K
+/* App 上限 640K = Sector 6~10（0x08040000~0x080DFFFF）；Sector 11（0x080E0000, 128K）
+ * 归 LDI 配置槽式日志独占，镜像不得侵入——改 LENGTH 须同步
+ * doc/PROJECT_MANUAL.md 闪存扇区职能地图与 Recovery 的升级包上限。 */
+FLASH (rx)      : ORIGIN = 0x08040000, LENGTH = 640K
 }
 
 /* Define output sections */
@@ -244,5 +247,11 @@ SECTIONS
   }
 
 }
+
+/* 镜像越界守卫：Sector 11（0x080E0000）归 LDI 配置槽式日志独占，
+ * App 镜像（代码 + .data 的 Flash 载入副本）越界即运行期擦写自身代码。
+ * 改 FLASH LENGTH / 增删 >FLASH 段须同步本守卫与 doc/PROJECT_MANUAL.md。 */
+ASSERT(ORIGIN(FLASH) + LENGTH(FLASH) <= 0x080E0000, "FLASH region overlaps LDI config sector (0x080E0000)")
+ASSERT(LOADADDR(.data) + SIZEOF(.data) <= 0x080E0000, "App image overlaps LDI config sector (0x080E0000)")
 
 

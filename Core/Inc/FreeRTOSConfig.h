@@ -93,6 +93,11 @@ extern uint32_t SystemCoreClock;
 
 /* Software timer definitions. */
 #define configUSE_TIMERS             1
+/* Timer 守护任务优先级（2026-11-24 回退定案）：曾于 11-21 提到 25 以规避
+ * 「行同步经守护任务中转被 Normal 忙等饿死」的屏闪；但 TIM3 2kHz 投递洪流
+ * 会让守护任务常驻就绪，反过来饿死全部 Normal(24)/EthLink(16) 任务
+ * （网络/LDI 全灭）。根治已改为 dev_display 行同步走二值信号量 ISR 直投，
+ * 守护任务回归低优先级，仅承载真正的软件定时器。 */
 #define configTIMER_TASK_PRIORITY    (2)
 #define configTIMER_QUEUE_LENGTH     10
 #define configTIMER_TASK_STACK_DEPTH 256

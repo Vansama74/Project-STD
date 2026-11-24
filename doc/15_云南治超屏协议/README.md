@@ -321,7 +321,8 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 **裁决（Q5）**：`0x49`（字体 + 字宽）**需要持久化**——掉电保留、上电装载并生效。
 
-**记录**（12B，仿 `Application/Src/LDI/app_ldi_cfg.c` 的 magic + 载荷 + CRC32 范式）：
+**记录**（12B，仿 LDI 配置记录的 magic + 载荷 + CRC32 范式，LDI 侧现行实现见
+`Application/Src/Config/app_ldi_int_cfg.c`）：
 
 | 偏移 | 长度 | 字段 | 说明 |
 |---|---|---|---|
@@ -339,8 +340,11 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 | ② `capacity - 8192` 独立扇区 | **已被占用**：`app_render.c:372` `s_persist_addr = dev_storage_capacity(...) - 4096 * 2`（显示持久化记录） | **不用**（会与 app_render 记录互擦） |
 | ③ **`capacity - 12288`**（本实现） | 扇区 2045（W25Q64，共 2048）/ 8189（MX25L256，共 8192）；全仓 `dev_storage_write/erase` 静态扫描**恰 3 个写入者**（`app_render.c` / `app_ldi_cfg.c` / 本模块）→ 本扇区独占；字库末字地址 ≈ 8,181,856B = **扇区 1997**（宿主按 94×94 全格保守上界 → 扇区 2018），MX25L256 字库止于**扇区 ~7498** | **采用**：独立扇区、零共享、无整扇区保全负担 |
 
-地址取自 `dev_storage_capacity()`（不硬编码绝对地址）。**内存**：仅 12B 静态 SRAM 记录缓冲
-（`s_yn_ol_cfg_rec`）；**无整扇区镜像**（读-改-写由 `dev_w25qxx._write` 内部完成）。
+地址取自 `dev_storage_capacity()`（不硬编码绝对地址）。**内存**：仅 12B 静态 SRAM 记录缓冲（`s_yn_ol_cfg_rec`）；**无整扇区镜像**（读-改-写由 `dev_w25qxx._write` 内部完成）。
+
+> 后续变化：LDI 配置于 2026-11-24 迁至内部 Flash Sector 11（`app_ldi_int_cfg.c`，见
+> `doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md` §17），W25 侧写入者只剩 `app_render.c`
+> 与本模块；本记录的扇区选址与语义不变。
 
 **语义**：
 - **上电装载**：`sw_app_initcall` 的 `yn_ol_proto_init()` 末尾调 `yn_ol_screen_cfg_load()`。

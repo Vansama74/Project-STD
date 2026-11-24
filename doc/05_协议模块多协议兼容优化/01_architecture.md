@@ -54,7 +54,7 @@
 > **TCP Client 远端（2026-09-18 通道层解耦）**：`CH_ID_TCP_CLIENT` 编译期默认 `0.0.0.0:0`，
 > IP 全 0 或 `port==0` 视为未配置——任务仍由 `app_boot` 启动，但**不** `netconn_new` / **不** connect
 > （去重打 `[tcp_cli] idle (remote unset)`）。远端只经 `app_tcp_client_set_remote` 注入
-> （现行唯一调用方 = LDI 装载：W25 有效 host 才调用）。协议绑本通道只消费入站（YN_OL 先例），
+> （现行唯一调用方 = LDI 装载：Sector 11 配置记录里 host 有效才调用；该记录 2026-11-24 起由内部 Flash 承载，原为 W25）。协议绑本通道只消费入站（YN_OL 先例），
 > **不**隐含配置远端。排除 LDI 的镜像不再对历史硬编码 `192.168.2.17:9529` 外连。
 
 规则：

@@ -3,7 +3,7 @@
  * @brief   TCP/IP 网络栈抽象（Platform 层）
  *
  * 启动流程：
- *   pl_net_init() → tcpip_init → IP4_ADDR + netif_add(ethernetif_init) → netif_set_up → EthLink 线程
+ *   pl_net_init() → tcpip_init → IP4_ADDR + netif_add(ethernetif_init) → 链路回调 + EthLink 线程（netif UP 由链路状态决定）
  *
  * 链路状态通过回调通知上层（DIP：Platform 不直接依赖 Device）。
  * IP 配置通过 tcpip_callback 投递到 TCP/IP 线程安全执行。
@@ -63,10 +63,12 @@ void pl_net_init(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gatew
     IP4_ADDR(&netmask, NETMASK_ADDRESS[0], NETMASK_ADDRESS[1], NETMASK_ADDRESS[2], NETMASK_ADDRESS[3]);
     IP4_ADDR(&gw, GATEWAY_ADDRESS[0], GATEWAY_ADDRESS[1], GATEWAY_ADDRESS[2], GATEWAY_ADDRESS[3]);
 
-    /* 注册 netif：ethernetif_init 作为 low_level_init 回调，配置 MAC/PHY/DMA */
+    /* 注册 netif：ethernetif_init 作为 low_level_init 回调，配置 MAC/PHY/DMA。
+     * netif UP 由链路状态决定：low_level_init（有链路）或 EthLink 线程在
+     * 链路恢复时 set_up。此处不再无条件 set_up——那会造成"无链路却 UP"
+     * 的 stuck-UP 中间态（台架 2026-11-20 定级，与楔死误判同源）。 */
     netif_add(&gnetif, &ipaddr, &netmask, &gw, nullptr, &ethernetif_init, &tcpip_input);
     netif_set_default(&gnetif);
-    netif_set_up(&gnetif);
     netif_set_link_callback(&gnetif, ethernet_link_status_updated); /* 链路变化通知 */
 
     /* 启动 EthLink 线程（每 100ms 轮询 PHY 链路状态） */

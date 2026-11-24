@@ -26,6 +26,7 @@ virtualFolder:
         - name: config
           files:
             - path: Application/Src/Config/app_board_net_cfg.c
+            - path: Application/Src/Config/app_ldi_int_cfg.c
           folders: []
         - name: channel
           files:
@@ -56,7 +57,6 @@ virtualFolder:
                 - path: Application/Src/LDI/app_ldi_cmd.c
                 - path: Application/Src/LDI/app_ldi_device.c
                 - path: Application/Src/LDI/app_vms_ctrl.c
-                - path: Application/Src/LDI/app_ldi_cfg.c
               folders: []
             - name: ProtocolParser_QingHai
               files:
@@ -362,6 +362,7 @@ virtualFolder:
             - path: Device/Display/dev_display_22_1703.c
             - path: Device/Display/dev_display_22_1665.c
             - path: Device/Display/dev_display_p20.c
+            - path: Device/Display/dev_p5_64x32_.c
           folders: []
         - name: LaneLight
           files:
@@ -668,7 +669,6 @@ targets:
       - <virtual_root>/Application/protocol/ProtocolParser_Myanmar
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou_Overload
       - <virtual_root>/Application/protocol/ProtocolParser_GuiZhou
-      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
       - <virtual_root>/Application/protocol/ProtocolParser_Anhui
       - <virtual_root>/Application/protocol/ProtocolParser_XinJiang
       - <virtual_root>/Device/Display/dev_display_1_577.c
@@ -676,7 +676,12 @@ targets:
       - <virtual_root>/Device/LaneLight/DryContact/dev_LaneLight_DryContact.c
       - <virtual_root>/Application/protocol/ProtocolParser_GuangXi
       - <virtual_root>/Application/protocol/ProtocolParser_QingHai
+      - <virtual_root>/Device/Display/dev_p5_64x32_.c
       - <virtual_root>/Device/LaneLight/dev_LaneLight_DryContact.c
+      - <virtual_root>/Application/protocol/ProtocolParser_ChongQing
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_ETC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_MTC
+      - <virtual_root>/Application/protocol/ProtocolParser_SiChuang_Overload
     settings:
       debugger: cortex-debug
     toolchain: GCC

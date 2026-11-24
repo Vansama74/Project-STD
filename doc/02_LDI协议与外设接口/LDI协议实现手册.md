@@ -1,7 +1,7 @@
 # LDI 协议实现手册（完整版）
 
 > **协议来源**：《交路网函〔2024〕86 号 附件 2》（同目录 `交路网函〔2024〕86号 附件2.txt`）。
-> **实现来源**：本工程 `Application/Src/LDI/`（app_ldi.c / app_ldi_cmd.c / app_ldi_cfg.c / app_ldi_device.c）。
+> **实现来源**：本工程 `Application/Src/LDI/`（app_ldi.c / app_ldi_cmd.c / app_ldi_device.c / app_vms_ctrl.c）；配置持久化在 `Application/Src/Config/app_ldi_int_cfg.c`（Sector 11 槽日志），配置结构定义见 `Application/Inc/LDI/app_ldi_cfg.h`。
 > **会话状态机权威**：同目录 `LDI会话状态机与命令门禁.md`（本文与其冲突时以代码为准并回改）。
 > 生成日期：2026-11-19。
 
@@ -14,7 +14,7 @@
 | 服务端（平台/站级） | 外设控制服务，下发配置与控制 | 接受设备拨入（TCP Server），或主动连设备 |
 | 客户端（车道设备） | 本固件（费显/车道屏/雨棚灯等） | **主动**拨号 `host_ip:host_port`（TCP Client），同时自身监听 `device_ip:device_port`（TCP Server）供配置工具直连 |
 
-- 设备拨号的平台地址只存在 W25 的 LDI 配置记录（单副本），由 0AH 写入。
+- 设备拨号的平台地址只存在 **Sector 11 的 LDI 配置记录**（内部 Flash 槽日志，单副本），由 0AH 写入。
 - 设备自身 TCP Server（出厂 9528）用于产测/配置工具直连（TCP Client 模式）。
 
 ## 2. 帧格式
@@ -68,10 +68,10 @@ LaneHex 结构：网络号(2B BCD) + 站点号(2B BCD) + 车道号(1B BCD)；全
 **A0H DATA（21B）**：标准头(20) + ErrorCode(1)。`00H` 成功，其他失败。
 
 **实现要点**
-- 设备 IP/端口/掩码/网关写 Sector1 `net_cfg`（**重启生效**）；ServerIP1/Port1 写 W25 `host_ip/host_port`。
+- 设备 IP/端口/掩码/网关写 Sector1 `net_cfg`（**重启生效**）；ServerIP1/Port1 写 Sector 11 记录的 `host_ip/host_port`。
 - **身份零值守卫（成对判定）**：LaneHex 或 CertInfo **任一全 0** → 本帧不更新身份（防平台巡检空身份帧抹零，仍回 00H）；两者都非 0 才成对写入。
 - host 两栏同理：全 0 → 不覆盖（host 为单副本，写 0 会导致设备永不连平台）。
-- W25 保存或 Sector1 同步任一步失败 → A0H `01H`。
+- Sector 11 记录保存或 Sector1 同步任一步失败 → A0H `01H`。
 
 ### 4.2 0BH 设备参数配置 / B0H
 
@@ -147,7 +147,7 @@ A1H DATA：标准头 + DeviceNum(1) + N×(type+index+状态(1)+软件版本(2)+�
 | 类型 | 功能 01H 载荷 | 功能 02H 载荷 |
 |---|---|---|
 | E4H 栏杆机 | status(1)：00H 落杆 / 01H 抬杆 / 02H 长抬 | — |
-| E6H 显示屏 | FontColor(1)+FontSize(1)+FontLine(1)+KeepTime(1)+Text(N, GBK, `_`=换行) | ClearType(1)：00H 文字清屏/01H 全红/02H 全绿 |
+| E6H 显示屏 | FontColor(1)+FontSize(1)+FontLine(1)+KeepTime(1)+Text(N, GBK, `_`=换行) | ClearType(1)：00H 文字清屏/01H 全红/02H 全绿/03H 全黄/04H 全蓝/05H 全紫/06H 全青/07H 全白 |
 | E7H 信号灯 | Color(1)：01H 绿/02H 红/03H 黄 | — |
 | E8H 报警器 | Status(1)+WorkMode(1)+KeepTime(1) | — |
 | E9H 情报板 | FontColor+FontSize+FontLine+KeepTime+**Format(1)**+Text(N) | ClearType(1) |
@@ -157,6 +157,13 @@ A1H DATA：标准头 + DeviceNum(1) + N×(type+index+状态(1)+软件版本(2)+�
 
 应答模块帧：type(1)+index(1)+FuncType(1)+CtlStatus(1)（00H 成功/01H 失败）；
 E4H 额外带 UnixTime1(8) + UnixTime2(8)（毫秒）。
+
+字体颜色 FontColor（E6H / E9H 共用）：01H 绿 / 02H 红 / 03H 黄（协议原文 01H~03H）；
+04H 蓝 / 05H 紫 / 06H 青 / 07H 白（本工程扩展，复用 `display_color_t` 的 `COLOR_BLUE`~`COLOR_WHITE`）。
+
+清屏颜色 ClearType（E6H / E9H 共用）：00H 文字清屏（黑）/ 01H 全红 / 02H 全绿 / 03H 全黄 /
+04H 全蓝 / 05H 全紫 / 06H 全青 / 07H 全白（协议原文 00H~07H，复用同一 `display_color_t` 枚举；
+固件原实现仅 00H~03H，本次补齐 04H~07H；>07H 仍按文字清屏）。
 
 实现：E6/E7/E8/E9 走设备层执行并镜像到四川 ETC 帧（doc/20）；EA/EB/F4 当前为占位（不执行、按协议回状态），F4H 适配见专门任务。
 
@@ -194,6 +201,8 @@ E4H 额外带 UnixTime1(8) + UnixTime2(8)（毫秒）。
 | 身份 0 值 | 未定义 | **0AH**：成对守卫，任一全 0 → 整帧不下发身份（回 00H）；**0BH**：0 合法，可清空身份 |
 | host 0 值 | 未定义 | 0AH 全 0 → 不覆盖（host 单副本，防永不连平台） |
 | 模块条目长度 | 变长（按类型） | 严格按表推进：E4/E5/E6=13、E7/E8/EA/EB=4、E9/F4=12 |
+| 字体颜色 FontColor | 01H~03H（绿/红/黄） | **扩展 04H~07H = 蓝/紫/青/白**（复用 `display_color_t`，01H~03H 语义不变；E6H 越界校验上限同步放开到 07H） |
+| 清屏颜色 ClearType | 00H~07H（00H 文字清屏，01H~07H 全红/绿/黄/蓝/紫/青/白） | 原实现仅 00H~03H；**本次补齐 04H~07H = 全蓝/全紫/全青/全白**（复用 `display_color_t`，00H~03H 语义不变；>07H 仍按文字清屏） |
 | 应答状态码 | 00/其他 | 0AH/0BH 落盘失败回 01H；门禁拒绝的 1AH/1BH 回 A1H/B1H 且 DeviceNum=0 |
 | 断链 | 未定义 | 会话锚点 + 边沿复位：锚定通道销毁/换代/掉线 → 回 UNINIT 重发 0EH |
 | 发送阻塞 | 未定义 | 独立 TX 任务 + 队列（平台零窗口不阻塞处理/定时任务） |

@@ -81,7 +81,13 @@ void MX_TIM3_Init(void)
     htim3.Instance               = TIM3;
     htim3.Init.Prescaler         = 84 - 1;
     htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim3.Init.Period            = 500 - 1;
+    /* 行周期（2026-11-24 定级）：原 500µs（2kHz 行频）低于扫描任务单行耗时
+     * （384px × 8 通道 × 3 次 GPIO 写 ≈ 0.9ms）——扫描任务在 Realtime 优先级
+     * 持续追赶行事件，CPU 占用逼近 100%，饿死全部 Normal(24)/EthLink(16)
+     * 任务（LDI/网络全灭，2026-11-24 网口失联根因）。改为 1.5ms/行
+     * （≈666Hz 行频、8 扫 → 83Hz 帧），为低优先级任务留出 CPU 余量。
+     * 调整本值须同步评估：刷新率 / 亮度 / 低优先级任务余量。 */
+    htim3.Init.Period            = 1500 - 1;
     htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(&htim3) != HAL_OK) {

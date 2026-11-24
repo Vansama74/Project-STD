@@ -37,11 +37,15 @@ void vms_timer_poll(void)
  *  查表映射 — LDI 协议编号 → 渲染引擎枚举
  * ================================================================ */
 
-/** LDI 字体颜色 → display_color_t (01H=绿, 02H=红, 03H=黄, 其他=黑) */
+/** LDI 字体颜色 → display_color_t (01H=绿, 02H=红, 03H=黄, 04H=蓝, 05H=紫, 06H=青, 07H=白, 其他=黑) */
 static const display_color_t s_color_map[] = {
     [1] = COLOR_GREEN,
     [2] = COLOR_RED,
     [3] = COLOR_YELLOW,
+    [4] = COLOR_BLUE,
+    [5] = COLOR_PURPLE,
+    [6] = COLOR_CYAN,
+    [7] = COLOR_WHITE,
 };
 
 /** LDI 对齐方式 format → align_t (01H=居中, 02H=左, 03H=右) */
@@ -59,12 +63,16 @@ static const font_size_t s_font_size_map[] = {
     [3] = FONT_32,
 };
 
-/** LDI 清屏颜色 clear_type → display_color_t (00H=黑, 01H=红, 02H=绿, 03H=黄) */
+/** LDI 清屏颜色 clear_type → display_color_t (00H=黑, 01H=红, 02H=绿, 03H=黄, 04H=蓝, 05H=紫, 06H=青, 07H=白) */
 static const display_color_t s_clear_color_map[] = {
     [0] = COLOR_BLACK,
     [1] = COLOR_RED,
     [2] = COLOR_GREEN,
     [3] = COLOR_YELLOW,
+    [4] = COLOR_BLUE,
+    [5] = COLOR_PURPLE,
+    [6] = COLOR_CYAN,
+    [7] = COLOR_WHITE,
 };
 
 /* ---- 带边界检查的查表辅助宏 ---- */

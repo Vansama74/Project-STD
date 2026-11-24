@@ -34,7 +34,7 @@ Makefile 全量编译时不易暴露；**按协议目录裁剪（只留 LDI）�
 
 | 存储 | 位置 | 模块 | 内容 |
 |------|------|------|------|
-| LDI 设备配置 | W25Qxx 末 4KB 扇区 | `app_ldi_cfg`（实际文件 `Application/Src/LDI/app_ldi_cfg.c`） | 车道、证书、模块表、IP/端口等 |
+| LDI 设备配置 | **内部 Flash Sector 11 `0x080E0000`**（2026-11-24 起；原 W25Qxx 末 4KB 扇区已退役，见 [02 §17](./02_decoupling_solutions.md)） | `app_ldi_int_cfg`（`Application/Src/Config/app_ldi_int_cfg.c`） | 车道、证书、模块表、host；IP/端口为 Sector1 的恢复镜像 |
 | IAP 系统配置 | 内部 Flash Sector1 `0x08004000` | `app_iap_cfg`（实际文件 `Application/Src/IAP/app_iap_cfg.c`；`Device/Inc/config_info.h` 为同名旧定义，全仓无引用，已废弃） | magic、升级状态、FW 信息、**net_cfg(IP/掩码/网关)** |
 
 产品需求（历史合理）：
@@ -77,7 +77,7 @@ app_ldi_cmd.c              app_iap.c/.h         ← 升级协议，可裁
 
 **运行时 `cmd_set_ip`（0AH）**（`Application/Src/LDI/app_ldi_cmd.c:430-431`）：
 
-- `app_flash_ldi_save_config`（W25）之后立刻 `app_flash_iap_update_net_cfg`（Sector1）；两步写结果现均被检查：任一失败 0AH 应答 ErrCode=01H（00H=成功），固件不自动重试，由上位机重发恢复。失败/断电语义见 [02 §8](./02_decoupling_solutions.md)
+- `app_ldi_int_cfg_save`（Sector 11 记录，原 W25 版为 `app_flash_ldi_save_config`，见 [02 §17](./02_decoupling_solutions.md)）之后立刻 `app_flash_iap_update_net_cfg`（Sector1）；两步写结果现均被检查：任一失败 0AH 应答 ErrCode=01H（00H=成功），固件不自动重试，由上位机重发恢复。失败/断电语义见 [02 §8](./02_decoupling_solutions.md)
 
 ### 3.3 与 doc/05「目录选编」的张力
 
@@ -94,9 +94,9 @@ doc/05 目标：**工程目录选编协议**（exclude 即可裁剪）。
 
 ### 3.5 现状缺陷 B：模块命名与陈旧注释勘误
 
-- 不存在 `dev_flash_iap` / `dev_flash_ldi` 模块；实际实现是 `Application/Src/IAP/app_iap_cfg.c` 与 `Application/Src/LDI/app_ldi_cfg.c`，本目录文档统一按此引用。
+- 不存在 `dev_flash_iap` / `dev_flash_ldi` 模块；Sector1 由 `Application/Src/Config/app_board_net_cfg.c` 归属，LDI 配置记录自 2026-11-24 起由 `Application/Src/Config/app_ldi_int_cfg.c` 归属（原 `Application/Src/LDI/app_ldi_cfg.c` 已随 W25 路径退役，见 [02 §17](./02_decoupling_solutions.md)）。
 - `Device/Inc/config_info.h` 与 `Application/Inc/IAP/app_iap_cfg.h` 重复定义同一套 Sector1 结构体；`config_info.h` 全仓（含 Bootloader/Recovery 项目）无任何 include，为死代码。Bootloader/Recovery 各自另有独立的 `Drivers/BSP/Config/config_info.h`，结构体共 4 处独立定义、无共享头（布局锁定要求见 02 方案 A）。
-- LDI 记录大小注释陈旧：`app_ldi_cfg.c:24` 注释「116 byte = 29 words」为 MAX_MODULES=6 时代的数值；现 `APP_FLASH_LDI_MAX_MODULES=11`，实际 `sizeof(app_flash_ldi_record_t)=176B=44 words`。文档引用请以 176B 为准。
+- LDI 记录大小注释陈旧（历史条目）：W25 时代的 `app_ldi_cfg.c:24` 注释「116 byte = 29 words」为 MAX_MODULES=6 的数值；该文件与 W25 路径已于 2026-11-24 退役，现行记录见 [02 §17](./02_decoupling_solutions.md)（Sector 11 槽内 192B 记录）。
 
 ---
 

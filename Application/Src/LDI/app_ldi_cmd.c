@@ -5,6 +5,7 @@
 #include "crc_utils.h"
 #include "pl_crc.h"
 #include "app_ldi_cfg.h"
+#include "app_ldi_int_cfg.h"
 #include "app_board_net_cfg.h"
 #include "pl_net.h"
 #include "pl_rtc.h"
@@ -464,9 +465,9 @@ const ldi_cmd_handler_fn_t g_ldi_cmd_table[] = {
  * data 指向 cmd_set_ip_t 结构.
  *
  * 应答错误码：00H=成功, 01H=失败（与 0BH 及 ldi_status_rsp_t 既有约定一致）。
- * W25 保存或 Sector1 同步任一步失败即回 01H；固件侧不自动重试，
+ * Sector 11 记录保存或 Sector1 同步任一步失败即回 01H；固件侧不自动重试，
  * 上位机收到 01H 后重发 0AH 即可恢复（两次写入均幂等）。
- * 网络配置写入 W25+Sector1 后**重启生效**（运行时网口不即时变更，属既定策略）。
+ * 网络配置写入 Sector 11 记录+Sector1 后**重启生效**（运行时网口不即时变更，属既定策略）。
  */
 void cmd_set_ip(channel_t *ch, void *data)
 {
@@ -483,8 +484,8 @@ void cmd_set_ip(channel_t *ch, void *data)
     memcpy(g_ldi.cfg.netmask, info->net.netmask, sizeof(g_ldi.cfg.netmask));
     memcpy(g_ldi.cfg.gateway, info->net.gateway, sizeof(g_ldi.cfg.gateway));
 
-    /* host 零值守卫：平台巡检/重配类 0AH 不带 host 两栏是常态。host 只在 W25
-     * 单副本（Sector1 不存、无出厂默认），无条件覆盖会把 host 落盘成 0.0.0.0
+    /* host 零值守卫：平台巡检/重配类 0AH 不带 host 两栏是常态。host 只在 Sector 11
+     * 记录单副本（Sector1 不存、无出厂默认），无条件覆盖会把 host 落盘成 0.0.0.0
      * ⇒ 设备重启后永不连平台，且只能靠下一次携带 host 的 0AH 才能救回。
      * 与下方 lane/cert 守卫同款语义：全 0 = 本次不下发该字段。 */
     const uint8_t zero_host[4] = {0};
@@ -508,17 +509,17 @@ void cmd_set_ip(channel_t *ch, void *data)
     }
     g_ldi.cfg_valid = true;
 
-    /* 两步持久化：先 W25（LDI 完整配置），再板级网络配置（Sector1）。
+    /* 两步持久化：先 Sector 11 记录（LDI 完整配置），再板级网络配置（Sector1）。
      * 任一失败即如实应答失败，不再静默回 00H。
      * 0AH 写 TCP 业务口（device_port），udp_port 保留现值（get 失败用出厂默认 20103）。 */
-    int32_t w25_ret = app_flash_ldi_save_config(&g_ldi.cfg);
+    int32_t rec_ret = app_ldi_int_cfg_save(&g_ldi.cfg);
     app_board_net_cfg_t cur_cfg;
     uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
     int32_t board_ret  = app_board_net_cfg_update(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
                                                   g_ldi.cfg.gateway, g_ldi.cfg.device_port,
                                                   udp_port);
 
-    ldi_status_rsp_t rsp = {.status = (w25_ret < 0 || board_ret < 0) ? 0x01 : 0x00};
+    ldi_status_rsp_t rsp = {.status = (rec_ret < 0 || board_ret < 0) ? 0x01 : 0x00};
     ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_IP_RSP);
     LDI_RESPOND(ch, LDI_CMD_SET_IP_RSP, g_ldi.rsp_seq, rsp);
 }
@@ -609,8 +610,8 @@ static void cmd_set_config(channel_t *ch, void *data)
 
     if (result) {
         /* 身份已提前提交 RAM（见函数中部），此处只负责落盘：
-         * 校验通过即写 W25，失败仅影响持久化，不回滚 RAM。 */
-        save_ret = app_flash_ldi_save_config(&g_ldi.cfg);
+         * 校验通过即写 Sector 11 记录，失败仅影响持久化，不回滚 RAM。 */
+        save_ret = app_ldi_int_cfg_save(&g_ldi.cfg);
     }
 
     ldi_status_rsp_t rsp = {.status = (result && save_ret >= 0) ? 0x00 : 0x01};

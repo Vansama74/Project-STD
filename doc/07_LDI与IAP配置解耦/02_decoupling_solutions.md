@@ -199,7 +199,7 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 - `board_net_cfg_set` 必须返回错误码；LDI 0AH 判错并向上位机返回失败/告警（不再静默回 0x00）。
 - 写后回读校验；失败时保留内存中的新配置、记录错误状态。
 - 失败后是否重试：**已定案（§9 Q2）**——固件不自动重试，0AH 应答 ErrCode=01H，由上位机重发 0AH 恢复。
-- 掉电语义显式写入本目录 01/03 及 Boot/Recovery 侧文档，保持「W25 → Sector1 → 默认」回退顺序不变。
+- 掉电语义显式写入本目录 01/03 及 Boot/Recovery 侧文档，保持「Sector 11 记录 → Sector1 → 默认」回退顺序不变（原 W25 镜像位置自 §17 起改由内部 Flash 记录承担）。
 - 空 Sector1 写路径的 magic 初始化修复（[01 §3.4](./01_background_and_impact.md)）**已按 §9 Q1 落地**。
 
 ---
@@ -344,31 +344,32 @@ void ldi_set_net_bridge(const ldi_net_bridge_ops_t *ops); /* nullptr = 不桥接
 
 ## §12 网络配置真源与生效语义（2026-08-18，已落地）
 
-**方案 X 定案**：Sector1.net_cfg 为网络配置**唯一真源**（三工程共享），W25 中的网络字段降级为**恢复镜像**。
+**方案 X 定案**：Sector1.net_cfg 为网络配置**唯一真源**（三工程共享），LDI 内部 Flash 记录
+（Sector 11 槽日志，§17）中的网络字段降级为**恢复镜像**。
 
 | 角色 | 存储 | 职责 |
 |------|------|------|
 | 真源 | Sector1 `net_cfg`（ip/mask/gw 共享 + `port`/`udp_port` 双端口，方案 B 2026-08-21） | Bootloader/Recovery/主固件共享；0AH/4B02 写 `port`（TCP 口），CQ setip 写 `udp_port`（UDP 口） |
-| 恢复镜像 | W25 LDI 配置记录（含网络字段） | 擦 Sector1 恢复出厂后用于还原用户配置；主固件上电若 W25 空/无效则回写镜像 |
+| 恢复镜像 + 非网络配置 | **Sector 11 槽日志**（`app_ldi_int_cfg.c`，§17；原 W25 记录已于 2026-11-24 退役） | host 两项 / lane / cert / 模块表只存这里；网络四项作镜像，擦 Sector1 恢复出厂后用于还原用户配置；主固件上电若记录空/无效则回写 Sector1 |
 
 **主固件上电同步（`ldi_ctx_init` 三分支，`Application/Src/LDI/app_ldi.c`）**：
 
 | 分支 | 条件 | 行为 |
 |------|------|------|
-| 1 Sector1 优先 | Sector1 有效（magic+CRC）且 net_cfg 合法（IP 非 0、port 1~65535） | 网络字段取 Sector1（**含 port，缺陷 B 修复**）；W25 有效沿用其非网络字段（host/lane/cert/modules）并 `app_tcp_client_set_remote(host)`；W25 空/无效：host 取通道当前远端（**2026-09-18 起编译期哨兵 `0.0.0.0:0`，本分支不 `set_remote`**）并把整份 cfg 写入 W25 镜像（⚠ 会把哨兵 host 落入 W25——出厂连上位机是否另给默认 host 待拍板）；netif/TCP Server 口应用移交 `app_net_boot`（§14）。**（2026-08-21 修订：`update_sta==APP_BOARD_UPDATED` 不再参与分支判定——有效记录含升级中间态一律采纳 Sector1.net_cfg；`app_board_net_cfg_update` 自 2026-08-18 起在中间态也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若中间态仍落分支 2，W25 回写会用陈旧镜像覆盖刚写入的 net_cfg 导致 setip 失效；Bootloader 条件 D 对中间态记录本就在主固件启动前进 Recovery，主固件运行态下该放宽无副作用）** |
-| 2 W25 自愈 | Sector1 空/损坏/记录无效或 net_cfg 非法 + W25 有效 | cfg 全字段取 W25；`app_tcp_client_set_remote` 应用（netif/TCP Server 口应用移交 `app_net_boot`，§14）；`app_board_net_cfg_update` 回写 Sector1（空/损坏完整初始化自愈；有效但 net_cfg 非法仅放行 net_cfg 更新、update_sta/app_info 原样保留）。**（2026-08-21 方案 B：回写以 W25 device_port 为 TCP 口，udp_port 保留现值（get 失败用 20103））** |
+| 1 Sector1 优先 | Sector1 有效（magic+CRC）且 net_cfg 合法（IP 非 0、port 1~65535） | 网络字段取 Sector1（**含 port，缺陷 B 修复**）；记录有效沿用其非网络字段（host/lane/cert/modules）并 `app_tcp_client_set_remote(host)`；记录空/无效：host 取通道当前远端（**2026-09-18 起编译期哨兵 `0.0.0.0:0`，本分支不 `set_remote`**）且**禁止回写记录**（会以零值覆盖唯一副本，§17）；netif/TCP Server 口应用移交 `app_net_boot`（§14）。**（2026-08-21 修订：`update_sta==APP_BOARD_UPDATED` 不再参与分支判定——有效记录含升级中间态一律采纳 Sector1.net_cfg；`app_board_net_cfg_update` 自 2026-08-18 起在中间态也放行 net_cfg 更新（0AH/4B02/CQ setip 改 IP 中间态同样生效），若中间态仍落分支 2，记录回写会用陈旧镜像覆盖刚写入的 net_cfg 导致 setip 失效；Bootloader 条件 D 对中间态记录本就在主固件启动前进 Recovery，主固件运行态下该放宽无副作用）** |
+| 2 记录自愈 | Sector1 空/损坏/记录无效或 net_cfg 非法 + Sector 11 记录有效 | cfg 全字段取记录（网络四项即恢复镜像）；`app_tcp_client_set_remote` 应用（netif/TCP Server 口应用移交 `app_net_boot`，§14）；`app_board_net_cfg_update` 回写 Sector1（空/损坏完整初始化自愈；有效但 net_cfg 非法仅放行 net_cfg 更新、update_sta/app_info 原样保留）。**（2026-08-21 方案 B：回写以记录的 device_port 为 TCP 口，udp_port 保留现值（get 失败用 20103））** |
 | 3 出厂默认 | 两者皆空/无效 | `pl_net_get_ip` 统一出厂默认（§11）填 cfg；host 取通道当前远端（哨兵则 cfg 报 `0.0.0.0:0`，不 `set_remote`）；不写任何 Flash（netif 应用由 `app_net_boot` 执行，§14） |
 
 **生效语义**：所有改 IP 接口（LDI 0AH / IAP 4B02 / Recovery IAP）统一**重启生效**（运行时网口不即时变更，属既定策略，非缺陷）。
 
-> **纪律（2026-11-17 事故结论）：`ldi_ctx_init` 分支 1 的「W25 空/无效」子分支禁止回写 W25。**
+> **纪律（2026-11-17 事故结论）：`ldi_ctx_init` 分支 1 的「记录空/无效」子分支禁止回写记录。**
 > 该分支下 `self->cfg` 的 host/lane/cert 全是占位值（编译期哨兵 + 编译期初值），回写会用零值覆盖
-> W25 里的**唯一副本** = 永久丢配置——2026-11-17 车道号/验证码/外场 IP·端口掉电丢失事故即由此造成
-> （叠加记录布局变更致旧记录 CRC 失配，旧 116B 记录被 176B 新固件判损坏后立刻被零值覆盖）。
-> **只有两种情况允许写 W25**：① 携带真实用户配置（0AH/0BH 下发后落盘）；② 镜像自愈
-> （分支 1 if 子分支，cfg 的 host/lane/cert 已从有效 W25 装载、仅网络字段取自 Sector1）。
-> 上层保存接口 `app_flash_ldi_save_config` 已改返回 `int32_t`（0 成功 / <0 擦·写·回读校验失败），
-> 0AH/0BH 应答状态码须反映真实写盘结果。
+> 记录里的**唯一副本** = 永久丢配置——2026-11-17 车道号/验证码/外场 IP·端口掉电丢失事故即由此造成
+> （叠加记录布局变更致旧记录 CRC 失配，旧布局记录被新固件判损坏后立刻被零值覆盖）。
+> **只有两种情况允许写记录**：① 携带真实用户配置（0AH/0BH 下发后落盘）；② 镜像自愈
+> （分支 1 if 子分支，cfg 的 host/lane/cert 已从有效记录装载、仅网络字段取自 Sector1）。
+> 上层保存接口（现 `app_ldi_int_cfg_save`，原 W25 版 `app_flash_ldi_save_config`，§17）返回
+> `int32_t`（0 成功 / <0 参数·重入·擦写·回读校验失败），0AH/0BH 应答状态码须反映真实写盘结果。
 
 **host 零值守卫（2026-11-18 已落地，`app_ldi_cmd.c` `cmd_set_ip`）**：`host_ip` 全 0 → 不覆盖
 `g_ldi.cfg.host_ip`；`host_port == 0` → 不覆盖 `g_ldi.cfg.host_port`（lane/cert 守卫自 2026-11-19
@@ -570,14 +571,77 @@ device_port`；记录无效时**保留现值**不动。**调用点 = LDI 两条�
 报告的都是「配置值、重启生效」，与 §12「生效语义」一致。
 
 **未触及**：`app_net_boot` / `app_board_net_cfg` / IAP 侧零改动；`g_ldi.cfg` 的装载分支、
-W25 自愈、`set_remote` 语义不变；host 字段（不在 Sector1）不参与同步。
+内部 Flash 记录自愈（§17）、`set_remote` 语义不变；host 字段（不在 Sector1）不参与同步。
 
 **实测（2026-10-08）**：`PROTO=ALL` 口径驱动对象增量 `.text +88`（同步函数）+ `.text +8`
 （两个调用点各 +4）；四口径与改前基线相比仅 `.text` 变化（ALL +192 / CQ +96，含通道门控增量），
 `.rodata/.data/.ccmram/.bss/heap_stack` 全部 ±0；三口径零新增告警。
 
+---
+
+## §17 LDI 配置持久化迁入内部 Flash Sector 11（2026-11-24，已落地）
+
+**定案**：Sector1 只保留**启动契约**（`app_info` + `net_cfg` 四项），LDI 的 8 项配置
+（host 两项 + lane + cert + 模块表 + 网络镜像四项）改存**独立扇区 Sector 11 的槽式追加日志**；
+W25Qxx 退出 LDI 配置持久化，只保留字库 / 显示持久化 / YN_OL `0x49` 用途。
+
+| 角色 | 存储 | 说明 |
+|------|------|------|
+| 真源（网络四项） | Sector1 `net_cfg`（ip/mask/gw/port） | Bootloader / Recovery / 主固件共享，三方均按 72B 记录读写（§15） |
+| 恢复镜像 + 其余 8 项 | **Sector 11 槽日志**（`Application/Inc/Config/app_ldi_int_cfg.h`） | 每槽 256B × 512 槽；记录 = magic + version + `app_flash_ldi_cfg_info_t` + CRC32（192B） |
+| 已退役 | W25Qxx 最后一个 4KB 扇区（原 `app_ldi_cfg.c`，v1/v2/v3 三级布局） | 源文件删除、EIDE 工程移除；**旧 W25 记录不做迁移**（用户裁决） |
+
+**分区与守卫**：Sector 11 = `0x080E0000~0x080FFFFF`（128KB），主应用独占。主应用链接脚本
+`FLASH LENGTH` 由 768K 收到 **640K**（Sector 6~10），并加两条链接期 `ASSERT`
+（`ORIGIN(FLASH)+LENGTH(FLASH) <= 0x080E0000`、`LOADADDR(.data)+SIZEOF(.data) <= 0x080E0000`）；
+Recovery 升级包上限 `FIRMWARE_MAXLEN` 同步 768K → **640K**（`FIRMWARE_MAX_FRAME_NUM` 768 → 640），
+`0x04` 的擦除扇区数按包长向上取整后只落 Sector 6~10。上限与「5 × 128KB」的绑定、记录布局
+三条不变量见 §17.1（源码只留契约注释，不再写 `_Static_assert`）。
+
+### §17.1 编译期不变量（源码不写 `_Static_assert`，契约落此）
+
+业务代码不用编译期断言（`doc/18_注释规范.md` §2 第 10 条），以下 4 条不变量在源码只留
+「一行契约注释 + 本锚点」，改动相关定义时须按本文人工复算：
+
+| # | 不变量 | 判据（改前须复算） | 越限后果 |
+|---|--------|--------------------|----------|
+| 1 | LDI 记录装进一个槽 | `sizeof(app_ldi_int_cfg_record_t)` ≤ `APP_LDI_INT_CFG_SLOT_SIZE`（256B；现 192B） | 写穿到下一槽，装载取到错位数据 |
+| 2 | 记录长度按字对齐 | `sizeof(app_ldi_int_cfg_record_t) % 4 == 0`（现 192） | 内部 Flash 按 word 编程，尾字残留 0xFF 使回读 CRC 恒失败 |
+| 3 | CRC 覆盖面按字对齐 | `offsetof(app_ldi_int_cfg_record_t, crc32) % 4 == 0`（现 188） | 硬件 CRC 按整字喂数，错位后的覆盖面与写入覆盖面不一致 |
+| 4 | Recovery 升级包上限 | `FIRMWARE_MAXLEN * 4` ≤ `5 * FLASH_SECTOR_SIZE`（640KB = 5 × 128KB，恰好等于上限） | `0x04` 按包长向上取整会多擦 Sector 11，抹掉 LDI 配置日志 |
+
+> 前 3 条由 `Application/Inc/Config/app_ldi_int_cfg.h` 的 `app_ldi_int_cfg_record_t` 布局决定；
+> 第 4 条在独立工程 `STM32F407-Recovery`（`Drivers/BSP/Cmd/cmd.h`），主应用侧不可见。
+
+**槽语义（掉电与寿命）**：保存 = 顺序追加到第一个全 0xFF 空槽，**不擦扇区**（单次保存掉电
+最多毁掉正在写的那个槽，旧记录仍在）；装载 = 扫描全部 512 槽取最后一个 magic/version/CRC
+合法记录，半写槽被 CRC 挡下并自动回退上一槽；512 槽写满才整扇区擦除并从槽 0 重来
+（擦除 128KB 期间总线停顿 1~2s，属已接受的出厂低频代价）。写后回读校验 CRC，
+失败如实回 0AH/0BH 的 `01H`，固件不自动重试。保存带重入保护（`s_saving` + 临界区），
+0AH/0BH 与上电自愈不会交叉编程。按「每次保存一槽」估算，Sector 11 的擦除次数远低于
+10k 次寿命上限。
+
+**三分支（沿用 §12 语义，数据源换成内部 Flash 记录）**：
+
+| 分支 | 条件 | 行为 |
+|------|------|------|
+| 1 Sector1 优先 | Sector1 有效且 net_cfg 合法 | 网络字段取 Sector1；记录有效则沿用其 host/lane/cert/modules 并 `app_tcp_client_set_remote`；网络四项与记录不一致 → 追加一条自愈记录；记录无效 → host 取通道哨兵、**严禁回写** |
+| 2 记录自愈 | Sector1 空/损坏/net_cfg 非法 + 记录有效 | cfg 全字段取记录（网络四项即恢复镜像），回写 Sector1（`app_board_net_cfg_update` 自愈分支） |
+| 3 出厂默认 | 两者皆空/无效 | `pl_net_get_ip` + TCP Server 默认口填 cfg，不写任何 Flash |
+
+**兼容性**：按用户裁决**不做**旧 W25 记录迁移——Sector 11 无有效记录即视为未配置
+（lane/cert 全 0、host 哨兵），沿用 `ldi_identity_unconfigured()` 口径。升级到本版本的设备
+需要重新下发 0AH/0BH（旧配置留在 W25 最后 4KB 扇区，不再被读取）。
+
+**整片擦除**：全片擦除（`erase chip` / 量产全擦）会一并清掉 Sector 11 ⇒ LDI 配置回未配置态
+（网络四项仍可从 Sector1 恢复）。`tool/flash_all.sh` 的默认流程只写 Bootloader / Recovery /
+主固件并擦 Sector1，**不碰 Sector 11**。
+
 ## 修订
 
+- 2026-11-24：新增 **§17 LDI 配置持久化迁入内部 Flash Sector 11**——Sector1 只保留启动契约；
+  W25 配置持久化退役（`app_ldi_cfg.c` 删除）；App 上限 640K + 链接期 ASSERT、Recovery 升级包
+  上限 640K。
 - 2026-10-08：新增 **§16 LDI 网络上报的单一真源**——`ldi_sync_net_from_board_cfg()` 在 12H/D1H 应答入口按 Sector1 net_cfg 刷新 `g_ldi.cfg`；消除「LDI 与 IAP 0x01 双上报源不一致」（审计 C3-C）。
 - 2026-09-18：**TCP Client 通道层与 LDI 解耦**——`g_tcp_client` 编译期默认改为
   `0.0.0.0:0`（不再硬编码 `192.168.2.17:9529`）；未配置不 connect。`app_boot` 仍启动

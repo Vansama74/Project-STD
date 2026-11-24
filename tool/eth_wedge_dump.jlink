@@ -1,0 +1,17 @@
+// ETH 看门狗事件环导出脚本（J-Link Commander）
+// 用法（Git Bash，在 tool/ 目录下）：
+//   "<JLink.exe 路径>" -device STM32F407ZG -if SWD -speed 4000 \
+//       -CommanderScript eth_wedge_dump.jlink
+//   python eth_wedge_decode.py
+// 产物：eth_wedge_ring.bin（64×16B 事件环）、eth_wedge_wr.bin（写入计数）
+// 注意：脚本会 halt 目标并读取内存，读毕 resume（g）。
+// 地址与固件符号绑定：g_eth_wedge_ring=0x20019368（1KB）、g_eth_wedge_wr=0x20019360，
+// 固件重编导致地址变化时需同步更新（nm Project_STD.elf | grep g_eth_wedge）。
+device STM32F407ZG
+si SWD
+speed 4000
+h
+savebin eth_wedge_ring.bin 0x20019368 0x400
+savebin eth_wedge_wr.bin 0x20019360 0x4
+g
+qc

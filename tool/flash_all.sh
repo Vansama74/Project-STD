@@ -12,7 +12,8 @@
 #   [Board cfg]  0x08004000  16 KB  (Sector 1, 板级系统配置:
 #                                  magic + update_sta + FWInfo + NetConfig + CRC32)
 #   Recovery:    0x08008000  224 KB (Sectors 2-5)
-#   Project-STD: 0x08040000  768 KB (Sectors 6-11)
+#   Project-STD: 0x08040000  640 KB (Sectors 6-10)
+#   [LDI cfg]    0x080E0000  128 KB (Sector 11, LDI 配置槽日志; 本脚本不读不写)
 #
 # 为什么默认擦除 Sector1（重要，2026-08-14 定案）:
 #   Bootloader 条件 D（非 debug 模式）会校验 Sector1 记录中 app_info.size/crc32
@@ -22,7 +23,7 @@
 #   Bootloader 判「App 损坏」→ 设备永远进 Recovery，主固件再也起不来。
 #   规避：本脚本默认烧完三个固件后擦除 Sector1 恢复出厂态。Sector1 空 →
 #   Bootloader 走条件 C（出厂初始化）→ 正常跳主固件。net_cfg 副作用可接受：
-#   主固件上电时 ldi_ctx_init 会从 W25Qxx 外部 Flash 的 LDI 配置同步回写
+#   主固件上电时 ldi_ctx_init 会从 Sector 11 的 LDI 配置记录同步回写
 #   Sector1（空扇区自动完整初始化）。
 #
 # Usage:
