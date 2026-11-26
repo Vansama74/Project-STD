@@ -70,6 +70,28 @@ __attribute__((aligned(4))) typedef struct {
  * 改错 = 三固件读同一扇区错位（Bootloader 判 App 损坏），
  * 详见 doc/07_LDI与IAP配置解耦/02_decoupling_solutions.md §15。 */
 
+/* ---- LDI 身份镜像（lane/cert/host 的第二副本，doc/07 §18） ----
+ * 位于 Sector1 内 72B 系统记录之后的空闲区（偏移 0x100），36B：
+ *   magic(0) + version(4) + lane(8,5B) + cert(13,8B) + host_ip(21,4B) +
+ *   host_port(25,2B) + reserved(27,2B) + crc32(32)（CRC 覆盖前 32B）。
+ * Bootloader / Recovery 只读前 72B，本区域对其不可见；但其整扇区擦除会连带
+ * 清掉镜像——由 ldi_ctx_init 上电自愈从 Sector 11 记录重新派生（doc/07 §18.3）。 */
+#define APP_BOARD_ID_MIRROR_OFFSET (0x100U) /**< 镜像区在 Sector1 内的字节偏移 */
+
+#define APP_BOARD_ID_MIRROR_MAGIC (0x0D0F0A05U) /**< 独立魔数，不与 sys_info / LDI 记录混用 */
+#define APP_BOARD_ID_MIRROR_VERSION (1U)        /**< 镜像布局版本，仅本值被接受 */
+
+__attribute__((aligned(4))) typedef struct {
+    uint32_t magic;       /**< APP_BOARD_ID_MIRROR_MAGIC；0xFFFFFFFF = 未写入 */
+    uint32_t version;     /**< APP_BOARD_ID_MIRROR_VERSION；不匹配按无效处理 */
+    uint8_t lane_hex[5];  /**< 车道 HEX 编号（0AH 帧头 lane_code） */
+    uint8_t cert[8];      /**< 设备验证信息（0AH 帧头 cert_info） */
+    uint8_t host_ip[4];   /**< 上位机 IP（0AH net.host_ip） */
+    uint16_t host_port;   /**< 上位机端口（0AH net.host_port） */
+    uint16_t reserved;    /**< 预留（保持 crc32 偏移 4 字节对齐） */
+    uint32_t crc32;       /**< CRC32 覆盖 magic..reserved（不含自身） */
+} app_board_id_mirror_t;
+
 /**
  * @brief 读当前 Sector1 整记录（内存映射拷贝，无有效性判定）
  *
@@ -107,6 +129,48 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
                                  uint32_t port, uint32_t udp_port);
 
 /**
+ * @brief app_board_net_cfg_update 的镜像扩展版：同一次读-改-写里连带更新身份镜像
+ *
+ * 分支语义与 app_board_net_cfg_update 完全一致；额外：
+ *  - mirror == NULL：保留现镜像（有且合法则原样带回重写，无/损坏则留白，
+ *    由 ldi_ctx_init 上电自愈补写）——IAP 4B02 / CQ setip 等纯网络写入口用此口径；
+ *  - mirror != NULL：本次擦写后镜像落为新值（0AH 网络+身份同帧下发时用，
+ *    与网络字段一次擦除完成，避免二次擦写）。
+ * 同值跳过判定加入镜像一致条件：net_cfg 与镜像都一致才跳过擦写。
+ *
+ * @return 0 成功（含同值跳过）；<0 为擦/写错误码
+ */
+int32_t app_board_net_cfg_update_ex(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gw[4],
+                                    uint32_t port, uint32_t udp_port,
+                                    const app_board_id_mirror_t *mirror);
+
+/**
+ * @brief 读 LDI 身份镜像（magic+version+CRC 全过才返回真值）
+ *
+ * @return true = 镜像有效且 out 已填充；false = 镜像空/损坏
+ */
+bool app_board_net_cfg_id_mirror_get(app_board_id_mirror_t *out);
+
+/**
+ * @brief 组包身份镜像（magic/version/CRC 填充，供 update_ex / id_mirror_update 调用方使用）
+ */
+void app_board_net_cfg_id_mirror_pack(app_board_id_mirror_t *m, const uint8_t lane[5],
+                                      const uint8_t cert[8], const uint8_t host_ip[4],
+                                      uint16_t host_port);
+
+/**
+ * @brief 更新 LDI 身份镜像（lane/cert/host_ip/host_port → Sector1 偏移 0x100）
+ *
+ * 读-改-写：擦除整扇区后，系统记录（72B）**按现读原样重写**（含升级中间态的
+ * update_sta/app_info，Bootloader 条件 D 判定不受影响），镜像落为新值。镜像已
+ * 与新值一致（且合法）时跳过擦写（不做磨损均衡）。
+ *
+ * @return 0 成功（含同值跳过）；<0 为擦/写错误码
+ */
+int32_t app_board_net_cfg_id_mirror_update(const uint8_t lane[5], const uint8_t cert[8],
+                                           const uint8_t host_ip[4], uint16_t host_port);
+
+/**
  * @brief 同步固件版本号到内部 Flash（app_info.version[32]，IAP 0x03「上报固件状态」用）
  *
  * 只允许改 app_info.version 并重算 config_crc，**绝不动** app_info.size / app_info.crc32 /
@@ -115,8 +179,8 @@ int32_t app_board_net_cfg_update(const uint8_t ip[4], const uint8_t mask[4], con
  *
  * 分支语义（与 app_board_net_cfg_update 同构，见 doc/07_LDI与IAP配置解耦 02 §13）：
  *  - 空扇区：完整初始化（magic + update_sta=updated + app_info 全 0 且 crc32=0xFFFFFFFF +
- *    net_cfg 全 0）+ 填 version。调用点安排在 sw_board_init()（含 ldi_ctx_init 从 W25Qxx
- *    回写 net_cfg）之后，正常路径不会走到此分支；若走到（如 ldi_ctx_init 未回写），
+ *    net_cfg 全 0）+ 填 version。调用点安排在 sw_board_init()（含 ldi_ctx_init 从双库
+ *    记录回写 net_cfg）之后，正常路径不会走到此分支；若走到（如 ldi_ctx_init 未回写），
  *    net_cfg 会被写成 0.0.0.0/port0，由后续 0AH / 上电同步恢复；
  *  - 损坏记录（magic 无效或 CRC 错）：按空扇区处理（自愈），完整初始化后填 version；
  *  - 有效记录且 update_sta != updated（升级中间态）：拒绝覆盖，返回 -1；

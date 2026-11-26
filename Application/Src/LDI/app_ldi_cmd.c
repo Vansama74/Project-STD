@@ -509,15 +509,20 @@ void cmd_set_ip(channel_t *ch, void *data)
     }
     g_ldi.cfg_valid = true;
 
-    /* 两步持久化：先 Sector 11 记录（LDI 完整配置），再板级网络配置（Sector1）。
-     * 任一失败即如实应答失败，不再静默回 00H。
-     * 0AH 写 TCP 业务口（device_port），udp_port 保留现值（get 失败用出厂默认 20103）。 */
+    /* 两步持久化：先双库记录（LDI 完整配置），再板级网络配置 + 身份镜像（Sector1，
+     * 一次整扇区擦写）。任一失败即如实应答失败，不再静默回 00H。
+     * 0AH 写 TCP 业务口（device_port），udp_port 保留现值（get 失败用出厂默认 20103）。
+     * 镜像取 0AH 守卫后的 g_ldi.cfg 有效身份值（0AH 未带身份时 = 既有值，
+     * update_ex 同值跳过不擦写，doc/07 §18.3）。 */
     int32_t rec_ret = app_ldi_int_cfg_save(&g_ldi.cfg);
     app_board_net_cfg_t cur_cfg;
     uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
-    int32_t board_ret  = app_board_net_cfg_update(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
-                                                  g_ldi.cfg.gateway, g_ldi.cfg.device_port,
-                                                  udp_port);
+    app_board_id_mirror_t mir;
+    app_board_net_cfg_id_mirror_pack(&mir, g_ldi.cfg.lane_hex, g_ldi.cfg.cert,
+                                     g_ldi.cfg.host_ip, g_ldi.cfg.host_port);
+    int32_t board_ret = app_board_net_cfg_update_ex(g_ldi.cfg.device_ip, g_ldi.cfg.netmask,
+                                                    g_ldi.cfg.gateway, g_ldi.cfg.device_port,
+                                                    udp_port, &mir);
 
     ldi_status_rsp_t rsp = {.status = (rec_ret < 0 || board_ret < 0) ? 0x01 : 0x00};
     ldi_build_rsp_head(&rsp.head, LDI_CMD_SET_IP_RSP);
@@ -610,8 +615,15 @@ static void cmd_set_config(channel_t *ch, void *data)
 
     if (result) {
         /* 身份已提前提交 RAM（见函数中部），此处只负责落盘：
-         * 校验通过即写 Sector 11 记录，失败仅影响持久化，不回滚 RAM。 */
+         * 校验通过即写双库记录，再刷 Sector1 身份镜像（0BH 只动身份/modules、
+         * 网络不动 → 单独刷镜像；同值跳过不擦写）。失败仅影响持久化，不回滚 RAM。 */
         save_ret = app_ldi_int_cfg_save(&g_ldi.cfg);
+        if (save_ret >= 0) {
+            int32_t mir_ret = app_board_net_cfg_id_mirror_update(
+                g_ldi.cfg.lane_hex, g_ldi.cfg.cert, g_ldi.cfg.host_ip, g_ldi.cfg.host_port);
+            if (mir_ret < 0)
+                save_ret = mir_ret;
+        }
     }
 
     ldi_status_rsp_t rsp = {.status = (result && save_ret >= 0) ? 0x00 : 0x01};

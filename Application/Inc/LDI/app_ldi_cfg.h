@@ -32,7 +32,7 @@ typedef struct {
  * LDI 车道设备配置信息
  *
  * 存储 0AH 指令下发的全部网络参数 + 0BH 下发的模块配置，既是 LDI 运行态 RAM
- * 镜像（`ldi_ctx_t.cfg`），也是 Sector 11 槽日志的载荷。
+ * 镜像（`ldi_ctx_t.cfg`），也是跨介质双库记录（Sector 11 + W25 末扇区）的载荷。
  */
 typedef struct {
     uint8_t device_ip[4];  /**< 设备自身 IP 地址（镜像，真源 Sector1） */

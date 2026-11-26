@@ -34,7 +34,7 @@ Makefile 全量编译时不易暴露；**按协议目录裁剪（只留 LDI）�
 
 | 存储 | 位置 | 模块 | 内容 |
 |------|------|------|------|
-| LDI 设备配置 | **内部 Flash Sector 11 `0x080E0000`**（2026-11-24 起；原 W25Qxx 末 4KB 扇区已退役，见 [02 §17](./02_decoupling_solutions.md)） | `app_ldi_int_cfg`（`Application/Src/Config/app_ldi_int_cfg.c`） | 车道、证书、模块表、host；IP/端口为 Sector1 的恢复镜像 |
+| LDI 设备配置 | **跨介质双库**：内部 Flash Sector 11 `0x080E0000`（库 0，512 槽）+ W25Qxx 末 4KB 扇区（库 1，16 槽），seq 排序乒乓（2026-11-26 起，见 [02 §18](./02_decoupling_solutions.md)） | `app_ldi_int_cfg`（`Application/Src/Config/app_ldi_int_cfg.c`） | 车道、证书、模块表、host；IP/端口为 Sector1 的恢复镜像；lane/cert/host 另有 Sector1 身份镜像第二副本（偏移 0x100） |
 | IAP 系统配置 | 内部 Flash Sector1 `0x08004000` | `app_iap_cfg`（实际文件 `Application/Src/IAP/app_iap_cfg.c`；`Device/Inc/config_info.h` 为同名旧定义，全仓无引用，已废弃） | magic、升级状态、FW 信息、**net_cfg(IP/掩码/网关)** |
 
 产品需求（历史合理）：

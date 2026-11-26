@@ -9,6 +9,7 @@
 #include "crc_utils.h"
 #include "app_ldi_cfg.h"
 #include "app_ldi_int_cfg.h"
+#include "app_ldi_w25_migrate.h"
 #include "pl_task_static.h"
 
 /* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
@@ -141,12 +142,39 @@ ldi_ctx_t g_ldi = {
     },
 };
 
+/** @brief 记录 module_count 钳制：超设备类型上限（LDI_DEV_TYPE_COUNT=13）或
+ *  存储数组容量（APP_FLASH_LDI_MAX_MODULES=11）视为非法记录，防后续按
+ *  module_count 遍历 flash_cfg.modules[] 越界读。 */
+static bool _flash_cfg_sane(const app_flash_ldi_cfg_info_t *cfg)
+{
+    return cfg->module_count <= LDI_DEV_TYPE_COUNT &&
+           cfg->module_count <= APP_FLASH_LDI_MAX_MODULES;
+}
+
+/** @brief 身份镜像自愈：镜像与 cfg 身份（lane/cert/host）不一致（含缺失/损坏）→
+ *  从当前 cfg 刷新镜像；一致则跳过（id_mirror_update 内部同值跳过，不擦写）。
+ *  自愈触发场景：升级首启（镜像尚未建立）、Bootloader 重建 Sector1 记录时整扇区
+ *  擦除连带清镜像（doc/07 §18.3）。 */
+static void _id_mirror_heal(const ldi_ctx_t *self, const app_board_id_mirror_t *mir, bool mir_valid)
+{
+    if (mir_valid &&
+        memcmp(self->cfg.lane_hex, mir->lane_hex, sizeof(mir->lane_hex)) == 0 &&
+        memcmp(self->cfg.cert, mir->cert, sizeof(mir->cert)) == 0 &&
+        memcmp(self->cfg.host_ip, mir->host_ip, sizeof(mir->host_ip)) == 0 &&
+        self->cfg.host_port == mir->host_port) {
+        return;
+    }
+    (void)app_board_net_cfg_id_mirror_update(self->cfg.lane_hex, self->cfg.cert,
+                                             self->cfg.host_ip, self->cfg.host_port);
+}
+
 /**
- * @brief  LDI 上下文装载：Sector1 真源裁定 + Sector 11 配置日志自愈。
+ * @brief  LDI 上下文装载：Sector1 真源裁定 + 双库（Sector 11 + W25）配置日志自愈。
  *
- * 职责：只做配置真源裁定与自愈——网络字段以 Sector1.net_cfg 为唯一真源、Sector 11
- * 槽日志为恢复镜像（三分支判定）；非网络字段（host/lane/cert/modules）与 TCP Client
- * 远端装载，Sector1 空/损坏时从 Sector 11 记录回写自愈。
+ * 职责：只做配置真源裁定与自愈——网络字段以 Sector1.net_cfg 为唯一真源、双库
+ * 记录为恢复镜像（三分支判定）；非网络字段（host/lane/cert/modules）与 TCP Client
+ * 远端装载，Sector1 空/损坏时从双库记录回写自愈；身份第二副本（Sector1 身份镜像）
+ * 在双库记录丢失时救援身份并重建记录（doc/07 §18）。
  * **不应用网络**：netif / TCP Server 口移交中立模块 app_net_boot（app_boot.c init_task
  * 在本函数之后调用 app_net_boot_apply）。三分支与中间态语义见 doc/07 §10/§11/§17。
  */
@@ -155,14 +183,26 @@ void ldi_ctx_init(ldi_ctx_t *self)
     app_flash_ldi_cfg_info_t flash_cfg = {0};
     bool flash_valid                   = false;
 
-    if (app_ldi_int_cfg_load(&flash_cfg)) {
-        /* 记录的 module_count 钳制：超设备类型上限（LDI_DEV_TYPE_COUNT=13）或
-         * 存储数组容量（APP_FLASH_LDI_MAX_MODULES=11）视为非法记录，回退默认配置，
-         * 防后续按 module_count 遍历 flash_cfg.modules[] 越界读。 */
-        if (flash_cfg.module_count <= LDI_DEV_TYPE_COUNT &&
-            flash_cfg.module_count <= APP_FLASH_LDI_MAX_MODULES)
-            flash_valid = true;
+    if (app_ldi_int_cfg_load(&flash_cfg) && _flash_cfg_sane(&flash_cfg)) {
+        flash_valid = true;
     }
+
+    if (!flash_valid) {
+        /* ---- 迁移垫片（doc/07 §18.4）：双库无有效记录时，只读扫 W25 旧格式
+         * 记录（magic 0x0D001B00，v3/v2/v1 三级试探），命中即落内部库——一次性
+         * 恢复现场设备升级时被 11-24 装载器删除弄丢的配置；落库成功后下次上电
+         * 双库装载不再失败，本函数不再被触发。写失败不阻塞启动：下次上电重试。 */
+        app_flash_ldi_cfg_info_t w25_cfg;
+        if (app_ldi_w25_migrate_try(&w25_cfg) &&
+            app_ldi_int_cfg_save(&w25_cfg) == 0 &&
+            app_ldi_int_cfg_load(&flash_cfg) && _flash_cfg_sane(&flash_cfg)) {
+            flash_valid = true;
+        }
+    }
+
+    /* ---- 身份镜像读取（Sector1 偏移 0x100 的第二副本；magic+version+CRC 校验） ---- */
+    app_board_id_mirror_t mir;
+    bool mir_valid = app_board_net_cfg_id_mirror_get(&mir);
 
     /* ---- 方案 X（doc/07 §12）：Sector1 为网络配置唯一真源，Sector 11 记录为恢复镜像 ----
      * Sector1 有效性判定：公开接口 app_board_net_cfg_get 做 magic+CRC 校验
@@ -222,14 +262,29 @@ void ldi_ctx_init(ldi_ctx_t *self)
                 self->cfg.device_port != flash_cfg.device_port) {
                 (void)app_ldi_int_cfg_save(&self->cfg);
             }
+
+            /* 身份镜像自愈（doc/07 §18.3）：镜像缺失/损坏/陈旧 → 用记录身份刷新 */
+            _id_mirror_heal(self, &mir, mir_valid);
         } else {
-            /* Sector 11 无有效记录：host 取通道当前远端（编译期哨兵 0.0.0.0:0，未配置不连；
-             * 本分支不 set_remote），lane/cert 保持编译期初值。**此处严禁回写记录**：cfg 里的
-             * host/lane/cert 此时都是占位值，写回会用零值覆盖唯一副本、永久毁掉现场配置
-             * （唯一副本被零值覆盖 = 车道号/验证码/外场 IP·端口永久丢失）。真实配置只由
-             * 0AH/0BH 下发并落盘。 */
-            memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
-            self->cfg.host_port = app_tcp_client_get_host_port();
+            if (mir_valid) {
+                /* 镜像救援：双库记录丢失但 Sector1 身份镜像仍存 → 用镜像真值恢复
+                 * 身份并重建双库记录。旧代码此分支严禁写记录（cfg 里身份是占位值，
+                 * 写回会用零值毁掉唯一副本）；镜像提供的是真值，落库安全。 */
+                memcpy(self->cfg.lane_hex, mir.lane_hex, sizeof(self->cfg.lane_hex));
+                memcpy(self->cfg.cert, mir.cert, sizeof(self->cfg.cert));
+                memcpy(self->cfg.host_ip, mir.host_ip, sizeof(self->cfg.host_ip));
+                self->cfg.host_port = mir.host_port;
+                app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
+                (void)app_ldi_int_cfg_save(&self->cfg);
+            } else {
+                /* 双库无有效记录且镜像不可用：host 取通道当前远端（编译期哨兵
+                 * 0.0.0.0:0，未配置不连；本分支不 set_remote），lane/cert 保持编译期初值。
+                 * **此处严禁回写记录**：cfg 里的 host/lane/cert 此时都是占位值，写回会
+                 * 用零值覆盖唯一副本、永久毁掉现场配置（唯一副本被零值覆盖 = 车道号/
+                 * 验证码/外场 IP·端口永久丢失）。真实配置只由 0AH/0BH 下发并落盘。 */
+                memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
+                self->cfg.host_port = app_tcp_client_get_host_port();
+            }
         }
 
         /* 网络应用（pl_net_set_ip / app_tcp_server_set_port）已移交
@@ -271,12 +326,16 @@ void ldi_ctx_init(ldi_ctx_t *self)
 
         /* 回写 Sector1 自愈（中间态仅 net_cfg 写入，update_sta/app_info 保留）。
          * device_port 取记录的恢复镜像值写 TCP 业务口，udp_port 保留现值（Sector1
-         * 无效时 get 失败，用出厂默认 20103）。 */
+         * 无效时 get 失败，用出厂默认 20103）。身份镜像随同一次擦写落库
+         * （update_ex 的 mirror 参数），避免二次整扇区擦除。 */
         app_board_net_cfg_t cur_cfg;
         uint32_t udp_port = (app_board_net_cfg_get(&cur_cfg) == 0) ? cur_cfg.udp_port : 20103U;
-        (void)app_board_net_cfg_update(self->cfg.device_ip, self->cfg.netmask,
-                                       self->cfg.gateway, self->cfg.device_port,
-                                       udp_port);
+        app_board_id_mirror_t m;
+        app_board_net_cfg_id_mirror_pack(&m, self->cfg.lane_hex, self->cfg.cert,
+                                         self->cfg.host_ip, self->cfg.host_port);
+        (void)app_board_net_cfg_update_ex(self->cfg.device_ip, self->cfg.netmask,
+                                          self->cfg.gateway, self->cfg.device_port,
+                                          udp_port, &m);
 
     } else {
         /* ---- 分支 3：Sector1 与 Sector 11 记录皆空/无效 → 统一出厂默认 ----
@@ -293,9 +352,19 @@ void ldi_ctx_init(ldi_ctx_t *self)
         memcpy(self->cfg.host_ip, app_tcp_client_get_host_ip(), 4);
         self->cfg.host_port = app_tcp_client_get_host_port();
         self->cfg_valid = true;
-        /* 不写任何 Flash：配置由 0AH 命令在出厂配置阶段写入，写入时网络负载低，
-         * 风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现在上电路径
-         * （追加写一个空槽不擦扇区，但仍是 Flash 编程，本分支一律不写）。 */
+        /* 无镜像可用时本分支一律不写 Flash：配置由 0AH 命令在出厂配置阶段写入，
+         * 写入时网络负载低，风险可控；内部 Flash 擦除 1~2s 的 CPU 停顿不得出现
+         * 在上电路径（追加写一个空槽不擦扇区，但仍是 Flash 编程）。 */
+        if (mir_valid) {
+            /* 镜像救援：双库皆失但 Sector1 身份镜像仍存 → 恢复身份并重建双库记录。
+             * 网络字段保持出厂默认（Sector1 网络真源同样已失，等 0AH 重建）。 */
+            memcpy(self->cfg.lane_hex, mir.lane_hex, sizeof(self->cfg.lane_hex));
+            memcpy(self->cfg.cert, mir.cert, sizeof(self->cfg.cert));
+            memcpy(self->cfg.host_ip, mir.host_ip, sizeof(self->cfg.host_ip));
+            self->cfg.host_port = mir.host_port;
+            app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
+            (void)app_ldi_int_cfg_save(&self->cfg);
+        }
     }
 }
 

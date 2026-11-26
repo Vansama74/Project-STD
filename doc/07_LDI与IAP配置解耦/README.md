@@ -27,7 +27,9 @@
 | 改码纪律 | 方案在 `02`；**审核通过后才改代码**（三处缺陷修复已定案落地，见 [02 §9](./02_decoupling_solutions.md)） |
 | 出厂新机 0AH 改 IP，Boot 为何读不到？ | 现状缺陷已修复（2026-08-14）：空 Sector1 写路径不置 magic（[01 §3.4](./01_background_and_impact.md)）→ 现按 Bootloader 语义完整初始化；0AH 写失败如实应答 01H，上位机重发恢复 |
 | 三固件出厂默认网络配置 | 统一为 192.168.114.200/24、网关 192.168.114.1、端口 9528；Recovery 上电读 Sector1.net_cfg 配 netif、主固件记录空 + Sector1 有效时同步 set_ip（见 [02 §11](./02_decoupling_solutions.md)） |
-| 网络配置真源与镜像 | Sector1.net_cfg 为**真源**（三固件共享）；LDI 配置记录（Sector 11 槽日志，2026-11-24 起；原 W25）的网络字段为**恢复镜像**（擦 Sector1 后还原用户配置）；主固件上电 Sector1 优先、记录自愈回写、皆空用出厂默认（见 [02 §12](./02_decoupling_solutions.md)、[§17](./02_decoupling_solutions.md)） |
+| 网络配置真源与镜像 | Sector1.net_cfg 为**真源**（三固件共享）；LDI 配置记录（**跨介质双库**：Sector 11 槽日志 + W25 末扇区，2026-11-26 起；原 W25）的网络字段为**恢复镜像**（擦 Sector1 后还原用户配置）；主固件上电 Sector1 优先、记录自愈回写、皆空用出厂默认（见 [02 §12](./02_decoupling_solutions.md)、[§17](./02_decoupling_solutions.md)、[§18](./02_decoupling_solutions.md)） |
+| 身份第二副本（镜像） | lane/cert/host 存 Sector1 偏移 0x100 的 36B 身份镜像（magic `0x0D0F0A05` + CRC，2026-11-26 起）；Sector1 全部擦写路径统一 `_rmw` 携带镜像；双库皆失时镜像救援身份并重建记录，镜像被 Bootloader 整扇区擦除后由双库记录上电自愈补回（见 [02 §18.2/§18.3](./02_decoupling_solutions.md)） |
+| 旧 W25 记录迁移 | 双库皆无有效记录时，迁移垫片只读扫 W25 末 4KB 旧格式记录（magic `0x0D001B00`，v3/v2/v1 三级 CRC 试探）自动恢复现场配置（一次性，见 [02 §18.4](./02_decoupling_solutions.md)；§17 的「旧记录不做迁移」裁决由 §18 推翻） |
 | 记录镜像自愈 | 主固件上电分支 1 检测 Sector1 与记录的设备网络四项不一致即刷新镜像（覆盖 4B02 单写 Sector1 或单次记录写失败的陈旧，见 [02 §12](./02_decoupling_solutions.md)） |
 | Bootloader 损坏态自愈 | magic 不匹配或 config_crc 错 → 条件 C 重建出厂记录自愈；App 损坏仍 Recovery；Recovery 判空保持两哨兵（防死循环进 Recovery 的分工，见 [02 §12](./02_decoupling_solutions.md)） |
 | 搜索/上报端口字段语义 | LDI 12H 应答与 IAP 0x01 上报的 `port` 字段 = 配置功能端口（TCP 业务口，出厂默认 9528，宏 `LDI_DEFAULT_CONFIG_PORT`）；UDP 10011（宏 `LDI_DISCOVERY_PORT`）仅为搜索/上报的**传输渠道**，勿混淆（2026-08-18 修复 12H 误报 10011 污染循环，见 [02 §12 ④](./02_decoupling_solutions.md)） |
@@ -63,3 +65,4 @@
 - 2026-08-21（同日再修订）：**LDI 搜索应答丢包修复**——根因 netconn 池满（baseline 4 已满）+ 广播临时 conn 必然 NULL；修复：`lwipopts.h` 扩池（`MEMP_NUM_NETCONN=8`、`MEMP_NUM_UDP_PCB=8`，bss +304B）+ `app_udp_broadcast`/`app_udp_cq_broadcast` 复用常驻通道 conn + LDI 12H 应答「广播为主、回源容错」。已知限制：回源 src 快照竞态（LDI 12H 与 IAP 同源，本轮不架构改造）。
 - 2026-08-24：**TCP 口应用两口径化**——修复「LDI 改端口后搜索上报新值、TCP 仍监听 9528」现场 bug：EIDE Debug 混合口径（LDI 编入 + PROTO_CHONGQING）下 `app_net_boot_apply` 的 `app_tcp_server_set_port` 被宏裁剪、TCP Server 恒绑 9528；修复后 TCP 口两口径统一应用 Sector1 `net_cfg.port`（[02 §14](./02_decoupling_solutions.md) 同步，CQ setip 语义不变）；「CQ 构建不启动 TCP Server/Client 通道」表述更正为两口径均启动。
 - 2026-11-24：新增 [02 §17](./02_decoupling_solutions.md) **LDI 配置持久化迁入内部 Flash Sector 11**——Sector1 只保留启动契约（`app_info` + net 四项），LDI 其余 8 项配置改存 Sector 11 槽式追加日志（256B × 512 槽，magic + version + 完整配置 + CRC32，写后回读）；W25Qxx 退出 LDI 配置持久化（`app_ldi_cfg.c` 删除，旧记录不迁移）；主应用 FLASH 上限 768K → 640K + 链接期 ASSERT、Recovery 升级包上限 768K → 640K。
+- 2026-11-26：新增 [02 §18](./02_decoupling_solutions.md) **配置丢失根治三件套**——① 跨介质双库乒乓（内部 Sector 11 512 槽 + W25 末扇区 16 槽，记录 v2 加 seq 递增序号，活动库满轮转对侧、回读校验通过才切换，擦除窗口归零）；② Sector1 身份镜像（偏移 0x100，lane/cert/host 第二副本，Sector1 擦写路径统一 `_rmw` 携带）；③ W25 迁移垫片（双库皆空时只读恢复旧格式记录）。§17 的「旧记录不做迁移」裁决推翻。
