@@ -50,7 +50,7 @@ extern uint32_t app_ldi_health_hb(void) __attribute__((weak));
 
 static void half_sec_task(void *argument) {
   (void)argument;
-  uint32_t run_time = 0;
+  /* run_time 已随 DR1 30s 清零块一并移除（2026-11-26） */
   bool led_state = false;
   uint32_t hst_div = 0U; /* 临时诊断：每 10s 打印喂狗时间戳 */
   uint32_t last_eth = 0U, last_ldi = 0U;
@@ -107,10 +107,10 @@ static void half_sec_task(void *argument) {
       SEGGER_RTT_printf(0, "F t=%u\n", (unsigned)now);
     }
 
-    if (run_time >= 60)
-      pl_rtc_bkup_write(pl_rtc_get_handle(), 1, 0);
-    else
-      run_time++;
+    /* 2026-11-26 修复：原「启动 30s 后每 500ms 清零 RTC_BKP_DR1」遗留块已移除。
+     * 它让 Bootloader 的崩溃计数永远攒不到 4（条件 B 永不触发），且使上面的
+     * 10 分钟健康清零形同虚设——崩溃计数语义被彻底架空。现仅保留「持续健康
+     * 10 分钟」一次清零（设计意图：短周期反复崩溃才计数，长期稳定运行豁免）。 */
 
     led_state = !led_state;
     pl_gpio_write(PL_PORT_D, 9, led_state); /* LED = PD9 */

@@ -654,6 +654,13 @@ static void eth_dma_recover(void)
     }
     heth.Instance->DMABMR = s_eth_dmabmr;
     heth.Instance->MACCR  = s_eth_maccr;
+    /* 描述符链基址恢复（2026-11-26 定级）：SR 软件复位会把 DMARDLAR/DMATDLAR
+     * 清零，而 HAL_ETH_Start_IT 不重写它们（只有 HAL_ETH_Init 写）——此前重建
+     * 后 DMA 从地址 0 取描述符，必然总线错误（EBS 位组）→ RX 停 → 重建"永远
+     * 无效"→ 只能受控重启（现场故障板断联的直接原因）。补上后重建可原地复活
+     * 深停态 DMA（≤2s），TCP 连接经 lwIP 重传得以保留，无需重启。 */
+    WRITE_REG(heth.Instance->DMATDLAR, (uint32_t)heth.Init.TxDesc);
+    WRITE_REG(heth.Instance->DMARDLAR, (uint32_t)heth.Init.RxDesc);
     /* 回收仍挂在 RX 描述符上的零拷贝池缓冲：Start 重建描述符环不会自动归还，
      * 不回收则每次恢复泄漏最多 ETH_RX_DESC_CNT 个池缓冲，几次后池耗尽。
      * 临界区：与 tcpip/应用线程的释放互斥。 */
@@ -680,12 +687,58 @@ static void eth_dma_recover(void)
     }
     heth.RxDescList.pRxStart = NULL;
     heth.RxDescList.pRxEnd   = NULL;
+    /* TX 侧恢复（2026-11-26 定级）：SR 后 TX 环残留 OWN 位与在途 pbuf——
+     * DMA 重启后 TX 进程悬挂（TPS=6），设备收帧不应答（ping 全超时）。
+     * 环全量重初始化（对齐 HAL_ETH_Init 的 ETH_DMATxDescListInit），
+     * 在途 pbuf 直接归还（DMA 不会再完成它们、TxFreeCallback 不会触发）。
+     * 与 tcpip 线程的发送路径经 ETH_CTRL_LOCK 串行，此处环写安全。
+     * 注意 IRQ 在此刻已由 Stop_IT 关闭，不会并发触发 TxFreeCallback。 */
+    for (uint32_t i = 0U; i < ETH_TX_DESC_CNT; i++) {
+        ETH_DMADescTypeDef *dmatxdesc = heth.Init.TxDesc + i;
+        WRITE_REG(dmatxdesc->DESC0, 0x0U);
+        WRITE_REG(dmatxdesc->DESC1, 0x0U);
+        WRITE_REG(dmatxdesc->DESC2, 0x0U);
+        WRITE_REG(dmatxdesc->DESC3, 0x0U);
+        SET_BIT(dmatxdesc->DESC0, ETH_DMATXDESC_TCH);
+        if (i < (ETH_TX_DESC_CNT - 1U)) {
+            WRITE_REG(dmatxdesc->DESC3, (uint32_t)(heth.Init.TxDesc + i + 1U));
+        } else {
+            WRITE_REG(dmatxdesc->DESC3, (uint32_t)(heth.Init.TxDesc));
+        }
+        SET_BIT(dmatxdesc->DESC0, ETH_DMATXDESC_CHECKSUMTCPUDPICMPFULL);
+        /* 注意：PacketAddress[i] 只置 NULL、不 pbuf_free——未被 ReleaseTxPacket
+         * 行走到的历史条目可能是已释放的悬垂指针，无条件 free 会双重释放
+         * 损坏 lwIP 池链表（台架 2026-11-26 定级：池全灭 + FBES 风暴）。
+         * 在途 pbuf 的泄漏（每次重建最多 1 包）由后续受控重启路径兜底。 */
+        heth.TxDescList.PacketAddress[i] = NULL;
+    }
+    heth.TxDescList.CurTxDesc           = 0U;
+    heth.TxDescList.BuffersInUse        = 0U;
+    heth.TxDescList.releaseIndex        = 0U;
+    heth.TxDescList.CurrentPacketAddress = NULL;
+    /* RX 描述符链固件侧状态复位（对齐 HAL_ETH_Init 的 ETH_DMARxDescListInit，
+     * 2026-11-26 定级）：SR 后 Start_IT 的重武装计数（RxBuildDescCnt）与遍历
+     * 游标（RxDescIdx）若沿用楔死前残留值，ReadData 的遍历上限
+     * （8 - RxBuildDescCnt）会被卡死为 0/1，帧永久堆积在环上无人消费
+     * （收帧正常、不应答的现场形态）。 */
+    heth.RxDescList.RxDescIdx      = 0U;
+    heth.RxDescList.RxDescCnt      = 0U;
+    heth.RxDescList.RxBuildDescIdx = 0U;
+    heth.RxDescList.RxBuildDescCnt = 0U;
+    heth.RxDescList.ItMode         = 0U;
     if (heth.gState == HAL_ETH_STATE_READY) {
         (void)HAL_ETH_Start_IT(&heth);
         /* 清粘滞状态位（写 1 清零），避免看门狗对同一故障反复触发 */
         heth.Instance->DMASR = (ETH_DMASR_RPSS | ETH_DMASR_RBUS | ETH_DMASR_TBUS
                 | ETH_DMASR_TPSS | ETH_DMASR_ETS | ETH_DMASR_FBES | ETH_DMASR_AIS
                 | ETH_DMASR_TUS);
+        /* RX 轮询踢脚（2026-11-26 定级）：SR 后 DMA 接收进程停在挂起态
+         * （RPS=3）——描述符环已武装但 DMA 不主动轮询，写一次接收轮询请求
+         * （DMARPDR，值无关紧要）使 DMA 立即重读描述符链，恢复接收。
+         * TX 同理（DMATPDR）：包已入环（OWN=1）但发送进程挂起（TPS=6）
+         * 不发送——写一次发送轮询请求恢复发送。 */
+        WRITE_REG(heth.Instance->DMARPDR, 0U);
+        WRITE_REG(heth.Instance->DMATPDR, 0U);
     }
     ETH_CTRL_UNLOCK();
 }
@@ -754,7 +807,11 @@ static void eth_watchdog_task(void *argument)
         /* ---- 临时诊断：每 60s 一行状态 + tcpip 线程心跳探针 ----
          * th 不涨 = tcpip 线程死；eh 不涨 = EthIf 线程死；nf 无 UP 位 =
          * netif 没起来（候选③）；rxa 持续增长且 dsr 标志干净 = 候选①盲区。 */
-        if ((++s_diag_div % 120U) == 0U) {
+        /* 2026-11-26：周期由 60s 改为 10min——RTT 上行缓冲仅 1KB 且
+         * NO_BLOCK_SKIP，未接调试器时 60s 一行的 E 诊断约 8 分钟即写满缓冲，
+         * 之后全部打印（含 W/G 故障行）被静默丢弃（现场"日志静默窗口"根因）。
+         * 放缓后 8h 才填满，故障行基本都能留到接调试器读取。 */
+        if ((++s_diag_div % 1200U) == 0U) {
             (void)tcpip_try_callback(eth_diag_tcpip_cb, NULL);
             uint8_t pfree = 0U;
             RX_POOL_LOCK();

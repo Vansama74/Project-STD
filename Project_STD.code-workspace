@@ -32,42 +32,7 @@
             "editor.tabSize": 4,
             "editor.autoIndent": "advanced"
         },
-        "cortex-debug.variableUseNaturalFormat": false,
-        "editor.semanticHighlighting.enabled": true,
-        "editor.semanticTokenColorCustomizations": {
-            "enabled": true,
-            "rules": {
-                "namespace": "#4EC9B0",
-                "type": "#4EC9B0",
-                "class": "#4EC9B0",
-                "struct": "#4EC9B0",
-                "enum": "#4EC9B0",
-                "typeParameter": {
-                    "foreground": "#4EC9B0",
-                    "italic": true
-                },
-                "enumMember": "#B5CEA8",
-                "function": "#DCDCAA",
-                "method": "#DCDCAA",
-                "macro": "#BD93F9",
-                "variable": "#9CDCFE",
-                "property": "#9CDCFE",
-                "parameter": {
-                    "foreground": "#9CDCFE",
-                    "italic": true
-                },
-                "variable.readonly": "#4FC1FF",
-                "parameter.readonly": "#4FC1FF",
-                "keyword": "#569CD6",
-                "string": "#CE9178",
-                "number": "#B5CEA8",
-                "comment": {
-                    "foreground": "#6A9955",
-                    "italic": true
-                },
-                "operator": "#D4D4D4"
-            }
-        }
+        "cortex-debug.variableUseNaturalFormat": false
     },
     "extensions": {
         "recommendations": [
