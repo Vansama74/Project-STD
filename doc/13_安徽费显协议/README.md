@@ -189,7 +189,7 @@ mode=0 或全 0 帧**冻结该行**（2026-09-09 裁决，像素停在当前位�
 **2026-09-08 权威 .doc 核对**：速度 1B ×2ms、停留时间 2B ×100ms 大端、停止帧
 （数据长 4 全 0）、86~89 行号映射均与文档第 8/9 节一致（§1.1）；文档行首
 Y=00/10/20/30 为 16 点阵口径，24 点阵后自然为 00/18/30/48（假设）；
-运动模式取值表与停留行为文档未定义。详见 doc/01_显示系统/动态滚动显示实现记录.md。
+运动模式取值表与停留行为文档未定义。详见 `doc/01_显示系统/显示系统驱动手册.md` §9。
 
 **2026-09-09 两条裁决落地（FONT_24 + 停止帧冻结）**：
 - 0x85 静态显示 FONT_16 → **FONT_24**（坐标仍用帧内 X/Y 原样，单行不换行超宽截断语义不变）；
@@ -236,88 +236,3 @@ Y=00/10/20/30 为 16 点阵口径，24 点阵后自然为 00/18/30/48（假设�
 
 
 
-## 9. as-built 状态
-
-- 模块接入 Makefile（`INC_DIRS` + `SRC_APPLICATION` 4 文件）与 `.eide/eide.yml`（virtualFolder 节点 + Debug incList），**未提交 git、未烧录**。Makefile 模组保持 1-263；`Device/Display/dev_display_1_969.c` 已还原 HEAD（1×1，撤销未批准的 3×3 hack）。
-- 构建验证见 §6：1-263 模组下 PROTO=ALL / PROTO=CQ 均链接通过（SRAM 预算修复后）。
-- **五条裁决实施（2026-09-04）**：
-  1. 语音读数（§8 决定 3/6）暂不修保持现状；232_2 查证 = USART6 语音口（RS232-1，`pl_uart.h` PL_UART6 / `app_dispatch.h` CH_ID_RS232_1=6 / `app_rs232.c` 注释），编号 15 自由文本 `dev_rs232_voice_play` 直送路径不变；
-  2. 0x92 亮度：底层 8 档已具备（`DEV_DISPLAY_BRIGHTNESS_MAX=8`、TIM4 PWM 1/8 粒度、8=OE 100% 常亮），`app_anhui_proto_cmd.c` `_anhui_exec_brightness` 改 `1 + value*7/999` 均匀映射 1~8，删除 1~7 封顶与 `DEV_DISPLAY_BRIGHTNESS_MAX` 死钳制；
-  3. 0x95 音量帧：`_anhui_exec_voice` 不再调用 `dev_rs232_voice_volume`（解析保留音量字节、执行层忽略），cmd.c 移除 `dev_rs232_voice.h` include；
-  4. 动态显示继续留空（`_anhui_exec_scroll` 空函数不变）——**2026-09-07 已落地，本条为历史记录，实态见下方「动态显示落地」**；parse 加防御——数据长恰为 4 且非停止帧时 `scroll.text` 置空（防指到 CRC 字节）；
-  5. 0x82/0x83/0x85 坐标以模组驱动实际屏幕尺寸为准：parse 删除 128/64 硬编码校验（`app_anhui_proto_parse.c`），越界由执行层按 `screen_rows/screen_cols` 判界丢弃（点命令 `dev_display_set_pixel` 边界检查、静态显示起点越界早退，与既有防御兼容）。
-- **动态显示落地（2026-09-07）**：`_anhui_exec_scroll` 接入通用滚动模块 app_scroll
-  （新文件 `Application/Src/app_scroll.c` + `Application/Inc/app_scroll.h`，收录 Makefile
-  SRC_APPLICATION 与 `.eide/eide.yml`——**外部编辑 yml 后须在 EIDE 中 Reload Project**）；
-  app_render 新增导出 `app_render_draw_glyph_clipped`（单字模逐像素裁剪绘制）与
-  `app_render_glyph_width_px`；0x81 清屏/0x85 静态显示加 `app_scroll_stop_all()`。
-  方向映射 1=从右往左/2=从左往右/3=从下往上/4=从上往下、mode=0/全 0 帧停止该行、
-  循环滚动、stay_ms v1 忽略、文本 64B 截断。实测增量（Makefile 1-263 单模块 32×32
-  口径）：text +1912 / data +0 / bss +376（静态 s_slots 4×90B + 句柄 12B）；
-  scroll_task 栈 1KB（ucHeap，惰性）。PROTO=ALL：text 358348 / data 1656 /
-  bss 137756（SRAM ≈ 130536B，余量 ≈ 536B）；PROTO=CQ：text 344508 / data 852 /
-  bss 134280，均 0 新增告警链接通过。语义与机制见
-  doc/01_显示系统/动态滚动显示实现记录.md，内存记账见 doc/06-04。
-- **两条裁决落地（2026-09-09，FONT_24 + 停止帧冻结）**：
-  - ① 字号：0x85 静态显示与 0x86~0x89 动态显示 FONT_16 → **FONT_24**；动态行区域
-    Y=row×16/h=16 → **Y=row×24/h=24**（行首 00/18/30/48 为按字号推导的假设，
-    §8 #13 待联调；0x85 坐标仍用帧内 X/Y 原样）。
-  - ② 停止帧=**冻结**：`app_scroll_stop` 置非活跃、不清行、不提交（像素停在当前位置）；
-    `app_scroll_stop_all/_nolock` 保持清行（0x81/0x85 依赖）——app_scroll.c 内部拆为
-    `_scroll_freeze_nolock` / `_scroll_stop_clear_nolock` 两条独立路径，无锁变体供
-    0x81/0x85 持锁调用，防重入死锁（§7、doc/01 修订记录）。
-  - ③ 构建：PROTO=ALL text 359308→359372（+64，stop 拆双路径所致）、data/bss 0；
-    PROTO=CQ 345452→345516（+64）。均 0 错误。0x81/0x85 既有清屏行为零回退。
-- **权威文档核对（2026-09-08）**：以 `2026-S304 费显通信协议.doc`（用户提供，
-  2026-09-04 修订版）核对动态显示接线——字段布局（速度 ×2ms、停留 2B ×100ms 大端、
-  停止帧、86~89 行号、行首 Y=00/10/20/30）与实现一致（§1.1）；运动模式取值表与
-  停留行为文档未定义 → mode 1~4 映射保持用户拍板约定、stay_ms v1 忽略，标注待联调
-  校准（§8 #10/#11）。本次仅更新注释与文档，无可执行代码改动。
-- **0x85 静态显示行首口径落地（2026-09-15）**：**本条口径已撤销（同日终裁，见下方「坐标语义终裁」条）**。修复「静态第 2/3/4 行不显示」——
-  0x85 原先把帧内 Y 字节（文档 16 点阵行首 00/10/20/30 = 0/16/32/48）**当像素直接
-  使用**，而字形为 FONT_24（行距 24）→ 静态与动态（row×24）行距不一致；屏高不足
-  （如单模组 32×16 台架）时 `pixel_y ≥ screen_cols` 起点越界被整体丢弃。改为
-  `row = Y/16`、`pixel_y = row×24`（0/24/48/72），与动态行完全对齐（§1/§1.1/§8 #13）。
-  构建：PROTO=ALL 与 PROTO=CQ 均链接通过、零新增告警，段尺寸与改动前逐字节相同
-  （纯整型算术替换，见 doc/06-04 §7.2）。第 4 行在 64 高屏上行首 72 整行在屏外
-  （与动态第 4 行一致，不落屏）；96 高屏四行全显。待上位机联调确认 24 点阵行距。
-- **0x85 字节序修正 + 帧级诊断（2026-09-15 第二轮）**：**本条口径已撤销（同日终裁，见下方「坐标语义终裁」条）**。修复「四行内容全落第一行
-  （水平错位）」——上午行首口径修复后实测发现上位机把行字节（00/10/20/30）发在
-  数据区**第 1 字节**（文档表头「（X、Y）」与长度公式「行、列」自相矛盾，双症状
-  推演证实行在前，§1.2）：`app_anhui_proto_parse.c` 0x85 解析对调为 `y=data[0]`、
-  `x=data[1]`，执行层 `row=Y/16 → pixel_y=row×24` 映射不变——四行落点
-  0/24/48/72 与动态行一致。同时加帧级 RTT 诊断（`app_anhui_proto_cmd.c`
-  `ANHUI_RTT_DIAG`，默认跟随 `APP_DIAG_BANNER`，GZ_OL 同款模式）：0x85 执行入口
-  每帧打 `[anhui] 0x85 b0/b1 原始序 + x/y/row/py + len + 文本前 4 字节`，供下次
-  实测直接验证上位机真实字节序（§1.2 打印样例与判读）。构建（2026-09-15）：
-  PROTO=ALL `.text 167332 / .rodata 201120 / .data 1672 / .ccmram 37084 /
-  .bss 126400`、PROTO=CQ `.text 154156 / .rodata 200472 / .data 872 /
-  .ccmram 37084 / .bss 122924`，均链接通过、仅 3 条 HAL 预存告警（零新增）；
-  诊断增量 Flash +184B（text +96 / rodata +88）、RAM +0。0x82/0x83 未随动
-  （文档明写 X 前 Y 后，无实测证据，§1.2 剩余歧义 ②）。
-- **0x85 坐标语义终裁落地（2026-09-15 第三轮＝撤销前两轮，§1.2）**：用户两条裁决
-  ①撤销「行号换算」与「字节对调」——parse 恢复 `x=data[0]`、`y=data[1]`（X 在前，
-  与文档表头及 0x82/0x83 同构）；②坐标直用像素——执行层删除 `row=Y/16→pixel_y=row×24`
-  映射，`.x=p->x、.y=p->y` 直接渲染（保留起点越界守卫 `x<screen_rows && y<screen_cols`
-  越界丢弃）；诊断打印去掉 row/py 字段改直打 x/y（b0/b1 原始字节与文本 dump 保留）。
-  动因：RTT 实测「第一~四行」四帧逐字节完全相同（b0=00 b1=00、文本仅 0x31 '1'）——
-  行号不在坐标字节，前两轮行号假说被证伪；四帧全渲染在 (0,0) 是该帧语义下的正确
-  行为（判读与上位机侧待确认事项见 §1.2）。0x82/0x83 与 0x86~0x89 未动。
-  **构建（2026-09-15）**：PROTO=ALL（DISP=1_263）`.text 167332 / .rodata 201104 /
-  .data 1672 / .ccmram 37084 / .bss 126400`（SRAM 130632B，余 440B）、PROTO=CQ
-  `.text 154140 / .rodata 200456 / .data 872 / .ccmram 37084 / .bss 122924`，
-  均链接通过、仅 3 条 HAL 预存告警（零新增）；相对上一轮（字节序+诊断）text/rodata
-  各 −16B（诊断格式串删去 row/py 字段），data/bss/ccmram 不变。
-  **TCP 9529 连接核实（2026-09-15 只查；2026-09-18 已治理）**：当时 `g_tcp_client`
-  硬编码远端 192.168.2.17:9529，`app_boot` 两口径无条件启动、断线自动重连——测试日志
-  中 `tcp_connect to port 9529` SYN_SENT 失败为该 Client 对不可达远端的常规重连，
-  与 0x85 无关。**现行**：默认哨兵 `0.0.0.0:0`，未配置不 `netconn_new`/不 connect
-  （任务仍启动、可空转）；`app_tcp_client_set_remote` 仍仅 LDI 配置装载调用。
-  TCP Server 监听口 = Sector1 `net_cfg.port`（出厂默认 9528），与 Client 远端无关。
-  **验证期间 EIDE 构建干扰记录**：用户 EIDE 目标（当前编译集 = IAP + LDI + 四川三
-  协议 + 安徽 + 22-1703，**无** CQ/GZ_OL/青海/山东/贵州/云南/RLS/AH——与 PROJECT_MANUAL.md
-  旧述不同，用户已自行重配 `.eide/eide.yml`）于验证中途全量重建并覆写 `build/Debug/`
-  共享产物（其编译含本轮安徽改动、构建成功，RAM 123464 / CCMRAM 6016 / FLASH 268760）；
-  两轮 make 验证均独立完成，最终磁盘产物为 make PROTO=CQ 镜像——**后续烧录 EIDE 目标
-  前须先在 EIDE 重建**（构建卫生 R1 纪律）。
-- 文档同步：doc/05-01（§3.3 帧头事实 / §4 RB 提供方 / §4.1 queue 深度 / §6 兼容矩阵）、doc/06-04（协议帧 queue 表 + SRAM 记账）、PROJECT_MANUAL.md（文档地图/initcall 表/模块全景/选编口径/CCM 例外行）；**本轮（2026-09-15 终裁）**：本 README §1/§1.1/§1.2/§8 #13/§9 + `doc/PROJECT_MANUAL.md` 安徽小节与模块表（0x85 改「坐标直用像素」表述）+ 代码注释（`app_anhui_proto_parse.c`/`app_anhui_proto_cmd.c`/`app_anhui_proto.h`）。

@@ -3,8 +3,6 @@
 > **范围**：EIDE/目录选编时「只编 LDI、不编 IAP」导致链接失败的根因、影响面，以及解耦方案。  
 > **状态**：问题 **已确认**（2026-08-14）；三处缺陷 **已定案并先行修复**（2026-08-14，见 [02 §9](./02_decoupling_solutions.md)）；两项补充修复（守卫细化 + 4B02 结果码）**已落地**（见 [02 §10](./02_decoupling_solutions.md)）；**方案 A 主体重构（抽出板级网络配置模块 `app_board_net_cfg`）已落地（2026-08-14）**。  
 > **非本目录**：多协议 RB/绑定 → [`../05_协议模块多协议兼容优化/`](../05_协议模块多协议兼容优化/README.md)；SRAM/CCM → [`../06_SRAM内部分数据迁移/`](../06_SRAM内部分数据迁移/README.md)。  
-> **备注（2026-08-14）**：`doc/PROJECT_MANUAL.md` 中「当前固件入口 0x08000000、无 IAP bootloader 运行」已过时——链接脚本 `Compiler/STM32F407XX_FLASH.ld:67` 现为 `ORIGIN=0x08040000, LENGTH=768K`，`Core/Src/main.c:15` 已设 `SCB->VTOR = FLASH_BASE|0x40000`（主固件已按 IAP 适配入口链接）；本目录 01/02/03 均按此现状撰写。
-
 ---
 
 ## 文档结构
@@ -49,20 +47,3 @@
 
 ---
 
-## 修订
-
-- 2026-08-14：首版，与 01/02/03 同步。
-- 2026-08-14（同日修订）：补充固件入口现状备注（doc/PROJECT_MANUAL.md 矛盾点）、出厂新机 0AH 缺陷入口。
-- 2026-08-14（同日再修订）：状态改为「缺陷已定案并先行修复、主体重构暂缓」；快速结论同步 [02 §9](./02_decoupling_solutions.md) 三决策。
-- 2026-08-14（同日三修订）：状态补两项补充修复（守卫细化 + 4B02 结果码，见 [02 §10](./02_decoupling_solutions.md)）。
-- 2026-08-14（同日四修订）：**方案 A 落地**——抽出 `app_board_net_cfg`（`Application/Config`，Sector1 布局唯一归属 + static_assert 锁定），LDI/IAP 迁移到 `app_board_net_cfg_get/update/read`，删除 `app_iap_cfg.{c,h}` 与 `Device/Inc/config_info.h`；原 03 号选编临时规则废止（文件已于 2026-11-18 删除，历史见 git）。
-- 2026-08-18：新增 [02 §11](./02_decoupling_solutions.md) 三固件出厂默认网络配置统一约定（192.168.114.200/24、网关 192.168.114.1、端口 9528）；快速结论同步三项一致性修复现状。
-- 2026-08-18（同日再修订）：同步 [02 §12](./02_decoupling_solutions.md) 网络配置真源与生效语义——Sector1 真源/W25 恢复镜像、0AH/4B02 重启生效（既定策略）、UDP 发现口固定宏 `LDI_DISCOVERY_PORT`（删除 `app_udp_set_port`）。
-- 2026-08-18（同日三修订）：快速结论同步 [02 §12](./02_decoupling_solutions.md) 缺陷 A/C/D/E 修复——W25 镜像自愈、Bootloader 损坏态重建（magic/CRC 错 → 条件 C 重建出厂记录；Recovery 判空保持两哨兵防死循环）、所有改 IP 接口（0AH/4B02/Recovery IAP）统一重启生效。
-- 2026-08-18（12H 端口字段语义修复）：12H 应答 port 由误用发现口 10011 改为配置功能端口（device_port / 默认 9528），修复 10011 污染循环（12H 报 10011 → 上位机写回 → TCP Server 错监听 10011）；新增宏 `LDI_DEFAULT_CONFIG_PORT`；存量污染设备需 0AH 重设 9528 或擦 Sector1（见 [02 §12 ④](./02_decoupling_solutions.md)）。
-- 2026-08-18（同日四修订）：新增 [02 §13](./02_decoupling_solutions.md) 固件版本落库——IAP 0x03 上报的 version 由主固件启动时从 PROGRAM_CODE 写入 Sector1（空/损坏自愈、升级中间态拒绝、同值跳过）。
-- 2026-08-21：新增 [02 §14](./02_decoupling_solutions.md) 网络配置应用横切解耦——中立模块 `app_net_boot`（`app_net_boot_apply`）统一承担「Sector1 net_cfg → netif + TCP Server 口」应用，`ldi_ctx_init` 三分支与 CQ `_cq_net_cfg_apply` 不再直接改 netif；accept_write 两口径统一（空/损坏/非法写本构建默认落盘并应用：CQ 192.168.1.5/20103、dev 192.168.114.200/9528）；CQ 构建不启动 TCP Server/Client 通道。同步 [02 §12](./02_decoupling_solutions.md) 分支 1 条件修订（`update_sta` 不参与分支判定）。
-- 2026-08-21（同日再修订）：**LDI 搜索应答丢包修复**——根因 netconn 池满（baseline 4 已满）+ 广播临时 conn 必然 NULL；修复：`lwipopts.h` 扩池（`MEMP_NUM_NETCONN=8`、`MEMP_NUM_UDP_PCB=8`，bss +304B）+ `app_udp_broadcast`/`app_udp_cq_broadcast` 复用常驻通道 conn + LDI 12H 应答「广播为主、回源容错」。已知限制：回源 src 快照竞态（LDI 12H 与 IAP 同源，本轮不架构改造）。
-- 2026-08-24：**TCP 口应用两口径化**——修复「LDI 改端口后搜索上报新值、TCP 仍监听 9528」现场 bug：EIDE Debug 混合口径（LDI 编入 + PROTO_CHONGQING）下 `app_net_boot_apply` 的 `app_tcp_server_set_port` 被宏裁剪、TCP Server 恒绑 9528；修复后 TCP 口两口径统一应用 Sector1 `net_cfg.port`（[02 §14](./02_decoupling_solutions.md) 同步，CQ setip 语义不变）；「CQ 构建不启动 TCP Server/Client 通道」表述更正为两口径均启动。
-- 2026-11-24：新增 [02 §17](./02_decoupling_solutions.md) **LDI 配置持久化迁入内部 Flash Sector 11**——Sector1 只保留启动契约（`app_info` + net 四项），LDI 其余 8 项配置改存 Sector 11 槽式追加日志（256B × 512 槽，magic + version + 完整配置 + CRC32，写后回读）；W25Qxx 退出 LDI 配置持久化（`app_ldi_cfg.c` 删除，旧记录不迁移）；主应用 FLASH 上限 768K → 640K + 链接期 ASSERT、Recovery 升级包上限 768K → 640K。
-- 2026-11-26：新增 [02 §18](./02_decoupling_solutions.md) **配置丢失根治三件套**——① 跨介质双库乒乓（内部 Sector 11 512 槽 + W25 末扇区 16 槽，记录 v2 加 seq 递增序号，活动库满轮转对侧、回读校验通过才切换，擦除窗口归零）；② Sector1 身份镜像（偏移 0x100，lane/cert/host 第二副本，Sector1 擦写路径统一 `_rmw` 携带）；③ W25 迁移垫片（双库皆空时只读恢复旧格式记录）。§17 的「旧记录不做迁移」裁决推翻。

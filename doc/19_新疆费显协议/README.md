@@ -107,7 +107,7 @@
   提供槽体」。用户把 EIDE Debug 目标裁成「IAP + LDI + 新疆」（排除全部其它串口协议）后该前提被打破 ——
   `app_proto_acquire_buf()` 双双返回 `nullptr` → 本模块 init **静默 return**（不注册/不绑定/不建队列任务）→
   `app_boot.c` 通道门控（`app_dispatch_channel_has_proto`）连 `app_rs485_start()`/`app_rs232_start()` 都跳过
-  （**UART RX 都没挂上**）→ 上位机发帧零反应。详见 `.analysis/xinjiang/round2_pdf_fulltext_and_rb.md` §③。
+  （**UART RX 都没挂上**）→ 上位机发帧零反应。。
 - 波特率沿用 DIP1 全局选择（协议无改波特率命令）；现场按上位机配置置 DIP1。
 
 ### 2.3 文本显示 `'T'`（严格 16 字节/行）
@@ -413,20 +413,6 @@ DEFINES 含 `PROTO_CHONGQING` / `XJ_FAULT_SCREEN=0`）；
 
 ---
 
-## §9 变更记录
-
-| 日期 | 内容 |
-|---|---|
-| 2026-10-12 | 首版：新疆费额显示器协议接入（9 命令最小集）+ 调度框架掩码 32→64；Makefile 收录（EIDE 待用户）；宿主推演 246/246；B0/B1/B2/B2-CQ 四口径实测（见 §6）；文档同步（doc/05-01、doc/06-04、doc/构建开关总表、PROJECT_MANUAL.md） |
-| 2026-10-12 | **复核修正（缺陷修复，段尺寸不变）**：`xj_probe_frame` 第二处 `rb_peek` 读长 `XJ_LEN_OFFSET`(2) → `XJ_LEN_OFFSET + 1U`(3)，消除 `head[XJ_LEN_OFFSET]` 的未初始化读（探针对首个/突发帧偶发误判 FAKE/WAIT → 现场偶发丢帧）；全模块 `rb_peek` 调用点复查仅此一处不配套；`xj_frame_sim.py` 加 1 条覆盖回归断言（**247/247**）；PROTO=ALL/CQ 全量重编段尺寸与上条逐字节相同（见 §6） |
-| 2026-10-13 | **EIDE target 重组（`Myanmar` target 删除；新增 `Base`、`Debug` 清成基线）**：用户裁决 EIDE 侧重组成 `Base`（基线/重置模板）/ `Debug`（同基线、日常主用）/ `Release`（仍损坏勿用，**后于同日按用户裁决整块删除**）；**`Myanmar` target 整块删除**。**本模块（新疆）现不在 Base/Debug 编入集、`defineList` 也无 `XJ_FAULT_SCREEN=0`**——要用新疆 = GUI 取消排除即可（维护屏默认开；`XJ_FAULT_SCREEN=0` 才是显式关），见 §5.2 顶部「现状」条与 `doc/构建开关总表.md` §7.2 第 3 条。**本模块源码零改动** |
-| 2026-10-12 | **EIDE 收录轮（外部编辑 `.eide/eide.yml`，见 §5.2）**〔**历史口径**：`targets.Debug` 编入与 `XJ_FAULT_SCREEN=0`、`targets.Myanmar` 排除均已于 2026-10-13 target 重组时作废（基线排除本模块、不带该宏；`Myanmar` target 已删），`files`/`incList` 收录项仍有效〕：`files` 增 `ProtocolParser_XinJiang` 虚拟文件夹（3 个 .c，排 `rls` 之后）；`targets.Debug` 编入 + `defineList` 追加 `XJ_FAULT_SCREEN=0` + `incList` 增本模块 `-I`；`targets.Myanmar` 排除（`excludeList` 增虚拟文件夹）+ `incList` 兜底；`targets.Release` 不动。等价口径实测 Debug 编入 **206 → 209** 文件、`.text +1616 / .rodata +248 / .ccmram +1544 / .bss +32`、告警仍 3 条 HAL；`XJ_FAULT_SCREEN=0` 净效果实测 text −288 / rodata −16 / bss −8；`check_eide_targets.py` 改前/改后均 14/15（I6 遗留，非本轮）。**未运行 EIDE、未提交、未改 git 配置**；待用户 `Reload Project` |
-| 2026-10-12 | **按 PDF 全文（2020 版）扩协议面**：白名单 9→14 命令（新增 `'D'` 行/全屏、`'G'`/`'H'`、`'Z'`、`'P'`，`'B'` 不进）；`'S'` 按帧长 12/17/18/8 四形态分派（报价 1/2/3 拼中文句，修复报价语音 100% 静默失效）；§4.4 ETC 文案 5→8 条；§3.2 应答帧经来源通道回送；推演 312/312。**未改架构、未动其他模块** |
-| 2026-10-12 | **第二轮：PDF 全文（2020 版 22 页）差异核对 + 现场「无反应」根因修复**。① **根因（已修）**：用户 EIDE Debug 目标被裁成「IAP + LDI + 新疆」（16:25 yml 外部编辑，相对 15:41 备份唯一差异 = 新增 3 行 SC_* 排除）⇒ RS485/RS232 **两槽无提供者** ⇒ `app_proto_acquire_buf` 双双失败 ⇒ 模块 init 静默 return（不注册/不绑定）⇒ `app_boot.c` 门控连串口通道启动都跳过（UART RX 未挂）⇒ 发帧零反应。修复 = 模块**自备两槽 `RB_PROVIDE_WEAK`**（A/B：text +16 / data +32 / bss +1536 / ccmram ±0；`PROTO=ALL`/`CQ` 下 `.bss` ±0）。② **帧长 74→106**：PDF §5.2 两份采样全屏 `'D'` 帧都是 103B（96B = 6 行，BCC 自洽，此前会 FAKE）⇒ 现收 `'T'` N≤6、`'D'` 全屏 7+16N（N=2~6）。③ 文档同步（本文 §1.1/§1.2/§2.2/§3.1/§4/§5.2/§6.3/§7/§8/§10、`doc/PROJECT_MANUAL.md`、`doc/06-04` §8.4.6、`.analysis/xinjiang/eide_20261012/README.md` 补注）；推演 **329/329**；报告 `.analysis/xinjiang/round2_pdf_fulltext_and_rb.md`、PDF 全文留档 `.analysis/xinjiang/doc_v2/`。**未烧录、未提交、未改 git 配置、未改 `.eide/eide.yml`** |
-| 2026-10-13 | **编译期检查清除（用户裁决）**：本模块 12 条 `_Static_assert` 全删 → 改写为「一句人话契约 + doc 指针」（§11 逐条映射）；机器码零变化（段级逐字节 + strip-debug elf md5 一致，`.analysis/comment_pass_20261013/report.md`）。同轮全项目注释精简（本模块内）：`app_xj_proto.c` 自备 RB 注释去现场事故叙事、`app_xj_proto_cmd.c` 音量/缓冲注释去「实测」措辞 |
-| 2026-10-13 | **编译期断言清理扩展到全仓（第二轮，本轮）**：业务代码再删 **64 条**（20 文件）→ 逐条一行契约注释（含越限后果 + doc 指针）；保留用户裁决守卫 6 条（`dev_display_22_1665.c` 2 + `app_dispatch.c` RB 表/尺寸 4）。**行为零变化**：改前/改后全量重编段级逐字节 + strip-debug elf md5 相同；`xj_frame_sim.py` **329 → 331/331**（原 7 条断言存在性检查改「契约注释 + 宿主复算」；§7 表与 `.analysis/myanmar/mm_frame_sim.py` 158/158 同批复跑）。报告见 `.analysis/comment_pass_20261013/report.md` §⑧ |
-| 2026-10-13 | **裁决执行轮：全项目编译期断言清零 + 只读观察 API / 调试冻结清理**。用户四项裁决：① 4 个零引用 git 跟踪脚本删除（`.analysis/cleanup_20260929/round2_ab_objdump.sh` + `.analysis/yn_ol/ab_*.link_no_ynol.sh`×3，记录见 `.analysis/cleanup_20261013_scripts/README.md` §9）；② **保留的 6 条编译期断言全部删除**（`dev_display_22_1665.c` 2 + `app_dispatch.c` 4）⇒ 业务代码 **0 条**，逐条改「一行契约注释（含越限后果）+ doc 指针」；③ 废弃头 `Application/Inc/protocol_select.h` 删除（全仓零 include）；④ `pl_tim_dbg_freeze` 与只读观察 API（`app_dispatch_*_drops` / `app_render_chip_info_get` / `app_render_glyph_probe` / `app_render_glyph_addr_for` / `app_udp_gzol_bind_status(_str)` / `g_tcp_server_connected` / `s_mm_lamp_state`）删除（零业务消费者）。**验证**：全量重编仅 3 条既有 HAL 告警；`PROTO=ALL` `.text 172056 → 171832`（−224）/ `.bss 125388 → 125364`（−24）/ 其余段 ±0，`PROTO=CQ` `.text −208` / `.bss −24`；逐对象期望清单 7/7、断言隔离 A/B 2/2（断言插回前后对象逐字节 + 反汇编逐行一致）。详见 `.analysis/comment_pass_20261013/report.md` 裁决执行轮与 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.7。 |
-| 2026-10-12 | **现场回归修复（栈溢出致协议任务停摆）**：上条改动后板子对新疆帧完全无响应。根因 = 为传 `src_ch` 把任务里的 `const xj_parsed_cmd_t cmd` 改成具名非常量，`xj_parsed_cmd_t`（24B→64B）副本与 `xj_execute_cmd` 帧内副本在 256 words 任务栈上并存，逼近上限 → 栈溢出、任务停摆（未开 `configCHECK_FOR_STACK_OVERFLOW`，症状为静默卡死而非报错）。修复：`xj_execute_cmd` 改为 `(const channel_t *src_ch, const uint8_t *raw, uint16_t raw_len)` 自解析，调用点只传裸帧、零拷贝；`XJ_QUOTE_GBK_MAX` 96→48（实测最坏句 36B）。帧大小 `xj_execute_cmd` 124B→40B，最深调用链 116B/1024B（11%）。推演加 3 条栈预算回归断言（315/315） |
 
 ---
 

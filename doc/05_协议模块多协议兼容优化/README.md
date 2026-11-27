@@ -14,7 +14,7 @@
 |------|------|
 | [01_architecture.md](./01_architecture.md) | **设计规范**（现行） |
 | [02_as_built_status.md](./02_as_built_status.md) | **落地对照**（代码事实 + DoD + queue 深度） |
-| [03_freertos_heap_side_effect.md](./03_freertos_heap_side_effect.md) | **副作用归档**：多协议任务挤 FreeRTOS 堆（结构治理在 06，已回退） |
+| 〔已归档〕堆压力副作用（结构治理在 06，已回退）→ `doc/00_变更历史.md` |
 
 ## 与 06 / 07 的分工
 

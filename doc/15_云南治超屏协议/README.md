@@ -19,7 +19,7 @@
 > 模块：`Application/Src/ProtocolParser_YunNan_Overload/` + `Application/Inc/ProtocolParser_YunNan_Overload/`
 > （前缀 `yn_ol_` / 宏 `YN_OL_`，与云南常规费显 `ProtocolParser_YunNan` 的 `yn_` / `YN_` 严格区分）。
 > 文档抽取存档：`.analysis/yn_ol/doc_extract.txt`（libreoffice txt 原文 + 逐条结构化整理）。
-> 宿主推演：`.analysis/yn_ol/yn_ol_frame_sim.py`（**184 用例通过 / 失败 0**）。
+> 宿主推演：宿主推演（**184 用例通过 / 失败 0**）。
 
 **状态**：`[已落地]` `[Makefile PROTO=ALL/CQ 与 DISP=1_263/22_1665 三口径链接通过]` `[零新增告警]` `[§8 裁决 8 条已逐条落地]` `[宿主推演 184/184]` `[逐帧诊断已就绪（§11）]` `[待现场联调：按 §11.3 重烧并回传 [yn_ol] 行]`
 
@@ -271,7 +271,7 @@ text 169076 / rodata 198672 / bss 124732）⇒ **诊断设施当前总增量 Fla
 **md5 含 `__DATE__/__TIME__`（横幅）→ 重新编译必然改变，镜像是哪份以板端 `[diag] fw=/built=/tree=` 为准。**
 
 三口径**全部链接通过、零新增告警**（唯一告警为 3 条既有 HAL `stm32f4xx_hal_flash_ex.c`
-`-Wunused-parameter 'Banks'`，行 948/1027/1063）。三口径段尺寸经**复跑逐项复现一致**（见 `.analysis/yn_ol/final_verify.out.txt`）。
+`-Wunused-parameter 'Banks'`，行 948/1027/1063）。三口径段尺寸经**复跑逐项复现一致**。
 产物 md5（2026-09-17 裁决轮最终全量重编；横幅内嵌 `__DATE__/__TIME__` → 重跑即变）：
 
 ```
@@ -308,7 +308,7 @@ SRAM 合计 **+40B / +32B / +40B**。）
 **ucHeap 影响**：常驻 1 个任务（`yn_ol_handle_task` 1KB）+ 1 个惰性任务
 （`yn_ol_selftest` 256×4，收到 '2' 时创建、结束自退）——常驻支出 **+1KB 栈 + TCB/块头 ≈ +1.13KB**；
 队列用静态内存（attr 指定 cb/mq），**不占 ucHeap**。上电画面删除后**已无 `yn_ol_blank` 5s 任务**。
-FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_freertos_heap_side_effect.md` 待办，与 GZ_OL 同）。
+FreeRTOS 堆水位尚未标定（待办，与 GZ_OL 同；历史归档见 `doc/00_变更历史.md`）。
 
 > 复核说明：三口径模块增量均经 A/B 独立测量（宿主重链同一 `.o` 列表、仅增减本模块 3 个 `.o`）；
 > 「无本模块」基线实测 `text 167076 / ccmram 10012 / bss 126400 / 余量 440B`（ALL/1_263，与既有
@@ -658,7 +658,7 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 1. **RTT 必须被「读走」才有后续诊断**：RTT 上行 1KB 且 `NO_BLOCK_SKIP`（满则整条丢）。
    开机横幅 + 通道启动日志已占满约 1KB，此后若不接读取器，**任何现场诊断都进不来**。
-   取证用 `.analysis/yn_ol/fix_verify/rtt_log.py`（`--drain` 先把积压倒出，再持续读；`--mcu` 同时轮询
+   取证用 宿主推演（`--drain` 先把积压倒出，再持续读；`--mcu` 同时轮询
    故障寄存器/heap/tick/任务名，**全程不 halt**）。`JLinkRTTLogger` 在本机对该目标报
    `RTT Control Block not found`（探针/DLL 9.50 组合问题），本轮改用自研读取器（按 `nm` 取 `_SEGGER_RTT`
    地址或扫描 SRAM 签名）绕开。
@@ -686,71 +686,3 @@ FreeRTOS 堆水位尚未标定（`doc/05_协议模块多协议兼容优化/03_fr
 
 ---
 
-## 13. 修订记录
-
-- 2026-10-13 **裁决执行轮（应用层清理，协议零改动）**：① `app_dispatch` 的 `notify_drop` 计数 /
-  `app_dispatch_qfull_drops` / `app_dispatch_resync_count` / `app_dispatch_notify_drops` getter 与
-  post-boot 体检行**删除**（§11 联调二轮的「通知投递重试」路径本身保留）；② 端口/绑定结果只读 getter
-  `app_udp_gzol_bind_status(_str)` 删除——判读改用 0x70 应答 + 新端口实发；③ `pl_tim_dbg_freeze` /
-  `g_tcp_server_connected` 等观察/调试设施删除。本模块协议代码零改动；全量重编
-  （`PROTO=ALL` `.text −224 / .bss −24`）见 `doc/06_SRAM内部分数据迁移/04_current_memory_occupancy.md` §8.4.7。
-
-- 2026-09-18 **TCP Client 未配置不连（通道层治理，非协议改动）**：`app_tcp_client` 默认远端改为
-  `0.0.0.0:0`，任务仍启动但空转；排除 LDI 后不再对硬编码地址 1Hz SYN/ARP。YN_OL 仍绑
-  `CH_ID_TCP_CLIENT`，`0x47` 仍只改设备自身 `net_cfg`。详见 `doc/PROJECT_MANUAL.md` 网络子系统、
-  doc/07 §12/§14、doc/08-03。
-
-- 2026-09-17 晚 **联调第二轮（本轮）**：上一轮修复的镜像已现场烧录，症状仍在（TCP 连上后首条命令 RTT 无输出、
-  **再点一次「连接设备」才解析**；「修改 IP」0x47 完全无输出）⇒ 本轮**不猜根因**，补齐三处观测盲区并修一处缺陷：
-  **A** 通道层日志（`app_tcp_server.c`/`app_tcp_client.c`：listen/bind FAIL/accept/recv/close，门控
-  `TCP_SRV_RTT_DIAG`/`TCP_CLI_RTT_DIAG`）；**B** 调度层 probe 决策日志（`{` 帧无协议消费时 `[disp] probe …`
-  限速打印，`PROBE_DBG_MIN_MS=200`，probe 仍为纯函数）；**C** 通知投递缺陷修复（`app_channel_dispatch`：
-  立即 + `DISPATCH_NOTIFY_RETRY_MS=20ms` 重试一次再放弃；原 `notify_drop++` 计数 / `app_dispatch_notify_drops()`
-  getter / post-boot 体检行已于 2026-10-13 裁决清理），**该重试修复非诊断、常开**。同步 §11.2 判读表（新增 12 行）、
-  §11.3 现场步骤（改为含「两次连接」复现的 8 步）、**§11.4 三段判据**（含 0x47 专项行）、§11.5 改动与增量。
-  0x47 链路复核结论：probe 白名单 → `declared ≥ 14` → BE16 解析 → 执行入口两条 `[yn_ol] 0x47 …` 日志
-  → 写 Sector1 → 回 0x51 → `osDelay(100)` + `NVIC_SystemReset()`，**全路径均有日志、无需改代码**。
-  构建：`make clean && make -j8`、`make -j8 DISP=22_1665`、`make APP_DIAG=0` 对照三跑 EXIT=0、零新增告警；
-  段尺寸/md5 见 §11.5。**未烧录、未提交、未改 git 配置、未动无关文件**；现场部分明确标注「待现场判读」。
-- 2026-09-17 晚 **联调修复轮**：现场两现象（TCP 控制首次无反应 / 之后不再受控需重启；'3' 单行无反应）
-  根因定位与修复三处——**A** TCP 1 字节分片丢弃（`app_tcp_server.c` + `app_tcp_client.c` 同缺陷，`len > 1` → `len > 0`）；
-  **B** 调度层 WAIT 预算被 avail 增长永久重置（`app_dispatch.c` 改「头部前缀指纹」进度判据 + 预算 500ms→1000ms +
-  `[disp]` 到期告警）；**C** `'3'`/`'4'` 颜色、`'3'` 行号 ASCII/二进制**超集容错**（`app_yn_ol_proto_parse.c`）。
-  本模块同时落地**逐帧诊断**（`[yn_ol] rx` / `exec` / `drop` 三函数，单帧最多两次 RTT 打印；
-  `yn_ol_execute_cmd` 改为返回状态码；'3' 诊断含屏体几何与 `ON-SCREEN/PARTIAL/OFF-SCREEN` 判读）；
-  post-boot 体检新增 `qfull/resync` 基线行（`app_boot.c`）。
-  三口径全量重编通过（零新增告警），段尺寸/md5 见 §6；宿主推演 `yn_ol_frame_sim.py` 扩至 **184 用例全通过**
-  （新增 §3.24~3.29 编码容错 6 + §13 源码断言 6）；**未烧录、未提交、未改 git 配置**。
-- 2026-09-17 裁决轮：用户对原待裁决清单 9 条给出答复（覆盖 8 条），逐条落地：
-  ① TCP 双通道绑定（四 mask 共队列；以**通道掩码隔离**解决与 CQ 的 `'{'` 同首字节竞争，
-  **未触碰 CQ 源码**）；② 端口字段 BE16 转正；③ 0x47 应答+复位维持；④ 亮度超集维持；
-  ⑤ `0x49` **持久化**（W25Qxx 独立扇区 `capacity - 12288` 12B 记录 + 上电装载，选址先验证后定，§7）；
-  ⑥ 删除上电默认画面模块/注册/5s 任务并同步清理 Makefile/EIDE/文档（§7.1）；⑦ 守卫互斥对
-  「云南常规 × 云南治超」`ld -r` 实测报 `multiple definition`，明确量产二选一；
-  ⑧ 默认字号明确为**沿用 STD 工程默认** `FONT_16`/`FONT_ST`（去掉「由行清除命令推断」表述）。
-  三口径重构建通过（零新增告警）、A/B 增量与 md5 见 §6；宿主推演扩至 **172 用例全通过**；
-  `.eide/eide.yml` 删除 default 条目（**需 EIDE: Reload Project**）。
-  **未烧录、未提交、未改 git 配置、未动无关文件。**
-- 2026-09-17：新建。协议文档抽取（`.analysis/yn_ol/doc_extract.txt`，libreoffice txt + 结构化整理）；
-  模块落地（3 头文件 + 3 源文件，初版含 4 源文件）；Makefile 双口径收录 + `eide.yml` 收录并排除（需 Reload）；
-  三口径构建通过 + A/B 增量实测 + 守卫互斥实测；宿主推演；待裁决清单 9 条（原 §8）；
-  doc/15 本文档 + `PROJECT_MANUAL.md` / `doc/05-01` / `doc/06-04` / `doc/构建开关总表.md` 同步。
-  **未烧录、未改 git 配置、未动其它协议模块。**
-  **同日决策修订（初版不绑 RJ45 槽 → 本轮改为绑 TCP）**：初版按 GZ_OL 先例绑 `CH_ID_UDP`（10011）；
-  复核 CQ probe（`cq_probe_frame` 对 `{` 开头数据做花括号深度扫描）后发现它会抢先认领本协议帧
-  （`7B 31 00 7D` 被当作完整 JSON，CQ 收录序更早）→ 绑 10011 实际不可用，初版改为只绑
-  RS485 + RS232；**本轮裁决 Q1 要求网口控制 → 改为绑 TCP Server/Client（掩码隔离，不与 CQ 同槽）**。
-- 2026-09-18 **现场问题端到端修复轮（本文件 §12）**：对「YN_OL TCP 测试时连接后无响应 / 需重启」做
-  实机端到端取证与修复。**RTT 打通**（自研 `rtt_log.py` 绕过 `JLinkRTTLogger` 的 Control Block not found；
-  `--mcu` 非侵入轮询故障寄存器/heap/tick/任务名）。三类根因：① **发作镜像里没有 `{` 帧族协议**
-  （EIDE Debug 排除 `ProtocolParser_YunNan_Overload`；`[tcp_srv] recv` 有、`[yn_ol] rx` 无，全程静默）；
-  ② **accepted conn 无 keepalive** ⇒ 半开/孤儿连接永久占死串行服务循环（修复后自愈 17.0s，修复前 30s 零自愈）；
-  ③ 「板子自己死机 30s 后重启」**实测为外部 EIDE 重编+重烧**（抓到 elf 被外部改写 10:41:18 → 板子 10:41:24
-  重启且换了镜像；期间无 `[err]`/无 HardFault/heap 稳定/tick 连续、`bkp1=0` 非 IWDG）。
-  **修复**：TCP Server keepalive（参数对齐 TCP Client）+ `netconn_new` 失败告警 + `[disp]`「通道无协议承载」
-  告警（新增宏 `DISPATCH_NOPROTO_DBG_MIN_MS`）+ 横幅复位原因/引导计数行（新增 `pl_sys_reset_cause()`）
-  + LwIP 调试档位收紧（`APP_LWIP_DBG_LEVEL`，默认 WARNING；新增 Makefile 透传开关）。
-  **验证**：三固件重烧（`tool/flash_all.sh` + 擦 Sector1）后 `tree=7df8ac20`；baseline 6/6、长连接 200s/312s
-  共 40/40 应答、半开自愈 17.0s、340s 无复位无异常、三口径重编通过零新增告警；
-  A/B 段尺寸 `text −612 / rodata −1952 / bss +40`（另测 LwIP 档位单独贡献 text −1044 / rodata −2216）。
-  **未提交 git、未改 git 配置**；测试期间未改其它协议模块与引导链。

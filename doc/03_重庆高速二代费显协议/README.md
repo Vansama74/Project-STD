@@ -2,9 +2,9 @@
 
 > 重庆高速二代费显协议族接入记录。
 >
-> - `PartA_STD设备层架构优化.md` — STD 设备层架构优化（协议分层 LDI/CQ/RLS）。
 > - `PartB_ProtocolParser_ChongQing接入.md` — 重庆 CQ 高速二代费显协议（JSON `{` + 12B 二进制）接入记录。
 > - 二进制 RLS 协议（`FF FE` 帧族）实现位于 `Application/Src/RLS/`（`app_rls.c` / `app_rls_cmd.c`）。
+> - 曾有一份「PartA 统一业务服务层（dev_service）」设计推演，2026-10-13 用户裁决废弃（协议直调既有设备接口，不建中间层），整份归档于 `doc/00_变更历史.md`。
 
 ## 干接点车道状态显示（2026-09-09 接入）
 

@@ -339,10 +339,3 @@ SRAM 合计 +136B（`._user_heap_stack` 不变）。
 
 ---
 
-## §9 变更记录
-
-| 日期 | 内容 |
-|---|---|
-| 2026-10-20 | 首版接入：4 个 `.c` + 3 个 `.h`，RS485/RS232 双通道、自备槽体、静态队列/任务置 CCMRAM；8 组命令码全部实现；EIDE 收录（基线排除）；文档 `doc/21` 建立 |
-| 2026-10-20 | **Debug target 取消排除**（`eide.yml` 条目曾被 EIDE 回写冲掉，本轮重建）：`files` 收录 4 个 `.c`、`Debug.incList` 加头文件路径、`Base.excludeList` 保持排除、`Debug.excludeList` 不含本目录 ⇒ Debug 实际编入并链接（实测 207 → 211 源，`.ccmram +2056B`）；`Base` 仍为基线排除模板 |
-| 2026-10-20 | **取消广西专属开机默认画面**：删除 `app_gx_proto_default.c`（原三行黄字「欢迎行驶 / 广西高速公路 / 祝您旅途愉快!」）及其 `app_default_display_register` 注册、EIDE `files` 条目（本目录 4 → 3 个 .c）；未收到 `03 03` 时上电显示项目通用默认画面「欢迎行驶 / 高速公路」；总显示时间到期恢复「有 `03 03` 则恢复该界面、否则恢复通用默认画面」（`app_default_display_show()`）。`03 03` 本上电周期内行为不变 |

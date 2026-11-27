@@ -64,7 +64,6 @@ ucHeap ∈ heap_4.c static → .bss (SRAM)
 | `s_rs232_0_buf` | **640** | ≥ QH 259；≤ RB−1 |
 | `s_rs232_1_buf` | **已删除** | USART6 仅 TTS TX |
 
-[待更新: 2026-08-18 UART RX 改乒乓双缓冲 circular，两缓冲均为 640→1280（块 640×2）；本表为历史基线，现行账见 04]
 
 ---
 
