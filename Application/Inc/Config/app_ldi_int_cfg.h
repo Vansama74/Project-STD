@@ -50,7 +50,7 @@ typedef struct {
 } app_ldi_int_cfg_record_t;
 
 /**
- * v1 记录（2026-11-24 前，无 seq 字段）：仅装载识别用（视为 seq=0），禁止写入。
+ * v1 记录（旧布局，无 seq 字段）：仅装载识别用（视为 seq=0），禁止写入。
  * 保留定义是为了台架/早期设备的旧记录不被本固件判废。
  */
 typedef struct {

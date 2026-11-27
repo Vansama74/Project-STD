@@ -33,7 +33,7 @@
 #include "pl_gpio.h"
 #include "pl_iwdg.h"
 #include "pl_rtc.h"
-#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
+#include "SEGGER_RTT.h" /* 临时根因诊断（定位后清理） */
 
 #define SPLASH_DURATION_MS 5000U
 
@@ -50,7 +50,7 @@ extern uint32_t app_ldi_health_hb(void) __attribute__((weak));
 
 static void half_sec_task(void *argument) {
   (void)argument;
-  /* run_time 已随 DR1 30s 清零块一并移除（2026-11-26） */
+  /* run_time 已随 DR1 30s 清零块一并移除 */
   bool led_state = false;
   uint32_t hst_div = 0U; /* 临时诊断：每 10s 打印喂狗时间戳 */
   uint32_t last_eth = 0U, last_ldi = 0U;
@@ -78,9 +78,9 @@ static void half_sec_task(void *argument) {
     if (app_ldi_health_hb == NULL) {
       stall_ldi = now; /* Base 目标无 LDI 族：LDI 不参与门控 */
     }
-    /* 分阈值（2026-11-20 定级）：EthIf 是 Realtime 线程，15s 不推进=系统级
-     * 停摆；LDI 定时任务是 Normal，风暴/洪泛下会被合法饿死，给 60s 宽限，
-     * 避免洪泛本身把设备推进 IWDG 复位循环。 */
+    /* 分阈值：EthIf 是 Realtime 线程，15s 不推进=系统级停摆；LDI 定时任务
+     * 是 Normal，风暴/洪泛下会被合法饿死，给 60s 宽限，避免洪泛本身
+     * 把设备推进 IWDG 复位循环。 */
     if (armed != 0U && ((now - stall_eth) > 15000U
                         || (now - stall_ldi) > 60000U)) {
       /* 关键路径停摆：停止喂狗，等 IWDG 复位 */
@@ -107,10 +107,10 @@ static void half_sec_task(void *argument) {
       SEGGER_RTT_printf(0, "F t=%u\n", (unsigned)now);
     }
 
-    /* 2026-11-26 修复：原「启动 30s 后每 500ms 清零 RTC_BKP_DR1」遗留块已移除。
-     * 它让 Bootloader 的崩溃计数永远攒不到 4（条件 B 永不触发），且使上面的
-     * 10 分钟健康清零形同虚设——崩溃计数语义被彻底架空。现仅保留「持续健康
-     * 10 分钟」一次清零（设计意图：短周期反复崩溃才计数，长期稳定运行豁免）。 */
+    /* 注：曾有「启动 30s 后每 500ms 清零 RTC_BKP_DR1」遗留块，已移除——
+     * 它让 Bootloader 崩溃计数永远攒不到 4（条件 B 永不触发），并架空上方
+     * 10 分钟健康清零。现仅保留「持续健康 10 分钟」一次清零（短周期反复
+     * 崩溃才计数，长期稳定运行豁免）。 */
 
     led_state = !led_state;
     pl_gpio_write(PL_PORT_D, 9, led_state); /* LED = PD9 */
@@ -183,7 +183,7 @@ void app_boot(void) {
 static void init_task(void *argument) {
   (void)argument;
 
-  /* 复位源（2026-11-20）：Bootloader 在清标志前把原始 RCC->CSR 存入 DR10、
+  /* 复位源：Bootloader 在清标志前把原始 RCC->CSR 存入 DR10、
    * 崩溃计数副本存 DR11、跳转目标存 DR12（见 Bootloader main.c）。
    * dr1=崩溃计数；jump=0x08040000 为 app / 0x08008000 为 Recovery。 */
   SEGGER_RTT_printf(0, "RC pre=%08X now=%08X dr1=%u jump=%08X\n",
@@ -220,10 +220,10 @@ static void init_task(void *argument) {
   SEGGER_RTT_printf(0, "B t=%u splash_done\n", (unsigned)osKernelGetTickCount());
 
   /* 半秒周期任务。
-   * 优先级 Realtime（2026-11-20 二次定级）：AboveNormal 仍会被 Realtime 的
-   * 显示扫描任务（scan_task）饿死——fuzz 实测扫描任务在负载下占满 CPU，
-   * 喂狗停止 → IWDG 复位。Realtime + 时间片与扫描任务共存；喂狗只做
-   * 刷新+LED，开销极小。健康门控仍在：EthIf 心跳 15s 不推进 = 系统级停摆，
+   * 优先级 Realtime：AboveNormal 会被 Realtime 的显示扫描任务（scan_task）
+   * 饿死——负载下扫描任务占满 CPU，喂狗停止 → IWDG 复位。
+   * Realtime + 时间片与扫描任务共存；喂狗只做刷新+LED，开销极小。
+   * 健康门控仍在：EthIf 心跳 15s 不推进 = 系统级停摆，
    * 照停喂由 IWDG 复位。 */
   const osThreadAttr_t hst_attr = {
       .name = "half_sec_task",

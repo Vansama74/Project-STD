@@ -159,7 +159,7 @@ uint32_t app_channel_link_gen(channel_id_t ch_id);
  *          网口通道是零拷贝（`udp_ch_send` → `netbuf_ref` 只登记指针，
  *          `pl_eth` 直接把 `payload` 地址写进 DMA 描述符）。因此：
  *          - 禁止传函数栈数组（协议任务栈在 CCMRAM，ETH DMA 不可访问，
- *            会触发 FBES 致命总线错误把网口打死，2026-11-17 青海事故）；
+ *            会触发 FBES 致命总线错误把网口打死，青海事故同款）；
  *          - 用静态数组 / 协议上下文里的持久缓冲（`g_ldi.tx_buf`、
  *            `pIAP_ReTmp` 等现状即如此）。
  *          `app_udp.c` 的 `udp_payload_dma_reachable()` 会在入口拦下 CCM 缓冲

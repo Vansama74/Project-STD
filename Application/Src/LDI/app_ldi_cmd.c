@@ -495,11 +495,10 @@ void cmd_set_ip(channel_t *ch, void *data)
     if (host_port != 0)
         g_ldi.cfg.host_port = host_port;
 
-    /* 0AH 身份零值守卫（成对判定，2026-11-19）：平台巡检/重配类 0AH 帧头常不填
-     * 身份字段，无条件覆盖会把已配置的 lane/cert 抹零并落盘，设备对平台失联
-     * （2026-11-18 现场"ping 通但不受控"的根因）。lane 与 cert 是同一身份二元组，
-     * 任一全 0 即整帧不下发身份（防止"旧 lane + 新 cert"混合身份）。
-     * 需要显式写 0（清空身份）请走 0BH（设备参数配置，0 为合法值）。 */
+    /* 0AH 身份零值守卫（成对判定）：平台巡检/重配类 0AH 帧头常不填身份字段，
+     * 无条件覆盖会把已配置的 lane/cert 抹零并落盘，设备对平台失联。lane 与
+     * cert 是同一身份二元组，任一全 0 即整帧不下发身份（防止"旧 lane +
+     * 新 cert"混合身份）。需要显式写 0（清空身份）请走 0BH（0 为合法值）。 */
     const uint8_t zero_lane[5] = {0}, zero_cert[8] = {0};
     bool lane_absent = (memcmp(info->head.lane_code, zero_lane, sizeof(zero_lane)) == 0);
     bool cert_absent = (memcmp(info->head.cert_info, zero_cert, sizeof(zero_cert)) == 0);
@@ -559,7 +558,7 @@ static void cmd_set_config(channel_t *ch, void *data)
     /* 身份字段先提交 RAM（不依赖 module 解析结果）：解析失败时不落盘但 RAM 身份
      * 已生效，避免"配置失败即彻底失控"（改前语义）。0BH 为显式设备参数配置
      * （工厂/产测工具下发），**0 是合法值**——成对整体写入，允许把身份清成全 0
-     * （未配置态）。防"平台巡检空身份帧抹零"的保护只在 0AH 保留（2026-11-19 裁决）。
+     * （未配置态）。防"平台巡检空身份帧抹零"的保护只在 0AH 保留（用户裁决）。
      * 重启后回落盘值，由成功路径（result 且 save_ret>=0）更新落盘。 */
     memcpy(g_ldi.cfg.lane_hex, head->lane_code, sizeof(g_ldi.cfg.lane_hex));
     memcpy(g_ldi.cfg.cert, head->cert_info, sizeof(g_ldi.cfg.cert));

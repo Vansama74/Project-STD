@@ -14,7 +14,7 @@
 #include "pl_tim.h"
 #include "pl_task_guard.h"
 #include "pl_task_static.h"
-#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
+#include "SEGGER_RTT.h" /* 临时根因诊断（定位后清理） */
 
 /* ---- 任务静态存储（栈 + TCB 落 CCMRAM，见 pl_task_static.h）----
  * scan_task：Realtime 优先级、启动期创建一次、永不退出。静态化后不再占 ucHeap
@@ -25,7 +25,7 @@ PL_TASK_STATIC_STORAGE(scan, 256);
  * 不能用事件组：CMSIS osEventFlagsSet 在 ISR 中走 xEventGroupSetBitsFromISR
  * → 经 FreeRTOS Timer 守护任务中转。TIM3 行同步 2kHz 的投递洪流会让守护
  * 任务常驻就绪（优先级 25）→ 饿死全部 Normal(24)/EthLink(16) 任务（网络、
- * LDI 全灭，2026-11-24 定级）。二值信号量的 osSemaphoreRelease 在 ISR 中
+ * LDI 全灭）。二值信号量的 osSemaphoreRelease 在 ISR 中
  * 走 xSemaphoreGiveFromISR，直接唤醒 scan_task，不经任何守护任务。 */
 static osSemaphoreId_t s_scan_sem;
 static dev_display_t *s_active_display;

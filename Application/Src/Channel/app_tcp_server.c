@@ -16,7 +16,7 @@
 #include "app_dispatch.h"
 #include "pl_net_adapt.h"
 #include "lwip/ip.h"
-#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
+#include "SEGGER_RTT.h" /* 临时根因诊断（定位后清理） */
 
 #define TCP_SERVER_PORT 9528
 
@@ -69,7 +69,7 @@ void app_tcp_server_set_port(uint16_t port)
 uint16_t app_tcp_server_get_port(void)
 { return g_port; }
 
-/* 诊断计数（2026-11-20，J-Link 可读）：定位连接被 RST / 重绑失败的成因 */
+/* 诊断计数（J-Link 可读）：定位连接被 RST / 重绑失败的成因 */
 volatile int32_t  g_tcps_last_exit;   /**< 最近一次 conn 退出 err（lwIP err_t） */
 volatile uint32_t g_tcps_exit_count;  /**< conn 退出次数 */
 volatile int32_t  g_tcps_accept_err;  /**< 最近一次 accept 错误 */
@@ -78,7 +78,7 @@ volatile uint32_t g_tcps_bind_fail;   /**< bind 失败次数 */
 osThreadId_t tcp_server_task_handle;
 const osThreadAttr_t tcp_server_task_attr = {
     .name       = "tcp_server_task",
-    .stack_size = 512 * 4, /* 2026-11-20：1KB→2KB，fuzz 大块数据+dispatch 深度下防栈溢出 */
+    .stack_size = 512 * 4, /* 1KB→2KB：fuzz 大块数据+dispatch 深度下防栈溢出 */
     .priority   = osPriorityNormal,
 };
 
@@ -114,8 +114,8 @@ void tcp_server_task(void *argument)
             osDelay(500);
             continue;
         }
-        /* SO_REUSEADDR（2026-11-20 定级）：客户端断开后其连接在服务器侧进入
-         * TIME_WAIT（本地端口 = 监听口），未开复用时监听口重绑会持续失败
+        /* SO_REUSEADDR：客户端断开后其连接在服务器侧进入 TIME_WAIT
+         * （本地端口 = 监听口），未开复用时监听口重绑会持续失败
          * （ERR_USE，最长 ~2*MSL），期间新连接被 RST —— 现场形态正是
          * "ping 通、9528 连不上"。 */
         ip_set_option(conn->pcb.tcp, SOF_REUSEADDR);

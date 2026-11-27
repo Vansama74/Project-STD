@@ -528,7 +528,7 @@ void frame_dispatch_task(void *argument)
                         break; /* 等待更多数据到达 */
                     } else if (any_fake || any_overrun) {
                         s_wait_active[wait_slot] = false; /* 有字节被消费，重置预算 */
-                        /* 垃圾洪泛加速重同步（2026-11-20 定级）：所有协议都判
+                        /* 垃圾洪泛加速重同步：所有协议都判
                          * FAKE 时逐字节 skip（1B/轮）会把 CPU 打满——风暴实测
                          * 2000 帧/s × 512B 垃圾 ≈ 百万次探测/秒，饿死 tcpip
                          * （ping/TCP 全超时）。各协议帧头首字节均为 0xFF，

@@ -35,7 +35,7 @@ static void _anhui_exec_clear(void)
     if (!d)
         return;
     app_scroll_render_lock();
-    app_scroll_stop_all_nolock(); /* 清屏同时终止全部动态显示（用户裁决 2026-09-07） */
+    app_scroll_stop_all_nolock(); /* 清屏同时终止全部动态显示（用户裁决） */
     dev_display_fill(d, 0, 0, d->screen_rows, d->screen_cols, COLOR_BLACK);
     dev_display_commit_frame(d);
     app_scroll_render_unlock();
@@ -77,7 +77,7 @@ static void _anhui_exec_static_text(const anhui_static_text_t *p)
 {
 
     app_scroll_render_lock();
-    app_scroll_stop_all_nolock(); /* 静态显示终止全部动态显示（用户裁决 2026-09-07，越界帧同样终止） */
+    app_scroll_stop_all_nolock(); /* 静态显示终止全部动态显示（用户裁决，越界帧同样终止） */
 
     dev_display_t *d = dev_display_get();
     if (d && p->x < d->screen_rows && p->y < d->screen_cols) {

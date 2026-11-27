@@ -16,7 +16,7 @@
 #include "pl_net.h"
 #include "pl_dwt.h"
 #include "initcall.h"
-#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
+#include "SEGGER_RTT.h" /* 临时根因诊断（定位后清理） */
 
 /* 出厂默认网络配置: 192.168.114.200/24, 网关 192.168.114.1（与 Bootloader/Recovery 出厂默认一致） */
 static const uint8_t g_default_ip[4]   = {192, 168, 114, 200};

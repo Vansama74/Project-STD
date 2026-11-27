@@ -66,7 +66,7 @@ void pl_net_init(const uint8_t ip[4], const uint8_t mask[4], const uint8_t gatew
     /* 注册 netif：ethernetif_init 作为 low_level_init 回调，配置 MAC/PHY/DMA。
      * netif UP 由链路状态决定：low_level_init（有链路）或 EthLink 线程在
      * 链路恢复时 set_up。此处不再无条件 set_up——那会造成"无链路却 UP"
-     * 的 stuck-UP 中间态（台架 2026-11-20 定级，与楔死误判同源）。 */
+     * 的 stuck-UP 中间态（与楔死误判同源）。 */
     netif_add(&gnetif, &ipaddr, &netmask, &gw, nullptr, &ethernetif_init, &tcpip_input);
     netif_set_default(&gnetif);
     netif_set_link_callback(&gnetif, ethernet_link_status_updated); /* 链路变化通知 */

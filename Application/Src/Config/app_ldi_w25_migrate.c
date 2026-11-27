@@ -2,9 +2,9 @@
  * @file    app_ldi_w25_migrate.c
  * @brief   W25 旧格式 LDI 记录 → Sector 11 双库的一次性迁移垫片（只读）
  *
- * 背景：2026-11-24 前 LDI 配置唯一存于 W25Qxx 末 4KB 扇区（16 槽 × 256B，
- * 旧魔数 0x0D001B00）；11-24 迁入内部 Sector 11 时删除了 W25 装载器，现场
- * 设备升级后即失去 lane/cert/host 等身份配置。本垫片恢复**只读装载**能力，
+ * 背景：旧固件曾把 LDI 配置唯一存于 W25Qxx 末 4KB 扇区（16 槽 × 256B，
+ * 旧魔数 0x0D001B00）；迁入内部 Sector 11 时删除了 W25 装载器，现场设备
+ * 升级后即失去 lane/cert/host 等身份配置。本垫片恢复**只读装载**能力，
  * 由 ldi_ctx_init 在双库装载失败后调用，命中即经 app_ldi_int_cfg_save 落内部库。
  * 一次性语义：落库成功后双库装载不再失败，本函数不再被触发；W25 旧记录
  * 保持原样（最终取证/回退依据），直到双库轮转擦除 W25 末扇区为止。
@@ -29,7 +29,7 @@
 
 /* ---- 旧布局定义（仅本文件使用；尺寸按旧固件 37de80e 原样复制） ---- */
 
-/* v2 模块（2026-11-18 前：11 模块 × 12B，无 param 字段，param 混入 vendor[0]） */
+/* v2 模块（旧布局：11 模块 × 12B，无 param 字段，param 混入 vendor[0]） */
 typedef struct {
     uint8_t device_type;
     uint8_t device_index;
@@ -55,7 +55,7 @@ typedef struct {
     uint32_t crc32;
 } app_ldi_record_v2_t;
 
-/* v1（2026-11-17 前的 6 模块版，116B 记录），模块元素沿用 12B 版 */
+/* v1（更早的 6 模块版，116B 记录），模块元素沿用 12B 版 */
 #define APP_LDI_V1_MAX_MODULES (6U)
 
 typedef struct {

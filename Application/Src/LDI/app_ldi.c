@@ -25,7 +25,7 @@ PL_TASK_STATIC_STORAGE(ldi_timer, 256);
 
 /* RJ45 物理通道 RB：与 IAP/MQTT 等同槽 weak 合并。
  * 三逻辑通道（TCP Server / TCP Client / UDP）共享同一物理 RB，必须带来源标记，
- * 帧归属才能按字节记录而不是按通知通道（2026-11-18 实锤 N-B2-1）。 */
+ * 帧归属才能按字节记录而不是按通知通道（N-B2-1 事故实证）。 */
 RB_PROVIDE_WEAK_OWNER(rb_provide_rj45, RB_SIZE_RJ45);
 
 /* ---- LDI 健康心跳（喂狗门控用）：定时任务每秒 +1，停摆即系统级异常 ---- */
@@ -320,7 +320,7 @@ void ldi_ctx_init(ldi_ctx_t *self)
         }
 
         /* TCP Client 远端应用；netif / TCP Server 口已移交
-         * app_net_boot_apply 统一应用（2026-08-21 解耦） */
+         * app_net_boot_apply 统一应用（职责解耦） */
         app_tcp_client_set_remote(self->cfg.host_ip, self->cfg.host_port);
         self->cfg_valid = true;
 
@@ -687,10 +687,10 @@ proto_probe_sta_t ldi_probe_frame(const channel_t *ch, const ring_buffer_t *buff
     if (data_len < 1 || data_len > (sizeof(mem_pool) - sizeof(ldi_frame_t) - 2))
         return PROTO_PROBE_FAKE;
 
-    /* 未知命令早拒绝（2026-11-20 定级）：垃圾帧虚报 LEN 时，探测器要等满
-     * LEN 字节才做 CRC，期间的合法帧会被当作载荷吞掉（台架 fuzz 探针超时的
-     * 根因）。LDI 命令码是封闭集合，头部+首字节到达即可判定——未知码直接
-     * FAKE，交给 dispatch 跳到下一个 0xFF 快速重同步。 */
+    /* 未知命令早拒绝：垃圾帧虚报 LEN 时，探测器要等满 LEN 字节才做 CRC，
+     * 期间的合法帧会被当作载荷吞掉（fuzz 探针超时的根因）。LDI 命令码是
+     * 封闭集合，头部+首字节到达即可判定——未知码直接 FAKE，交给 dispatch
+     * 跳到下一个 0xFF 快速重同步。 */
     if (avail >= (uint32_t)(sizeof(ldi_frame_t) + 1U) &&
         !ldi_cmd_is_known(mem_pool[sizeof(ldi_frame_t)]))
         return PROTO_PROBE_FAKE;

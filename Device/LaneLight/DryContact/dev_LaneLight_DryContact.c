@@ -22,7 +22,7 @@
 #define LL_GREEN_PORT PL_PORT_E
 #define LL_GREEN_PIN  11U /* S2 */
 
-/* 高有效：点亮 = 输出高（2026-09-28 缅甸现场实测口径） */
+/* 高有效：点亮 = 输出高（缅甸现场实测口径） */
 static void _drive(pl_port_t port, uint8_t pin, bool on)
 {
     pl_gpio_write(port, pin, on);

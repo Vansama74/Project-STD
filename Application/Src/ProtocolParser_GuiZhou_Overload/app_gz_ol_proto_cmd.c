@@ -36,7 +36,7 @@ static void _gz_ol_send_frame(channel_t *ch, uint8_t cmd, const uint8_t *payload
     /* 静态缓冲（SRAM），不可用函数栈数组：本协议绑 CH_ID_UDP / CH_ID_UDP_GZOL，
      * 而 udp_ch_send → netbuf_ref 只登记指针、pl_eth 零拷贝直接把 payload 地址
      * 写进 DMA 描述符；任务栈在 CCMRAM（0x10000000），ETH DMA 不可访问，
-     * 用栈数组会触发 FBES 致命总线错误把网口打死（2026-11-17 青海实测）。 */
+     * 用栈数组会触发 FBES 致命总线错误把网口打死（青海实测同款）。 */
     static uint8_t buf[GZ_OL_HEAD_LEN + GZ_OL_NET_PAYLOAD_LEN + 1U];
     if (payload_len > GZ_OL_NET_PAYLOAD_LEN)
         return; /* 本模块应答载荷最长 14B（0x10 的 2B / 0x50、0x70 的 14B） */
@@ -110,7 +110,7 @@ static uint16_t _gz_ol_text_unescape_nl(char *text, uint16_t len, uint16_t *out_
     uint16_t i = 0U, o = 0U, nl = 0U;
     while (i < len) {
         if (text[i] == 0x5CU && (i + 1U) < len && text[i + 1U] == 0x6EU) {
-            text[o++] = 0x0AU; /* 字面 "\n" → 换行（2026-09-18 用户裁决） */
+            text[o++] = 0x0AU; /* 字面 "\n" → 换行（用户裁决） */
             i += 2U;
             nl++;
         } else if (text[i] >= 0x81U && text[i] <= 0xFEU && (i + 1U) < len &&

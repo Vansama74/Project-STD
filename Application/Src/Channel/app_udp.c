@@ -37,7 +37,7 @@ uint16_t app_udp_get_port(void)
  * CCMRAM（0x10000000，CPU 专用总线）**不可被 ETH DMA 访问**，一旦缓冲落在
  * CCM——典型就是协议任务栈，`PL_TASK_STATIC_STORAGE()` 把任务栈放进
  * `.ccmram`——DMA 会触发 FBES 致命总线错误，整条网口停收停发
- * （现象：ping 立刻不通，复位才恢复。2026-11-17 青海 UDP 应答实测）。
+ * （现象：ping 立刻不通，复位才恢复，青海 UDP 应答实测）。
  *
  * 在入口直接拒绝并发信号：`g_udp_ccm_reject_cnt` 递增（调试器 Watch 可读，
  * 不新增 RTT），让「误用栈缓冲」表现为「这一帧发不出去、可定位」，
@@ -228,7 +228,7 @@ static void udp_channel_deinit(udp_channel_t *self)
 {
     self->me.ops   = nullptr;
     self->me.state = CH_STATE_DOWN;
-    self->conn     = NULL; /* 广播复用路径判空依据（2026-08-21） */
+    self->conn     = NULL; /* 广播复用路径判空依据 */
     app_channel_register(CH_ID_UDP, nullptr);
 }
 
@@ -437,7 +437,7 @@ static void udp_cq_channel_deinit(udp_channel_t *self)
 {
     self->me.ops   = nullptr;
     self->me.state = CH_STATE_DOWN;
-    self->conn     = NULL; /* 广播复用路径判空依据（2026-08-21） */
+    self->conn     = NULL; /* 广播复用路径判空依据 */
     app_channel_register(CH_ID_UDP_CQ, nullptr);
 }
 

@@ -4,7 +4,7 @@
 #include "pl_rtc.h"
 #include "pl_sys.h"
 #include <string.h>
-#include "SEGGER_RTT.h" /* 2026-11-20 临时根因诊断（定位后清理） */
+#include "SEGGER_RTT.h" /* 临时根因诊断（定位后清理） */
 #include "lwip/tcpip.h"
 #include "lwip/netif.h"
 #include "cmsis_os.h"
@@ -48,15 +48,12 @@ typedef struct {
 #define ETH_RX_BUFFER_CNT 12U
 LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "Zero-copy RX PBUF pool");
 
-/* RX_POOL 的 memp 分配/释放必须互斥：lwIP memp 层非线程安全。
- * 分配发生在 EthIf 线程（RxAllocateCallback / 描述符重建），
- * 释放发生在 tcpip/应用线程（pbuf_free_custom）。
- * 台架 2026-11-19 定级：高负载并发 alloc/free 损坏自由链表
- * （链表成自环、所有描述符指向同一缓冲、网络永久死亡）。 */
-/* 2026-11-20 定级：原 taskENTER_CRITICAL 在池操作里长期屏蔽中断——冻结现场
- * （ISPR 显示 TIM3/TIM4/ETH/SysTick 全部待决、PC 在 vListInsert 打转）证明
- * 屏蔽期间系统整体停摆。改为带优先级继承的互斥量：池操作即使死锁，中断仍被
- * 服务、SysTick/喂狗继续，不再整机冻结。 */
+/* RX_POOL 的 memp 分配/释放必须互斥：lwIP memp 层非线程安全，
+ * 分配在 EthIf 线程（RxAllocateCallback / 描述符重建）、释放在
+ * tcpip/应用线程（pbuf_free_custom）——并发 alloc/free 会损坏自由链表
+ * （链表成自环、所有描述符指向同一缓冲、网络永久死亡）。
+ * 必须用互斥量而非临界区：临界区长期屏蔽中断会致系统整体停摆；互斥量
+ * 即使死锁，中断仍被服务、SysTick/喂狗继续。 */
 static osMutexId_t s_rx_pool_mtx;
 #define RX_POOL_LOCK()                                                    \
     do {                                                                  \
@@ -71,9 +68,9 @@ static osMutexId_t s_rx_pool_mtx;
 
 /* ETH DMA 控制互斥量：HAL_ETH_Stop_IT/Start_IT 与 DMAOMR.SR/轮询请求写
  * 均非线程安全——链路线程与 EthIf 重建并发调用会撕裂 DMA 状态机
- * （台架 2026-11-21 僵尸态定级：gState=STARTED 矛盾态 + 描述符环半武装，
- * 此后所有 Start_IT 被 HAL 拒绝，网口永久失联直到重启）。锁顺序固定：
- * ETH_CTRL 在外、RX_POOL 在内，全工程无反向嵌套。 */
+ * （gState 矛盾态 + 描述符环半武装后，所有 Start_IT 被 HAL 拒绝，
+ * 网口失联直到重启）。锁顺序固定：ETH_CTRL 在外、RX_POOL 在内，
+ * 全工程无反向嵌套。 */
 static osMutexId_t s_eth_ctrl_mtx;
 #define ETH_CTRL_LOCK()                                                   \
     do {                                                                  \
@@ -114,8 +111,8 @@ volatile uint32_t g_eth_tx_wedges;         /**< TX 挂起（TPS=6/TBUS）看门�
 volatile uint32_t g_eth_last_rx_tick;      /**< 最近一次帧完成时刻（看门狗判"RX 卡死"用） */
 volatile uint32_t g_eth_reboot_recoveries; /**< 重症挂起触发受控整机重启的次数（启动回读 RTC 标记） */
 
-/* ---- 2026-11-20 临时根因诊断（RTT，定位后清理） ----
- * 目的：区分"网口死亡"的三种候选——①判据盲区不命中；②tcpip 线程死；
+/* ---- 临时根因诊断（RTT，定位后清理） ----
+ * 区分"网口死亡"的三种候选：①判据盲区不命中；②tcpip 线程死；
  * ③重启后 ETH/netif 没起来。th/eh 不涨即对应对线程死。 */
 volatile uint32_t g_eth_tcpip_hb; /**< tcpip 线程心跳：EthWdg 每 30s 投递回调递增 */
 volatile uint32_t g_ethif_hb;     /**< EthIf 线程心跳：每次唤醒递增 */
@@ -132,16 +129,16 @@ static uint32_t s_wedge_rx_snapshot;       /**< 首次检出时的 last_rx_tick 
 static uint16_t s_wedge_first_reason;      /**< 首次检出的原因位（受控重启标记用，防恢复动作闪动丢原因） */
 static uint32_t s_last_rebuild_tick;       /**< 最近一次完整重建的 tick（重建限频） */
 
-/* 重症时间线（2026-11-19 裁决：5s 预算内恢复） */
+/* 重症时间线（裁决：5s 预算内恢复） */
 #define ETH_WEDGE_REBUILD_MS (2000U)       /**< 挂起持续 ≥2s：升级 SR 完整重建 */
 #define ETH_WEDGE_REBOOT_MS  (4000U)       /**< 挂起持续 ≥4s：受控整机重启（+启动 ~1s ≈ 5s 恢复） */
-#define ETH_REBUILD_MIN_INTERVAL_MS (1000U) /**< 两次完整重建的最小间隔：防"重建→IRQ 再触发→重建"自持循环（2026-11-20 冻结定级） */
+#define ETH_REBUILD_MIN_INTERVAL_MS (1000U) /**< 两次完整重建的最小间隔：防"重建→IRQ 再触发→重建"自持循环 */
 
 /* 重症重启标记：RTC 备份寄存器（VBAT 域，复位不丢）。
- * 占用约定（2026-11-20 定案）：DR0 = Recovery 强制升级、DR1 = Bootloader 崩溃计数
+ * 占用约定：DR0 = Recovery 强制升级、DR1 = Bootloader 崩溃计数
  * （>MAX_CRASH_COUNT 即判崩溃过频跳 Recovery）。**EthWdg 禁用 DR0/DR1**
- * ——曾用 DR1 写 0xA5xxxxxx 标记，Bootloader 按崩溃计数读取后直接判死跳
- * Recovery（网口"死"但 ping 通的现场形态）。 */
+ * ——曾用 DR1 写标记，Bootloader 按崩溃计数读取后直接判死跳 Recovery
+ * （网口"死"但 ping 通的形态）。 */
 #define ETH_WEDGE_RTC_MARK_REG  RTC_BKP_DR4
 #define ETH_WEDGE_RTC_DMASR_REG RTC_BKP_DR5
 #define ETH_WEDGE_RTC_CNT_REG   RTC_BKP_DR6 /**< 连续受控重启计数（健康 10min 后清零） */
@@ -159,7 +156,7 @@ static uint32_t s_last_rebuild_tick;       /**< 最近一次完整重建的 tick
 #define ETH_WEDGE_FATAL      (1U << 6)  /**< 致命总线错误（FBES） */
 #define ETH_WEDGE_RX_CLOSING (1U << 7)  /**< RPS=4 关闭描述符卡死（无帧完成>2s） */
 #define ETH_WEDGE_REBOOT     (1U << 8)  /**< 本次记录来自重症受控重启（RTC 标记回读） */
-#define ETH_WEDGE_RX_STOPPED (1U << 9)  /**< RX 进程停止（RPS=0）且 ≥2 次轮询无新帧：僵尸态（台架 2026-11-21 定级） */
+#define ETH_WEDGE_RX_STOPPED (1U << 9)  /**< RX 进程停止（RPS=0）且 ≥2 次轮询无新帧：僵尸态 */
 
 typedef struct {
     uint32_t tick;          /**< RTOS tick（ms，/1000 = RunningTime 秒） */
@@ -199,9 +196,8 @@ static void eth_wedge_record(uint16_t reason, uint32_t dmasr)
 static void eth_wedge_mark_reboot(uint16_t reason, uint32_t dmasr)
 {
     pl_rtc_handle_t h = pl_rtc_get_handle();
-    /* 标记格式（2026-11-21 扩宽）：[31:24]=0xA5 魔数，[23:8]=16 位原因。
-     * 原 8 位原因字段（[23:16]）容不下 bit9（ETH_WEDGE_RX_STOPPED），
-     * 扩宽后全部 ETH_WEDGE_* 位（0~9）均可入标记。 */
+    /* 标记格式：[31:24]=0xA5 魔数，[23:8]=16 位原因（8 位容不下
+     * bit9 ETH_WEDGE_RX_STOPPED，故扩宽）。 */
     pl_rtc_bkup_write(h, ETH_WEDGE_RTC_MARK_REG,
             (ETH_WEDGE_RTC_MAGIC << 24) | ((uint32_t)(reason & 0xFFFFU) << 8));
     pl_rtc_bkup_write(h, ETH_WEDGE_RTC_DMASR_REG, dmasr);
@@ -454,15 +450,14 @@ static void low_level_init(struct netif *netif)
     }
 
     /* 创建 ETH 看门狗任务：独立于 EthIf 线程轮询 DMA 状态并恢复。
-     * 台架 2026-11-19 定级：看门狗不能寄宿在 EthIf 线程——风暴过载会把
-     * 该线程堵在 tcpip 邮箱投递上，看门狗随之失效（RBUS 置位 8s+ 无恢复、
-     * 事件环零记录）。本任务永不接触网络数据路径，只读寄存器+写恢复。
+     * 不能寄宿在 EthIf 线程——风暴过载会把该线程堵在 tcpip 邮箱投递上，
+     * 看门狗随之失效。本任务永不接触网络数据路径，只读寄存器+写恢复。
      * 静态创建：不依赖 FreeRTOS 堆（堆耗尽时动态创建会静默失败）。 */
     memset(&attributes, 0x0, sizeof(osThreadAttr_t));
     attributes.name       = "EthWdg";
-    /* AboveNormal（2026-11-20 定级）：Low 在 fuzz/风暴负载下会被持续就绪的
-     * Normal/Realtime 任务饿死——台架实测 RBUS 楔死时 g_eth_rx_recoveries=0
-     * （看门狗从未运行）。看门狗只做 500ms 寄存器轮询+恢复，开销极小。 */
+    /* AboveNormal：Low 在风暴负载下会被持续就绪的 Normal/Realtime 任务
+     * 饿死（RBUS 楔死时看门狗从未运行）。看门狗只做 500ms 轮询+恢复，
+     * 开销极小。 */
     attributes.priority   = osPriorityAboveNormal;
     attributes.cb_mem     = &s_eth_wdg_tcb;
     attributes.cb_size    = sizeof(s_eth_wdg_tcb);
@@ -633,8 +628,8 @@ static struct pbuf *low_level_input(struct netif *netif)
 static void eth_dma_recover(void)
 {
     /* 全程持 ETH 控制锁：与链路线程/看门狗轻量恢复的 Stop/Start/SR 写串行，
-     * 防止并发撕裂 DMA 状态机（台架 2026-11-21 僵尸态定级）。锁内另取
-     * RX_POOL 锁回收池缓冲，锁顺序 ETH_CTRL → RX_POOL 固定。 */
+     * 防止并发撕裂 DMA 状态机。锁内另取 RX_POOL 锁回收池缓冲，
+     * 锁顺序 ETH_CTRL → RX_POOL 固定。 */
     ETH_CTRL_LOCK();
     if (heth.gState == HAL_ETH_STATE_ERROR) {
         heth.gState = HAL_ETH_STATE_STARTED;
@@ -643,8 +638,8 @@ static void eth_dma_recover(void)
         (void)HAL_ETH_Stop_IT(&heth);
     }
     /* DMA/MAC 软件复位：HAL 的 Stop/Start 不含 SR 复位，卡死状态机
-     * （RPS=4 关闭描述符卡死等）能扛过重建（台架 2026-11-19 定级：
-     * 无 SR 时 16 次重建全部无效）。复位后寄存器回默认值，需恢复稳态配置。 */
+     * （RPS=4 关闭描述符卡死等）能扛过重建。复位后寄存器回默认值，
+     * 需恢复稳态配置。 */
     SET_BIT(heth.Instance->DMABMR, ETH_DMABMR_SR);
     uint32_t t0 = HAL_GetTick();
     while (READ_BIT(heth.Instance->DMABMR, ETH_DMABMR_SR) > 0U) {
@@ -654,11 +649,9 @@ static void eth_dma_recover(void)
     }
     heth.Instance->DMABMR = s_eth_dmabmr;
     heth.Instance->MACCR  = s_eth_maccr;
-    /* 描述符链基址恢复（2026-11-26 定级）：SR 软件复位会把 DMARDLAR/DMATDLAR
-     * 清零，而 HAL_ETH_Start_IT 不重写它们（只有 HAL_ETH_Init 写）——此前重建
-     * 后 DMA 从地址 0 取描述符，必然总线错误（EBS 位组）→ RX 停 → 重建"永远
-     * 无效"→ 只能受控重启（现场故障板断联的直接原因）。补上后重建可原地复活
-     * 深停态 DMA（≤2s），TCP 连接经 lwIP 重传得以保留，无需重启。 */
+    /* 描述符链基址恢复：SR 软件复位会清零 DMARDLAR/DMATDLAR，而
+     * HAL_ETH_Start_IT 不重写它们（只有 HAL_ETH_Init 写）——不补写则
+     * DMA 从地址 0 取描述符，必然总线错误，重建永远无效。 */
     WRITE_REG(heth.Instance->DMATDLAR, (uint32_t)heth.Init.TxDesc);
     WRITE_REG(heth.Instance->DMARDLAR, (uint32_t)heth.Init.RxDesc);
     /* 回收仍挂在 RX 描述符上的零拷贝池缓冲：Start 重建描述符环不会自动归还，
@@ -673,26 +666,22 @@ static void eth_dma_recover(void)
             RX_POOL_UNLOCK();
         }
     }
-    /* 台架 2026-11-19 定级：回收是直接归还，不会走 pbuf_free_custom 的
-     * RxAllocStatus 复位分支 —— 状态锁存会永久停在 ERROR，看门狗与接收闸门
-     * 双重被挡导致网络死亡。此处归还后必须同步复位锁存。 */
+    /* 直接归还不会走 pbuf_free_custom 的 RxAllocStatus 复位分支——状态锁存
+     * 会永久停在 ERROR，看门狗与接收闸门双重被挡。归还后必须同步复位锁存。 */
     if (RxAllocStatus != RX_ALLOC_OK) {
         RxAllocStatus = RX_ALLOC_OK;
     }
     /* 半帧残留：已组链的 pbuf 需经 pbuf_free（pbuf_free_custom 回池）归还，
-     * 直接置 NULL 会永久泄漏池缓冲（每次重建最多 3 块，反复重建累积，
-     * 台架 2026-11-20 定级）。 */
+     * 直接置 NULL 会永久泄漏池缓冲（每次重建最多 3 块，反复重建累积）。 */
     if (heth.RxDescList.pRxStart != NULL) {
         pbuf_free(heth.RxDescList.pRxStart);
     }
     heth.RxDescList.pRxStart = NULL;
     heth.RxDescList.pRxEnd   = NULL;
-    /* TX 侧恢复（2026-11-26 定级）：SR 后 TX 环残留 OWN 位与在途 pbuf——
-     * DMA 重启后 TX 进程悬挂（TPS=6），设备收帧不应答（ping 全超时）。
-     * 环全量重初始化（对齐 HAL_ETH_Init 的 ETH_DMATxDescListInit），
-     * 在途 pbuf 直接归还（DMA 不会再完成它们、TxFreeCallback 不会触发）。
-     * 与 tcpip 线程的发送路径经 ETH_CTRL_LOCK 串行，此处环写安全。
-     * 注意 IRQ 在此刻已由 Stop_IT 关闭，不会并发触发 TxFreeCallback。 */
+    /* TX 侧恢复：SR 后 TX 环残留 OWN 位与在途 pbuf，DMA 重启后 TX 进程
+     * 悬挂（TPS=6）、设备收帧不应答。环全量重初始化（对齐 HAL_ETH_Init
+     * 的 ETH_DMATxDescListInit）；与 tcpip 线程发送路径经 ETH_CTRL_LOCK
+     * 串行，此处环写安全（IRQ 已由 Stop_IT 关闭）。 */
     for (uint32_t i = 0U; i < ETH_TX_DESC_CNT; i++) {
         ETH_DMADescTypeDef *dmatxdesc = heth.Init.TxDesc + i;
         WRITE_REG(dmatxdesc->DESC0, 0x0U);
@@ -706,21 +695,20 @@ static void eth_dma_recover(void)
             WRITE_REG(dmatxdesc->DESC3, (uint32_t)(heth.Init.TxDesc));
         }
         SET_BIT(dmatxdesc->DESC0, ETH_DMATXDESC_CHECKSUMTCPUDPICMPFULL);
-        /* 注意：PacketAddress[i] 只置 NULL、不 pbuf_free——未被 ReleaseTxPacket
+        /* PacketAddress[i] 只置 NULL、不 pbuf_free——未被 ReleaseTxPacket
          * 行走到的历史条目可能是已释放的悬垂指针，无条件 free 会双重释放
-         * 损坏 lwIP 池链表（台架 2026-11-26 定级：池全灭 + FBES 风暴）。
-         * 在途 pbuf 的泄漏（每次重建最多 1 包）由后续受控重启路径兜底。 */
+         * 损坏 lwIP 池链表。在途 pbuf 的泄漏（每次重建最多 1 包）
+         * 由受控重启路径兜底。 */
         heth.TxDescList.PacketAddress[i] = NULL;
     }
     heth.TxDescList.CurTxDesc           = 0U;
     heth.TxDescList.BuffersInUse        = 0U;
     heth.TxDescList.releaseIndex        = 0U;
     heth.TxDescList.CurrentPacketAddress = NULL;
-    /* RX 描述符链固件侧状态复位（对齐 HAL_ETH_Init 的 ETH_DMARxDescListInit，
-     * 2026-11-26 定级）：SR 后 Start_IT 的重武装计数（RxBuildDescCnt）与遍历
-     * 游标（RxDescIdx）若沿用楔死前残留值，ReadData 的遍历上限
-     * （8 - RxBuildDescCnt）会被卡死为 0/1，帧永久堆积在环上无人消费
-     * （收帧正常、不应答的现场形态）。 */
+    /* RX 描述符链固件侧状态复位（对齐 HAL_ETH_Init 的 ETH_DMARxDescListInit）：
+     * SR 后 Start_IT 的重武装计数（RxBuildDescCnt）与遍历游标（RxDescIdx）
+     * 若沿用楔死前残留值，ReadData 遍历上限（8 - RxBuildDescCnt）会被卡死
+     * 为 0/1，帧永久堆积在环上无人消费（收帧正常、不应答的形态）。 */
     heth.RxDescList.RxDescIdx      = 0U;
     heth.RxDescList.RxDescCnt      = 0U;
     heth.RxDescList.RxBuildDescIdx = 0U;
@@ -732,11 +720,9 @@ static void eth_dma_recover(void)
         heth.Instance->DMASR = (ETH_DMASR_RPSS | ETH_DMASR_RBUS | ETH_DMASR_TBUS
                 | ETH_DMASR_TPSS | ETH_DMASR_ETS | ETH_DMASR_FBES | ETH_DMASR_AIS
                 | ETH_DMASR_TUS);
-        /* RX 轮询踢脚（2026-11-26 定级）：SR 后 DMA 接收进程停在挂起态
-         * （RPS=3）——描述符环已武装但 DMA 不主动轮询，写一次接收轮询请求
-         * （DMARPDR，值无关紧要）使 DMA 立即重读描述符链，恢复接收。
-         * TX 同理（DMATPDR）：包已入环（OWN=1）但发送进程挂起（TPS=6）
-         * 不发送——写一次发送轮询请求恢复发送。 */
+        /* RX/TX 轮询踢脚：SR 后 DMA 收发进程停在挂起态（RPS=3/TPS=6）——
+         * 描述符环已武装但 DMA 不主动轮询，写一次轮询请求（DMARPDR/DMATPDR，
+         * 值无关紧要）使 DMA 立即重读描述符链，恢复收发。 */
         WRITE_REG(heth.Instance->DMARPDR, 0U);
         WRITE_REG(heth.Instance->DMATPDR, 0U);
     }
@@ -746,13 +732,12 @@ static void eth_dma_recover(void)
 /**
  * @brief ETH 看门狗任务（独立线程，500ms 轮询）
  *
- * 台架 2026-11-19 四层定级 + 空闲误判定级 + 线程阻塞定级：
  * 真实故障判据（空闲态不计数、不动作、不进事件环）：
  *   RX: RPSS（进程停止）/ RBUS（缓冲不可用）/
  *       RPS=3 挂起且（池锁存 ERROR 或 存在未读帧描述符）
  *   TX: TUS（欠载）/ TBUS 且有真在途发送（存在 OWN=1 的 TX 描述符）
  * TPS=6+TBUS 是发送空闲常态、RPS=3 也可能出现在健康空闲，
- * 单独出现一律视为误判（2026-11-19 实测安静期 161 次虚增）。
+ * 单独出现一律视为误判。
  * 轻量恢复（不重建描述符环、不触碰池）：
  *   清 TUS → 接收停止则置 DMAOMR.SR 重启接收 → 轮询请求 →
  *   释放 RX 信号量让 EthIf 线程走正常 ReadData 路径重挂描述符。
@@ -773,8 +758,8 @@ static void eth_watchdog_task(void *argument)
         /* 无链路（物理断线/未插线）期间跳过全部楔死检测：此时 DMA 已被
          * 链路线程停止，RPSS/RBUS 等标志是停机常态而非故障；若按楔死处理
          * 触发重建，会形成"重建→IRQ 再触发→重建"的自持循环（Realtime
-         * 空转饿死系统 → 门控停喂 → IWDG 兜底，台架 2026-11-20 多次冻结
-         * 实锤）。链路状态由 ethernet_link_thread 全权管理。 */
+         * 空转饿死系统 → 门控停喂 → IWDG 兜底）。
+         * 链路状态由 ethernet_link_thread 全权管理。 */
         struct netif *nif_lk = netif_default;
         if ((nif_lk == NULL) || !netif_is_link_up(nif_lk)) {
             continue;
@@ -786,7 +771,7 @@ static void eth_watchdog_task(void *argument)
         uint32_t rx_closing_stuck = ((rps == 4U) && (no_rx > 2000U));
         /* RPS=0 = 接收进程已停（Stop/复位后）。健康空闲恒为 RPS=2；链路恢复
          * 的 Start_IT 窗口内 RPS=0 是瞬态（<10ms）。要求连续 2 次轮询（1s）
-         * 均停且无新帧才判僵尸态，排除启动/恢复瞬态（台架 2026-11-21 定级）。 */
+         * 均停且无新帧才判僵尸态，排除启动/恢复瞬态。 */
         static uint32_t s_rx0_polls;
         if ((rps == 0U) && (no_rx > 2000U)) {
             s_rx0_polls++;
@@ -807,10 +792,9 @@ static void eth_watchdog_task(void *argument)
         /* ---- 临时诊断：每 60s 一行状态 + tcpip 线程心跳探针 ----
          * th 不涨 = tcpip 线程死；eh 不涨 = EthIf 线程死；nf 无 UP 位 =
          * netif 没起来（候选③）；rxa 持续增长且 dsr 标志干净 = 候选①盲区。 */
-        /* 2026-11-26：周期由 60s 改为 10min——RTT 上行缓冲仅 1KB 且
-         * NO_BLOCK_SKIP，未接调试器时 60s 一行的 E 诊断约 8 分钟即写满缓冲，
-         * 之后全部打印（含 W/G 故障行）被静默丢弃（现场"日志静默窗口"根因）。
-         * 放缓后 8h 才填满，故障行基本都能留到接调试器读取。 */
+        /* 周期 10min：RTT 上行缓冲仅 1KB 且 NO_BLOCK_SKIP，未接调试器时
+         * 高频打印会写满缓冲，之后全部打印（含 W/G 故障行）被静默丢弃。
+         * 10min 一行约 8h 才填满，故障行基本都能留到接调试器读取。 */
         if ((++s_diag_div % 1200U) == 0U) {
             (void)tcpip_try_callback(eth_diag_tcpip_cb, NULL);
             uint8_t pfree = 0U;
@@ -846,7 +830,7 @@ static void eth_watchdog_task(void *argument)
             }
             /* 只有 RX 真正恢复（检出后有新帧完成）才清零重症计时。
              * 挂起标志在 RBUS 等位的 IRQ 清除间隙会闪动，逐次清零会把
-             * 时间线重置、永远到不了重症阈值（台架 2026-11-19 定级）。 */
+             * 时间线重置、永远到不了重症阈值。 */
             if (s_wedge_since != 0U && g_eth_last_rx_tick != s_wedge_rx_snapshot) {
                 s_wedge_since = 0U;
             }
@@ -897,14 +881,13 @@ static void eth_watchdog_task(void *argument)
         if (tx_wedge) {
             g_eth_tx_wedges++;
         }
-        /* 重症时间线（2026-11-19 裁决：挂起 ≥2s 升级 SR 重建，≥4s 受控整机重启） */
+        /* 重症时间线：挂起 ≥2s 升级 SR 重建，≥4s 受控整机重启 */
         uint32_t now_t = osKernelGetTickCount();
         if (s_wedge_since == 0U) {
             s_wedge_since = now_t;
             s_wedge_rx_snapshot = g_eth_last_rx_tick;
-            /* 首因锁存（2026-11-21）：挂起期间 reason 位会随恢复动作闪动
-             * （如重建短暂拉起 RPS 清零判据位），重启标记必须记录首次检出的
-             * 原始原因，保证事后可追溯。 */
+            /* 首因锁存：挂起期间 reason 位会随恢复动作闪动（如重建短暂拉起
+             * RPS 清零判据位），重启标记必须记录首次检出的原始原因。 */
             s_wedge_first_reason = reason;
         }
         uint32_t persist = now_t - s_wedge_since;
@@ -969,8 +952,7 @@ void ethernetif_input(void *argument)
         /* DMA 致命故障：本线程负责完整重建（看门狗任务只做标记与唤醒）。
          * 限频：重建后若 IRQ 立刻再触发（楔死状态机自持），至少间隔
          * ETH_REBUILD_MIN_INTERVAL_MS 才允许下一次重建，防止本线程
-         * （Realtime）陷入"重建→再触发→重建"自持循环饿死全系统
-         * （台架 2026-11-20 拔线冻结实锤）。 */
+         * （Realtime）陷入"重建→再触发→重建"自持循环饿死全系统。 */
         if (g_eth_dma_fault != 0U) {
             g_eth_dma_fault = 0U;
             uint32_t now_t = osKernelGetTickCount();
@@ -980,9 +962,9 @@ void ethernetif_input(void *argument)
             }
             continue;
         }
-        /* 突发配额让出（2026-11-20 定级）：本线程 osPriorityRealtime，
-         * 异常帧/风暴洪泛时 RX 信号量持续就绪，若一次排空到底会饿死
-         * Normal 的 tcpip 线程（ping 不答）与 Low 的喂狗任务（IWDG 复位）。
+        /* 突发配额让出：本线程 osPriorityRealtime，异常帧/风暴洪泛时
+         * RX 信号量持续就绪，若一次排空到底会饿死 Normal 的 tcpip 线程
+         * （ping 不答）与 Low 的喂狗任务（IWDG 复位）。
          * 每 16 帧让出 1ms，保证协议栈与低优先级任务始终有 CPU。 */
         uint32_t burst   = 0U;
         uint32_t drained = 0U;
@@ -1000,8 +982,7 @@ void ethernetif_input(void *argument)
             }
         } while (p != NULL);
         /* 空唤醒（无帧可取）同样让出：信号量被 IRQ 风暴持续释放时，
-         * 本线程（Realtime）会在外循环形成无让出空转，饿死全部低优先级
-         * 任务（台架 2026-11-20 拔线冻结根因之一）。 */
+         * 本线程（Realtime）会在外循环形成无让出空转，饿死全部低优先级任务。 */
         if (drained == 0U) {
             osDelay(1);
         }

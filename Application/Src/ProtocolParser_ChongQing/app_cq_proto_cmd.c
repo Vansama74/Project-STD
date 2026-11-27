@@ -451,7 +451,7 @@ static void _cq_exec_bin_search(void) {
 
   /* 静态缓冲（SRAM）：本帧经 app_udp_broadcast 走 UDP zero-copy 发送，
    * netbuf_ref 只登记指针，任务栈在 CCMRAM（ETH DMA 不可访问），
-   * 栈数组会打死网口（同 2026-11-17 青海故障）。 */
+   * 栈数组会打死网口（青海故障同款）。 */
   static uint8_t buf[25];
   buf[0] = 0xFF;
   buf[1] = 0xFF;

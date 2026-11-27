@@ -86,9 +86,9 @@
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
-#define TCPIP_THREAD_STACKSIZE 2048 /* 2026-11-20：1KB→2KB（大块 TCP 数据栈溢出疑因） */
+#define TCPIP_THREAD_STACKSIZE 2048 /* 1KB→2KB：大块 TCP 数据栈溢出疑因 */
 /*----- Value in opt.h for TCPIP_THREAD_PRIO: 1 -----*/
-#define TCPIP_THREAD_PRIO 40 /* 2026-11-20：Normal→High，防被 Realtime 任务饿死 */
+#define TCPIP_THREAD_PRIO 40 /* Normal→High：防被 Realtime 任务饿死 */
 /*----- Value in opt.h for TCPIP_MBOX_SIZE: 0 -----*/
 #define TCPIP_MBOX_SIZE 6
 /*----- Value in opt.h for SLIPIF_THREAD_STACKSIZE: 0 -----*/

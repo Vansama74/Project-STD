@@ -170,7 +170,7 @@ yn_parsed_cmd_t yn_parse_frame(const uint8_t *raw, uint16_t raw_len)
             if (cmd.p.civil.idx > 3)
                 cmd.sta = YN_PARSE_ERR_PARAM;
             break;
-        case YN_PCMD_BRIGHTNESS: /* '8' 亮度（用户决定 5，2026-08-24 修订）：
+        case YN_PCMD_BRIGHTNESS: /* '8' 亮度（用户裁决）：
                                   * 参数 1B——0x00（NUL）= 自动亮度，
                                   * ASCII '1'~'8'（0x31~0x38）= 手动档 1~8（8 最亮）。
                                   * 帧长度定界不受 0x00 影响：probe 按二进制 len
